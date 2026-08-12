@@ -163,26 +163,23 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div class="d-flex align-items-start gap-3">
                         <div class="kpi-icon" style="background:#ecfeff;color:var(--info);"><i class="bi bi-calendar-check"></i></div>
                         <div style="flex:1;min-width:0;">
-                            <div class="kpi-label" style="font-size:0.95rem;font-weight:800;letter-spacing:0.03em;color:var(--gray-600);">Serapan vs Target RAK (s/d <?= strtoupper($bulanNames[$bulanBerjalan]) ?>)</div>
-                            <div class="kpi-sublabel mt-2" style="font-size:0.86rem;">
-                                <span style="font-weight:700;color:var(--gray-700);">Target:</span>
-                                <span style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($targetRakBulanBerjalan, 0, ',', '.') ?></span>
-                            </div>
-                            <div class="kpi-sublabel mt-2" style="font-size:0.86rem;">
-                                <span style="font-weight:700;color:var(--gray-700);">Serapan:</span>
-                                <span style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($serapanBulanBerjalan, 0, ',', '.') ?></span>
-                            </div>
+                            <div class="kpi-label">Serapan vs RAK <small style="font-size:0.7em;font-weight:600;color:var(--gray-400);">s/d <?= strtoupper($bulanNames[$bulanBerjalan]) ?></small></div>
+                            <div class="kpi-value" style="color:var(--<?= $komparasiRakColor ?>);"><?= number_format($capaianRakBulanBerjalan, 2) ?>%</div>
                             <div class="mt-2">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="height:7px;border-radius:999px;background:var(--gray-200);">
-                                        <div class="progress-bar bg-<?= $komparasiRakColor ?>" style="width:<?= min($capaianRakBulanBerjalan,100) ?>%;border-radius:999px;"></div>
+                                    <div class="progress flex-grow-1" style="height:5px;border-radius:3px;background:var(--gray-100);">
+                                        <div class="progress-bar bg-<?= $komparasiRakColor ?>" style="width:<?= min($capaianRakBulanBerjalan,100) ?>%;border-radius:3px;"></div>
                                     </div>
-                                    <span style="font-size:0.82rem;font-weight:800;color:var(--<?= $komparasiRakColor ?>);"><?= number_format($capaianRakBulanBerjalan, 2) ?>%</span>
                                 </div>
                             </div>
-                            <div class="kpi-sublabel mt-2" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $deviasiRakBulanBerjalan > 0 ? '#fef2f2' : '#ecfdf5' ?>;border:1px solid <?= $deviasiRakBulanBerjalan > 0 ? '#fecaca' : '#bbf7d0' ?>;color:var(--<?= $deviasiRakBulanBerjalan > 0 ? 'danger' : 'success' ?>);font-weight:700;font-size:0.8rem;">
-                                <i class="bi <?= $deviasiRakBulanBerjalan > 0 ? 'bi-arrow-up-circle' : 'bi-arrow-down-circle' ?>"></i>
-                                <?= $deviasiRakBulanBerjalan > 0 ? 'Di atas' : 'Di bawah' ?> target Rp <?= number_format(abs($deviasiRakBulanBerjalan), 0, ',', '.') ?>
+                            <div class="kpi-sublabel mt-1">
+                                <?php if ($deviasiRakBulanBerjalan > 0): ?>
+                                <i class="bi bi-arrow-up-circle" style="color:var(--danger);"></i>
+                                <span style="color:var(--danger);font-weight:600;">+Rp <?= number_format(abs($deviasiRakBulanBerjalan),0,',','.') ?> dari target</span>
+                                <?php else: ?>
+                                <i class="bi bi-arrow-down-circle" style="color:var(--success);"></i>
+                                <span style="color:var(--success);font-weight:600;">-Rp <?= number_format(abs($deviasiRakBulanBerjalan),0,',','.') ?> dari target</span>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -378,7 +375,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                 <div class="section-header" style="padding-bottom:0;">
                     <div>
                         <h5 class="section-title"><i class="bi bi-pie-chart me-2" style="color:var(--primary);"></i>Komposisi</h5>
-                        <p class="section-subtitle">Serapan & distribusi anggaran</p>
+                        <p class="section-subtitle">Total serapan &amp; distribusi realisasi per unit</p>
                     </div>
                 </div>
                 <div class="card-body d-flex flex-column" style="padding:1rem 1.5rem 1.5rem;">
@@ -402,7 +399,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <div class="chart-wrapper breakdown-chart-wrapper"><canvas id="breakdownChart"></canvas></div>
                         <div class="mt-2 text-center">
                             <span style="font-size:0.7rem;font-weight:600;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:var(--gray-50);color:var(--gray-500);border:1px solid var(--gray-200);">
-                                <i class="bi bi-layers me-1"></i><?php echo empty($filters['seksi_id'])?'Per Seksi':(empty($filters['program_id'])?'Per Program':(empty($filters['kegiatan_id'])?'Per Kegiatan':'Per Sub Kegiatan')); ?>
+                                <i class="bi bi-pie-chart-fill me-1"></i>Distribusi Realisasi <?php echo empty($filters['seksi_id'])?'per Seksi':(empty($filters['program_id'])?'per Program':(empty($filters['kegiatan_id'])?'per Kegiatan':'per Sub Kegiatan')); ?>
                             </span>
                         </div>
                     </div>
@@ -1198,35 +1195,47 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     <?php endif; ?>
 
 
-    <!-- Detail Breakdown Table -->
+    <!-- Detail Breakdown — Compact Summary (tidak duplikat tree di bawah) -->
     <?php if (!empty($breakdownData)): ?>
     <div class="row mb-4" id="section-breakdown">
         <div class="col-12 animate-fade-in-up delay-5">
             <div class="card rounded-4 overflow-hidden">
                 <div class="section-header" style="padding-bottom:0.75rem;">
-                    <div><h5 class="section-title"><i class="bi bi-table me-2" style="color:var(--primary);"></i>Detail Breakdown</h5></div>
-                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" title="Export breakdown ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover table-dashboard align-middle mb-0">
-                            <thead><tr>
-                                <th class="ps-4">Nama</th><th class="text-end">Pagu</th><th class="text-end">Realisasi</th><th class="text-end">Sisa</th><th class="text-end">% Serapan</th><th class="text-center pe-4">Status</th>
-                            </tr></thead>
-                            <tbody>
-                                <?php foreach($breakdownData as $name=>$data): $sisa=$data['pagu']-$data['realisasi']; $pct=$data['pagu']>0?($data['realisasi']/$data['pagu'])*100:0; $color=$pct>100?'danger':($pct>80?'warning':'success'); ?>
-                                <tr>
-                                    <td class="ps-4" style="font-weight:600;color:var(--gray-700);max-width:250px;"><?= htmlspecialchars($name) ?></td>
-                                    <td class="text-end" style="color:var(--gray-500);">Rp <?= number_format($data['pagu'],0,',','.') ?></td>
-                                    <td class="text-end" style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($data['realisasi'],0,',','.') ?></td>
-                                    <td class="text-end" style="font-weight:600;color:var(--<?= $sisa<0?'danger':'success' ?>);">Rp <?= number_format($sisa,0,',','.') ?></td>
-                                    <td class="text-end"><div class="d-flex align-items-center justify-content-end gap-2"><div class="progress" style="width:50px;height:4px;border-radius:2px;"><div class="progress-bar bg-<?= $color ?>" style="width:<?= min($pct,100) ?>%"></div></div><span style="font-size:0.7rem;font-weight:700;color:var(--<?= $color ?>);min-width:45px;text-align:right;"><?= number_format($pct,2) ?>%</span></div></td>
-                                    <td class="text-center pe-4"><span style="font-size:0.65rem;font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:<?= $pct>100?'#fef2f2':($pct>80?'#fffbeb':'#ecfdf5') ?>;color:var(--<?= $color ?>);"><?= $pct>100?'Over':($pct>80?'High':'Safe') ?></span></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                    <div>
+                        <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
+                        <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
+                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" title="Export ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
+                </div>
+                <div class="card-body" style="padding:0 1.5rem 1.5rem;">
+                    <div class="row g-2">
+                    <?php foreach($breakdownData as $name => $data):
+                        $sisa  = $data['pagu'] - $data['realisasi'];
+                        $pct   = $data['pagu'] > 0 ? ($data['realisasi'] / $data['pagu']) * 100 : 0;
+                        $clr   = $pct > 100 ? '#dc2626' : ($pct > 80 ? '#d97706' : '#059669');
+                        $bg    = $pct > 100 ? '#fef2f2' : ($pct > 80 ? '#fffbeb' : '#ecfdf5');
+                        $bdr   = $pct > 100 ? '#fecaca' : ($pct > 80 ? '#fde68a' : '#bbf7d0');
+                        $lbl   = $pct > 100 ? 'Over' : ($pct > 80 ? 'Tinggi' : 'Aman');
+                        $icon  = $pct > 100 ? 'bi-exclamation-octagon-fill' : ($pct > 80 ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill');
+                    ?>
+                    <div class="col-md-4">
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;position:relative;overflow:hidden;">
+                            <!-- Progress strip di bagian bawah card -->
+                            <div style="position:absolute;bottom:0;left:0;height:3px;width:<?= min($pct,100) ?>%;background:<?= $clr ?>;border-radius:0 0 0 var(--radius-md,10px);"></div>
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
+                                <div style="font-size:0.78rem;font-weight:700;color:#334155;line-height:1.3;flex:1;padding-right:0.5rem;"><?= htmlspecialchars($name) ?></div>
+                                <span style="font-size:0.62rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;">
+                                    <i class="bi <?= $icon ?> me-1"></i><?= $lbl ?>
+                                </span>
+                            </div>
+                            <div style="font-size:1.4rem;font-weight:800;color:<?= $clr ?>;letter-spacing:-0.02em;line-height:1;"><?= number_format($pct,1) ?>%</div>
+                            <div style="font-size:0.68rem;color:#64748b;margin-top:0.35rem;">Realisasi <strong style="color:#334155;">Rp <?= number_format($data['realisasi'],0,',','.') ?></strong> dari Rp <?= number_format($data['pagu'],0,',','.') ?></div>
+                            <div style="font-size:0.65rem;color:<?= $sisa < 0 ? '#dc2626' : '#94a3b8' ?>;margin-top:0.15rem;">Sisa: <?= $sisa < 0 ? '-' : '' ?>Rp <?= number_format(abs($sisa),0,',','.') ?></div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    </div>
+                    <div style="margin-top:0.75rem;font-size:0.7rem;color:#64748b;"><i class="bi bi-info-circle me-1"></i>Detail rekening hingga sub kegiatan tersedia di <a href="#section-struktur" style="color:var(--primary);font-weight:600;">Struktur Anggaran</a> di bawah.</div>
                 </div>
             </div>
         </div>
@@ -2026,43 +2035,65 @@ document.addEventListener('DOMContentLoaded', function() {
     // ================================================================
     // Breakdown Doughnut
     // ================================================================
-    const bdData   = <?= json_encode($breakdownData) ?>;
-    const bdLabels = Object.keys(bdData).map(l => l.length > 24 ? l.substring(0,24)+'…' : l);
-    const bdValues = Object.values(bdData).map(i => i.realisasi);
-    const dColors  = [
-        'rgba(67,56,202,0.88)','rgba(2,132,199,0.88)','rgba(5,150,105,0.88)',
-        'rgba(217,119,6,0.88)','rgba(220,38,38,0.88)','rgba(147,51,234,0.88)',
-        'rgba(219,39,119,0.88)','rgba(20,184,166,0.88)','rgba(234,88,12,0.88)',
-        'rgba(71,85,105,0.88)'
+    const bdData    = <?= json_encode($breakdownData) ?>;
+    // Donut chart: distribusi REALISASI per unit (outer ring) + Sisa (inner ring)
+    const bdEntries = Object.entries(bdData);
+    const bdLabels  = bdEntries.map(([l]) => l.length > 22 ? l.substring(0,22)+'…' : l);
+    const bdReal    = bdEntries.map(([,i]) => i.realisasi);
+    const bdPagu    = bdEntries.map(([,i]) => i.pagu);
+    const bdSisa    = bdEntries.map(([,i]) => Math.max(0, i.pagu - i.realisasi));
+
+
+    const dColorsReal = [
+        'rgba(67,56,202,0.90)','rgba(2,132,199,0.90)','rgba(5,150,105,0.90)',
+        'rgba(217,119,6,0.90)','rgba(220,38,38,0.90)','rgba(147,51,234,0.90)',
+        'rgba(219,39,119,0.90)','rgba(20,184,166,0.90)','rgba(234,88,12,0.90)',
+        'rgba(71,85,105,0.90)'
     ];
+    const dColorsSisa = dColorsReal.map(c => c.replace('0.90','0.22'));
 
     new Chart(document.getElementById('breakdownChart').getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: bdLabels,
             datasets: [{
-                data: bdValues,
-                backgroundColor: dColors,
+                // Outer ring: Realisasi per unit
+                label: 'Realisasi',
+                data: bdReal,
+                backgroundColor: dColorsReal,
                 borderColor: '#fff',
-                borderWidth: 3,
+                borderWidth: 2,
                 hoverBorderWidth: 0,
                 hoverOffset: 8,
+                weight: 2,
+            },{
+                // Inner ring: Sisa per unit (faded)
+                label: 'Sisa',
+                data: bdSisa,
+                backgroundColor: dColorsSisa,
+                borderColor: '#fff',
+                borderWidth: 1,
+                hoverBorderWidth: 0,
+                hoverOffset: 4,
+                weight: 1,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '62%',
+            cutout: '52%',
             plugins: {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        boxWidth: 11,
-                        padding: 10,
-                        font: { size: 11, weight: '500' },
+                        boxWidth: 10,
+                        padding: 8,
+                        font: { size: 10, weight: '600' },
                         color: '#334155',
                         usePointStyle: true,
                         pointStyle: 'circle',
+                        // Hanya tampilkan legend dari dataset pertama (outer ring)
+                        filter: (item) => item.datasetIndex === 0,
                     }
                 },
                 tooltip: {
@@ -2071,12 +2102,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     bodyFont: { size: 11 },
                     titleColor: '#f1f5f9',
                     bodyColor: '#cbd5e1',
-                    padding: 14,
+                    padding: 12,
                     cornerRadius: 10,
                     callbacks: {
                         label: ctx => {
-                            const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
-                            return ' Rp ' + ctx.parsed.toLocaleString('id-ID') + '  (' + ((ctx.parsed/total)*100).toFixed(2) + '%)';
+                            const dsLabel = ctx.datasetIndex === 0 ? 'Realisasi' : 'Sisa';
+                            const total = bdPagu[ctx.dataIndex] || 1;
+                            const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                            return ` ${dsLabel}: Rp ${ctx.parsed.toLocaleString('id-ID')}  (${pct}% dari pagu)`;
                         }
                     }
                 }
@@ -2292,27 +2325,40 @@ document.addEventListener('DOMContentLoaded', function() {
     width: var(--ma-pct-width);
     min-width: var(--ma-pct-width);
 }
+/* ── STICKY COLUMNS BASE ─────────────────────────────────────
+   z-index tiers:
+   thead sticky+sticky   = 25  (corner cells: top & left)
+   thead sticky (top)    = 15  (header row)
+   tfoot sticky+sticky   = 22  (corner cells: bottom & left)
+   tfoot sticky (bottom) = 13
+   tbody sticky (left)   = 5
+   ─────────────────────────────────────────────────────────── */
 .monthly-sticky-name,
 .monthly-sticky-pagu,
 .monthly-sticky-total,
 .monthly-sticky-percent {
     position: sticky;
-    z-index: 8;
+    z-index: 5;
+    /* PENTING: background solid agar sel kolom scroll tidak tembus ke belakang */
+    background: inherit;
 }
 .monthly-sticky-name {
     left: 0;
-    box-shadow: 2px 0 0 #cbd5e1;
+    /* Shadow kanan sebagai separator visual antara area sticky dan area scroll */
+    box-shadow: 3px 0 6px -2px rgba(0,0,0,0.12), 1px 0 0 #cbd5e1;
 }
 .monthly-sticky-pagu {
     left: var(--ma-name-width);
-    box-shadow: 2px 0 0 #e2e8f0;
+    /* Shadow kanan yang lebih tipis */
+    box-shadow: 3px 0 6px -3px rgba(0,0,0,0.08), 1px 0 0 #e2e8f0;
 }
 .monthly-sticky-total {
     right: var(--ma-pct-width);
-    box-shadow: -2px 0 0 #cbd5e1;
+    box-shadow: -3px 0 6px -2px rgba(0,0,0,0.10), -1px 0 0 #cbd5e1;
 }
 .monthly-sticky-percent {
     right: 0;
+    box-shadow: -1px 0 0 #e2e8f0;
 }
 .monthly-absorption-title {
     display: flex;
@@ -2352,11 +2398,12 @@ document.addEventListener('DOMContentLoaded', function() {
     font-weight: 700;
     margin-top: 0.2rem;
 }
+/* thead sticky cells: z-index lebih tinggi agar tidak tertutup tbody sticky */
 .monthly-absorption-table thead .monthly-sticky-name,
 .monthly-absorption-table thead .monthly-sticky-pagu,
 .monthly-absorption-table thead .monthly-sticky-total,
 .monthly-absorption-table thead .monthly-sticky-percent {
-    z-index: 20;
+    z-index: 25;
 }
 .monthly-absorption-group td {
     background: #eef3f8;
@@ -2371,20 +2418,22 @@ document.addEventListener('DOMContentLoaded', function() {
 .monthly-absorption-group:hover td {
     background: #e6edf5;
 }
+/* Sticky cells di grup row: background solid explicit */
 .monthly-absorption-group .monthly-sticky-name,
 .monthly-absorption-group .monthly-sticky-pagu {
-    background: #eef3f8;
+    background: #eef3f8 !important;
 }
 .monthly-absorption-group:hover .monthly-sticky-name,
 .monthly-absorption-group:hover .monthly-sticky-pagu {
-    background: #e6edf5;
+    background: #e6edf5 !important;
 }
 .monthly-absorption-group .monthly-sticky-total,
 .monthly-absorption-group .monthly-sticky-percent,
 .monthly-absorption-group:hover .monthly-sticky-total,
 .monthly-absorption-group:hover .monthly-sticky-percent {
-    background: #dbe4ee;
+    background: #dbe4ee !important;
 }
+/* Detail (rekening) row sticky cells */
 .monthly-absorption-detail td {
     background: #fff;
     padding-top: 0.68rem;
@@ -2393,11 +2442,11 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .monthly-absorption-detail .monthly-sticky-name,
 .monthly-absorption-detail .monthly-sticky-pagu {
-    background: #fff;
+    background: #fff !important;
 }
 .monthly-absorption-detail .monthly-sticky-total,
 .monthly-absorption-detail .monthly-sticky-percent {
-    background: #f8fafc;
+    background: #f8fafc !important;
 }
 .monthly-absorption-detail .monthly-absorption-name {
     padding-left: 3.6rem !important;
@@ -2406,40 +2455,41 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #64748b;
     font-weight: 700;
 }
+/* PENTING: sel bulan harus punya background solid (BUKAN transparent)
+   agar tidak "menembus" ke kolom sticky saat di-scroll horizontal */
 .monthly-absorption-zero {
     color: #94a3b8 !important;
     font-weight: 600;
-    background: transparent !important;
+    background: inherit !important;
 }
 .monthly-absorption-filled {
     color: #009b72 !important;
     font-weight: 800;
-    background: transparent !important;
+    background: inherit !important;
 }
 .monthly-absorption-group .monthly-absorption-zero {
     color: #94a3b8 !important;
-    background: transparent !important;
 }
 .monthly-absorption-group .monthly-absorption-filled {
     color: #009b72 !important;
-    background: transparent !important;
 }
 .monthly-absorption-table tfoot td {
     position: sticky;
     bottom: 0;
-    z-index: 11;
+    z-index: 13;
     background: #f8fafc;
     color: #0f172a;
     font-weight: 800;
     border-top: 2px solid #94a3b8;
     box-shadow: inset 0 1px 0 #cbd5e1;
 }
+/* tfoot sticky + left/right = tingkat z-index tertinggi di tfoot */
 .monthly-absorption-table tfoot .monthly-sticky-name,
 .monthly-absorption-table tfoot .monthly-sticky-pagu,
 .monthly-absorption-table tfoot .monthly-sticky-total,
 .monthly-absorption-table tfoot .monthly-sticky-percent {
-    z-index: 18;
-    background: #f8fafc;
+    z-index: 22;
+    background: #f8fafc !important;
 }
 .monthly-absorption-pct {
     display: inline-flex;
