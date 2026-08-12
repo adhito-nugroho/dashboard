@@ -2326,12 +2326,14 @@ document.addEventListener('DOMContentLoaded', function() {
     min-width: var(--ma-pct-width);
 }
 /* ── STICKY COLUMNS BASE ─────────────────────────────────────
+   PENTING: background harus warna solid eksplisit — JANGAN inherit
+   karena tr/tbody computed background = transparent di browser.
    z-index tiers:
-   thead sticky+sticky   = 25  (corner cells: top & left)
-   thead sticky (top)    = 15  (header row)
-   tfoot sticky+sticky   = 22  (corner cells: bottom & left)
+   thead sticky+sticky   = 25  (corner: top & left/right)
+   thead sticky (top)    = 15
+   tfoot sticky+sticky   = 22  (corner: bottom & left/right)
    tfoot sticky (bottom) = 13
-   tbody sticky (left)   = 5
+   tbody sticky          = 5
    ─────────────────────────────────────────────────────────── */
 .monthly-sticky-name,
 .monthly-sticky-pagu,
@@ -2339,8 +2341,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .monthly-sticky-percent {
     position: sticky;
     z-index: 5;
-    /* PENTING: background solid agar sel kolom scroll tidak tembus ke belakang */
-    background: inherit;
+    background: #fff; /* fallback — akan ditimpa oleh aturan spesifik di bawah */
 }
 .monthly-sticky-name {
     left: 0;
@@ -2398,13 +2399,21 @@ document.addEventListener('DOMContentLoaded', function() {
     font-weight: 700;
     margin-top: 0.2rem;
 }
-/* thead sticky cells: z-index lebih tinggi agar tidak tertutup tbody sticky */
+/* thead: semua sel header punya z-index sticky bawaan = 12 (dari .monthly-absorption-table thead th) */
+/* thead corner cells (sticky kiri+kanan) perlu z-index lebih tinggi */
 .monthly-absorption-table thead .monthly-sticky-name,
 .monthly-absorption-table thead .monthly-sticky-pagu,
 .monthly-absorption-table thead .monthly-sticky-total,
 .monthly-absorption-table thead .monthly-sticky-percent {
     z-index: 25;
 }
+/* tfoot: sel bulan (bukan sticky) juga harus solid agar tidak "tembus" */
+.monthly-absorption-table tfoot .monthly-absorption-month,
+.monthly-absorption-table tfoot .monthly-absorption-total,
+.monthly-absorption-table tfoot .monthly-absorption-percent {
+    background: #f8fafc;
+}
+/* ── GROUP ROW (Sub Kegiatan header) ──────────────────────── */
 .monthly-absorption-group td {
     background: #eef3f8;
     border-top: 1px solid #cbd5e1;
@@ -2418,7 +2427,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .monthly-absorption-group:hover td {
     background: #e6edf5;
 }
-/* Sticky cells di grup row: background solid explicit */
+/* Group: sticky left */
 .monthly-absorption-group .monthly-sticky-name,
 .monthly-absorption-group .monthly-sticky-pagu {
     background: #eef3f8 !important;
@@ -2427,26 +2436,50 @@ document.addEventListener('DOMContentLoaded', function() {
 .monthly-absorption-group:hover .monthly-sticky-pagu {
     background: #e6edf5 !important;
 }
+/* Group: sticky right (lebih gelap agar beda dari area bulan) */
 .monthly-absorption-group .monthly-sticky-total,
 .monthly-absorption-group .monthly-sticky-percent,
 .monthly-absorption-group:hover .monthly-sticky-total,
 .monthly-absorption-group:hover .monthly-sticky-percent {
     background: #dbe4ee !important;
 }
-/* Detail (rekening) row sticky cells */
+/* Group: sel bulan harus solid — sama dengan background baris */
+.monthly-absorption-group .monthly-absorption-month {
+    background: #eef3f8;
+}
+.monthly-absorption-group:hover .monthly-absorption-month {
+    background: #e6edf5;
+}
+/* Group: warna angka zero/filled (background dari parent td) */
+.monthly-absorption-zero {
+    color: #94a3b8 !important;
+    font-weight: 600;
+}
+.monthly-absorption-filled {
+    color: #009b72 !important;
+    font-weight: 800;
+}
+
+/* ── DETAIL ROW (Rekening) ─────────────────────────────────── */
 .monthly-absorption-detail td {
     background: #fff;
     padding-top: 0.68rem;
     padding-bottom: 0.68rem;
     border-bottom: 1px solid #f1f5f9;
 }
+/* Detail: sticky left */
 .monthly-absorption-detail .monthly-sticky-name,
 .monthly-absorption-detail .monthly-sticky-pagu {
     background: #fff !important;
 }
+/* Detail: sticky right */
 .monthly-absorption-detail .monthly-sticky-total,
 .monthly-absorption-detail .monthly-sticky-percent {
     background: #f8fafc !important;
+}
+/* Detail: sel bulan solid background */
+.monthly-absorption-detail .monthly-absorption-month {
+    background: #fff;
 }
 .monthly-absorption-detail .monthly-absorption-name {
     padding-left: 3.6rem !important;
@@ -2454,24 +2487,6 @@ document.addEventListener('DOMContentLoaded', function() {
 .monthly-absorption-detail .monthly-absorption-pagu {
     color: #64748b;
     font-weight: 700;
-}
-/* PENTING: sel bulan harus punya background solid (BUKAN transparent)
-   agar tidak "menembus" ke kolom sticky saat di-scroll horizontal */
-.monthly-absorption-zero {
-    color: #94a3b8 !important;
-    font-weight: 600;
-    background: inherit !important;
-}
-.monthly-absorption-filled {
-    color: #009b72 !important;
-    font-weight: 800;
-    background: inherit !important;
-}
-.monthly-absorption-group .monthly-absorption-zero {
-    color: #94a3b8 !important;
-}
-.monthly-absorption-group .monthly-absorption-filled {
-    color: #009b72 !important;
 }
 .monthly-absorption-table tfoot td {
     position: sticky;
