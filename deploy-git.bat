@@ -54,7 +54,9 @@ echo [2/3] Menjalankan 'git pull' di server...
 echo *(Jika diminta password SSH, masukkan password akun server)*
 echo.
 
-ssh -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "%REMOTE_GIT% config --global --add safe.directory C:/laragon/www/dashboard && cd /d %REMOTE_DIR% && %REMOTE_GIT% pull origin %BRANCH%"
+set GIT_REPO_URL=https://github.com/adhito-nugroho/dashboard.git
+
+ssh -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "%REMOTE_GIT% config --global --add safe.directory C:/laragon/www/dashboard && cd /d %REMOTE_DIR% && (%REMOTE_GIT% remote get-url origin >nul 2>&1 || %REMOTE_GIT% remote add origin %GIT_REPO_URL%) && %REMOTE_GIT% remote set-url origin %GIT_REPO_URL% && %REMOTE_GIT% pull origin %BRANCH%"
 
 if errorlevel 1 (
     echo.
