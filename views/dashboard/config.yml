@@ -1,0 +1,41 @@
+tunnel: 8b2ce444-7e74-43d8-aac5-bcf9e79a4e96
+credentials-file: C:\cloudflared\8b2ce444-7e74-43d8-aac5-bcf9e79a4e96.json
+
+ingress:
+  - hostname: cdkbojonegoro.site
+    service: http://localhost:80
+
+  - hostname: www.cdkbojonegoro.site
+    service: http://localhost:80
+
+  - hostname: surat.cdkbojonegoro.site
+    service: http://localhost:80
+
+  - hostname: cuti.cdkbojonegoro.site
+    service: http://localhost:80
+
+  - hostname: anggaran.cdkbojonegoro.site
+    service: http://localhost:80
+  
+  - hostname: tugas.cdkbojonegoro.site
+    service: http://localhost:80
+
+  - hostname: nte.cdkbojonegoro.site
+    service: http://localhost:80
+
+  - hostname: n8n.cdkbojonegoro.site
+    service: http://127.0.0.1:5678
+
+  - hostname: neny-yulicha.site
+    service: http://localhost:80
+  
+  - hostname: www.neny-yulicha.site
+    service: http://localhost:80
+
+  - hostname: foto.neny-yulicha.site
+    service: http://localhost:80
+
+  - hostname: nte.cdkbojonegoro.site    
+    service: http://localhost:80
+    
+  - service: http_status:404

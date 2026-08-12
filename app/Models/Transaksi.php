@@ -1,0 +1,328 @@
+<?php
+
+namespace App\Models;
+
+use PDO;
+use PDOException;
+
+class Transaksi
+{
+    private PDO $db;
+
+    public function __construct(PDO $db)
+    {
+        $this->db = $db;
+    }
+
+    /**
+     * Get transactions with flexible filters (bulan, tahun, kegiatan_id, sub_kegiatan_id)
+     *
+     * @param int|null $bulan
+     * @param int|null $tahun
+     * @param int|null $kegiatanId
+     * @param int|null $subKegiatanId
+     * @return array
+     */
+    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null): array
+    {
+        try {
+            $conditions = [];
+            $params = [];
+
+            if ($bulan !== null) {
+                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $params[':bulan'] = $bulan;
+            }
+            if ($tahun !== null) {
+                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $params[':tahun'] = $tahun;
+            }
+            if ($subKegiatanId !== null) {
+                $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
+                $params[':sub_kegiatan_id'] = $subKegiatanId;
+            } elseif ($kegiatanId !== null) {
+                $conditions[] = 'sk.kegiatan_id = :kegiatan_id';
+                $params[':kegiatan_id'] = $kegiatanId;
+            }
+
+            $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+            $stmt = $this->db->prepare("
+                SELECT t.*, 
+                       s.kode_seksi, s.nama_seksi,
+                       r.kode_rekening, r.nama_rekening,
+                       sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                       k.kode_kegiatan, k.nama_kegiatan,
+                       p.kode_program, p.nama_program
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                INNER JOIN rekening r ON t.rekening_id = r.id
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                INNER JOIN program p ON k.program_id = p.id
+                {$where}
+                ORDER BY t.tanggal DESC, t.id DESC
+            ");
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            error_log('Error fetching transactions with filters: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to fetch transactions');
+        }
+    }
+
+    /**
+     * Get all transactions with related information
+     * 
+     * @return array
+     */
+    public function getAll(): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT t.*, 
+                       s.kode_seksi, s.nama_seksi,
+                       r.kode_rekening, r.nama_rekening,
+                       sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                       k.kode_kegiatan, k.nama_kegiatan,
+                       p.kode_program, p.nama_program
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                INNER JOIN rekening r ON t.rekening_id = r.id
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                INNER JOIN program p ON k.program_id = p.id
+                ORDER BY t.tanggal DESC, t.id DESC
+            ");
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching transactions: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to fetch transactions');
+        }
+    }
+
+    /**
+     * Get transaction by ID
+     * 
+     * @param int $id
+     * @return array|null
+     */
+    public function getById(int $id): ?array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT t.*, 
+                       s.kode_seksi, s.nama_seksi,
+                       r.kode_rekening, r.nama_rekening,
+                       sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                       k.kode_kegiatan, k.nama_kegiatan,
+                       p.kode_program, p.nama_program
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                INNER JOIN rekening r ON t.rekening_id = r.id
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                INNER JOIN program p ON k.program_id = p.id
+                WHERE t.id = :id
+            ");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ?: null;
+        } catch (PDOException $e) {
+            error_log('Error fetching transaction: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to fetch transaction');
+        }
+    }
+
+    /**
+     * Get transactions by rekening and year
+     * 
+     * @param int $rekeningId
+     * @param int $tahun
+     * @return array
+     */
+    public function getByRekeningAndYear(int $rekeningId, int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT * FROM transaksi 
+                WHERE rekening_id = :rekening_id 
+                AND YEAR(tanggal) = :tahun
+                ORDER BY tanggal DESC
+            ");
+            $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching transactions: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to fetch transactions');
+        }
+    }
+
+    /**
+     * Create new transaction
+     * 
+     * @param string $tanggal
+     * @param int $seksiId
+     * @param int $rekeningId
+     * @param string $uraian
+     * @param float $nilai
+     * @param string $nomorBukti
+     * @return int Inserted ID
+     */
+    public function create(string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti): int
+    {
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO transaksi (tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti) 
+                VALUES (:tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti)
+            ");
+            $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
+            $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
+            $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
+            $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+            $stmt->execute();
+            return (int) $this->db->lastInsertId();
+        } catch (PDOException $e) {
+            error_log('Error creating transaction: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to create transaction');
+        }
+    }
+
+    /**
+     * Update transaction
+     * 
+     * @param int $id
+     * @param string $tanggal
+     * @param int $seksiId
+     * @param int $rekeningId
+     * @param string $uraian
+     * @param float $nilai
+     * @param string $nomorBukti
+     * @return bool
+     */
+    public function update(int $id, string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti): bool
+    {
+        try {
+            $stmt = $this->db->prepare("
+                UPDATE transaksi 
+                SET tanggal = :tanggal,
+                    seksi_id = :seksi_id,
+                    rekening_id = :rekening_id,
+                    uraian = :uraian,
+                    nilai = :nilai,
+                    nomor_bukti = :nomor_bukti
+                WHERE id = :id
+            ");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
+            $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
+            $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
+            $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+
+            $result = $stmt->execute();
+            $rowCount = $stmt->rowCount();
+
+            // Log for debugging
+            error_log("Update transaksi ID {$id}: execute={$result}, rowCount={$rowCount}");
+
+            // Return true if execute succeeded and at least one row was updated
+            return $result && $rowCount > 0;
+        } catch (PDOException $e) {
+            error_log('Error updating transaction: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to update transaction');
+        }
+    }
+
+    /**
+     * Delete transaction
+     * 
+     * @param int $id
+     * @return bool
+     */
+    public function delete(int $id): bool
+    {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log('Error deleting transaction: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to delete transaction');
+        }
+    }
+
+    /**
+     * Get all transactions filtered by month and year
+     * 
+     * @param int $bulan Month (1-12)
+     * @param int $tahun Year
+     * @return array
+     */
+    public function getByMonthYear(int $bulan, int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT t.*, 
+                       s.kode_seksi, s.nama_seksi,
+                       r.kode_rekening, r.nama_rekening,
+                       sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                       k.kode_kegiatan, k.nama_kegiatan,
+                       p.kode_program, p.nama_program
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                INNER JOIN rekening r ON t.rekening_id = r.id
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                INNER JOIN program p ON k.program_id = p.id
+                WHERE MONTH(t.tanggal) = :bulan AND YEAR(t.tanggal) = :tahun
+                ORDER BY t.tanggal DESC, t.id DESC
+            ");
+            $stmt->bindParam(':bulan', $bulan, PDO::PARAM_INT);
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching transactions by month: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to fetch transactions');
+        }
+    }
+
+    /**
+     * Get total transactions for rekening and year
+     * 
+     * @param int $rekeningId
+     * @param int $tahun
+     * @return float
+     */
+    public function getTotalByRekeningAndYear(int $rekeningId, int $tahun): float
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT COALESCE(SUM(nilai), 0) as total 
+                FROM transaksi 
+                WHERE rekening_id = :rekening_id 
+                AND YEAR(tanggal) = :tahun
+            ");
+            $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (float) ($result['total'] ?? 0);
+        } catch (PDOException $e) {
+            error_log('Error calculating total transactions: ' . $e->getMessage());
+            return 0;
+        }
+    }
+}
+
