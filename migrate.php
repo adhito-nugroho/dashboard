@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * SIBADAK — Database Migration Runner
+ * Dashboard CDK — Database Migration Runner
  * CLI:  php migrate.php
- * Web:  buka migrate.php di browser (hanya jika APP_DEBUG=true atau dari CLI)
+ * Web:  buka migrate.php di browser (hanya dari localhost/dev)
  */
 
 define('MIGRATION_RUNNER', true);
@@ -14,9 +14,9 @@ $isCli = PHP_SAPI === 'cli';
 
 if (!$isCli) {
     header('Content-Type: text/html; charset=utf-8');
-    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>SIBADAK Migration</title></head>";
+    echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Dashboard Migration</title></head>";
     echo "<body style='background:#0f172a;color:#f8fafc;font-family:Consolas,monospace;padding:24px;'>";
-    echo '<h2 style="font-family:sans-serif;">SIBADAK Database Migration Runner</h2>';
+    echo '<h2 style="font-family:sans-serif;">Dashboard CDK — Database Migration Runner</h2>';
 }
 
 function migration_log(string $msg, string $type = 'info'): void
@@ -45,15 +45,17 @@ function migration_log(string $msg, string $type = 'info'): void
         . '</div>';
 }
 
-require_once __DIR__ . '/config/config.php';
+// Load environment variables dari config/.env
+require_once __DIR__ . '/config/load_env.php';
 
-// Blok akses web di production (kecuali APP_DEBUG)
-if (!$isCli && !APP_DEBUG) {
-    migration_log('Akses web ditolak. Jalankan via CLI: php migrate.php', 'error');
-    if (!$isCli) {
+// Blok akses web di production (hanya izinkan dari localhost)
+if (!$isCli) {
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!in_array($remoteAddr, ['127.0.0.1', '::1'], true)) {
+        migration_log('Akses web ditolak. Jalankan via CLI: php migrate.php', 'error');
         echo '</body></html>';
+        exit(1);
     }
-    exit(1);
 }
 
 $host = $_ENV['DB_HOST'] ?? 'localhost';
