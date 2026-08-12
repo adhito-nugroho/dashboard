@@ -47,20 +47,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: 2. Git Pull di Server via SSH
-:: Shell remote sudah cmd — jangan bungkus cmd /c lagi (PATH SSH tanpa System32)
+:: 2. Git Fetch + Reset di Server via SSH (menimpa file lama di server)
+:: Menggunakan fetch + reset --hard agar file untracked di server tidak konflik
 echo.
-echo [2/3] Menjalankan 'git pull' di server...
+echo [2/3] Menjalankan 'git fetch + reset' di server...
 echo *(Jika diminta password SSH, masukkan password akun server)*
 echo.
 
 set GIT_REPO_URL=https://github.com/adhito-nugroho/dashboard.git
 
-ssh -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "%REMOTE_GIT% config --global --add safe.directory C:/laragon/www/dashboard && cd /d %REMOTE_DIR% && (%REMOTE_GIT% remote get-url origin >nul 2>&1 || %REMOTE_GIT% remote add origin %GIT_REPO_URL%) && %REMOTE_GIT% remote set-url origin %GIT_REPO_URL% && %REMOTE_GIT% pull origin %BRANCH%"
+ssh -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "%REMOTE_GIT% config --global --add safe.directory C:/laragon/www/dashboard && cd /d %REMOTE_DIR% && (%REMOTE_GIT% remote get-url origin >nul 2>&1 || %REMOTE_GIT% remote add origin %GIT_REPO_URL%) && %REMOTE_GIT% remote set-url origin %GIT_REPO_URL% && %REMOTE_GIT% fetch origin && %REMOTE_GIT% reset --hard origin/%BRANCH% && %REMOTE_GIT% clean -fd"
 
 if errorlevel 1 (
     echo.
-    echo Git Pull di server gagal.
+    echo Git Fetch/Reset di server gagal.
     pause
     exit /b 1
 )
