@@ -4,6 +4,7 @@ $bulanNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'Mei',6=>'Jun',7=>'Jul',8=
 $rakPersen = $stats['total_pagu'] > 0 ? ($stats['total_rak'] / $stats['total_pagu']) * 100 : 0;
 $sisaPersen = $stats['total_pagu'] > 0 ? ($stats['sisa_anggaran'] / $stats['total_pagu']) * 100 : 0;
 $bulanBerjalan = $stats['tahun'] == (int) date('Y') ? (int) date('n') : 12;
+$bulanBerjalanDetail = $bulanBerjalan; // alias dipakai di tabel detail & chart JS
 $targetRakBulanBerjalan = 0;
 $serapanBulanBerjalan = 0;
 for ($i = 1; $i <= $bulanBerjalan; $i++) {
@@ -290,10 +291,14 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <h6 style="font-weight:700;color:var(--gray-800);margin-bottom:0.5rem;font-size:0.9rem;">Perhatian Diperlukan</h6>                        <?php if (!empty($monthlyData['alerts'])): ?>
                         <?php $bulanNamesLong=[1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember']; ?>
                         <?php
-                            $underAlerts = array_filter($monthlyData['alerts'], fn($a) => $a['type'] === 'under');
+                            // Hanya tampilkan bulan yang sudah lewat / sedang berjalan (bukan future months)
+                            $bulanBerjalanAlert = $stats['tahun'] == (int)date('Y') ? (int)date('n') : 12;
+                            $underAlerts = array_filter($monthlyData['alerts'], fn($a) =>
+                                $a['type'] === 'under' && $a['bulan'] <= $bulanBerjalanAlert
+                            );
                         ?>
                         <?php if (!empty($underAlerts)): ?>
-                        <div style="font-size:0.75rem;font-weight:700;color:#b45309;margin-bottom:0.3rem;"><i class="bi bi-arrow-down-circle-fill me-1"></i>Realisasi KURANG dari RAK:</div>
+                        <div style="font-size:0.75rem;font-weight:700;color:#b45309;margin-bottom:0.3rem;"><i class="bi bi-arrow-down-circle-fill me-1"></i>Realisasi KURANG dari RAK (bulan sudah berjalan):</div>
                         <div class="d-flex flex-wrap gap-1 mb-2">
                             <?php foreach($underAlerts as $alert): ?>
                             <span style="font-size:0.7rem;padding:0.25rem 0.625rem;border-radius:var(--radius-full);background:#fff;border:1px solid #fde68a;color:#b45309;font-weight:600;">
@@ -433,12 +438,30 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     $mRealisasi = $monthlyData['realisasi'][$i] ?? 0;
                                     $selisih = $mRealisasi - $mRak;
                                     $pct = $mRak > 0 ? ($mRealisasi / $mRak) * 100 : 0;
+                                    $isFutureMonth = ($stats['tahun'] == (int) date('Y') && $i > $bulanBerjalanDetail);
+                                    
+                                    // Tambahkan RAK ke kumulatif untuk semua bulan (termasuk future)
                                     $totalRakKumulatif += $mRak;
                                     $totalRealisasiKumulatif += $mRealisasi;
                                     
-                                    // Hide future months if they are completely empty (0 RAK and 0 Realisasi)
-                                    if ($mRak == 0 && $mRealisasi == 0 && $i > date('n') && $stats['tahun'] == date('Y')) continue;
+                                    // Sembunyikan baris future yang benar-benar kosong (0 RAK dan 0 Realisasi)
+                                    if ($mRak == 0 && $mRealisasi == 0 && $isFutureMonth) continue;
                                 ?>
+                                <?php if ($isFutureMonth): ?>
+                                <!-- Baris bulan future: tampilkan netral (abu-abu), bukan merah -->
+                                <tr style="opacity:0.55;">
+                                    <td class="ps-4" style="font-weight:600;color:#94a3b8;">
+                                        <?= $bulanNames[(int)$i] ?>
+                                        <span style="font-size:0.6rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8;margin-left:0.4rem;vertical-align:middle;">Belum Berjalan</span>
+                                    </td>
+                                    <td class="text-end" style="color:#94a3b8;">Rp <?= number_format($mRak,0,',','.') ?></td>
+                                    <td class="text-end" style="color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end" style="color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end pe-4">
+                                        <span style="font-size:0.65rem;font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:#f1f5f9;color:#94a3b8;">Proyeksi</span>
+                                    </td>
+                                </tr>
+                                <?php else: ?>
                                 <tr>
                                     <td class="ps-4" style="font-weight:600;color:var(--gray-700);"><?= $bulanNames[(int)$i] ?></td>
                                     <td class="text-end" style="color:var(--gray-500);">Rp <?= number_format($mRak,0,',','.') ?></td>
@@ -458,21 +481,40 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                         </span>
                                     </td>
                                 </tr>
+                                <?php endif; ?>
                                 <?php endfor; ?>
                             </tbody>
                             <tfoot style="background:var(--gray-50);font-weight:700;">
-                                <tr>
-                                    <td class="ps-4">Total Kumulatif</td>
-                                    <td class="text-end">Rp <?= number_format($totalRakKumulatif,0,',','.') ?></td>
-                                    <td class="text-end">Rp <?= number_format($totalRealisasiKumulatif,0,',','.') ?></td>
-                                    <?php $totalSelisih = $totalRealisasiKumulatif - $totalRakKumulatif; ?>
-                                    <td class="text-end" style="color:<?= $totalSelisih<0?'#DC2626':($totalSelisih>0?'#2563EB':'#6B7280') ?>;">
-                                        <?= $totalSelisih<0?'↓':'↑' ?> <?= $totalSelisih>0?'+':'' ?>Rp <?= number_format($totalSelisih,0,',','.') ?>
+                                <?php
+                                    // Hitung kumulatif hanya dari bulan yang sudah berjalan
+                                    $rakKumBerjalan = 0; $realKumBerjalan = 0;
+                                    for ($ib = 1; $ib <= $bulanBerjalanDetail; $ib++) {
+                                        $rakKumBerjalan += ($monthlyData['rak'][$ib] ?? 0);
+                                        $realKumBerjalan += ($monthlyData['realisasi'][$ib] ?? 0);
+                                    }
+                                    $selisihKum = $realKumBerjalan - $rakKumBerjalan;
+                                ?>
+                                <tr style="border-top:2px solid #cbd5e1;">
+                                    <td class="ps-4">Kumulatif s/d <?= $bulanNames[$bulanBerjalanDetail] ?></td>
+                                    <td class="text-end">Rp <?= number_format($rakKumBerjalan,0,',','.') ?></td>
+                                    <td class="text-end">Rp <?= number_format($realKumBerjalan,0,',','.') ?></td>
+                                    <?php $selisihKumColor = $selisihKum<0?'#DC2626':($selisihKum>0?'#2563EB':'#6B7280'); ?>
+                                    <td class="text-end" style="color:<?= $selisihKumColor ?>;">
+                                        <?= $selisihKum<0?'↓':'↑' ?> <?= $selisihKum>0?'+':'' ?>Rp <?= number_format($selisihKum,0,',','.') ?>
                                     </td>
                                     <td class="text-end pe-4">
-                                        <?= number_format($totalRakKumulatif>0?($totalRealisasiKumulatif/$totalRakKumulatif)*100:0,2) ?>%
+                                        <?= number_format($rakKumBerjalan>0?($realKumBerjalan/$rakKumBerjalan)*100:0,2) ?>%
                                     </td>
                                 </tr>
+                                <?php if ($bulanBerjalanDetail < 12): ?>
+                                <tr style="opacity:0.6;">
+                                    <td class="ps-4" style="font-size:0.75rem;color:#94a3b8;">Total RAK Tahunan (termasuk proyeksi)</td>
+                                    <td class="text-end" style="font-size:0.75rem;color:#94a3b8;">Rp <?= number_format($totalRakKumulatif,0,',','.') ?></td>
+                                    <td class="text-end" style="font-size:0.75rem;color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end" style="font-size:0.75rem;color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end pe-4" style="font-size:0.75rem;color:#94a3b8;">&mdash;</td>
+                                </tr>
+                                <?php endif; ?>
                             </tfoot>
                         </table>
                     </div>
@@ -1752,6 +1794,14 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php endforeach; ?>
     <?php endif; ?>
 
+    // Bulan berjalan (1–12). Future months = index >= bulanBerjalan
+    const bulanBerjalan = <?= $bulanBerjalanDetail ?? 12 ?>;
+    const isTahunIni = <?= ($stats['tahun'] == (int)date('Y')) ? 'true' : 'false' ?>;
+
+    // Split RAK dataset: actual (s/d bulan berjalan) vs proyeksi (future)
+    const rakAktual    = mData.rak.map((v, i) => (i < bulanBerjalan || !isTahunIni) ? v : null);
+    const rakProyeksi  = mData.rak.map((v, i) => (i >= bulanBerjalan - 1 && isTahunIni) ? v : null);
+
     // Determine point colors for Realisasi based on alert status
     const realisasiPointBg = mData.realisasi.map((v, i) => {
         const bulan = i + 1;
@@ -1793,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', function() {
             labels: mData.labels,
             datasets: [{
                 label: 'RAK (Target)',
-                data: mData.rak,
+                data: rakAktual,
                 borderColor: '#94a3b8',
                 borderWidth: 2,
                 borderDash: [6, 4],
@@ -1805,6 +1855,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 fill: false,
                 tension: 0.3,
                 order: 2,
+                spanGaps: false,
+            },{
+                label: 'RAK (Proyeksi)',
+                data: rakProyeksi,
+                borderColor: 'rgba(148,163,184,0.35)',
+                borderWidth: 1.5,
+                borderDash: [3, 6],
+                pointBackgroundColor: 'rgba(148,163,184,0.35)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 1,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                fill: false,
+                tension: 0.3,
+                order: 3,
+                spanGaps: false,
             },{
                 label: 'Realisasi',
                 data: mData.realisasi,
@@ -1819,6 +1885,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 backgroundColor: areaGradient,
                 tension: 0.3,
                 order: 1,
+                spanGaps: false,
             }]
         },
         options: {
@@ -1857,6 +1924,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         afterBody: function(items) {
                             const idx = items[0].dataIndex;
+                            const bulan = idx + 1;
+                            // Jika bulan future (belum berjalan), jangan hitung deviasi
+                            if (isTahunIni && bulan > bulanBerjalan) {
+                                return ['', '  📅 Belum Berjalan (Proyeksi RAK)'];
+                            }
                             const rak = mData.rak[idx] || 0;
                             const real = mData.realisasi[idx] || 0;
                             const selisih = real - rak;
@@ -1867,7 +1939,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 '  Selisih: ' + sign + 'Rp ' + Math.abs(selisih).toLocaleString('id-ID'),
                                 '  Capaian: ' + pct + '%'
                             ];
-                            const bulan = idx + 1;
                             if (alertTypes[bulan] === 'over') lines.push('  ⚠ Over RAK');
                             else if (alertTypes[bulan] === 'under') lines.push('  ⚠ Under RAK');
                             // Extreme anomaly detection
