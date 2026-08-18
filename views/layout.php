@@ -203,8 +203,8 @@
         const BASE_URL = '<?= rtrim(base_url(), '/') ?>/';
     </script>
 
-    <!-- Custom JS -->
-    <script src="<?= base_url('js/app.js') ?>"></script>
+    <!-- Custom JS with cache busting -->
+    <script src="<?= base_url('js/app.js') ?>?v=<?= file_exists(__DIR__ . '/../public/js/app.js') ? filemtime(__DIR__ . '/../public/js/app.js') : time() ?>"></script>
 
     <?php if (isset($additionalJS)): ?>
         <?php foreach ($additionalJS as $js): ?>
