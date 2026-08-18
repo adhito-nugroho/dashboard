@@ -395,9 +395,23 @@ class DashboardController {
     private function getBreakdownData(int $tahun, array $filters): array {
         $pagus = $this->paguModel->getAll();
         $breakdown = [];
+        $bulanBerjalan = $tahun == (int) date('Y') ? (int) date('n') : 12;
         
         foreach ($pagus as $pagu) {
             if ($pagu['tahun'] == $tahun && $this->matchesFilters($pagu, $filters)) {
+                $rid = (int) $pagu['rekening_id'];
+                $paguVal = (float) $pagu['nilai_pagu'];
+                $realisasiVal = $this->transaksiModel->getTotalByRekeningAndYear($rid, $tahun);
+                
+                // Hitung RAK kumulatif s/d bulan berjalan untuk rekening ini
+                $rakKumulatifVal = 0;
+                $raks = $this->rakModel->getByRekeningAndYear($rid, $tahun);
+                foreach ($raks as $rak) {
+                    if ((int)$rak['bulan'] <= $bulanBerjalan) {
+                        $rakKumulatifVal += (float) $rak['nilai_rak'];
+                    }
+                }
+
                 // Determine breakdown level based on filters
                 if (empty($filters['seksi_id'])) {
                     // Group by seksi
@@ -406,36 +420,40 @@ class DashboardController {
                         if ($seksi) {
                             $key = $seksi['nama_seksi'];
                             if (!isset($breakdown[$key])) {
-                                $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0];
+                                $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0, 'rak_kumulatif' => 0];
                             }
-                            $breakdown[$key]['pagu'] += (float) $pagu['nilai_pagu'];
-                            $breakdown[$key]['realisasi'] += $this->transaksiModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                            $breakdown[$key]['pagu'] += $paguVal;
+                            $breakdown[$key]['realisasi'] += $realisasiVal;
+                            $breakdown[$key]['rak_kumulatif'] += $rakKumulatifVal;
                         }
                     }
                 } elseif (empty($filters['program_id'])) {
                     // Group by program - data already in pagu
                     $key = $pagu['nama_program'] ?? 'Unknown';
                     if (!isset($breakdown[$key])) {
-                        $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0];
+                        $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0, 'rak_kumulatif' => 0];
                     }
-                    $breakdown[$key]['pagu'] += (float) $pagu['nilai_pagu'];
-                    $breakdown[$key]['realisasi'] += $this->transaksiModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                    $breakdown[$key]['pagu'] += $paguVal;
+                    $breakdown[$key]['realisasi'] += $realisasiVal;
+                    $breakdown[$key]['rak_kumulatif'] += $rakKumulatifVal;
                 } elseif (empty($filters['kegiatan_id'])) {
                     // Group by kegiatan - data already in pagu
                     $key = $pagu['nama_kegiatan'] ?? 'Unknown';
                     if (!isset($breakdown[$key])) {
-                        $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0];
+                        $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0, 'rak_kumulatif' => 0];
                     }
-                    $breakdown[$key]['pagu'] += (float) $pagu['nilai_pagu'];
-                    $breakdown[$key]['realisasi'] += $this->transaksiModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                    $breakdown[$key]['pagu'] += $paguVal;
+                    $breakdown[$key]['realisasi'] += $realisasiVal;
+                    $breakdown[$key]['rak_kumulatif'] += $rakKumulatifVal;
                 } else {
                     // Group by sub_kegiatan - data already in pagu
                     $key = $pagu['nama_sub_kegiatan'] ?? 'Unknown';
                     if (!isset($breakdown[$key])) {
-                        $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0];
+                        $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0, 'rak_kumulatif' => 0];
                     }
-                    $breakdown[$key]['pagu'] += (float) $pagu['nilai_pagu'];
-                    $breakdown[$key]['realisasi'] += $this->transaksiModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                    $breakdown[$key]['pagu'] += $paguVal;
+                    $breakdown[$key]['realisasi'] += $realisasiVal;
+                    $breakdown[$key]['rak_kumulatif'] += $rakKumulatifVal;
                 }
             }
         }

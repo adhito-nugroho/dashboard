@@ -61,30 +61,85 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
     <!-- Insight Banner -->
     <?php
-    // Insight banner — solid vivid colors for maximum contrast
-    $iClass='primary';
-    $iIcon='check-circle-fill';
-    $iText='Realisasi anggaran Anda berjalan normal.';
-    $iBg='linear-gradient(135deg, #4338ca 0%, #6d6af5 100%)';
-    $iBorder='#4338ca';
-    $iTextColor='#ffffff';
-    $iIconBg='rgba(255,255,255,0.2)';
+    // Hitung jumlah bulan under-RAK & over-RAK untuk bulan yang sudah berjalan
+    $underAlertsCount = 0;
+    $overAlertsCount = 0;
+    if (!empty($monthlyData['alerts'])) {
+        $underAlertsCount = count(array_filter($monthlyData['alerts'], fn($a) =>
+            $a['type'] === 'under' && $a['bulan'] <= $bulanBerjalan
+        ));
+        $overAlertsCount = count(array_filter($monthlyData['alerts'], fn($a) =>
+            $a['type'] === 'over' && $a['bulan'] <= $bulanBerjalan
+        ));
+    }
+
+    // Cek apakah ada over-RAK signifikan (selisih > 20% dari RAK bulan tsb) dalam 2 bulan terakhir
+    $hasSignificantOverLast2Months = false;
+    $startCheckMonth = max(1, $bulanBerjalan - 1);
+    for ($m = $startCheckMonth; $m <= $bulanBerjalan; $m++) {
+        $mRak = (float)($monthlyData['rak'][$m] ?? 0);
+        $mReal = (float)($monthlyData['realisasi'][$m] ?? 0);
+        if ($mRak > 0 && (($mReal - $mRak) / $mRak) > 0.20) {
+            $hasSignificantOverLast2Months = true;
+            break;
+        }
+    }
+
+    // Tentukan pesan dan styling banner berdasarkan capaian terhadap target RAK kumulatif
+    $iTextColor = '#ffffff';
+    $iIconBg = 'rgba(255,255,255,0.2)';
 
     if ($stats['percentage'] > 100) {
-        $iClass='danger'; $iIcon='exclamation-octagon-fill';
-        $iText='Perhatian! Realisasi anggaran telah <strong>melebihi pagu</strong>.';
-        $iBg='linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
-        $iBorder='#dc2626'; $iTextColor='#ffffff'; $iIconBg='rgba(255,255,255,0.2)';
-    } elseif ($stats['percentage'] > 90) {
-        $iClass='warning'; $iIcon='exclamation-triangle-fill';
-        $iText='Realisasi mendekati pagu total! Harap tinjau pengeluaran.';
-        $iBg='linear-gradient(135deg, #b45309 0%, #d97706 100%)';
-        $iBorder='#b45309'; $iTextColor='#ffffff'; $iIconBg='rgba(255,255,255,0.2)';
-    } elseif ($stats['percentage'] < 20 && date('n') > 3) {
-        $iClass='info'; $iIcon='hourglass-split';
-        $iText='Penyerapan masih rendah. Pertimbangkan akselerasi kegiatan.';
-        $iBg='linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)';
-        $iBorder='#0284c7'; $iTextColor='#ffffff'; $iIconBg='rgba(255,255,255,0.2)';
+        $iIcon = 'exclamation-octagon-fill';
+        $iText = 'Perhatian! Realisasi anggaran telah <strong>melebihi pagu</strong>.';
+        $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+        $iBorder = '#dc2626';
+    } elseif ($targetRakBulanBerjalan > 0) {
+        // Jika ada target RAK s/d bulan berjalan
+        if ($capaianRakBulanBerjalan >= 90 && $underAlertsCount < 3) {
+            $iIcon = 'check-circle-fill';
+            $iText = 'Realisasi anggaran berjalan sesuai target.';
+            $iBg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            $iBorder = '#059669';
+        } elseif ($capaianRakBulanBerjalan >= 70 && $underAlertsCount < 3) {
+            $iIcon = 'exclamation-triangle-fill';
+            $iText = 'Realisasi anggaran sedikit di bawah target, perlu percepatan.';
+            $iBg = 'linear-gradient(135deg, #b45309 0%, #d97706 100%)';
+            $iBorder = '#b45309';
+        } elseif ($underAlertsCount >= 3 && $capaianRakBulanBerjalan >= 70) {
+            $iIcon = 'exclamation-triangle-fill';
+            $iText = 'Realisasi anggaran sedikit di bawah target, perlu percepatan.';
+            $iBg = 'linear-gradient(135deg, #b45309 0%, #d97706 100%)';
+            $iBorder = '#b45309';
+        } else {
+            $iIcon = 'exclamation-octagon-fill';
+            $iText = 'Realisasi anggaran tertinggal signifikan dari target RAK.';
+            $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+            $iBorder = '#dc2626';
+        }
+    } else {
+        // Fallback jika belum ada konfigurasi RAK bulan berjalan
+        if ($stats['percentage'] >= 90) {
+            $iIcon = 'exclamation-triangle-fill';
+            $iText = 'Realisasi mendekati pagu total! Harap tinjau pengeluaran.';
+            $iBg = 'linear-gradient(135deg, #b45309 0%, #d97706 100%)';
+            $iBorder = '#b45309';
+        } elseif ($stats['percentage'] < 20 && $bulanBerjalan > 3) {
+            $iIcon = 'exclamation-octagon-fill';
+            $iText = 'Realisasi anggaran tertinggal signifikan dari target.';
+            $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+            $iBorder = '#dc2626';
+        } else {
+            $iIcon = 'check-circle-fill';
+            $iText = 'Realisasi anggaran berjalan normal.';
+            $iBg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            $iBorder = '#059669';
+        }
+    }
+
+    // Tambahkan catatan jika ada bulan over-RAK signifikan dalam 2 bulan terakhir
+    if ($hasSignificantOverLast2Months && $stats['percentage'] <= 100) {
+        $iText = rtrim($iText, '.') . ', beberapa bulan terakhir realisasi melebihi RAK.';
     }
     ?>
     <div class="insight-banner mb-4 animate-fade-in-up delay-1" style="background:<?= $iBg ?>;border-color:<?= $iBorder ?>;color:<?= $iTextColor ?>;">
@@ -1212,11 +1267,52 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <?php foreach($breakdownData as $name => $data):
                         $sisa  = $data['pagu'] - $data['realisasi'];
                         $pct   = $data['pagu'] > 0 ? ($data['realisasi'] / $data['pagu']) * 100 : 0;
-                        $clr   = $pct > 100 ? '#dc2626' : ($pct > 80 ? '#d97706' : '#059669');
-                        $bg    = $pct > 100 ? '#fef2f2' : ($pct > 80 ? '#fffbeb' : '#ecfdf5');
-                        $bdr   = $pct > 100 ? '#fecaca' : ($pct > 80 ? '#fde68a' : '#bbf7d0');
-                        $lbl   = $pct > 100 ? 'Over' : ($pct > 80 ? 'Tinggi' : 'Aman');
-                        $icon  = $pct > 100 ? 'bi-exclamation-octagon-fill' : ($pct > 80 ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill');
+                        $rakKum = (float) ($data['rak_kumulatif'] ?? 0);
+
+                        // Evaluasi status serapan seksi terhadap target RAK kumulatif seksi itu sendiri
+                        if ($rakKum > 0) {
+                            $capaianRakSeksi = ($data['realisasi'] / $rakKum) * 100;
+                            if ($capaianRakSeksi >= 90) {
+                                $clr  = '#059669';
+                                $bg   = '#ecfdf5';
+                                $bdr  = '#bbf7d0';
+                                $lbl  = 'Aman';
+                                $icon = 'bi-check-circle-fill';
+                            } elseif ($capaianRakSeksi >= 70) {
+                                $clr  = '#d97706';
+                                $bg   = '#fffbeb';
+                                $bdr  = '#fde68a';
+                                $lbl  = 'Perlu Dipacu';
+                                $icon = 'bi-exclamation-triangle-fill';
+                            } else {
+                                $clr  = '#dc2626';
+                                $bg   = '#fef2f2';
+                                $bdr  = '#fecaca';
+                                $lbl  = 'Tertinggal';
+                                $icon = 'bi-exclamation-octagon-fill';
+                            }
+                        } else {
+                            // Fallback jika belum ada data RAK
+                            if ($pct >= 80) {
+                                $clr  = '#059669';
+                                $bg   = '#ecfdf5';
+                                $bdr  = '#bbf7d0';
+                                $lbl  = 'Aman';
+                                $icon = 'bi-check-circle-fill';
+                            } elseif ($pct >= 50) {
+                                $clr  = '#d97706';
+                                $bg   = '#fffbeb';
+                                $bdr  = '#fde68a';
+                                $lbl  = 'Perlu Dipacu';
+                                $icon = 'bi-exclamation-triangle-fill';
+                            } else {
+                                $clr  = '#dc2626';
+                                $bg   = '#fef2f2';
+                                $bdr  = '#fecaca';
+                                $lbl  = 'Tertinggal';
+                                $icon = 'bi-exclamation-octagon-fill';
+                            }
+                        }
                     ?>
                     <div class="col-md-4">
                         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;position:relative;overflow:hidden;">
