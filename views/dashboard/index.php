@@ -37,23 +37,24 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     <!-- Page Header -->
     <div class="d-flex flex-wrap justify-content-between align-items-end mb-4 animate-fade-in-up">
         <div>
-            <h2 style="font-weight:800;letter-spacing:-0.03em;color:var(--gray-900);font-size:1.65rem;margin-bottom:0.2rem;">
+            <h2 style="font-weight:800;letter-spacing:-0.03em;color:var(--gray-900);font-size:var(--fs-xl);margin-bottom:0.2rem;">
                 <i class="bi bi-speedometer2 me-2" style="color:var(--primary);"></i>Dashboard
             </h2>
-            <p style="color:var(--gray-400);font-size:0.85rem;margin:0;">Monitoring Realisasi Anggaran Cabang Dinas Kehutanan Wilayah Bojonegoro &mdash; Tahun <strong style="color:var(--gray-600);"><?= $stats['tahun'] ?></strong></p>
+            <p style="color:var(--gray-400);font-size:var(--fs-base);margin:0;">Monitoring Realisasi Anggaran Cabang Dinas Kehutanan Wilayah Bojonegoro &mdash; Tahun <strong style="color:var(--gray-600);"><?= $stats['tahun'] ?></strong></p>
         </div>
         <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
         <form method="GET" action="<?= base_url() ?>" class="" style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-full);padding:0.35rem 0.5rem 0.35rem 1rem;display:inline-flex;align-items:center;gap:0.5rem;box-shadow:var(--shadow-xs);">
-            <i class="bi bi-calendar3" style="color:var(--primary);font-size:0.9rem;"></i>
-            <select class="form-select form-select-sm border-0 bg-transparent fw-bold py-0" id="tahun" name="tahun" onchange="this.form.submit()" style="width:auto;cursor:pointer;box-shadow:none;color:var(--primary);font-size:0.85rem;">
+            <i class="bi bi-calendar3" style="color:var(--primary);font-size:var(--fs-md);"></i>
+            <select class="form-select form-select-sm border-0 bg-transparent fw-bold py-0" id="tahun" name="tahun" onchange="this.form.submit()" style="width:auto;cursor:pointer;box-shadow:none;color:var(--primary);font-size:var(--fs-base);">
                 <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
                 <option value="<?= $y ?>" <?= $stats['tahun'] == $y ? 'selected' : '' ?>><?= $y ?></option>
                 <?php endfor; ?>
             </select>
         </form>
-        <button type="button" class="btn btn-sm fw-semibold"
+        <button type="button" class="btn btn-sm fw-semibold btn-export-global"
            data-bs-toggle="modal" data-bs-target="#modalExportExcel"
-           style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:var(--radius-full);padding:0.4rem 1rem;font-size:0.8rem;box-shadow:0 2px 8px rgba(22,163,74,.3);display:inline-flex;align-items:center;gap:0.4rem;border:none;cursor:pointer;">
+           data-bs-toggle="tooltip" data-bs-placement="bottom" title="Export laporan lengkap semua section ke Excel"
+           style="background:var(--status-success);color:#fff;border-radius:var(--radius-full);padding:0.4rem 1rem;font-size:var(--fs-sm);box-shadow:0 2px 8px rgba(5,150,105,.25);display:inline-flex;align-items:center;gap:0.4rem;border:none;cursor:pointer;">
             <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
         </button>
         </div>
@@ -92,48 +93,48 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     if ($stats['percentage'] > 100) {
         $iIcon = 'exclamation-octagon-fill';
         $iText = 'Perhatian! Realisasi anggaran telah <strong>melebihi pagu</strong>.';
-        $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
-        $iBorder = '#dc2626';
+        $iBg = 'linear-gradient(135deg, var(--status-danger) 0%, var(--danger-light, #ef4444) 100%)';
+        $iBorder = 'var(--status-danger)';
     } elseif ($targetRakBulanBerjalan > 0) {
         // Jika ada target RAK s/d bulan berjalan
         if ($capaianRakBulanBerjalan >= 90 && $underAlertsCount < 3) {
             $iIcon = 'check-circle-fill';
             $iText = 'Realisasi anggaran berjalan sesuai target.';
-            $iBg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
-            $iBorder = '#059669';
+            $iBg = 'linear-gradient(135deg, var(--status-success) 0%, var(--success-light, #10b981) 100%)';
+            $iBorder = 'var(--status-success)';
         } elseif ($capaianRakBulanBerjalan >= 70 && $underAlertsCount < 3) {
             $iIcon = 'exclamation-triangle-fill';
             $iText = 'Realisasi anggaran sedikit di bawah target, perlu percepatan.';
-            $iBg = 'linear-gradient(135deg, #b45309 0%, #d97706 100%)';
-            $iBorder = '#b45309';
+            $iBg = 'linear-gradient(135deg, var(--status-warning) 0%, var(--warning-light, #f59e0b) 100%)';
+            $iBorder = 'var(--status-warning)';
         } elseif ($underAlertsCount >= 3 && $capaianRakBulanBerjalan >= 70) {
             $iIcon = 'exclamation-triangle-fill';
             $iText = 'Realisasi anggaran sedikit di bawah target, perlu percepatan.';
-            $iBg = 'linear-gradient(135deg, #b45309 0%, #d97706 100%)';
-            $iBorder = '#b45309';
+            $iBg = 'linear-gradient(135deg, var(--status-warning) 0%, var(--warning-light, #f59e0b) 100%)';
+            $iBorder = 'var(--status-warning)';
         } else {
             $iIcon = 'exclamation-octagon-fill';
             $iText = 'Realisasi anggaran tertinggal signifikan dari target RAK.';
-            $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
-            $iBorder = '#dc2626';
+            $iBg = 'linear-gradient(135deg, var(--status-danger) 0%, var(--danger-light, #ef4444) 100%)';
+            $iBorder = 'var(--status-danger)';
         }
     } else {
         // Fallback jika belum ada konfigurasi RAK bulan berjalan
         if ($stats['percentage'] >= 90) {
             $iIcon = 'exclamation-triangle-fill';
             $iText = 'Realisasi mendekati pagu total! Harap tinjau pengeluaran.';
-            $iBg = 'linear-gradient(135deg, #b45309 0%, #d97706 100%)';
-            $iBorder = '#b45309';
+            $iBg = 'linear-gradient(135deg, var(--status-warning) 0%, var(--warning-light, #f59e0b) 100%)';
+            $iBorder = 'var(--status-warning)';
         } elseif ($stats['percentage'] < 20 && $bulanBerjalan > 3) {
             $iIcon = 'exclamation-octagon-fill';
             $iText = 'Realisasi anggaran tertinggal signifikan dari target.';
-            $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
-            $iBorder = '#dc2626';
+            $iBg = 'linear-gradient(135deg, var(--status-danger) 0%, var(--danger-light, #ef4444) 100%)';
+            $iBorder = 'var(--status-danger)';
         } else {
             $iIcon = 'check-circle-fill';
             $iText = 'Realisasi anggaran berjalan normal.';
-            $iBg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
-            $iBorder = '#059669';
+            $iBg = 'linear-gradient(135deg, var(--status-success) 0%, var(--success-light, #10b981) 100%)';
+            $iBorder = 'var(--status-success)';
         }
     }
 
@@ -146,9 +147,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         <div class="insight-icon" style="background:<?= $iIconBg ?>;color:#fff;border:1.5px solid rgba(255,255,255,0.3);"><i class="bi bi-<?= $iIcon ?>"></i></div>
         <div style="flex:1;">
             <strong>Insight:</strong> <?= $iText ?>
-            <span class="d-none d-md-inline ms-2" style="opacity:0.9;">&mdash; Serapan saat ini <strong style="font-size:1rem;"><?= number_format($stats['percentage'], 2) ?>%</strong></span>
+            <span class="d-none d-md-inline ms-2" style="opacity:0.9;">&mdash; Serapan saat ini <strong style="font-size:var(--fs-md);"><?= number_format($stats['percentage'], 2) ?>%</strong></span>
         </div>
-        <button type="button" class="btn-close btn-close-white" style="font-size:0.7rem;opacity:0.8;" onclick="this.closest('.insight-banner').remove()"></button>
+        <button type="button" class="btn-close btn-close-white" style="font-size:var(--fs-xs);opacity:0.8;" onclick="this.closest('.insight-banner').remove()"></button>
     </div>
 
     <!-- Filter Panel -->
@@ -156,22 +157,22 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         $activeFilterCount = (!empty($filters['seksi_id'])?1:0) + (!empty($filters['program_id'])?1:0) + (!empty($filters['kegiatan_id'])?1:0) + (!empty($filters['sub_kegiatan_id'])?1:0);
         $hasActiveFilter = $activeFilterCount > 0;
     ?>
-    <div class="d-md-none mb-3"><button class="btn btn-primary w-100 rounded-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse"><i class="bi bi-sliders me-2"></i>Filter Data<?php if($hasActiveFilter): ?> <span style="background:#fff;color:#3b82f6;font-size:0.65rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:999px;margin-left:0.4rem;"><?= $activeFilterCount ?></span><?php endif; ?></button></div>
+    <div class="d-md-none mb-3"><button class="btn btn-primary w-100 rounded-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse"><i class="bi bi-sliders me-2"></i>Filter Data<?php if($hasActiveFilter): ?> <span style="background:#fff;color:#3b82f6;font-size:var(--fs-xs);font-weight:700;padding:0.1rem 0.45rem;border-radius:999px;margin-left:0.4rem;"><?= $activeFilterCount ?></span><?php endif; ?></button></div>
     <div class="collapse d-md-block mb-4 animate-fade-in-up delay-2" id="filterCollapse">
         <div class="card filter-card rounded-4" style="box-shadow:var(--shadow-sm);<?= $hasActiveFilter?'border:1.5px solid #3b82f6;':'' ?>">
             <div class="card-body" style="padding:1.25rem 1.5rem;">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="d-flex align-items-center gap-2">
-                        <i class="bi bi-sliders" style="color:var(--primary);font-size:1rem;"></i>
-                        <span style="font-weight:700;font-size:0.875rem;color:var(--gray-700);">Filter Data</span>
+                        <i class="bi bi-sliders" style="color:var(--primary);font-size:var(--fs-md);"></i>
+                        <span style="font-weight:700;font-size:var(--fs-base);color:var(--gray-700);">Filter Data</span>
                         <?php if($hasActiveFilter): ?>
-                        <span style="font-size:0.68rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:999px;background:#3b82f6;color:#fff;">Filter Aktif: <?= $activeFilterCount ?></span>
+                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.2rem 0.6rem;border-radius:999px;background:#3b82f6;color:#fff;">Filter Aktif: <?= $activeFilterCount ?></span>
                         <?php endif; ?>
                     </div>
                     <?php if($hasActiveFilter): ?>
-                    <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;font-size:0.75rem;font-weight:600;border:1px solid #fecaca;border-radius:999px;padding:0.25rem 0.75rem;" onclick="resetFilters()"><i class="bi bi-x-circle-fill me-1"></i>Reset Filter</button>
+                    <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;font-size:var(--fs-sm);font-weight:600;border:1px solid #fecaca;border-radius:999px;padding:0.25rem 0.75rem;" onclick="resetFilters()"><i class="bi bi-x-circle-fill me-1"></i>Reset Filter</button>
                     <?php else: ?>
-                    <button class="btn btn-sm" style="color:var(--gray-400);font-size:0.75rem;" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+                    <button class="btn btn-sm" style="color:var(--gray-400);font-size:var(--fs-sm);" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
                     <?php endif; ?>
                 </div>
                 <form method="GET" action="<?= base_url() ?>" id="mainFilterForm">
@@ -184,7 +185,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     </div>
                     <?php if($hasActiveFilter): ?>
                     <div class="mt-2 d-flex flex-wrap gap-1 align-items-center">
-                        <span style="font-size:0.7rem;color:#475569;font-weight:600;margin-right:0.25rem;">Menampilkan data untuk:</span>
+                        <span style="font-size:var(--fs-xs);color:#475569;font-weight:600;margin-right:0.25rem;">Menampilkan data untuk:</span>
                         <?php if(!empty($filters['seksi_id'])): ?><span class="filter-chip" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af;"><i class="bi bi-building"></i>Seksi</span><?php endif; ?>
                         <?php if(!empty($filters['program_id'])): ?><span class="filter-chip" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af;"><i class="bi bi-folder"></i>Program</span><?php endif; ?>
                         <?php if(!empty($filters['kegiatan_id'])): ?><span class="filter-chip" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af;"><i class="bi bi-list-task"></i>Kegiatan</span><?php endif; ?>
@@ -255,7 +256,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <div class="progress flex-grow-1" style="height:5px;border-radius:3px;background:var(--gray-100);">
                                         <div class="progress-bar bg-<?= $pctColor ?>" style="width:<?= min($stats['percentage'],100) ?>%;border-radius:3px;"></div>
                                     </div>
-                                    <span style="font-size:0.7rem;font-weight:700;color:var(--<?= $pctColor ?>);"><?= number_format($stats['percentage'], 2) ?>%</span>
+                                    <span style="font-size:var(--fs-xs);font-weight:700;color:var(--<?= $pctColor ?>);"><?= number_format($stats['percentage'], 2) ?>%</span>
                                 </div>
                             </div>
                         </div>
@@ -296,9 +297,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         $proyeksiAkhirTahun = $rataRataPerBulan * 12;
         $proyeksiPct = $stats['total_pagu'] > 0 ? ($proyeksiAkhirTahun / $stats['total_pagu']) * 100 : 0;
         $proyeksiStatus = $proyeksiPct >= 90 ? 'On Track' : ($proyeksiPct >= 60 ? 'Perlu Perhatian' : 'Tidak Mencapai Target');
-        $proyeksiColor = $proyeksiPct >= 90 ? '#059669' : ($proyeksiPct >= 60 ? '#d97706' : '#dc2626');
-        $proyeksiBg = $proyeksiPct >= 90 ? '#ecfdf5' : ($proyeksiPct >= 60 ? '#fffbeb' : '#fef2f2');
-        $proyeksiBorder = $proyeksiPct >= 90 ? '#a7f3d0' : ($proyeksiPct >= 60 ? '#fde68a' : '#fecaca');
+        $proyeksiColor = $proyeksiPct >= 90 ? 'var(--status-success)' : ($proyeksiPct >= 60 ? 'var(--status-warning)' : 'var(--status-danger)');
+        $proyeksiBg = $proyeksiPct >= 90 ? 'var(--status-success-bg)' : ($proyeksiPct >= 60 ? 'var(--status-warning-bg)' : 'var(--status-danger-bg)');
+        $proyeksiBorder = $proyeksiPct >= 90 ? 'var(--status-success-border)' : ($proyeksiPct >= 60 ? 'var(--status-warning-border)' : 'var(--status-danger-border)');
     ?>
     <?php if ($bulanDenganData > 0): ?>
     <div class="row mb-4 g-3">
@@ -306,24 +307,24 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
             <div class="card rounded-4" style="background:<?= $proyeksiBg ?>;border:1px solid <?= $proyeksiBorder ?>;">
                 <div class="card-body" style="padding:1rem 1.5rem;">
                     <div class="d-flex flex-wrap align-items-center gap-3">
-                        <div style="width:42px;height:42px;border-radius:var(--radius-md);background:<?= $proyeksiColor ?>;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.2rem;">
+                        <div style="width:42px;height:42px;border-radius:var(--radius-md);background:<?= $proyeksiColor ?>;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--fs-lg);">
                             <i class="bi bi-graph-up-arrow"></i>
                         </div>
                         <div style="flex:1;min-width:200px;">
-                            <div style="font-size:0.72rem;font-weight:700;color:<?= $proyeksiColor ?>;text-transform:uppercase;letter-spacing:0.04em;">Proyeksi Akhir Tahun</div>
-                            <div style="font-size:1.2rem;font-weight:800;color:#0f172a;margin-top:0.15rem;">Rp <?= number_format($proyeksiAkhirTahun, 0, ',', '.') ?></div>
+                            <div style="font-size:var(--fs-sm);font-weight:700;color:<?= $proyeksiColor ?>;text-transform:uppercase;letter-spacing:0.04em;">Proyeksi Akhir Tahun</div>
+                            <div style="font-size:var(--fs-lg);font-weight:800;color:#0f172a;margin-top:0.15rem;">Rp <?= number_format($proyeksiAkhirTahun, 0, ',', '.') ?></div>
                         </div>
                         <div class="d-flex flex-wrap gap-3 align-items-center">
                             <div style="text-align:center;">
-                                <div style="font-size:1.1rem;font-weight:800;color:<?= $proyeksiColor ?>;"><?= number_format($proyeksiPct, 2) ?>%</div>
-                                <div style="font-size:0.65rem;color:#64748b;">dari Pagu</div>
+                                <div style="font-size:var(--fs-lg);font-weight:800;color:<?= $proyeksiColor ?>;"><?= number_format($proyeksiPct, 2) ?>%</div>
+                                <div style="font-size:var(--fs-xs);color:#64748b;">dari Pagu</div>
                             </div>
-                            <span style="font-size:0.72rem;font-weight:700;padding:0.3rem 0.75rem;border-radius:999px;background:<?= $proyeksiColor ?>;color:#fff;">
+                            <span style="font-size:var(--fs-sm);font-weight:700;padding:0.3rem 0.75rem;border-radius:999px;background:<?= $proyeksiColor ?>;color:#fff;">
                                 <?= $proyeksiStatus ?>
                             </span>
                         </div>
                     </div>
-                    <div style="margin-top:0.5rem;font-size:0.68rem;color:#64748b;font-style:italic;">
+                    <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#64748b;font-style:italic;">
                         <i class="bi bi-info-circle me-1"></i>Proyeksi berdasarkan rata-rata <?= $bulanDenganData ?> bulan yang sudah ada data realisasi (<?= $bulanNames[1] ?>&ndash;<?= $bulanNames[$bulanDenganData] ?> <?= $stats['tahun'] ?>)
                     </div>
                 </div>
@@ -338,9 +339,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         <div class="card rounded-4" style="background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fde68a;">
             <div class="card-body" style="padding:1.25rem 1.5rem;">
                 <div class="d-flex align-items-start gap-3">
-                    <div style="width:42px;height:42px;border-radius:var(--radius-md);background:var(--warning);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.25rem;"><i class="bi bi-exclamation-diamond-fill"></i></div>
+                    <div style="width:42px;height:42px;border-radius:var(--radius-md);background:var(--warning);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--fs-lg);"><i class="bi bi-exclamation-diamond-fill"></i></div>
                     <div style="flex:1;">
-                        <h6 style="font-weight:700;color:var(--gray-800);margin-bottom:0.5rem;font-size:0.9rem;">Perhatian Diperlukan</h6>                        <?php if (!empty($monthlyData['alerts'])): ?>
+                        <h6 style="font-weight:700;color:var(--gray-800);margin-bottom:0.5rem;font-size:var(--fs-md);">Perhatian Diperlukan</h6>                        <?php if (!empty($monthlyData['alerts'])): ?>
                         <?php $bulanNamesLong=[1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember']; ?>
                         <?php
                             // Hanya tampilkan bulan yang sudah lewat / sedang berjalan (bukan future months)
@@ -350,10 +351,10 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             );
                         ?>
                         <?php if (!empty($underAlerts)): ?>
-                        <div style="font-size:0.75rem;font-weight:700;color:#b45309;margin-bottom:0.3rem;"><i class="bi bi-arrow-down-circle-fill me-1"></i>Realisasi KURANG dari RAK (bulan sudah berjalan):</div>
+                        <div style="font-size:var(--fs-sm);font-weight:700;color:#b45309;margin-bottom:0.3rem;"><i class="bi bi-arrow-down-circle-fill me-1"></i>Realisasi KURANG dari RAK (bulan sudah berjalan):</div>
                         <div class="d-flex flex-wrap gap-1 mb-2">
                             <?php foreach($underAlerts as $alert): ?>
-                            <span style="font-size:0.7rem;padding:0.25rem 0.625rem;border-radius:var(--radius-full);background:#fff;border:1px solid #fde68a;color:#b45309;font-weight:600;">
+                            <span style="font-size:var(--fs-xs);padding:0.25rem 0.625rem;border-radius:var(--radius-full);background:#fff;border:1px solid #fde68a;color:#b45309;font-weight:600;">
                                 <?= $bulanNamesLong[$alert['bulan']] ?> (&minus;Rp <?= number_format($alert['rak']-$alert['realisasi'],0,',','.') ?>)
                             </span>
                             <?php endforeach; ?>
@@ -361,7 +362,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <?php endif; ?>
                         <?php endif; ?>
                         <?php if ($serapan > 90): ?>
-                        <div style="font-size:0.8rem;color:var(--gray-600);">
+                        <div style="font-size:var(--fs-base);color:var(--gray-600);">
                             <i class="bi bi-lightning-fill" style="color:var(--warning);"></i>
                             Serapan <strong><?= number_format($serapan,2) ?>%</strong> &mdash;
                             <?= $serapan>=100?'Anggaran telah habis atau melebihi pagu.':($serapan>=95?'Hampir seluruh anggaran terserap.':'Penyerapan sangat tinggi.') ?>
@@ -390,10 +391,10 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         $cntUnder = count(array_filter($monthlyData['alerts'], fn($a) => $a['type']==='under'));
                     ?>
                     <?php if ($cntOver > 0): ?>
-                    <span style="font-size:0.7rem;font-weight:600;padding:0.3rem 0.75rem;border-radius:var(--radius-full);background:#fef2f2;color:var(--danger);border:1px solid #fecaca;margin-left:0.25rem;"><i class="bi bi-arrow-up-circle-fill me-1"></i><?= $cntOver ?> Over RAK</span>
+                    <span style="font-size:var(--fs-xs);font-weight:600;padding:0.3rem 0.75rem;border-radius:var(--radius-full);background:#fef2f2;color:var(--danger);border:1px solid #fecaca;margin-left:0.25rem;"><i class="bi bi-arrow-up-circle-fill me-1"></i><?= $cntOver ?> Over RAK</span>
                     <?php endif; ?>
                     <?php if ($cntUnder > 0): ?>
-                    <span style="font-size:0.7rem;font-weight:600;padding:0.3rem 0.75rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;margin-left:0.25rem;"><i class="bi bi-arrow-down-circle-fill me-1"></i><?= $cntUnder ?> Under RAK</span>
+                    <span style="font-size:var(--fs-xs);font-weight:600;padding:0.3rem 0.75rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;margin-left:0.25rem;"><i class="bi bi-arrow-down-circle-fill me-1"></i><?= $cntUnder ?> Under RAK</span>
                     <?php endif; ?>
                     <?php endif; ?>
                 </div>
@@ -410,7 +411,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         $cntOver2  = count(array_filter($monthlyData['alerts'], fn($a) => $a['type']==='over'));
                         $cntUnder2 = count(array_filter($monthlyData['alerts'], fn($a) => $a['type']==='under'));
                     ?>
-                    <div style="margin-top:0.75rem;padding:0.625rem 0.875rem;background:#f8fafc;border-radius:var(--radius-sm);border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <div style="margin-top:0.75rem;padding:0.625rem 0.875rem;background:#f8fafc;border-radius:var(--radius-sm);border:1px solid var(--gray-200);font-size:var(--fs-sm);color:var(--gray-600);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                         <i class="bi bi-info-circle-fill" style="color:var(--primary);flex-shrink:0;"></i>
                         <?php if ($cntOver2 > 0): ?>
                         <span><strong style="color:var(--danger);"><?= $cntOver2 ?> bulan</strong> realisasi melebihi RAK <span style="display:inline-block;width:10px;height:10px;background:#dc2626;border-radius:2px;margin-left:2px;"></span></span>
@@ -437,15 +438,15 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <!-- Serapan Gauge -->
                     <div style="padding:1rem;background:var(--gray-50);border-radius:var(--radius-md);border:1px solid var(--gray-100);margin-bottom:1rem;">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span style="font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Total Serapan</span>
-                            <span style="font-size:1.25rem;font-weight:800;color:var(--<?= $pctColor ?>);letter-spacing:-0.03em;"><?= number_format($stats['percentage'],2) ?>%</span>
+                            <span style="font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Total Serapan</span>
+                            <span style="font-size:var(--fs-lg);font-weight:800;color:var(--<?= $pctColor ?>);letter-spacing:-0.03em;"><?= number_format($stats['percentage'],2) ?>%</span>
                         </div>
                         <div class="progress" style="height:7px;border-radius:4px;background:var(--gray-200);">
                             <div class="progress-bar bg-<?= $pctColor ?>" style="width:<?= min($stats['percentage'],100) ?>%;border-radius:4px;"></div>
                         </div>
                         <div class="d-flex justify-content-between mt-1">
-                            <span style="font-size:0.65rem;color:var(--gray-400);">0%</span>
-                            <span style="font-size:0.65rem;color:var(--gray-400);">Target 100%</span>
+                            <span style="font-size:var(--fs-xs);color:var(--gray-400);">0%</span>
+                            <span style="font-size:var(--fs-xs);color:var(--gray-400);">Target 100%</span>
                         </div>
                     </div>
 
@@ -453,7 +454,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div class="flex-grow-1 d-flex flex-column justify-content-center">
                         <div class="chart-wrapper breakdown-chart-wrapper"><canvas id="breakdownChart"></canvas></div>
                         <div class="mt-2 text-center">
-                            <span style="font-size:0.7rem;font-weight:600;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:var(--gray-50);color:var(--gray-500);border:1px solid var(--gray-200);">
+                            <span style="font-size:var(--fs-xs);font-weight:600;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:var(--gray-50);color:var(--gray-500);border:1px solid var(--gray-200);">
                                 <i class="bi bi-pie-chart-fill me-1"></i>Distribusi Realisasi <?php echo empty($filters['seksi_id'])?'per Seksi':(empty($filters['program_id'])?'per Program':(empty($filters['kegiatan_id'])?'per Kegiatan':'per Sub Kegiatan')); ?>
                             </span>
                         </div>
@@ -469,7 +470,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
             <div class="card rounded-4 overflow-hidden">
                 <div class="section-header" style="padding-bottom:0.75rem;">
                     <div><h5 class="section-title"><i class="bi bi-calendar2-month me-2" style="color:var(--primary);"></i>Detail Penyerapan per Bulan</h5><p class="section-subtitle">Tabel rincian RAK (Target) vs Realisasi tiap bulan</p></div>
-                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" title="Export tabel ini ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
+                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" data-bs-toggle="tooltip" data-bs-placement="top" title="Export data tabel penyerapan bulanan ini saja ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -504,13 +505,13 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                 <tr style="opacity:0.55;">
                                     <td class="ps-4" style="font-weight:600;color:#94a3b8;">
                                         <?= $bulanNames[(int)$i] ?>
-                                        <span style="font-size:0.6rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8;margin-left:0.4rem;vertical-align:middle;">Belum Berjalan</span>
+                                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8;margin-left:0.4rem;vertical-align:middle;">Belum Berjalan</span>
                                     </td>
                                     <td class="text-end" style="color:#94a3b8;">Rp <?= number_format($mRak,0,',','.') ?></td>
                                     <td class="text-end" style="color:#94a3b8;">&mdash;</td>
                                     <td class="text-end" style="color:#94a3b8;">&mdash;</td>
                                     <td class="text-end pe-4">
-                                        <span style="font-size:0.65rem;font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:#f1f5f9;color:#94a3b8;">Proyeksi</span>
+                                        <span style="font-size:var(--fs-xs);font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:#f1f5f9;color:#94a3b8;">Proyeksi</span>
                                     </td>
                                 </tr>
                                 <?php else: ?>
@@ -518,17 +519,17 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="ps-4" style="font-weight:600;color:var(--gray-700);"><?= $bulanNames[(int)$i] ?></td>
                                     <td class="text-end" style="color:var(--gray-500);">Rp <?= number_format($mRak,0,',','.') ?></td>
                                     <td class="text-end" style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($mRealisasi,0,',','.') ?></td>
-                                    <td class="text-end" style="font-weight:600;color:<?= $selisih<0?'#DC2626':($selisih>0?'#2563EB':'#6B7280') ?>;">
+                                    <td class="text-end" style="font-weight:600;color:<?= $selisih<0?'var(--status-danger)':($selisih>0?'#2563EB':'var(--status-neutral)') ?>;">
                                         <?= $selisih<0?'↓':'↑' ?> <?= $selisih>0?'+':'' ?>Rp <?= number_format($selisih,0,',','.') ?>
                                     </td>
                                     <td class="text-end pe-4">
                                         <?php
-                                            if ($pct > 110) { $pctBg='#eff6ff'; $pctColor='#2563EB'; }
-                                            elseif ($pct >= 90) { $pctBg='#ecfdf5'; $pctColor='#059669'; }
-                                            elseif ($pct >= 50) { $pctBg='#fffbeb'; $pctColor='#d97706'; }
-                                            else { $pctBg='#fef2f2'; $pctColor='#DC2626'; }
+                                            if ($pct > 110) { $pctBg='var(--primary-50, #eff6ff)'; $pctColor='#2563EB'; }
+                                            elseif ($pct >= 90) { $pctBg='var(--status-success-bg)'; $pctColor='var(--status-success)'; }
+                                            elseif ($pct >= 50) { $pctBg='var(--status-warning-bg)'; $pctColor='var(--status-warning)'; }
+                                            else { $pctBg='var(--status-danger-bg)'; $pctColor='var(--status-danger)'; }
                                         ?>
-                                        <span style="font-size:0.65rem;font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:<?= $pctBg ?>;color:<?= $pctColor ?>;">
+                                        <span style="font-size:var(--fs-xs);font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:<?= $pctBg ?>;color:<?= $pctColor ?>;">
                                             <?= number_format($pct,2) ?>%
                                         </span>
                                     </td>
@@ -550,7 +551,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="ps-4">Kumulatif s/d <?= $bulanNames[$bulanBerjalanDetail] ?></td>
                                     <td class="text-end">Rp <?= number_format($rakKumBerjalan,0,',','.') ?></td>
                                     <td class="text-end">Rp <?= number_format($realKumBerjalan,0,',','.') ?></td>
-                                    <?php $selisihKumColor = $selisihKum<0?'#DC2626':($selisihKum>0?'#2563EB':'#6B7280'); ?>
+                                    <?php $selisihKumColor = $selisihKum<0?'var(--status-danger)':($selisihKum>0?'#2563EB':'var(--status-neutral)'); ?>
                                     <td class="text-end" style="color:<?= $selisihKumColor ?>;">
                                         <?= $selisihKum<0?'↓':'↑' ?> <?= $selisihKum>0?'+':'' ?>Rp <?= number_format($selisihKum,0,',','.') ?>
                                     </td>
@@ -560,11 +561,11 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                 </tr>
                                 <?php if ($bulanBerjalanDetail < 12): ?>
                                 <tr style="opacity:0.6;">
-                                    <td class="ps-4" style="font-size:0.75rem;color:#94a3b8;">Total RAK Tahunan (termasuk proyeksi)</td>
-                                    <td class="text-end" style="font-size:0.75rem;color:#94a3b8;">Rp <?= number_format($totalRakKumulatif,0,',','.') ?></td>
-                                    <td class="text-end" style="font-size:0.75rem;color:#94a3b8;">&mdash;</td>
-                                    <td class="text-end" style="font-size:0.75rem;color:#94a3b8;">&mdash;</td>
-                                    <td class="text-end pe-4" style="font-size:0.75rem;color:#94a3b8;">&mdash;</td>
+                                    <td class="ps-4" style="font-size:var(--fs-sm);color:#94a3b8;">Total RAK Tahunan (termasuk proyeksi)</td>
+                                    <td class="text-end" style="font-size:var(--fs-sm);color:#94a3b8;">Rp <?= number_format($totalRakKumulatif,0,',','.') ?></td>
+                                    <td class="text-end" style="font-size:var(--fs-sm);color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end" style="font-size:var(--fs-sm);color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end pe-4" style="font-size:var(--fs-sm);color:#94a3b8;">&mdash;</td>
                                 </tr>
                                 <?php endif; ?>
                             </tfoot>
@@ -636,7 +637,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <p class="section-subtitle">Realisasi bulanan per rekening, dikelompokkan berdasarkan sub kegiatan</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span style="font-size:0.7rem;font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;white-space:nowrap;">
+                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;white-space:nowrap;">
                             <i class="bi bi-wallet2 me-1"></i><?= (int) $absorptionTotals['rekening_count'] ?> Rekening
                         </span>
                         <?php
@@ -651,23 +652,28 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <a href="<?= base_url('export/serapan-bulanan') ?>?<?= $exportParams ?>"
                            class="btn btn-sm"
                            id="btn-export-serapan-bulanan"
-                           style="font-size:0.72rem;font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;white-space:nowrap;box-shadow:0 2px 8px rgba(22,163,74,0.25);transition:opacity 0.15s;"
-                           onmouseover="this.style.opacity='0.85'"
-                           onmouseout="this.style.opacity='1'">
+                           class="btn-export-section"
+                           data-bs-toggle="tooltip" data-bs-placement="top" title="Export rincian serapan per rekening ini saja ke Excel">
                             <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
                         </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="d-flex flex-wrap align-items-center gap-2 px-4 py-3" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-                        <span style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Total Serapan</span>
-                        <span style="font-size:0.86rem;font-weight:800;color:#0f172a;">Rp <?= number_format($absorptionTotals['realisasi'], 0, ',', '.') ?></span>
-                        <span style="font-size:0.72rem;color:#64748b;">dari pagu Rp <?= number_format($absorptionTotals['pagu'], 0, ',', '.') ?></span>
-                        <span style="font-size:0.7rem;font-weight:800;padding:0.2rem 0.6rem;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;">
+                        <span style="font-size:var(--fs-sm);font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Total Serapan</span>
+                        <span style="font-size:var(--fs-base);font-weight:800;color:#0f172a;">Rp <?= number_format($absorptionTotals['realisasi'], 0, ',', '.') ?></span>
+                        <span style="font-size:var(--fs-sm);color:#64748b;">dari pagu Rp <?= number_format($absorptionTotals['pagu'], 0, ',', '.') ?></span>
+                        <span style="font-size:var(--fs-xs);font-weight:800;padding:0.2rem 0.6rem;border-radius:999px;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;">
                             <?= number_format($absorptionPct, 2) ?>%
                         </span>
                     </div>
-                    <div class="monthly-absorption-scroll-hint">
+                    <div class="d-md-none px-3 py-2 bg-light border-bottom d-flex align-items-center justify-content-between">
+    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" id="toggleMonthlyDetailMobile" style="font-size:var(--fs-xs);font-weight:600;">
+        <i class="bi bi-calendar3 me-1"></i><span id="toggleMonthlyDetailText">Lihat Semua Bulan (12 Bln)</span>
+    </button>
+    <span style="font-size:var(--fs-xs);color:var(--gray-500);"><i class="bi bi-info-circle me-1"></i>Ringkas di HP</span>
+</div>
+<div class="monthly-absorption-scroll-hint">
                         <span><i class="bi bi-arrows"></i> Geser tabel ke kanan/kiri untuk melihat semua bulan. Kolom Sub Kegiatan, Pagu, Total, dan % tetap terlihat.</span>
                     </div>
                     <div class="table-responsive monthly-absorption-wrap">
@@ -718,7 +724,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                         <tr class="monthly-absorption-detail" data-absorption-child="<?= htmlspecialchars($skRowKey) ?>" hidden>
                                             <td class="ps-4 monthly-absorption-name monthly-sticky-name">
                                                 <div style="font-weight:700;color:#334155;"><?= htmlspecialchars($rek['nama']) ?></div>
-                                                <div style="font-size:0.68rem;color:#94a3b8;font-weight:600;">Kode rekening: <?= htmlspecialchars($rek['kode']) ?></div>
+                                                <div style="font-size:var(--fs-xs);color:#94a3b8;font-weight:600;">Kode rekening: <?= htmlspecialchars($rek['kode']) ?></div>
                                             </td>
                                             <td class="text-end monthly-absorption-pagu monthly-sticky-pagu"><?= $formatCompactRupiah($rek['pagu']) ?></td>
                                             <?php for ($m = 1; $m <= 12; $m++): ?>
@@ -780,7 +786,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <p class="section-subtitle">Saldo yang masih bisa ditarik tiap rekening per semester (RAK semester &minus; Realisasi semester)</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span style="font-size:0.7rem;font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;">
+                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;">
                             <i class="bi bi-bank me-1"></i><?= $semT['total_rekening'] ?> Rekening
                         </span>
                         <?php
@@ -795,9 +801,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <a href="<?= base_url('export/sisa-semester') ?>?<?= $exportSisaParams ?>"
                            class="btn btn-sm"
                            id="btn-export-sisa-semester"
-                           style="font-size:0.72rem;font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;white-space:nowrap;box-shadow:0 2px 8px rgba(22,163,74,0.25);transition:opacity 0.15s;"
-                           onmouseover="this.style.opacity='0.85'"
-                           onmouseout="this.style.opacity='1'">
+                           class="btn-export-section"
+                           data-bs-toggle="tooltip" data-bs-placement="top" title="Export rekap sisa dana semester ini saja ke Excel">
                             <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
                         </a>
                     </div>
@@ -811,25 +816,25 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <div class="col-md-4 col-12">
                             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;<?= $semesterAktif==1?'box-shadow:0 0 0 2px #3b82f6;border-color:#3b82f6;':'' ?>">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.5rem;">
-                                    <span style="font-size:0.72rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">Sisa Semester 1 <small style="font-weight:600;color:#64748b;">(Jan&ndash;Jun)</small></span>
+                                    <span style="font-size:var(--fs-sm);font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">Sisa Semester 1 <small style="font-weight:600;color:#64748b;">(Jan&ndash;Jun)</small></span>
                                     <?php if ($semesterAktif == 1): ?>
-                                    <span title="Semester ini sedang aktif berjalan (Jan&ndash;Jun)" style="font-size:0.6rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:var(--radius-full);background:#3b82f6;color:#fff;white-space:nowrap;cursor:help;">
+                                    <span title="Semester ini sedang aktif berjalan (Jan&ndash;Jun)" style="font-size:var(--fs-xs);font-weight:700;padding:0.2rem 0.55rem;border-radius:var(--radius-full);background:#3b82f6;color:#fff;white-space:nowrap;cursor:help;">
                                         <i class="bi bi-circle-fill" style="font-size:0.45rem;vertical-align:middle;animation:smPulse 2s ease-in-out infinite;"></i> Periode berjalan
                                     </span>
                                     <?php elseif ($s1Inactive): ?>
-                                    <span title="Semester 1 telah berakhir" style="font-size:0.6rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:#e2e8f0;color:#64748b;white-space:nowrap;">
+                                    <span title="Semester 1 telah berakhir" style="font-size:var(--fs-xs);font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:#e2e8f0;color:#64748b;white-space:nowrap;">
                                         <i class="bi bi-check-circle-fill"></i> Selesai
                                     </span>
                                     <?php endif; ?>
                                 </div>
-                                <div style="font-size:1.35rem;font-weight:800;color:<?= $semT['sisa_s1']>=0?'#0f172a':'#dc2626' ?>;letter-spacing:-0.02em;line-height:1.1;<?= $s1Inactive?'opacity:0.6;':'' ?>">Rp <?= number_format($semT['sisa_s1'], 0, ',', '.') ?></div>
+                                <div style="font-size:var(--fs-xl);font-weight:800;color:<?= $semT['sisa_s1']>=0?'#0f172a':'#dc2626' ?>;letter-spacing:-0.02em;line-height:1.1;<?= $s1Inactive?'opacity:0.6;':'' ?>">Rp <?= number_format($semT['sisa_s1'], 0, ',', '.') ?></div>
                                 <?php if ($s1Inactive): ?>
-                                <div style="margin-top:0.2rem;font-size:0.65rem;color:#94a3b8;font-weight:500;font-style:italic;">Periode telah berakhir</div>
+                                <div style="margin-top:0.2rem;font-size:var(--fs-xs);color:#94a3b8;font-weight:500;font-style:italic;">Periode telah berakhir</div>
                                 <?php endif; ?>
-                                <div style="margin-top:0.5rem;font-size:0.7rem;color:#475569;<?= $s1Inactive?'opacity:0.7;':'' ?>">
+                                <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#475569;<?= $s1Inactive?'opacity:0.7;':'' ?>">
                                     <span><strong><?= $semT['rekening_dengan_sisa_s1'] ?></strong> rekening masih ada sisa</span>
                                 </div>
-                                <div style="margin-top:0.4rem;font-size:0.68rem;color:#64748b;display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;<?= $s1Inactive?'opacity:0.7;':'' ?>">
+                                <div style="margin-top:0.4rem;font-size:var(--fs-xs);color:#64748b;display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;<?= $s1Inactive?'opacity:0.7;':'' ?>">
                                     <span>RAK: Rp <?= number_format($semT['rak_s1'], 0, ',', '.') ?></span>
                                     <span>Realisasi: Rp <?= number_format($semT['real_s1'], 0, ',', '.') ?></span>
                                 </div>
@@ -842,31 +847,31 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <div class="col-md-4 col-12">
                             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;<?= $semesterAktif==2?'box-shadow:0 0 0 2px #3b82f6;border-color:#3b82f6;':'' ?>">
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.5rem;">
-                                    <span style="font-size:0.72rem;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">Sisa Semester 2 <small style="font-weight:600;color:#64748b;">(Jul&ndash;Des)</small></span>
+                                    <span style="font-size:var(--fs-sm);font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">Sisa Semester 2 <small style="font-weight:600;color:#64748b;">(Jul&ndash;Des)</small></span>
                                     <?php if ($semesterAktif == 2): ?>
-                                    <span title="Semester ini sedang aktif berjalan (Jul&ndash;Des)" style="font-size:0.6rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:var(--radius-full);background:#3b82f6;color:#fff;white-space:nowrap;cursor:help;">
+                                    <span title="Semester ini sedang aktif berjalan (Jul&ndash;Des)" style="font-size:var(--fs-xs);font-weight:700;padding:0.2rem 0.55rem;border-radius:var(--radius-full);background:#3b82f6;color:#fff;white-space:nowrap;cursor:help;">
                                         <i class="bi bi-circle-fill" style="font-size:0.45rem;vertical-align:middle;animation:smPulse 2s ease-in-out infinite;"></i> Periode berjalan
                                     </span>
                                     <?php elseif ($s2Inactive): ?>
-                                    <span title="Semester 2 belum berjalan (Jul&ndash;Des)" style="font-size:0.6rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:#e2e8f0;color:#64748b;white-space:nowrap;">
+                                    <span title="Semester 2 belum berjalan (Jul&ndash;Des)" style="font-size:var(--fs-xs);font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:#e2e8f0;color:#64748b;white-space:nowrap;">
                                         <i class="bi bi-clock"></i> Belum berjalan
                                     </span>
                                     <?php endif; ?>
                                 </div>
-                                <div style="font-size:1.35rem;font-weight:800;color:<?= $semT['sisa_s2']>=0?'#0f172a':'#dc2626' ?>;letter-spacing:-0.02em;line-height:1.1;<?= $s2Inactive?'opacity:0.6;':'' ?>">Rp <?= number_format($semT['sisa_s2'], 0, ',', '.') ?></div>
+                                <div style="font-size:var(--fs-xl);font-weight:800;color:<?= $semT['sisa_s2']>=0?'#0f172a':'#dc2626' ?>;letter-spacing:-0.02em;line-height:1.1;<?= $s2Inactive?'opacity:0.6;':'' ?>">Rp <?= number_format($semT['sisa_s2'], 0, ',', '.') ?></div>
                                 <?php if ($carryOverTotal > 0): ?>
-                                <div style="margin-top:0.3rem;font-size:0.68rem;display:inline-flex;align-items:center;gap:0.3rem;padding:0.2rem 0.55rem;border-radius:999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#059669;font-weight:600;">
-                                    <i class="bi bi-arrow-right-circle-fill" style="font-size:0.7rem;"></i>
+                                <div style="margin-top:0.3rem;font-size:var(--fs-xs);display:inline-flex;align-items:center;gap:0.3rem;padding:0.2rem 0.55rem;border-radius:999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#059669;font-weight:600;">
+                                    <i class="bi bi-arrow-right-circle-fill" style="font-size:var(--fs-xs);"></i>
                                     Termasuk sisa sem 1: Rp <?= number_format($carryOverTotal, 0, ',', '.') ?>
                                 </div>
                                 <?php endif; ?>
                                 <?php if ($s2Inactive): ?>
-                                <div style="margin-top:0.2rem;font-size:0.65rem;color:#94a3b8;font-weight:500;font-style:italic;">Belum berjalan</div>
+                                <div style="margin-top:0.2rem;font-size:var(--fs-xs);color:#94a3b8;font-weight:500;font-style:italic;">Belum berjalan</div>
                                 <?php endif; ?>
-                                <div style="margin-top:0.5rem;font-size:0.7rem;color:#475569;<?= $s2Inactive?'opacity:0.7;':'' ?>">
+                                <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#475569;<?= $s2Inactive?'opacity:0.7;':'' ?>">
                                     <span><strong><?= $semT['rekening_dengan_sisa_s2'] ?></strong> rekening masih ada sisa</span>
                                 </div>
-                                <div style="margin-top:0.4rem;font-size:0.68rem;color:#64748b;display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;<?= $s2Inactive?'opacity:0.7;':'' ?>">
+                                <div style="margin-top:0.4rem;font-size:var(--fs-xs);color:#64748b;display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;<?= $s2Inactive?'opacity:0.7;':'' ?>">
                                     <span>RAK S2: Rp <?= number_format($semT['rak_s2'], 0, ',', '.') ?></span>
                                     <span>Realisasi: Rp <?= number_format($semT['real_s2'], 0, ',', '.') ?></span>
                                 </div>
@@ -880,17 +885,17 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                 <div style="position:absolute;right:-15px;top:-15px;width:80px;height:80px;background:rgba(59,130,246,0.15);border-radius:50%;"></div>
                                 <div style="position:relative;z-index:1;">
                                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
-                                        <span style="font-size:0.7rem;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.06em;display:inline-flex;align-items:center;gap:0.4rem;">
-                                            <i class="bi bi-pie-chart-fill" style="color:#60a5fa;font-size:0.85rem;"></i>
+                                        <span style="font-size:var(--fs-xs);font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.06em;display:inline-flex;align-items:center;gap:0.4rem;">
+                                            <i class="bi bi-pie-chart-fill" style="color:#60a5fa;font-size:var(--fs-base);"></i>
                                             Total Tahun
                                         </span>
-                                        <span style="font-size:0.6rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:rgba(59,130,246,0.25);color:#bfdbfe;">RINGKASAN</span>
+                                        <span style="font-size:var(--fs-xs);font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:rgba(59,130,246,0.25);color:#bfdbfe;">RINGKASAN</span>
                                     </div>
-                                    <div style="font-size:1.45rem;font-weight:800;color:<?= $totalSisaTahun>=0?'#fff':'#fca5a5' ?>;letter-spacing:-0.02em;line-height:1.1;">Rp <?= number_format($totalSisaTahun, 0, ',', '.') ?></div>
-                                    <div style="margin-top:0.5rem;font-size:0.7rem;color:#cbd5e1;">
+                                    <div style="font-size:var(--fs-xl);font-weight:800;color:<?= $totalSisaTahun>=0?'#fff':'#fca5a5' ?>;letter-spacing:-0.02em;line-height:1.1;">Rp <?= number_format($totalSisaTahun, 0, ',', '.') ?></div>
+                                    <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#cbd5e1;">
                                         Akumulasi sisa <strong style="color:#fff;">S1 + S2</strong> dari semua rekening
                                     </div>
-                                    <div style="margin-top:0.4rem;font-size:0.68rem;color:#94a3b8;border-top:1px solid rgba(255,255,255,0.1);padding-top:0.4rem;">
+                                    <div style="margin-top:0.4rem;font-size:var(--fs-xs);color:#94a3b8;border-top:1px solid rgba(255,255,255,0.1);padding-top:0.4rem;">
                                         Total RAK Tahun: Rp <?= number_format($semT['rak_s1']+$semT['rak_s2'], 0, ',', '.') ?>
                                     </div>
                                 </div>
@@ -918,20 +923,20 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <div class="position-relative" style="min-width:240px;">
-                                <i class="bi bi-search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:0.8rem;"></i>
-                                <input type="text" id="semesterSearchInput" class="form-control form-control-sm" placeholder="Cari rekening atau sub kegiatan..." style="padding-left:2rem;font-size:0.8rem;">
+                                <i class="bi bi-search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:var(--fs-base);"></i>
+                                <input type="text" id="semesterSearchInput" class="form-control form-control-sm" placeholder="Cari rekening atau sub kegiatan..." style="padding-left:2rem;font-size:var(--fs-base);">
                             </div>
                             <div class="btn-group" role="group" aria-label="Filter sisa">
                                 <button type="button" class="btn btn-sm semester-filter-btn active" data-filter="all">Semua</button>
                                 <button type="button" class="btn btn-sm semester-filter-btn" data-filter="sisa">Ada Sisa</button>
                                 <button type="button" class="btn btn-sm semester-filter-btn" data-filter="negatif">Over RAK</button>
                             </div>
-                            <span id="semesterFilterContext" style="font-size:0.68rem;font-weight:600;color:#64748b;padding:0.2rem 0.55rem;border-radius:var(--radius-full,999px);background:#eff6ff;border:1px solid #bfdbfe;display:inline-flex;align-items:center;gap:0.3rem;">
-                                <i class="bi bi-funnel-fill" style="font-size:0.7rem;color:#3b82f6;"></i>
+                            <span id="semesterFilterContext" style="font-size:var(--fs-xs);font-weight:600;color:#64748b;padding:0.2rem 0.55rem;border-radius:var(--radius-full,999px);background:#eff6ff;border:1px solid #bfdbfe;display:inline-flex;align-items:center;gap:0.3rem;">
+                                <i class="bi bi-funnel-fill" style="font-size:var(--fs-xs);color:#3b82f6;"></i>
                                 Filter berlaku untuk <strong style="color:#1e40af;" id="semesterFilterContextLabel">S<?= $semesterAktif==2?'2':'1' ?></strong>
                             </span>
                         </div>
-                        <div style="font-size:0.72rem;color:var(--gray-500);">
+                        <div style="font-size:var(--fs-sm);color:var(--gray-500);">
                             <i class="bi bi-info-circle me-1"></i>Klik baris sub kegiatan untuk lihat rekening
                         </div>
                     </div>
@@ -947,14 +952,14 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
                         /* Tab semester */
                         .sm-tab-group { display:flex; gap:0.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:0; margin-bottom:0; }
-                        .sm-tab-btn { position:relative; background:transparent; border:none; padding:0.65rem 1.25rem; font-size:0.85rem; font-weight:600; color:#64748b; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; display:inline-flex; align-items:center; gap:0.4rem; border-radius:6px 6px 0 0; }
+                        .sm-tab-btn { position:relative; background:transparent; border:none; padding:0.65rem 1.25rem; font-size:var(--fs-base); font-weight:600; color:#64748b; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; display:inline-flex; align-items:center; gap:0.4rem; border-radius:6px 6px 0 0; }
                         .sm-tab-btn:hover { color:#1e293b; background:#f8fafc; }
                         .sm-tab-btn.active { color:#0284c7; border-bottom-color:#0284c7; background:transparent; }
                         .sm-tab-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#3b82f6; margin-left:0.4rem; animation:smPulse 2s ease-in-out infinite; }
 
                         /* Table base */
-                        .sm-tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:0.82rem; min-width:680px; font-variant-numeric:tabular-nums; table-layout:fixed; }
-                        .sm-tbl thead th { position:sticky; top:0; z-index:2; background:#f1f5f9; padding:0.7rem 0.6rem; font-size:0.68rem; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; border-bottom:2px solid #cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right; }
+                        .sm-tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--fs-base); min-width:680px; font-variant-numeric:tabular-nums; table-layout:fixed; }
+                        .sm-tbl thead th { position:sticky; top:0; z-index:2; background:#f1f5f9; padding:0.7rem 0.6rem; font-size:var(--fs-xs); font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em; border-bottom:2px solid #cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right; }
                         .sm-tbl thead th:first-child { text-align:left; padding-left:0.85rem; }
                         .sm-tbl thead th.sm-col-sisa { background:#dbeafe; color:#1e40af; }
                         .sm-tbl thead th.sm-col-total { background:#dbeafe; color:#1e3a8a; border-left:2px solid #93c5fd; }
@@ -980,35 +985,35 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         .sm-collapsed .sm-toggle-icon { transform:rotate(-90deg); }
 
                         /* Sisa values */
-                        .sm-sisa { font-weight:700; font-size:0.88rem; letter-spacing:-0.01em; }
+                        .sm-sisa { font-weight:700; font-size:var(--fs-base); letter-spacing:-0.01em; }
                         .sm-sisa-pos { color:#059669; }
                         .sm-sisa-zero { color:#94a3b8; }
                         .sm-sisa-neg { color:#dc2626; }
 
                         /* RAK / Realisasi muted text */
-                        .sm-amount { font-size:0.82rem; color:#334155; font-weight:500; }
+                        .sm-amount { font-size:var(--fs-base); color:#334155; font-weight:500; }
                         .sm-amount-muted { color:#64748b; }
 
                         /* Sub kegiatan title */
                         .sm-sk-title { display:flex; align-items:flex-start; gap:0.4rem; flex-wrap:wrap; }
                         .sm-sk-title .sm-toggle-icon { flex-shrink:0; margin-top:1px; }
-                        .sm-sk-name { font-weight:600; color:#0f172a; font-size:0.84rem; flex:1; min-width:0; word-break:break-word; overflow-wrap:anywhere; line-height:1.35; }
-                        .sm-sk-meta { font-size:0.66rem; color:#64748b; font-weight:500; margin-top:0.15rem; margin-left:1.55rem; letter-spacing:0.01em; }
+                        .sm-sk-name { font-weight:600; color:#0f172a; font-size:var(--fs-base); flex:1; min-width:0; word-break:break-word; overflow-wrap:anywhere; line-height:1.35; }
+                        .sm-sk-meta { font-size:var(--fs-xs); color:#64748b; font-weight:500; margin-top:0.15rem; margin-left:1.55rem; letter-spacing:0.01em; }
 
                         /* Rekening cell */
-                        .sm-rek-name { font-weight:500; color:#1e293b; font-size:0.8rem; word-break:break-word; overflow-wrap:anywhere; line-height:1.35; }
-                        .sm-rek-kode { font-size:0.66rem; color:#94a3b8; font-weight:500; margin-top:0.1rem; }
+                        .sm-rek-name { font-weight:500; color:#1e293b; font-size:var(--fs-base); word-break:break-word; overflow-wrap:anywhere; line-height:1.35; }
+                        .sm-rek-kode { font-size:var(--fs-xs); color:#94a3b8; font-weight:500; margin-top:0.1rem; }
 
                         /* Status pill */
-                        .sm-status-pill { display:inline-block; font-size:0.6rem; font-weight:700; padding:0.15rem 0.5rem; border-radius:var(--radius-full,999px); margin-left:0.4rem; vertical-align:middle; }
+                        .sm-status-pill { display:inline-block; font-size:var(--fs-xs); font-weight:700; padding:0.15rem 0.5rem; border-radius:var(--radius-full,999px); margin-left:0.4rem; vertical-align:middle; }
                         .sm-pill-neg { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
 
                         /* Filter buttons */
-                        .semester-filter-btn { font-size:0.72rem; font-weight:600; padding:0.3rem 0.7rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; }
+                        .semester-filter-btn { font-size:var(--fs-sm); font-weight:600; padding:0.3rem 0.7rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; }
                         .semester-filter-btn:hover { background:#f1f5f9; color:#334155; }
                         .semester-filter-btn.active { background:#0284c7; color:#fff; border-color:#0284c7; }
                         .semester-filter-btn:not(:last-child) { border-right:none; }
-                        #semesterRekapEmpty { display:none; padding:2rem; text-align:center; color:var(--gray-400); font-size:0.85rem; }
+                        #semesterRekapEmpty { display:none; padding:2rem; text-align:center; color:var(--gray-400); font-size:var(--fs-base); }
 
                         /* Hide inactive semester columns */
                         .sm-tbl[data-active-sem="1"] .sm-col-s2 { display:none; }
@@ -1016,54 +1021,40 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
                         /* Mobile responsive: hide RAK & Realisasi columns, only show Sisa + Total Sisa */
                         @media (max-width: 767.98px) {
-                            .sm-tbl { min-width:0; font-size:0.78rem; }
+                            .sm-tbl { min-width:0; font-size:var(--fs-sm); }
                             .sm-tbl thead th, .sm-tbl tbody td { padding:0.5rem 0.55rem; }
                             .sm-tbl .sm-col-rak, .sm-tbl .sm-col-real { display:none; }
-                            .sm-sisa { font-size:0.82rem; }
-                            .sm-tab-btn { padding:0.55rem 0.85rem; font-size:0.78rem; }
+                            .sm-sisa { font-size:var(--fs-base); }
+                            .sm-tab-btn { padding:0.55rem 0.85rem; font-size:var(--fs-sm); }
                             .sm-tab-btn small { display:none; }
                         }
-                    .custom-dashboard-tabs {
-    display: inline-flex;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    background: #f1f5f9;
-    border-radius: var(--radius-md, 12px);
-    border: 1px solid #e2e8f0;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-}
-.custom-dashboard-tabs::-webkit-scrollbar {
-    height: 4px;
-}
-.custom-dashboard-tabs::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
-}
-.custom-dashboard-tabs .nav-link {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #64748b;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    transition: all 0.2s ease;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    background: transparent;
-}
-.custom-dashboard-tabs .nav-link:hover {
-    color: #1e293b;
-    background: rgba(255, 255, 255, 0.6);
-}
-.custom-dashboard-tabs .nav-link.active {
-    background: #ffffff;
-    color: var(--primary, #0284c7);
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+                    
+/* Mobile collapse for monthly absorption table */
+@media (max-width: 767.98px) {
+    .monthly-absorption-table:not(.is-expanded-months) {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-month {
+        display: none !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-name {
+        width: auto !important;
+        min-width: 140px !important;
+        max-width: 180px !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-pagu {
+        left: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
+        right: auto !important;
+        position: static !important;
+    }
 }
 </style>
 
@@ -1180,7 +1171,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="sm-col-s2 sm-col-sisa">
                                         <span class="sm-sisa <?= $rek['sisa_s2']>0?'sm-sisa-pos':($rek['sisa_s2']<0?'sm-sisa-neg':'sm-sisa-zero') ?>"><?= fmtRpKompak($rek['sisa_s2']) ?></span>
                                         <?php if ($rekCarry > 0): ?>
-                                        <div style="font-size:0.6rem;color:#059669;font-weight:600;margin-top:0.1rem;white-space:normal;line-height:1.2;">+<?= fmtRpKompak($rekCarry) ?> sem 1</div>
+                                        <div style="font-size:var(--fs-xs);color:#059669;font-weight:600;margin-top:0.1rem;white-space:normal;line-height:1.2;">+<?= fmtRpKompak($rekCarry) ?> sem 1</div>
                                         <?php endif; ?>
                                     </td>
                                     <td class="sm-col-total">
@@ -1195,13 +1186,13 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div id="semesterRekapEmpty"><i class="bi bi-search me-1"></i>Tidak ada hasil yang cocok</div>
 
                     <!-- Legend -->
-                    <div style="margin-top:0.75rem;padding:0.625rem 0.875rem;background:#f8fafc;border-radius:var(--radius-sm,8px);border:1px solid var(--gray-200);font-size:0.7rem;color:var(--gray-600);display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+                    <div style="margin-top:0.75rem;padding:0.625rem 0.875rem;background:#f8fafc;border-radius:var(--radius-sm,8px);border:1px solid var(--gray-200);font-size:var(--fs-xs);color:var(--gray-600);display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
                         <i class="bi bi-info-circle-fill" style="color:#0284c7;"></i>
                         <span><strong style="color:#059669;">Hijau</strong> = ada sisa (bisa ditarik)</span>
                         <span><strong style="color:#94a3b8;">Abu</strong> = sudah pas (tidak ada sisa)</span>
                         <span><strong style="color:#dc2626;">Merah</strong> = realisasi melebihi RAK semester</span>
                         <span><strong style="color:#059669;">+X sem 1</strong> = sisa S1 yang ditambahkan ke kuota S2</span>
-                        <span style="margin-left:auto;color:#94a3b8;font-size:0.68rem;">Sisa S2 = RAK S2 + Sisa Sem 1 &minus; Realisasi S2</span>
+                        <span style="margin-left:auto;color:#94a3b8;font-size:var(--fs-xs);">Sisa S2 = RAK S2 + Sisa Sem 1 &minus; Realisasi S2</span>
                     </div>
                 </div>
             </div>
@@ -1357,69 +1348,55 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         .h-item-left { display: flex; align-items: flex-start; gap: 0.5rem; flex: 1; }
                         .h-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 0.35rem; position: relative; z-index: 2; box-shadow: 0 0 0 3px #fff; flex-shrink: 0; }
                         
-                        .h-badge { font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); margin-right: 0.5rem; color:#fff; }
+                        .h-badge { font-size:var(--fs-xs); font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); margin-right: 0.5rem; color:#fff; }
                         .badge-seksi { background: #020617; }
                         .badge-program { background: #0f172a; }
                         .badge-kegiatan { background: #1e293b; }
                         .badge-sub { background: #334155; }
                         .badge-belanja { background: #475569; }
                         
-                        .h-title { font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.25rem; }
-                        .h-code { font-size: 0.7rem; color: var(--gray-500); }
+                        .h-title { font-size:var(--fs-base); font-weight: 700; color: var(--gray-800); margin-bottom: 0.25rem; }
+                        .h-code { font-size:var(--fs-xs); color: var(--gray-500); }
                         
                         .h-card-sm { display: flex; align-items: center; gap: 0.75rem; min-width: 160px; }
-                        .h-icon-box { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+                        .h-icon-box { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size:var(--fs-lg); flex-shrink: 0; }
                         .icon-box-anggaran { background: #ecfeff; color: #06b6d4; }
                         .icon-box-realisasi { background: #f1f5f9; color: #f59e0b; }
                         
-                        .h-val-title { font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-bottom:0.1rem; }
-                        .h-val-sub { font-size: 0.65rem; color: var(--gray-500); }
+                        .h-val-title { font-size:var(--fs-base); font-weight: 700; color: var(--gray-800); margin-bottom:0.1rem; }
+                        .h-val-sub { font-size:var(--fs-xs); color: var(--gray-500); }
                         
                         .h-progress-wrap { display: flex; align-items: center; gap: 0.75rem; min-width: 150px; justify-content:flex-end; }
                         .h-progress-bar { width: 60px; height: 4px; border-radius: 2px; background: var(--gray-200); position: relative; }
                         .h-progress-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; }
                         .progress-fill-safe { background: var(--primary); }
-                    .custom-dashboard-tabs {
-    display: inline-flex;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    background: #f1f5f9;
-    border-radius: var(--radius-md, 12px);
-    border: 1px solid #e2e8f0;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-}
-.custom-dashboard-tabs::-webkit-scrollbar {
-    height: 4px;
-}
-.custom-dashboard-tabs::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
-}
-.custom-dashboard-tabs .nav-link {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #64748b;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    transition: all 0.2s ease;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    background: transparent;
-}
-.custom-dashboard-tabs .nav-link:hover {
-    color: #1e293b;
-    background: rgba(255, 255, 255, 0.6);
-}
-.custom-dashboard-tabs .nav-link.active {
-    background: #ffffff;
-    color: var(--primary, #0284c7);
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+                    
+/* Mobile collapse for monthly absorption table */
+@media (max-width: 767.98px) {
+    .monthly-absorption-table:not(.is-expanded-months) {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-month {
+        display: none !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-name {
+        width: auto !important;
+        min-width: 140px !important;
+        max-width: 180px !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-pagu {
+        left: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
+        right: auto !important;
+        position: static !important;
+    }
 }
 </style>
 
@@ -1442,13 +1419,12 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             $hasChildren = !empty($node['children']);
                             $itemClass = 'h-item' . ($hasChildren ? ' has-children' : '');
                             $nodeClass = 'h-node pt-0 pb-0' . ($hasChildren ? ' tree-collapsed' : '');
-                            // Set onclick to toggle 'tree-collapsed' on the parent node container
-                            $onclick = $hasChildren ? ' onclick="this.parentElement.classList.toggle(\'tree-collapsed\')"' : '';
+                            $attrs = $hasChildren ? ' role="button" tabindex="0" aria-expanded="false" onclick="toggleTreeNode(this)" onkeydown="handleTreeKey(event, this)"' : '';
                             
                             echo '<div class="' . $nodeClass . '">';
                             if ($level > 0) echo '<div class="h-line-h"></div>';
                             
-                            echo '<div class="' . $itemClass . '"' . $onclick . '>';
+                            echo '<div class="' . $itemClass . '"' . $attrs . '>';
                             // Left Section (Toggle, Dot, Title, Code)
                             echo '<div class="h-item-left align-items-center">';
                             if ($hasChildren) {
@@ -1474,7 +1450,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             
                             // Center Section (% Realisasi)
                             echo '<div class="h-progress-wrap ms-3 d-none d-md-flex">';
-                            echo '<span style="font-size:0.8rem; font-weight:700; color:var(--primary);">' . number_format($pct, 2) . '%</span>';
+                            echo '<span style="font-size:var(--fs-base); font-weight:700; color:var(--primary);">' . number_format($pct, 2) . '%</span>';
                             echo '<div class="h-progress-bar"><div class="h-progress-fill progress-fill-safe" style="width:' . min($pct, 100) . '%;"></div></div>';
                             echo '</div>';
                             
@@ -1544,7 +1520,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <h5 class="section-title"><i class="bi bi-exclamation-triangle-fill me-2" style="color:#d97706;"></i>Rincian Deviasi dari RAK</h5>
                         <p class="section-subtitle">Sub kegiatan &amp; rekening yang realisasinya tidak sesuai rencana RAK</p>
                     </div>
-                    <span style="font-size:0.7rem;font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;">
+                    <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;">
                         <i class="bi bi-diagram-3 me-1"></i><?= $totalSubKegiatanDeviasi ?> Sub Kegiatan
                     </span>
                 </div>
@@ -1554,77 +1530,63 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;">
-                                <div style="font-size:0.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.35rem;">Total Nilai Under RAK</div>
-                                <div style="font-size:1.2rem;font-weight:800;color:#dc2626;letter-spacing:-0.02em;">Rp <?= number_format($totalNilaiUnder, 0, ',', '.') ?></div>
+                                <div style="font-size:var(--fs-sm);font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.35rem;">Total Nilai Under RAK</div>
+                                <div style="font-size:var(--fs-lg);font-weight:800;color:#dc2626;letter-spacing:-0.02em;">Rp <?= number_format($totalNilaiUnder, 0, ',', '.') ?></div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;">
-                                <div style="font-size:0.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.35rem;">Sub Kegiatan Berdeviasi</div>
-                                <div style="font-size:1.2rem;font-weight:800;color:#b45309;letter-spacing:-0.02em;"><?= $totalSubKegiatanDeviasi ?></div>
+                                <div style="font-size:var(--fs-sm);font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.35rem;">Sub Kegiatan Berdeviasi</div>
+                                <div style="font-size:var(--fs-lg);font-weight:800;color:#b45309;letter-spacing:-0.02em;"><?= $totalSubKegiatanDeviasi ?></div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;">
-                                <div style="font-size:0.72rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.35rem;">Total Rekening Berdeviasi</div>
-                                <div style="font-size:1.2rem;font-weight:800;color:#334155;letter-spacing:-0.02em;"><?= $totalRekeningDeviasi ?></div>
+                                <div style="font-size:var(--fs-sm);font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.35rem;">Total Rekening Berdeviasi</div>
+                                <div style="font-size:var(--fs-lg);font-weight:800;color:#334155;letter-spacing:-0.02em;"><?= $totalRekeningDeviasi ?></div>
                             </div>
                         </div>
                     </div>
-                    <p style="font-size:0.75rem;color:var(--gray-500);margin-bottom:0.75rem;"><i class="bi bi-cursor-fill me-1"></i>Klik baris sub kegiatan untuk melihat rincian rekening</p>
+                    <p style="font-size:var(--fs-sm);color:var(--gray-500);margin-bottom:0.75rem;"><i class="bi bi-cursor-fill me-1"></i>Klik baris sub kegiatan untuk melihat rincian rekening</p>
                     <!-- Risk Level Filter -->
                     <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                        <span style="font-size:0.72rem;font-weight:600;color:#475569;">Tingkat Risiko:</span>
+                        <span style="font-size:var(--fs-sm);font-weight:600;color:#475569;">Tingkat Risiko:</span>
                         <button type="button" class="btn btn-sm deviasi-risk-btn active" data-risk="all" onclick="filterDeviasiRisk('all',this)">Semua <span style="opacity:0.7;">(<?= $totalSubKegiatanDeviasi ?>)</span></button>
                         <button type="button" class="btn btn-sm deviasi-risk-btn" data-risk="kritis" onclick="filterDeviasiRisk('kritis',this)" style="--btn-active-bg:#dc2626;">Kritis <span style="opacity:0.7;">(<?= $riskCounts['kritis'] ?>)</span></button>
                         <button type="button" class="btn btn-sm deviasi-risk-btn" data-risk="sedang" onclick="filterDeviasiRisk('sedang',this)" style="--btn-active-bg:#d97706;">Sedang <span style="opacity:0.7;">(<?= $riskCounts['sedang'] ?>)</span></button>
                         <button type="button" class="btn btn-sm deviasi-risk-btn" data-risk="rendah" onclick="filterDeviasiRisk('rendah',this)" style="--btn-active-bg:#d97706;">Rendah <span style="opacity:0.7;">(<?= $riskCounts['rendah'] ?>)</span></button>
                     </div>
                     <style>
-                        .deviasi-risk-btn { font-size:0.72rem; font-weight:600; padding:0.3rem 0.7rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:999px; }
+                        .deviasi-risk-btn { font-size:var(--fs-sm); font-weight:600; padding:0.3rem 0.7rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:999px; }
                         .deviasi-risk-btn:hover { background:#f1f5f9; color:#334155; }
                         .deviasi-risk-btn.active { background:var(--btn-active-bg,#0284c7); color:#fff; border-color:var(--btn-active-bg,#0284c7); }
-                    .custom-dashboard-tabs {
-    display: inline-flex;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    background: #f1f5f9;
-    border-radius: var(--radius-md, 12px);
-    border: 1px solid #e2e8f0;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-}
-.custom-dashboard-tabs::-webkit-scrollbar {
-    height: 4px;
-}
-.custom-dashboard-tabs::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
-}
-.custom-dashboard-tabs .nav-link {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #64748b;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    transition: all 0.2s ease;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    background: transparent;
-}
-.custom-dashboard-tabs .nav-link:hover {
-    color: #1e293b;
-    background: rgba(255, 255, 255, 0.6);
-}
-.custom-dashboard-tabs .nav-link.active {
-    background: #ffffff;
-    color: var(--primary, #0284c7);
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+                    
+/* Mobile collapse for monthly absorption table */
+@media (max-width: 767.98px) {
+    .monthly-absorption-table:not(.is-expanded-months) {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-month {
+        display: none !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-name {
+        width: auto !important;
+        min-width: 140px !important;
+        max-width: 180px !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-pagu {
+        left: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
+        right: auto !important;
+        position: static !important;
+    }
 }
 </style>
                 </div>
@@ -1649,59 +1611,45 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     .d-dot-sk        { width:10px;height:10px;border-radius:50%;background:#d97706;position:relative;z-index:2;box-shadow:0 0 0 3px #fff;flex-shrink:0; }
                     .d-dot-rek       { width:8px;height:8px;border-radius:50%;background:#94a3b8;position:relative;z-index:2;box-shadow:0 0 0 3px #fff;flex-shrink:0; }
 
-                    .d-badge-sk      { font-size:.62rem;font-weight:700;padding:.15rem .55rem;border-radius:var(--radius-full);background:#92400e;color:#fff;margin-right:.4rem; }
-                    .d-badge-rek     { font-size:.62rem;font-weight:700;padding:.15rem .55rem;border-radius:var(--radius-full);background:#475569;color:#fff;margin-right:.4rem; }
-                    .d-title         { font-size:.85rem;font-weight:700;color:var(--gray-800); }
-                    .d-sub           { font-size:.7rem;color:var(--gray-500);margin-top:.1rem; }
+                    .d-badge-sk      { font-size:var(--fs-xs);font-weight:700;padding:.15rem .55rem;border-radius:var(--radius-full);background:#92400e;color:#fff;margin-right:.4rem; }
+                    .d-badge-rek     { font-size:var(--fs-xs);font-weight:700;padding:.15rem .55rem;border-radius:var(--radius-full);background:#475569;color:#fff;margin-right:.4rem; }
+                    .d-title         { font-size:var(--fs-base);font-weight:700;color:var(--gray-800); }
+                    .d-sub           { font-size:var(--fs-xs);color:var(--gray-500);margin-top:.1rem; }
 
-                    .d-pill-over     { font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:var(--radius-full);background:#fef2f2;border:1px solid #fecaca;color:var(--danger);white-space:nowrap; }
-                    .d-pill-under    { font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:var(--radius-full);background:#fffbeb;border:1px solid #fde68a;color:#b45309;white-space:nowrap; }
+                    .d-pill-over     { font-size:var(--fs-xs);font-weight:700;padding:.2rem .55rem;border-radius:var(--radius-full);background:#fef2f2;border:1px solid #fecaca;color:var(--danger);white-space:nowrap; }
+                    .d-pill-under    { font-size:var(--fs-xs);font-weight:700;padding:.2rem .55rem;border-radius:var(--radius-full);background:#fffbeb;border:1px solid #fde68a;color:#b45309;white-space:nowrap; }
 
-                    .d-dev-tbl       { width:100%;border-collapse:collapse;font-size:.775rem; }
-                    .d-dev-tbl th    { padding:.35rem .75rem;font-size:.68rem;font-weight:600;color:var(--gray-500);background:var(--gray-50);border-bottom:1px solid var(--gray-200); }
+                    .d-dev-tbl       { width:100%;border-collapse:collapse;font-size:var(--fs-sm); }
+                    .d-dev-tbl th    { padding:.35rem .75rem;font-size:var(--fs-xs);font-weight:600;color:var(--gray-500);background:var(--gray-50);border-bottom:1px solid var(--gray-200); }
                     .d-dev-tbl td    { padding:.35rem .75rem;border-bottom:1px solid var(--gray-100);color:var(--gray-700); }
                     .d-dev-tbl tr:last-child td { border-bottom:none; }
-                .custom-dashboard-tabs {
-    display: inline-flex;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    background: #f1f5f9;
-    border-radius: var(--radius-md, 12px);
-    border: 1px solid #e2e8f0;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-}
-.custom-dashboard-tabs::-webkit-scrollbar {
-    height: 4px;
-}
-.custom-dashboard-tabs::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
-}
-.custom-dashboard-tabs .nav-link {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #64748b;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    transition: all 0.2s ease;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    background: transparent;
-}
-.custom-dashboard-tabs .nav-link:hover {
-    color: #1e293b;
-    background: rgba(255, 255, 255, 0.6);
-}
-.custom-dashboard-tabs .nav-link.active {
-    background: #ffffff;
-    color: var(--primary, #0284c7);
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+                
+/* Mobile collapse for monthly absorption table */
+@media (max-width: 767.98px) {
+    .monthly-absorption-table:not(.is-expanded-months) {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-month {
+        display: none !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-name {
+        width: auto !important;
+        min-width: 140px !important;
+        max-width: 180px !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-pagu {
+        left: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
+        right: auto !important;
+        position: static !important;
+    }
 }
 </style>
 
@@ -1724,20 +1672,20 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     $skDevPct = $skTotalRakDev > 0 ? ($skTotalDeviasiAbs / $skTotalRakDev) * 100 : 0;
                     $skRiskLevel = $skDevPct > 50 ? 'kritis' : ($skDevPct >= 20 ? 'sedang' : 'rendah');
                     $skRiskLabel = $skRiskLevel === 'kritis' ? 'Kritis' : ($skRiskLevel === 'sedang' ? 'Sedang' : 'Rendah');
-                    $skRiskColor = $skRiskLevel === 'kritis' ? '#dc2626' : ($skRiskLevel === 'sedang' ? '#d97706' : '#eab308');
-                    $skRiskBg = $skRiskLevel === 'kritis' ? '#fef2f2' : ($skRiskLevel === 'sedang' ? '#fffbeb' : '#fefce8');
-                    $skRiskBorder = $skRiskLevel === 'kritis' ? '#fecaca' : ($skRiskLevel === 'sedang' ? '#fde68a' : '#fef08a');
+                    $skRiskColor = $skRiskLevel === 'kritis' ? 'var(--status-danger)' : 'var(--status-warning)';
+                    $skRiskBg = $skRiskLevel === 'kritis' ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)';
+                    $skRiskBorder = $skRiskLevel === 'kritis' ? 'var(--status-danger-border)' : 'var(--status-warning-border)';
                 ?>
                     <!-- ── Sub Kegiatan node (default: COLLAPSED) ── -->
                     <div class="d-node d-collapsed" data-risk="<?= $skRiskLevel ?>" style="padding-top:0;">
-                        <div class="d-item" onclick="this.parentElement.classList.toggle('d-collapsed')">
+                        <div class="d-item" role="button" tabindex="0" aria-expanded="false" onclick="toggleDeviasiNode(this)" onkeydown="handleTreeKey(event, this)">
                             <div style="display:flex;align-items:flex-start;gap:.5rem;flex:1;">
                                 <div class="d-toggle"><i class="bi bi-chevron-down"></i></div>
                                 <div class="d-dot-sk" style="margin-top:.35rem;"></div>
                                 <div style="flex:1;">
                                     <div class="d-title">
                                         <span class="d-badge-sk">Sub Kegiatan</span><?= htmlspecialchars($sk['nama']) ?>
-                                        <span style="font-size:.6rem;font-weight:700;padding:.15rem .5rem;border-radius:var(--radius-full);background:<?= $skRiskBg ?>;border:1px solid <?= $skRiskBorder ?>;color:<?= $skRiskColor ?>;margin-left:.4rem;vertical-align:middle;"><?= $skRiskLabel ?></span>
+                                        <span style="font-size:var(--fs-xs);font-weight:700;padding:.15rem .5rem;border-radius:var(--radius-full);background:<?= $skRiskBg ?>;border:1px solid <?= $skRiskBorder ?>;color:<?= $skRiskColor ?>;margin-left:.4rem;vertical-align:middle;"><?= $skRiskLabel ?></span>
                                     </div>
                                     <div class="d-sub">Kode: <?= htmlspecialchars($sk['kode']) ?> &bull; <?= count($sk['rekening']) ?> rekening berdeviasi &bull; Deviasi <?= number_format($skDevPct,2) ?>% dari RAK</div>
                                 </div>
@@ -1757,7 +1705,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             <!-- ── Rekening node (default: COLLAPSED) ── -->
                             <div class="d-node d-collapsed">
                                 <div class="d-line-h"></div>
-                                <div class="d-item" onclick="this.parentElement.classList.toggle('d-collapsed')">
+                                <div class="d-item" role="button" tabindex="0" aria-expanded="false" onclick="toggleDeviasiNode(this)" onkeydown="handleTreeKey(event, this)">
                                     <div style="display:flex;align-items:flex-start;gap:.5rem;flex:1;">
                                         <div class="d-toggle"><i class="bi bi-chevron-down"></i></div>
                                         <div class="d-dot-rek" style="margin-top:.35rem;"></div>
@@ -1791,9 +1739,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                                 $selAbs     = abs($dev['selisih']);
                                                 $selColor   = $isOver ? 'var(--danger)' : '#b45309';
                                                 $rowBg      = $isOver ? 'rgba(254,242,242,.45)' : 'rgba(255,251,235,.45)';
-                                                $sBg        = $isOver ? '#fef2f2' : '#fffbeb';
-                                                $sBorder    = $isOver ? '#fecaca' : '#fde68a';
-                                                $sColor     = $isOver ? 'var(--danger)' : '#b45309';
+                                                $sBg        = $isOver ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)';
+                                                $sBorder    = $isOver ? 'var(--status-danger-border)' : 'var(--status-warning-border)';
+                                                $sColor     = $isOver ? 'var(--status-danger)' : 'var(--status-warning)';
                                                 $sIcon      = $isOver ? 'bi-arrow-up-circle-fill' : 'bi-arrow-down-circle-fill';
                                                 $sLabel     = $isOver ? 'Over RAK' : 'Under RAK';
                                             ?>
@@ -1803,7 +1751,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                                 <td class="text-end" style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($dev['realisasi'],0,',','.') ?></td>
                                                 <td class="text-end" style="font-weight:700;color:<?= $selColor ?>;"><?= $isOver ? '+' : '&minus;' ?>Rp <?= number_format($selAbs,0,',','.') ?></td>
                                                 <td class="text-center">
-                                                    <span style="font-size:.65rem;font-weight:700;padding:.2rem .55rem;border-radius:var(--radius-full);background:<?= $sBg ?>;border:1px solid <?= $sBorder ?>;color:<?= $sColor ?>;white-space:nowrap;">
+                                                    <span style="font-size:var(--fs-xs);font-weight:700;padding:.2rem .55rem;border-radius:var(--radius-full);background:<?= $sBg ?>;border:1px solid <?= $sBorder ?>;color:<?= $sColor ?>;white-space:nowrap;">
                                                         <i class="bi <?= $sIcon ?> me-1"></i><?= $sLabel ?>
                                                     </span>
                                                 </td>
@@ -1853,7 +1801,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
                         <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
-                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" title="Export ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
+                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" data-bs-toggle="tooltip" data-bs-placement="top" title="Export ringkasan per unit ini saja ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
                 </div>
                 <div class="card-body" style="padding:0 1.5rem 1.5rem;">
                     <div class="row g-2">
@@ -1866,42 +1814,42 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         if ($rakKum > 0) {
                             $capaianRakSeksi = ($data['realisasi'] / $rakKum) * 100;
                             if ($capaianRakSeksi >= 90) {
-                                $clr  = '#059669';
-                                $bg   = '#ecfdf5';
-                                $bdr  = '#bbf7d0';
+                                $clr  = 'var(--status-success)';
+                                $bg   = 'var(--status-success-bg)';
+                                $bdr  = 'var(--status-success-border)';
                                 $lbl  = 'Aman';
                                 $icon = 'bi-check-circle-fill';
                             } elseif ($capaianRakSeksi >= 70) {
-                                $clr  = '#d97706';
-                                $bg   = '#fffbeb';
-                                $bdr  = '#fde68a';
+                                $clr  = 'var(--status-warning)';
+                                $bg   = 'var(--status-warning-bg)';
+                                $bdr  = 'var(--status-warning-border)';
                                 $lbl  = 'Perlu Dipacu';
                                 $icon = 'bi-exclamation-triangle-fill';
                             } else {
-                                $clr  = '#dc2626';
-                                $bg   = '#fef2f2';
-                                $bdr  = '#fecaca';
+                                $clr  = 'var(--status-danger)';
+                                $bg   = 'var(--status-danger-bg)';
+                                $bdr  = 'var(--status-danger-border)';
                                 $lbl  = 'Tertinggal';
                                 $icon = 'bi-exclamation-octagon-fill';
                             }
                         } else {
                             // Fallback jika belum ada data RAK
                             if ($pct >= 80) {
-                                $clr  = '#059669';
-                                $bg   = '#ecfdf5';
-                                $bdr  = '#bbf7d0';
+                                $clr  = 'var(--status-success)';
+                                $bg   = 'var(--status-success-bg)';
+                                $bdr  = 'var(--status-success-border)';
                                 $lbl  = 'Aman';
                                 $icon = 'bi-check-circle-fill';
                             } elseif ($pct >= 50) {
-                                $clr  = '#d97706';
-                                $bg   = '#fffbeb';
-                                $bdr  = '#fde68a';
+                                $clr  = 'var(--status-warning)';
+                                $bg   = 'var(--status-warning-bg)';
+                                $bdr  = 'var(--status-warning-border)';
                                 $lbl  = 'Perlu Dipacu';
                                 $icon = 'bi-exclamation-triangle-fill';
                             } else {
-                                $clr  = '#dc2626';
-                                $bg   = '#fef2f2';
-                                $bdr  = '#fecaca';
+                                $clr  = 'var(--status-danger)';
+                                $bg   = 'var(--status-danger-bg)';
+                                $bdr  = 'var(--status-danger-border)';
                                 $lbl  = 'Tertinggal';
                                 $icon = 'bi-exclamation-octagon-fill';
                             }
@@ -1912,19 +1860,19 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             <!-- Progress strip di bagian bawah card -->
                             <div style="position:absolute;bottom:0;left:0;height:3px;width:<?= min($pct,100) ?>%;background:<?= $clr ?>;border-radius:0 0 0 var(--radius-md,10px);"></div>
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
-                                <div style="font-size:0.78rem;font-weight:700;color:#334155;line-height:1.3;flex:1;padding-right:0.5rem;"><?= htmlspecialchars($name) ?></div>
-                                <span style="font-size:0.62rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;">
+                                <div style="font-size:var(--fs-sm);font-weight:700;color:#334155;line-height:1.3;flex:1;padding-right:0.5rem;"><?= htmlspecialchars($name) ?></div>
+                                <span style="font-size:var(--fs-xs);font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;">
                                     <i class="bi <?= $icon ?> me-1"></i><?= $lbl ?>
                                 </span>
                             </div>
-                            <div style="font-size:1.4rem;font-weight:800;color:<?= $clr ?>;letter-spacing:-0.02em;line-height:1;"><?= number_format($pct,1) ?>%</div>
-                            <div style="font-size:0.68rem;color:#64748b;margin-top:0.35rem;">Realisasi <strong style="color:#334155;">Rp <?= number_format($data['realisasi'],0,',','.') ?></strong> dari Rp <?= number_format($data['pagu'],0,',','.') ?></div>
-                            <div style="font-size:0.65rem;color:<?= $sisa < 0 ? '#dc2626' : '#94a3b8' ?>;margin-top:0.15rem;">Sisa: <?= $sisa < 0 ? '-' : '' ?>Rp <?= number_format(abs($sisa),0,',','.') ?></div>
+                            <div style="font-size:var(--fs-xl);font-weight:800;color:<?= $clr ?>;letter-spacing:-0.02em;line-height:1;"><?= number_format($pct,1) ?>%</div>
+                            <div style="font-size:var(--fs-xs);color:#64748b;margin-top:0.35rem;">Realisasi <strong style="color:#334155;">Rp <?= number_format($data['realisasi'],0,',','.') ?></strong> dari Rp <?= number_format($data['pagu'],0,',','.') ?></div>
+                            <div style="font-size:var(--fs-xs);color:<?= $sisa < 0 ? '#dc2626' : '#94a3b8' ?>;margin-top:0.15rem;">Sisa: <?= $sisa < 0 ? '-' : '' ?>Rp <?= number_format(abs($sisa),0,',','.') ?></div>
                         </div>
                     </div>
                     <?php endforeach; ?>
                     </div>
-                    <div style="margin-top:0.75rem;font-size:0.7rem;color:#64748b;"><i class="bi bi-info-circle me-1"></i>Detail rekening hingga sub kegiatan tersedia di <a href="#section-struktur" style="color:var(--primary);font-weight:600;">Struktur Anggaran</a> di bawah.</div>
+                    <div style="margin-top:0.75rem;font-size:var(--fs-xs);color:#64748b;"><i class="bi bi-info-circle me-1"></i>Detail rekening hingga sub kegiatan tersedia di <a href="#section-struktur" style="color:var(--primary);font-weight:600;">Struktur Anggaran</a> di bawah.</div>
                 </div>
             </div>
         </div>
@@ -1942,11 +1890,11 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
       <div class="modal-header border-0 pb-0" style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:1rem 1rem 0 0;padding:1.25rem 1.5rem;">
         <div class="d-flex align-items-center gap-2">
           <div style="width:38px;height:38px;background:rgba(255,255,255,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-            <i class="bi bi-file-earmark-excel-fill" style="color:#fff;font-size:1.2rem;"></i>
+            <i class="bi bi-file-earmark-excel-fill" style="color:#fff;font-size:var(--fs-lg);"></i>
           </div>
           <div>
-            <h5 class="modal-title mb-0" id="modalExportLabel" style="color:#fff;font-weight:700;font-size:1rem;">Export Laporan Excel</h5>
-            <p class="mb-0" style="color:rgba(255,255,255,.8);font-size:0.75rem;">Pilih periode realisasi yang akan diekspor</p>
+            <h5 class="modal-title mb-0" id="modalExportLabel" style="color:#fff;font-weight:700;font-size:var(--fs-md);">Export Laporan Excel</h5>
+            <p class="mb-0" style="color:rgba(255,255,255,.8);font-size:var(--fs-sm);">Pilih periode realisasi yang akan diekspor</p>
           </div>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity:.8;"></button>
@@ -1959,7 +1907,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
             <!-- Tahun -->
             <div class="col-6">
-              <label class="form-label fw-semibold" style="font-size:0.8rem;color:#374151;"><i class="bi bi-calendar-year me-1" style="color:#16a34a;"></i>Tahun</label>
+              <label class="form-label fw-semibold" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-calendar-year me-1" style="color:#16a34a;"></i>Tahun</label>
               <select class="form-select" id="exportTahun" name="tahun">
                 <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
                 <option value="<?= $y ?>" <?= $stats['tahun'] == $y ? 'selected' : '' ?>><?= $y ?></option>
@@ -1969,7 +1917,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
             <!-- Bulan Sampai -->
             <div class="col-6">
-              <label class="form-label fw-semibold" style="font-size:0.8rem;color:#374151;"><i class="bi bi-calendar-month me-1" style="color:#16a34a;"></i>Realisasi s/d Bulan</label>
+              <label class="form-label fw-semibold" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-calendar-month me-1" style="color:#16a34a;"></i>Realisasi s/d Bulan</label>
               <select class="form-select" id="exportBulan" name="bulan">
                 <?php
                 $bulanList = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
@@ -1983,7 +1931,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
             <!-- Info box -->
             <div class="col-12">
-              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem 1rem;font-size:0.78rem;color:#166534;">
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem 1rem;font-size:var(--fs-sm);color:#166534;">
                 <i class="bi bi-info-circle-fill me-1"></i>
                 File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur hierarki Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.
               </div>
@@ -1994,9 +1942,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
       <!-- Footer -->
       <div class="modal-footer border-0 pt-0" style="padding:0 1.5rem 1.5rem;">
-        <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal" style="font-size:0.85rem;">Batal</button>
+        <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal" style="font-size:var(--fs-base);">Batal</button>
         <button type="button" class="btn fw-semibold rounded-3" id="btnDownloadExcel"
-          style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:0.85rem;padding:0.5rem 1.5rem;">
+          style="background:var(--status-success);color:#fff;font-size:var(--fs-base);padding:0.5rem 1.5rem;">
           <i class="bi bi-download me-1"></i> Download Excel
         </button>
       </div>
@@ -2061,7 +2009,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<footer style="text-align:center;padding:1.5rem 1rem;color:var(--gray-400);font-size:0.75rem;border-top:1px solid var(--gray-100);">
+<footer style="text-align:center;padding:1.5rem 1rem;color:var(--gray-400);font-size:var(--fs-sm);border-top:1px solid var(--gray-100);">
     <p style="margin:0;">&copy; <?= date('Y') ?> Sistem Informasi Monitoring Anggaran Cabang Dinas Kehutanan Wilayah Bojonegoro</p>
 </footer>
 
@@ -2478,7 +2426,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 /* Monthly Chart Toggle Buttons */
 .monthly-toggle-btn {
-    font-size: 0.75rem;
+    font-size:var(--fs-sm);
     font-weight: 600;
     padding: 0.3rem 0.85rem;
     border-radius: var(--radius-full, 999px);
@@ -2504,7 +2452,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    font-size: 0.7rem;
+    font-size:var(--fs-xs);
     font-weight: 600;
     padding: 0.3rem 0.7rem;
     border-radius: 6px;
@@ -2528,7 +2476,7 @@ document.addEventListener('DOMContentLoaded', function() {
     background: linear-gradient(90deg, #eff6ff, #f8fafc);
     border-bottom: 1px solid #dbeafe;
     color: #1e40af;
-    font-size: 0.74rem;
+    font-size:var(--fs-sm);
     font-weight: 700;
 }
 .monthly-absorption-scroll-hint i {
@@ -2674,7 +2622,7 @@ document.addEventListener('DOMContentLoaded', function() {
     cursor: pointer;
 }
 .monthly-absorption-toggle-btn i {
-    font-size: 1rem;
+    font-size:var(--fs-md);
     line-height: 1;
     transition: transform 160ms ease;
 }
@@ -2683,13 +2631,13 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .monthly-absorption-sk-name {
     color: #111827;
-    font-size: 0.98rem;
+    font-size:var(--fs-md);
     font-weight: 800;
     line-height: 1.35;
 }
 .monthly-absorption-sk-meta {
     color: #64748b;
-    font-size: 0.76rem;
+    font-size:var(--fs-sm);
     font-weight: 700;
     margin-top: 0.2rem;
 }
@@ -2804,7 +2752,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: inline-flex;
     min-width: 58px;
     justify-content: center;
-    font-size: 0.66rem;
+    font-size:var(--fs-xs);
     font-weight: 800;
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
@@ -2841,47 +2789,33 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 18px;
     }
 }
-.custom-dashboard-tabs {
-    display: inline-flex;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    background: #f1f5f9;
-    border-radius: var(--radius-md, 12px);
-    border: 1px solid #e2e8f0;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-}
-.custom-dashboard-tabs::-webkit-scrollbar {
-    height: 4px;
-}
-.custom-dashboard-tabs::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
-}
-.custom-dashboard-tabs .nav-link {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #64748b;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    transition: all 0.2s ease;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    background: transparent;
-}
-.custom-dashboard-tabs .nav-link:hover {
-    color: #1e293b;
-    background: rgba(255, 255, 255, 0.6);
-}
-.custom-dashboard-tabs .nav-link.active {
-    background: #ffffff;
-    color: var(--primary, #0284c7);
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+
+/* Mobile collapse for monthly absorption table */
+@media (max-width: 767.98px) {
+    .monthly-absorption-table:not(.is-expanded-months) {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-month {
+        display: none !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-absorption-name {
+        width: auto !important;
+        min-width: 140px !important;
+        max-width: 180px !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-pagu {
+        left: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
+        right: auto !important;
+        position: static !important;
+    }
 }
 </style>
 
