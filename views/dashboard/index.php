@@ -26,10 +26,10 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         <a href="#section-detail-bulan" class="sticky-sec-nav__link">Detail per Bulan</a>
         <a href="#section-serapan-rekening" class="sticky-sec-nav__link">Serapan Rekening</a>
         <a href="#section-sisa-semester" class="sticky-sec-nav__link">Sisa Semester</a>
-        <a href="#section-breakdown" class="sticky-sec-nav__link">Breakdown</a>
-        <span class="sticky-sec-nav__divider" aria-hidden="true"></span>
         <a href="#section-struktur" class="sticky-sec-nav__link">Struktur Anggaran</a>
         <a href="#section-deviasi" class="sticky-sec-nav__link">Deviasi RAK</a>
+        <span class="sticky-sec-nav__divider" aria-hidden="true"></span>
+        <a href="#section-breakdown" class="sticky-sec-nav__link">Breakdown Seksi</a>
     </div>
 </nav>
 
@@ -576,7 +576,39 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     </div>
 
 
-    <!-- Serapan per Sub Kegiatan per Rekening per Bulan -->
+        <!-- ===== Detail Anggaran & Analisis Tabbed Section ===== -->
+    <div class="mb-4 animate-fade-in-up delay-4" id="section-detail-tabs">
+        <!-- Tab Navigation Pills -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <ul class="nav nav-pills custom-dashboard-tabs flex-nowrap" id="budgetDetailTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active custom-tab-btn" id="tab-serapan-rekening-btn" data-bs-toggle="tab" data-bs-target="#tab-serapan-rekening" type="button" role="tab" aria-controls="tab-serapan-rekening" aria-selected="true">
+                        <i class="bi bi-grid-3x3-gap-fill me-1"></i>Serapan Bulanan
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link custom-tab-btn" id="tab-sisa-semester-btn" data-bs-toggle="tab" data-bs-target="#tab-sisa-semester" type="button" role="tab" aria-controls="tab-sisa-semester" aria-selected="false">
+                        <i class="bi bi-wallet-fill me-1"></i>Sisa per Semester
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link custom-tab-btn" id="tab-struktur-btn" data-bs-toggle="tab" data-bs-target="#tab-struktur" type="button" role="tab" aria-controls="tab-struktur" aria-selected="false">
+                        <i class="bi bi-diagram-3 me-1"></i>Struktur Anggaran
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link custom-tab-btn" id="tab-deviasi-btn" data-bs-toggle="tab" data-bs-target="#tab-deviasi" type="button" role="tab" aria-controls="tab-deviasi" aria-selected="false">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Deviasi RAK
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content Panes -->
+        <div class="tab-content" id="budgetDetailTabsContent">
+            <!-- Tab 1: Serapan Bulanan -->
+            <div class="tab-pane fade show active" id="tab-serapan-rekening" role="tabpanel" aria-labelledby="tab-serapan-rekening-btn">
+                <!-- Serapan per Sub Kegiatan per Rekening per Bulan -->
     <?php if (!empty($monthlyAbsorptionDetails['sub_kegiatan'])): ?>
     <?php
         $absorptionSubKegiatan = $monthlyAbsorptionDetails['sub_kegiatan'];
@@ -722,10 +754,11 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         </div>
     </div>
     <?php endif; ?>
+            </div>
 
-
-
-    <!-- ===== Sisa Dana per Semester ===== -->
+            <!-- Tab 2: Sisa per Semester -->
+            <div class="tab-pane fade" id="tab-sisa-semester" role="tabpanel" aria-labelledby="tab-sisa-semester-btn">
+                <!-- ===== Sisa Dana per Semester ===== -->
     <?php if (!empty($semesterRekap['sub_kegiatan'])): ?>
     <?php
         $semT = $semesterRekap['totals'];
@@ -990,7 +1023,49 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             .sm-tab-btn { padding:0.55rem 0.85rem; font-size:0.78rem; }
                             .sm-tab-btn small { display:none; }
                         }
-                    </style>
+                    .custom-dashboard-tabs {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: #f1f5f9;
+    border-radius: var(--radius-md, 12px);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.custom-dashboard-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.custom-dashboard-tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+.custom-dashboard-tabs .nav-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    background: transparent;
+}
+.custom-dashboard-tabs .nav-link:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.6);
+}
+.custom-dashboard-tabs .nav-link.active {
+    background: #ffffff;
+    color: var(--primary, #0284c7);
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+</style>
 
                     <?php
                     // Helper: format rupiah singkat (16,4 Jt / 1,2 M / 0 Jt). Zero ditampilkan sebagai "—".
@@ -1248,97 +1323,193 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     })();
     </script>
     <?php endif; ?>
+            </div>
 
-
-    <!-- Detail Breakdown — Compact Summary (tidak duplikat tree di bawah) -->
-    <?php if (!empty($breakdownData)): ?>
-    <div class="row mb-4" id="section-breakdown">
-        <div class="col-12 animate-fade-in-up delay-5">
-            <div class="card rounded-4 overflow-hidden">
-                <div class="section-header" style="padding-bottom:0.75rem;">
+            <!-- Tab 3: Struktur Anggaran -->
+            <div class="tab-pane fade" id="tab-struktur" role="tabpanel" aria-labelledby="tab-struktur-btn">
+                <!-- Hierarchical Budget Structure -->
+    <?php if (!empty($hierarchicalData)): ?>
+    <div class="row mb-4" id="section-struktur">
+        <div class="col-12 animate-fade-in-up delay-6">
+            <div class="card rounded-4">
+                <div class="section-header">
                     <div>
-                        <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
-                        <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
+                        <h5 class="section-title"><i class="bi bi-diagram-3 me-2" style="color:var(--primary);"></i>Struktur Anggaran & Realisasi</h5>
+                        <p class="section-subtitle">Hierarki program hingga rekening belanja</p>
                     </div>
-                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" title="Export ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
                 </div>
-                <div class="card-body" style="padding:0 1.5rem 1.5rem;">
-                    <div class="row g-2">
-                    <?php foreach($breakdownData as $name => $data):
-                        $sisa  = $data['pagu'] - $data['realisasi'];
-                        $pct   = $data['pagu'] > 0 ? ($data['realisasi'] / $data['pagu']) * 100 : 0;
-                        $rakKum = (float) ($data['rak_kumulatif'] ?? 0);
+                <div class="card-body" style="padding:1.5rem; overflow-x:auto;">
+                    <style>
+                        .h-tree { position: relative; padding-left: 1.5rem; font-family: 'Inter', sans-serif; min-width: 900px; }
+                        .h-node { position: relative; padding: 0.75rem 0; }
+                        .h-node::before { content: ''; position: absolute; left: -1.5rem; top: 2.25rem; bottom: -0.75rem; width: 2px; background: var(--gray-200); }
+                        .h-node:last-child::before { display: none; }
+                        .h-line-h { position: absolute; left: -1.5rem; top: 1.5rem; width: 1.5rem; height: 2px; background: var(--gray-200); }
+                        
+                        .h-item { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 0.75rem 1rem; border-radius: var(--radius-md); transition: background 0.2s; border: 1px solid transparent; cursor: pointer; }
+                        .h-item:hover { background: rgba(0,0,0,0.03); border-color: var(--gray-200); }
+                        .h-item.has-children { cursor: pointer; }
+                        .h-toggle { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; transition: transform 0.2s ease, background 0.2s; color: #334155; font-size: 20px; margin-right: 0.35rem; }
+                        .h-item.has-children:hover .h-toggle { background: var(--gray-200); color: #1e293b; }
+                        .tree-collapsed > .h-tree { display: none !important; }
+                        .tree-collapsed > .h-item .h-toggle { transform: rotate(-90deg); }
+                        
+                        .h-item-left { display: flex; align-items: flex-start; gap: 0.5rem; flex: 1; }
+                        .h-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 0.35rem; position: relative; z-index: 2; box-shadow: 0 0 0 3px #fff; flex-shrink: 0; }
+                        
+                        .h-badge { font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); margin-right: 0.5rem; color:#fff; }
+                        .badge-seksi { background: #020617; }
+                        .badge-program { background: #0f172a; }
+                        .badge-kegiatan { background: #1e293b; }
+                        .badge-sub { background: #334155; }
+                        .badge-belanja { background: #475569; }
+                        
+                        .h-title { font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.25rem; }
+                        .h-code { font-size: 0.7rem; color: var(--gray-500); }
+                        
+                        .h-card-sm { display: flex; align-items: center; gap: 0.75rem; min-width: 160px; }
+                        .h-icon-box { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+                        .icon-box-anggaran { background: #ecfeff; color: #06b6d4; }
+                        .icon-box-realisasi { background: #f1f5f9; color: #f59e0b; }
+                        
+                        .h-val-title { font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-bottom:0.1rem; }
+                        .h-val-sub { font-size: 0.65rem; color: var(--gray-500); }
+                        
+                        .h-progress-wrap { display: flex; align-items: center; gap: 0.75rem; min-width: 150px; justify-content:flex-end; }
+                        .h-progress-bar { width: 60px; height: 4px; border-radius: 2px; background: var(--gray-200); position: relative; }
+                        .h-progress-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; }
+                        .progress-fill-safe { background: var(--primary); }
+                    .custom-dashboard-tabs {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: #f1f5f9;
+    border-radius: var(--radius-md, 12px);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.custom-dashboard-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.custom-dashboard-tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+.custom-dashboard-tabs .nav-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    background: transparent;
+}
+.custom-dashboard-tabs .nav-link:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.6);
+}
+.custom-dashboard-tabs .nav-link.active {
+    background: #ffffff;
+    color: var(--primary, #0284c7);
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+</style>
 
-                        // Evaluasi status serapan seksi terhadap target RAK kumulatif seksi itu sendiri
-                        if ($rakKum > 0) {
-                            $capaianRakSeksi = ($data['realisasi'] / $rakKum) * 100;
-                            if ($capaianRakSeksi >= 90) {
-                                $clr  = '#059669';
-                                $bg   = '#ecfdf5';
-                                $bdr  = '#bbf7d0';
-                                $lbl  = 'Aman';
-                                $icon = 'bi-check-circle-fill';
-                            } elseif ($capaianRakSeksi >= 70) {
-                                $clr  = '#d97706';
-                                $bg   = '#fffbeb';
-                                $bdr  = '#fde68a';
-                                $lbl  = 'Perlu Dipacu';
-                                $icon = 'bi-exclamation-triangle-fill';
+                    <?php
+                    function renderTreeNodes($nodes, $level = 0) {
+                        $badges = [
+                            0 => ['name'=>'Seksi','class'=>'badge-seksi'], 
+                            1 => ['name'=>'Program','class'=>'badge-program'], 
+                            2 => ['name'=>'Kegiatan','class'=>'badge-kegiatan'], 
+                            3 => ['name'=>'Sub Kegiatan','class'=>'badge-sub'], 
+                            4 => ['name'=>'Belanja','class'=>'badge-belanja']
+                        ];
+                        $badge = $badges[$level] ?? $badges[4];
+                        
+                        foreach ($nodes as $node) {
+                            $pct = $node['pagu'] > 0 ? ($node['realisasi'] / $node['pagu']) * 100 : 0;
+                            $paguStr = number_format($node['pagu'], 0, ',', '.');
+                            $realStr = number_format($node['realisasi'], 0, ',', '.');
+                            
+                            $hasChildren = !empty($node['children']);
+                            $itemClass = 'h-item' . ($hasChildren ? ' has-children' : '');
+                            $nodeClass = 'h-node pt-0 pb-0' . ($hasChildren ? ' tree-collapsed' : '');
+                            // Set onclick to toggle 'tree-collapsed' on the parent node container
+                            $onclick = $hasChildren ? ' onclick="this.parentElement.classList.toggle(\'tree-collapsed\')"' : '';
+                            
+                            echo '<div class="' . $nodeClass . '">';
+                            if ($level > 0) echo '<div class="h-line-h"></div>';
+                            
+                            echo '<div class="' . $itemClass . '"' . $onclick . '>';
+                            // Left Section (Toggle, Dot, Title, Code)
+                            echo '<div class="h-item-left align-items-center">';
+                            if ($hasChildren) {
+                                echo '<div class="h-toggle"><i class="bi bi-chevron-down"></i></div>';
                             } else {
-                                $clr  = '#dc2626';
-                                $bg   = '#fef2f2';
-                                $bdr  = '#fecaca';
-                                $lbl  = 'Tertinggal';
-                                $icon = 'bi-exclamation-octagon-fill';
+                                echo '<div style="width: 24px; margin-right: 0.25rem; flex-shrink: 0;"></div>';
                             }
-                        } else {
-                            // Fallback jika belum ada data RAK
-                            if ($pct >= 80) {
-                                $clr  = '#059669';
-                                $bg   = '#ecfdf5';
-                                $bdr  = '#bbf7d0';
-                                $lbl  = 'Aman';
-                                $icon = 'bi-check-circle-fill';
-                            } elseif ($pct >= 50) {
-                                $clr  = '#d97706';
-                                $bg   = '#fffbeb';
-                                $bdr  = '#fde68a';
-                                $lbl  = 'Perlu Dipacu';
-                                $icon = 'bi-exclamation-triangle-fill';
-                            } else {
-                                $clr  = '#dc2626';
-                                $bg   = '#fef2f2';
-                                $bdr  = '#fecaca';
-                                $lbl  = 'Tertinggal';
-                                $icon = 'bi-exclamation-octagon-fill';
+                            
+                            if ($level > 0) echo '<div class="h-dot" style="margin-top:0; background: '.($level==4?'var(--gray-400)':'var(--primary-light)').';"></div>';
+                            else echo '<div class="h-dot" style="margin-top:0; background: var(--primary);"></div>';
+                            
+                            echo '<div class="ms-1" style="flex:1;">';
+                            echo '<div class="h-title" style="'.($level==4?'font-weight:600;color:var(--gray-700);':'').'">' . htmlspecialchars($node['nama']) . '</div>';
+                            echo '<div class="h-code"><span class="h-badge ' . $badge['class'] . '">' . $badge['name'] . '</span> Kode: ' . $node['kode'] . '</div>';
+                            echo '</div>';
+                            echo '</div>'; // End left
+                            
+                            // Center Section (Anggaran)
+                            echo '<div class="h-card-sm ms-3 d-none d-lg-flex">';
+                            echo '<div class="h-icon-box icon-box-anggaran"><i class="bi bi-calculator"></i></div>';
+                            echo '<div><div class="h-val-title">Rp ' . $paguStr . '</div><div class="h-val-sub">Anggaran</div></div>';
+                            echo '</div>';
+                            
+                            // Center Section (% Realisasi)
+                            echo '<div class="h-progress-wrap ms-3 d-none d-md-flex">';
+                            echo '<span style="font-size:0.8rem; font-weight:700; color:var(--primary);">' . number_format($pct, 2) . '%</span>';
+                            echo '<div class="h-progress-bar"><div class="h-progress-fill progress-fill-safe" style="width:' . min($pct, 100) . '%;"></div></div>';
+                            echo '</div>';
+                            
+                            // Right Section (Realisasi)
+                            echo '<div class="h-card-sm ms-3 ps-3 d-none d-sm-flex" style="border-left: 1px dashed var(--gray-200);">';
+                            echo '<div class="h-icon-box icon-box-realisasi"><i class="bi bi-wallet2"></i></div>';
+                            echo '<div><div class="h-val-title">Rp ' . $realStr . '</div><div class="h-val-sub">Realisasi Riil</div></div>';
+                            echo '</div>';
+                            
+                            echo '</div>'; // End item
+                            
+                            if ($hasChildren) {
+                                echo '<div class="h-tree">';
+                                renderTreeNodes($node['children'], $level + 1);
+                                echo '</div>';
                             }
+                            
+                            echo '</div>'; // End node
                         }
+                    }
                     ?>
-                    <div class="col-md-4">
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;position:relative;overflow:hidden;">
-                            <!-- Progress strip di bagian bawah card -->
-                            <div style="position:absolute;bottom:0;left:0;height:3px;width:<?= min($pct,100) ?>%;background:<?= $clr ?>;border-radius:0 0 0 var(--radius-md,10px);"></div>
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
-                                <div style="font-size:0.78rem;font-weight:700;color:#334155;line-height:1.3;flex:1;padding-right:0.5rem;"><?= htmlspecialchars($name) ?></div>
-                                <span style="font-size:0.62rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;">
-                                    <i class="bi <?= $icon ?> me-1"></i><?= $lbl ?>
-                                </span>
-                            </div>
-                            <div style="font-size:1.4rem;font-weight:800;color:<?= $clr ?>;letter-spacing:-0.02em;line-height:1;"><?= number_format($pct,1) ?>%</div>
-                            <div style="font-size:0.68rem;color:#64748b;margin-top:0.35rem;">Realisasi <strong style="color:#334155;">Rp <?= number_format($data['realisasi'],0,',','.') ?></strong> dari Rp <?= number_format($data['pagu'],0,',','.') ?></div>
-                            <div style="font-size:0.65rem;color:<?= $sisa < 0 ? '#dc2626' : '#94a3b8' ?>;margin-top:0.15rem;">Sisa: <?= $sisa < 0 ? '-' : '' ?>Rp <?= number_format(abs($sisa),0,',','.') ?></div>
-                        </div>
+
+                    <div class="h-tree" style="padding-left:0;">
+                        <?php renderTreeNodes($hierarchicalData); ?>
                     </div>
-                    <?php endforeach; ?>
-                    </div>
-                    <div style="margin-top:0.75rem;font-size:0.7rem;color:#64748b;"><i class="bi bi-info-circle me-1"></i>Detail rekening hingga sub kegiatan tersedia di <a href="#section-struktur" style="color:var(--primary);font-weight:600;">Struktur Anggaran</a> di bawah.</div>
                 </div>
             </div>
         </div>
     </div>
     <?php endif; ?>
+            </div>
 
-    <!-- ===== Rincian Deviasi RAK — collapsible tree ===== -->
+            <!-- Tab 4: Deviasi RAK -->
+            <div class="tab-pane fade" id="tab-deviasi" role="tabpanel" aria-labelledby="tab-deviasi-btn">
+                <!-- ===== Rincian Deviasi RAK — collapsible tree ===== -->
     <?php if (!empty($deviationDetails)): ?>
     <?php
     // Calculate summary metrics for deviation section
@@ -1413,7 +1584,49 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         .deviasi-risk-btn { font-size:0.72rem; font-weight:600; padding:0.3rem 0.7rem; border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:999px; }
                         .deviasi-risk-btn:hover { background:#f1f5f9; color:#334155; }
                         .deviasi-risk-btn.active { background:var(--btn-active-bg,#0284c7); color:#fff; border-color:var(--btn-active-bg,#0284c7); }
-                    </style>
+                    .custom-dashboard-tabs {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: #f1f5f9;
+    border-radius: var(--radius-md, 12px);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.custom-dashboard-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.custom-dashboard-tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+.custom-dashboard-tabs .nav-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    background: transparent;
+}
+.custom-dashboard-tabs .nav-link:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.6);
+}
+.custom-dashboard-tabs .nav-link.active {
+    background: #ffffff;
+    color: var(--primary, #0284c7);
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+</style>
                 </div>
                 <div class="card-body" style="padding:1.5rem;overflow-x:auto;">
                 <style>
@@ -1448,7 +1661,49 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     .d-dev-tbl th    { padding:.35rem .75rem;font-size:.68rem;font-weight:600;color:var(--gray-500);background:var(--gray-50);border-bottom:1px solid var(--gray-200); }
                     .d-dev-tbl td    { padding:.35rem .75rem;border-bottom:1px solid var(--gray-100);color:var(--gray-700); }
                     .d-dev-tbl tr:last-child td { border-bottom:none; }
-                </style>
+                .custom-dashboard-tabs {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: #f1f5f9;
+    border-radius: var(--radius-md, 12px);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.custom-dashboard-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.custom-dashboard-tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+.custom-dashboard-tabs .nav-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    background: transparent;
+}
+.custom-dashboard-tabs .nav-link:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.6);
+}
+.custom-dashboard-tabs .nav-link.active {
+    background: #ffffff;
+    color: var(--primary, #0284c7);
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+</style>
 
                 <?php
                 $bulanNamesLongDev = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
@@ -1584,144 +1839,97 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     }
     </script>
     <?php endif; ?>
+            </div>
+        </div>
+    </div>
 
-    <!-- Hierarchical Budget Structure -->
-    <?php if (!empty($hierarchicalData)): ?>
-    <div class="row mb-4" id="section-struktur">
-        <div class="col-12 animate-fade-in-up delay-6">
-            <div class="card rounded-4">
-                <div class="section-header">
+    <!-- Detail Breakdown — Compact Summary (tidak duplikat tree di bawah) -->
+    <?php if (!empty($breakdownData)): ?>
+    <div class="row mb-4" id="section-breakdown">
+        <div class="col-12 animate-fade-in-up delay-5">
+            <div class="card rounded-4 overflow-hidden">
+                <div class="section-header" style="padding-bottom:0.75rem;">
                     <div>
-                        <h5 class="section-title"><i class="bi bi-diagram-3 me-2" style="color:var(--primary);"></i>Struktur Anggaran & Realisasi</h5>
-                        <p class="section-subtitle">Hierarki program hingga rekening belanja</p>
+                        <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
+                        <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
+                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" title="Export ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
                 </div>
-                <div class="card-body" style="padding:1.5rem; overflow-x:auto;">
-                    <style>
-                        .h-tree { position: relative; padding-left: 1.5rem; font-family: 'Inter', sans-serif; min-width: 900px; }
-                        .h-node { position: relative; padding: 0.75rem 0; }
-                        .h-node::before { content: ''; position: absolute; left: -1.5rem; top: 2.25rem; bottom: -0.75rem; width: 2px; background: var(--gray-200); }
-                        .h-node:last-child::before { display: none; }
-                        .h-line-h { position: absolute; left: -1.5rem; top: 1.5rem; width: 1.5rem; height: 2px; background: var(--gray-200); }
-                        
-                        .h-item { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 0.75rem 1rem; border-radius: var(--radius-md); transition: background 0.2s; border: 1px solid transparent; cursor: pointer; }
-                        .h-item:hover { background: rgba(0,0,0,0.03); border-color: var(--gray-200); }
-                        .h-item.has-children { cursor: pointer; }
-                        .h-toggle { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; transition: transform 0.2s ease, background 0.2s; color: #334155; font-size: 20px; margin-right: 0.35rem; }
-                        .h-item.has-children:hover .h-toggle { background: var(--gray-200); color: #1e293b; }
-                        .tree-collapsed > .h-tree { display: none !important; }
-                        .tree-collapsed > .h-item .h-toggle { transform: rotate(-90deg); }
-                        
-                        .h-item-left { display: flex; align-items: flex-start; gap: 0.5rem; flex: 1; }
-                        .h-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 0.35rem; position: relative; z-index: 2; box-shadow: 0 0 0 3px #fff; flex-shrink: 0; }
-                        
-                        .h-badge { font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); margin-right: 0.5rem; color:#fff; }
-                        .badge-seksi { background: #020617; }
-                        .badge-program { background: #0f172a; }
-                        .badge-kegiatan { background: #1e293b; }
-                        .badge-sub { background: #334155; }
-                        .badge-belanja { background: #475569; }
-                        
-                        .h-title { font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.25rem; }
-                        .h-code { font-size: 0.7rem; color: var(--gray-500); }
-                        
-                        .h-card-sm { display: flex; align-items: center; gap: 0.75rem; min-width: 160px; }
-                        .h-icon-box { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-                        .icon-box-anggaran { background: #ecfeff; color: #06b6d4; }
-                        .icon-box-realisasi { background: #f1f5f9; color: #f59e0b; }
-                        
-                        .h-val-title { font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-bottom:0.1rem; }
-                        .h-val-sub { font-size: 0.65rem; color: var(--gray-500); }
-                        
-                        .h-progress-wrap { display: flex; align-items: center; gap: 0.75rem; min-width: 150px; justify-content:flex-end; }
-                        .h-progress-bar { width: 60px; height: 4px; border-radius: 2px; background: var(--gray-200); position: relative; }
-                        .h-progress-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; }
-                        .progress-fill-safe { background: var(--primary); }
-                    </style>
+                <div class="card-body" style="padding:0 1.5rem 1.5rem;">
+                    <div class="row g-2">
+                    <?php foreach($breakdownData as $name => $data):
+                        $sisa  = $data['pagu'] - $data['realisasi'];
+                        $pct   = $data['pagu'] > 0 ? ($data['realisasi'] / $data['pagu']) * 100 : 0;
+                        $rakKum = (float) ($data['rak_kumulatif'] ?? 0);
 
-                    <?php
-                    function renderTreeNodes($nodes, $level = 0) {
-                        $badges = [
-                            0 => ['name'=>'Seksi','class'=>'badge-seksi'], 
-                            1 => ['name'=>'Program','class'=>'badge-program'], 
-                            2 => ['name'=>'Kegiatan','class'=>'badge-kegiatan'], 
-                            3 => ['name'=>'Sub Kegiatan','class'=>'badge-sub'], 
-                            4 => ['name'=>'Belanja','class'=>'badge-belanja']
-                        ];
-                        $badge = $badges[$level] ?? $badges[4];
-                        
-                        foreach ($nodes as $node) {
-                            $pct = $node['pagu'] > 0 ? ($node['realisasi'] / $node['pagu']) * 100 : 0;
-                            $paguStr = number_format($node['pagu'], 0, ',', '.');
-                            $realStr = number_format($node['realisasi'], 0, ',', '.');
-                            
-                            $hasChildren = !empty($node['children']);
-                            $itemClass = 'h-item' . ($hasChildren ? ' has-children' : '');
-                            $nodeClass = 'h-node pt-0 pb-0' . ($hasChildren ? ' tree-collapsed' : '');
-                            // Set onclick to toggle 'tree-collapsed' on the parent node container
-                            $onclick = $hasChildren ? ' onclick="this.parentElement.classList.toggle(\'tree-collapsed\')"' : '';
-                            
-                            echo '<div class="' . $nodeClass . '">';
-                            if ($level > 0) echo '<div class="h-line-h"></div>';
-                            
-                            echo '<div class="' . $itemClass . '"' . $onclick . '>';
-                            // Left Section (Toggle, Dot, Title, Code)
-                            echo '<div class="h-item-left align-items-center">';
-                            if ($hasChildren) {
-                                echo '<div class="h-toggle"><i class="bi bi-chevron-down"></i></div>';
+                        // Evaluasi status serapan seksi terhadap target RAK kumulatif seksi itu sendiri
+                        if ($rakKum > 0) {
+                            $capaianRakSeksi = ($data['realisasi'] / $rakKum) * 100;
+                            if ($capaianRakSeksi >= 90) {
+                                $clr  = '#059669';
+                                $bg   = '#ecfdf5';
+                                $bdr  = '#bbf7d0';
+                                $lbl  = 'Aman';
+                                $icon = 'bi-check-circle-fill';
+                            } elseif ($capaianRakSeksi >= 70) {
+                                $clr  = '#d97706';
+                                $bg   = '#fffbeb';
+                                $bdr  = '#fde68a';
+                                $lbl  = 'Perlu Dipacu';
+                                $icon = 'bi-exclamation-triangle-fill';
                             } else {
-                                echo '<div style="width: 24px; margin-right: 0.25rem; flex-shrink: 0;"></div>';
+                                $clr  = '#dc2626';
+                                $bg   = '#fef2f2';
+                                $bdr  = '#fecaca';
+                                $lbl  = 'Tertinggal';
+                                $icon = 'bi-exclamation-octagon-fill';
                             }
-                            
-                            if ($level > 0) echo '<div class="h-dot" style="margin-top:0; background: '.($level==4?'var(--gray-400)':'var(--primary-light)').';"></div>';
-                            else echo '<div class="h-dot" style="margin-top:0; background: var(--primary);"></div>';
-                            
-                            echo '<div class="ms-1" style="flex:1;">';
-                            echo '<div class="h-title" style="'.($level==4?'font-weight:600;color:var(--gray-700);':'').'">' . htmlspecialchars($node['nama']) . '</div>';
-                            echo '<div class="h-code"><span class="h-badge ' . $badge['class'] . '">' . $badge['name'] . '</span> Kode: ' . $node['kode'] . '</div>';
-                            echo '</div>';
-                            echo '</div>'; // End left
-                            
-                            // Center Section (Anggaran)
-                            echo '<div class="h-card-sm ms-3 d-none d-lg-flex">';
-                            echo '<div class="h-icon-box icon-box-anggaran"><i class="bi bi-calculator"></i></div>';
-                            echo '<div><div class="h-val-title">Rp ' . $paguStr . '</div><div class="h-val-sub">Anggaran</div></div>';
-                            echo '</div>';
-                            
-                            // Center Section (% Realisasi)
-                            echo '<div class="h-progress-wrap ms-3 d-none d-md-flex">';
-                            echo '<span style="font-size:0.8rem; font-weight:700; color:var(--primary);">' . number_format($pct, 2) . '%</span>';
-                            echo '<div class="h-progress-bar"><div class="h-progress-fill progress-fill-safe" style="width:' . min($pct, 100) . '%;"></div></div>';
-                            echo '</div>';
-                            
-                            // Right Section (Realisasi)
-                            echo '<div class="h-card-sm ms-3 ps-3 d-none d-sm-flex" style="border-left: 1px dashed var(--gray-200);">';
-                            echo '<div class="h-icon-box icon-box-realisasi"><i class="bi bi-wallet2"></i></div>';
-                            echo '<div><div class="h-val-title">Rp ' . $realStr . '</div><div class="h-val-sub">Realisasi Riil</div></div>';
-                            echo '</div>';
-                            
-                            echo '</div>'; // End item
-                            
-                            if ($hasChildren) {
-                                echo '<div class="h-tree">';
-                                renderTreeNodes($node['children'], $level + 1);
-                                echo '</div>';
+                        } else {
+                            // Fallback jika belum ada data RAK
+                            if ($pct >= 80) {
+                                $clr  = '#059669';
+                                $bg   = '#ecfdf5';
+                                $bdr  = '#bbf7d0';
+                                $lbl  = 'Aman';
+                                $icon = 'bi-check-circle-fill';
+                            } elseif ($pct >= 50) {
+                                $clr  = '#d97706';
+                                $bg   = '#fffbeb';
+                                $bdr  = '#fde68a';
+                                $lbl  = 'Perlu Dipacu';
+                                $icon = 'bi-exclamation-triangle-fill';
+                            } else {
+                                $clr  = '#dc2626';
+                                $bg   = '#fef2f2';
+                                $bdr  = '#fecaca';
+                                $lbl  = 'Tertinggal';
+                                $icon = 'bi-exclamation-octagon-fill';
                             }
-                            
-                            echo '</div>'; // End node
                         }
-                    }
                     ?>
-
-                    <div class="h-tree" style="padding-left:0;">
-                        <?php renderTreeNodes($hierarchicalData); ?>
+                    <div class="col-md-4">
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;position:relative;overflow:hidden;">
+                            <!-- Progress strip di bagian bawah card -->
+                            <div style="position:absolute;bottom:0;left:0;height:3px;width:<?= min($pct,100) ?>%;background:<?= $clr ?>;border-radius:0 0 0 var(--radius-md,10px);"></div>
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
+                                <div style="font-size:0.78rem;font-weight:700;color:#334155;line-height:1.3;flex:1;padding-right:0.5rem;"><?= htmlspecialchars($name) ?></div>
+                                <span style="font-size:0.62rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;">
+                                    <i class="bi <?= $icon ?> me-1"></i><?= $lbl ?>
+                                </span>
+                            </div>
+                            <div style="font-size:1.4rem;font-weight:800;color:<?= $clr ?>;letter-spacing:-0.02em;line-height:1;"><?= number_format($pct,1) ?>%</div>
+                            <div style="font-size:0.68rem;color:#64748b;margin-top:0.35rem;">Realisasi <strong style="color:#334155;">Rp <?= number_format($data['realisasi'],0,',','.') ?></strong> dari Rp <?= number_format($data['pagu'],0,',','.') ?></div>
+                            <div style="font-size:0.65rem;color:<?= $sisa < 0 ? '#dc2626' : '#94a3b8' ?>;margin-top:0.15rem;">Sisa: <?= $sisa < 0 ? '-' : '' ?>Rp <?= number_format(abs($sisa),0,',','.') ?></div>
+                        </div>
                     </div>
+                    <?php endforeach; ?>
+                    </div>
+                    <div style="margin-top:0.75rem;font-size:0.7rem;color:#64748b;"><i class="bi bi-info-circle me-1"></i>Detail rekening hingga sub kegiatan tersedia di <a href="#section-struktur" style="color:var(--primary);font-weight:600;">Struktur Anggaran</a> di bawah.</div>
                 </div>
             </div>
         </div>
     </div>
     <?php endif; ?>
-
 
 </div>
 
@@ -1811,17 +2019,7 @@ document.getElementById('btnDownloadExcel').addEventListener('click', function()
 });
 </script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const strukturSection = document.getElementById('section-struktur');
-    const deviasiSection = document.getElementById('section-deviasi');
 
-    if (strukturSection && deviasiSection && strukturSection.parentNode === deviasiSection.parentNode) {
-        // Tampilkan "Struktur Anggaran & Realisasi" di atas "Rincian Deviasi dari RAK"
-        deviasiSection.parentNode.insertBefore(strukturSection, deviasiSection);
-    }
-});
-</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -2643,9 +2841,51 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 18px;
     }
 }
+.custom-dashboard-tabs {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: #f1f5f9;
+    border-radius: var(--radius-md, 12px);
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.custom-dashboard-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.custom-dashboard-tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+.custom-dashboard-tabs .nav-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    background: transparent;
+}
+.custom-dashboard-tabs .nav-link:hover {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.6);
+}
+.custom-dashboard-tabs .nav-link.active {
+    background: #ffffff;
+    color: var(--primary, #0284c7);
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
 </style>
 
-<!-- Sticky Section Nav: Behavior -->
+<!-- Sticky Section Nav & Tab Navigation: Behavior -->
 <script>
 (function() {
     const nav = document.getElementById('stickySecNav');
@@ -2653,7 +2893,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const SCROLL_THRESHOLD = 80;
     const links = nav.querySelectorAll('.sticky-sec-nav__link');
-    const sectionIds = Array.from(links).map(l => l.getAttribute('href').substring(1));
+    
+    // Mapping between section anchor IDs and tab button IDs
+    const tabTargetMap = {
+        'section-serapan-rekening': 'tab-serapan-rekening-btn',
+        'section-sisa-semester': 'tab-sisa-semester-btn',
+        'section-struktur': 'tab-struktur-btn',
+        'section-deviasi': 'tab-deviasi-btn'
+    };
+
+    const tabSectionMap = {
+        '#tab-serapan-rekening': 'section-serapan-rekening',
+        '#tab-sisa-semester': 'section-sisa-semester',
+        '#tab-struktur': 'section-struktur',
+        '#tab-deviasi': 'section-deviasi'
+    };
 
     // Show/hide nav based on scroll position
     let ticking = false;
@@ -2673,16 +2927,60 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
 
-    // Smooth scroll on click
+    // Helper: switch to tab and scroll to tab container
+    function activateTabAndScroll(targetId) {
+        if (tabTargetMap[targetId]) {
+            var tabBtn = document.getElementById(tabTargetMap[targetId]);
+            if (tabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+                var tabInstance = bootstrap.Tab.getOrCreateInstance(tabBtn);
+                tabInstance.show();
+            }
+        }
+        var target = document.getElementById(targetId) || document.getElementById('section-detail-tabs');
+        if (target) {
+            var navHeight = nav.offsetHeight || 48;
+            var top = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 12;
+            window.scrollTo({ top: top, behavior: 'smooth' });
+        }
+    }
+
+    // Smooth scroll & tab trigger on sticky nav link click
     links.forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             var targetId = this.getAttribute('href').substring(1);
-            var target = document.getElementById(targetId);
-            if (target) {
-                var navHeight = nav.offsetHeight || 48;
-                var top = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 12;
-                window.scrollTo({ top: top, behavior: 'smooth' });
+            activateTabAndScroll(targetId);
+        });
+    });
+
+    // Handle any in-page link pointing to tabbed sections (e.g. from breakdown section)
+    document.querySelectorAll('a[href="#section-struktur"], a[href="#section-deviasi"], a[href="#section-serapan-rekening"], a[href="#section-sisa-semester"]').forEach(function(a) {
+        if (a.classList.contains('sticky-sec-nav__link')) return;
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            var targetId = this.getAttribute('href').substring(1);
+            activateTabAndScroll(targetId);
+        });
+    });
+
+    // Sync sticky nav active state when user manually switches tab via tab pills
+    document.querySelectorAll('#budgetDetailTabs button[data-bs-toggle="tab"]').forEach(function(btn) {
+        btn.addEventListener('shown.bs.tab', function() {
+            var targetPaneId = this.getAttribute('data-bs-target');
+            var secId = tabSectionMap[targetPaneId];
+            if (secId) {
+                var tabSection = document.getElementById('section-detail-tabs');
+                if (tabSection) {
+                    var rect = tabSection.getBoundingClientRect();
+                    if (rect.top < window.innerHeight && rect.bottom > 0) {
+                        links.forEach(function(l) { l.classList.remove('active'); });
+                        var activeLink = nav.querySelector('a[href="#' + secId + '"]');
+                        if (activeLink) {
+                            activeLink.classList.add('active');
+                            activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+                        }
+                    }
+                }
             }
         });
     });
@@ -2694,25 +2992,37 @@ document.addEventListener('DOMContentLoaded', function() {
         threshold: 0
     };
 
-    var currentActive = links[0];
-
     var observer = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
             if (entry.isIntersecting) {
                 var id = entry.target.id;
-                links.forEach(function(l) { l.classList.remove('active'); });
-                var activeLink = nav.querySelector('a[href="#' + id + '"]');
-                if (activeLink) {
-                    activeLink.classList.add('active');
-                    currentActive = activeLink;
-                    // Scroll the nav to keep active link visible (mobile)
-                    activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+                if (id === 'section-detail-tabs') {
+                    var activeTabBtn = document.querySelector('#budgetDetailTabs .nav-link.active');
+                    if (activeTabBtn) {
+                        var targetPaneId = activeTabBtn.getAttribute('data-bs-target');
+                        var secId = tabSectionMap[targetPaneId];
+                        if (secId) {
+                            links.forEach(function(l) { l.classList.remove('active'); });
+                            var activeLink = nav.querySelector('a[href="#' + secId + '"]');
+                            if (activeLink) {
+                                activeLink.classList.add('active');
+                                activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+                            }
+                        }
+                    }
+                } else {
+                    links.forEach(function(l) { l.classList.remove('active'); });
+                    var activeLink = nav.querySelector('a[href="#' + id + '"]');
+                    if (activeLink) {
+                        activeLink.classList.add('active');
+                        activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+                    }
                 }
             }
         });
     }, observerOptions);
 
-    sectionIds.forEach(function(id) {
+    ['section-ringkasan', 'section-grafik', 'section-detail-bulan', 'section-detail-tabs', 'section-breakdown'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) observer.observe(el);
     });
