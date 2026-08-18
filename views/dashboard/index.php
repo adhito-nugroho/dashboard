@@ -673,9 +673,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             ], fn($v) => $v !== '' && $v !== null));
                         ?>
                         <a href="<?= base_url('export/serapan-bulanan') ?>?<?= $exportParams ?>"
-                           class="btn btn-sm"
+                           class="btn btn-sm btn-export-section"
                            id="btn-export-serapan-bulanan"
-                           class="btn-export-section"
                            data-bs-toggle="tooltip" data-bs-placement="top" title="Export rincian serapan per rekening ini saja ke Excel">
                             <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
                         </a>
@@ -822,9 +821,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             ], fn($v) => $v !== '' && $v !== null));
                         ?>
                         <a href="<?= base_url('export/sisa-semester') ?>?<?= $exportSisaParams ?>"
-                           class="btn btn-sm"
+                           class="btn btn-sm btn-export-section"
                            id="btn-export-sisa-semester"
-                           class="btn-export-section"
                            data-bs-toggle="tooltip" data-bs-placement="top" title="Export rekap sisa dana semester ini saja ke Excel">
                             <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
                         </a>
@@ -2984,4 +2982,48 @@ document.addEventListener('DOMContentLoaded', function() {
         if (el) observer.observe(el);
     });
 })();
+
+// =========================================================================
+// Tree Accessibility & Collapsible Helpers
+// =========================================================================
+function toggleTreeNode(el) {
+    if (!el || !el.parentElement) return;
+    var parent = el.parentElement;
+    parent.classList.toggle('tree-collapsed');
+    var isExpanded = !parent.classList.contains('tree-collapsed');
+    el.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+}
+
+function toggleDeviasiNode(el) {
+    if (!el || !el.parentElement) return;
+    var parent = el.parentElement;
+    parent.classList.toggle('d-collapsed');
+    var isExpanded = !parent.classList.contains('d-collapsed');
+    el.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+}
+
+function handleTreeKey(e, el) {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        el.click();
+    }
+}
+
+// =========================================================================
+// Mobile Responsive Toggle for Monthly Absorption Table
+// =========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    var toggleBtn = document.getElementById('toggleMonthlyDetailMobile');
+    var table = document.querySelector('.monthly-absorption-table');
+    var toggleText = document.getElementById('toggleMonthlyDetailText');
+    if (toggleBtn && table) {
+        toggleBtn.addEventListener('click', function() {
+            var expanded = table.classList.toggle('is-expanded-months');
+            if (toggleText) {
+                toggleText.textContent = expanded ? 'Sembunyikan Detail Bulan' : 'Lihat Semua Bulan (12 Bln)';
+            }
+            toggleBtn.classList.toggle('active', expanded);
+        });
+    }
+});
 </script>
