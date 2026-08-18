@@ -15,8 +15,33 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="<?= base_url('css/style.css') ?>">
+    <!-- Custom CSS with cache busting -->
+    <link rel="stylesheet" href="<?= base_url('css/style.css') ?>?v=<?= file_exists(__DIR__ . '/../public/css/style.css') ? filemtime(__DIR__ . '/../public/css/style.css') : time() ?>">
+
+    <!-- Design Tokens -->
+    <style>
+    :root {
+        --status-success: #059669;
+        --status-success-bg: #ecfdf5;
+        --status-success-border: #bbf7d0;
+        --status-warning: #d97706;
+        --status-warning-bg: #fffbeb;
+        --status-warning-border: #fde68a;
+        --status-danger: #dc2626;
+        --status-danger-bg: #fef2f2;
+        --status-danger-border: #fecaca;
+        --status-neutral: #94a3b8;
+        --status-neutral-bg: #f1f5f9;
+        --status-neutral-border: #e2e8f0;
+
+        --fs-xs: 0.68rem;
+        --fs-sm: 0.75rem;
+        --fs-base: 0.85rem;
+        --fs-md: 0.95rem;
+        --fs-lg: 1.1rem;
+        --fs-xl: 1.35rem;
+    }
+    </style>
 
     <?php if (isset($additionalCSS)): ?>
         <?php foreach ($additionalCSS as $css): ?>

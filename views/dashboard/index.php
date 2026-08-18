@@ -33,6 +33,29 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     </div>
 </nav>
 
+<style>
+:root {
+    --status-success: #059669;
+    --status-success-bg: #ecfdf5;
+    --status-success-border: #bbf7d0;
+    --status-warning: #d97706;
+    --status-warning-bg: #fffbeb;
+    --status-warning-border: #fde68a;
+    --status-danger: #dc2626;
+    --status-danger-bg: #fef2f2;
+    --status-danger-border: #fecaca;
+    --status-neutral: #94a3b8;
+    --status-neutral-bg: #f1f5f9;
+    --status-neutral-border: #e2e8f0;
+
+    --fs-xs: 0.68rem;
+    --fs-sm: 0.75rem;
+    --fs-base: 0.85rem;
+    --fs-md: 0.95rem;
+    --fs-lg: 1.1rem;
+    --fs-xl: 1.35rem;
+}
+</style>
 <div class="container-fluid" style="padding: 1.75rem 1.5rem;">
     <!-- Page Header -->
     <div class="d-flex flex-wrap justify-content-between align-items-end mb-4 animate-fade-in-up">
@@ -54,7 +77,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         <button type="button" class="btn btn-sm fw-semibold btn-export-global"
            data-bs-toggle="modal" data-bs-target="#modalExportExcel"
            data-bs-toggle="tooltip" data-bs-placement="bottom" title="Export laporan lengkap semua section ke Excel"
-           style="background:var(--status-success);color:#fff;border-radius:var(--radius-full);padding:0.4rem 1rem;font-size:var(--fs-sm);box-shadow:0 2px 8px rgba(5,150,105,.25);display:inline-flex;align-items:center;gap:0.4rem;border:none;cursor:pointer;">
+           style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:var(--radius-full);padding:0.4rem 1.1rem;font-size:var(--fs-sm, 0.75rem);box-shadow:0 2px 8px rgba(22,163,74,.3);display:inline-flex;align-items:center;gap:0.4rem;border:none;cursor:pointer;">
             <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
         </button>
         </div>
@@ -93,48 +116,48 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     if ($stats['percentage'] > 100) {
         $iIcon = 'exclamation-octagon-fill';
         $iText = 'Perhatian! Realisasi anggaran telah <strong>melebihi pagu</strong>.';
-        $iBg = 'linear-gradient(135deg, var(--status-danger) 0%, var(--danger-light, #ef4444) 100%)';
-        $iBorder = 'var(--status-danger)';
+        $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+        $iBorder = '#dc2626';
     } elseif ($targetRakBulanBerjalan > 0) {
         // Jika ada target RAK s/d bulan berjalan
         if ($capaianRakBulanBerjalan >= 90 && $underAlertsCount < 3) {
             $iIcon = 'check-circle-fill';
             $iText = 'Realisasi anggaran berjalan sesuai target.';
-            $iBg = 'linear-gradient(135deg, var(--status-success) 0%, var(--success-light, #10b981) 100%)';
-            $iBorder = 'var(--status-success)';
+            $iBg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            $iBorder = '#059669';
         } elseif ($capaianRakBulanBerjalan >= 70 && $underAlertsCount < 3) {
             $iIcon = 'exclamation-triangle-fill';
             $iText = 'Realisasi anggaran sedikit di bawah target, perlu percepatan.';
-            $iBg = 'linear-gradient(135deg, var(--status-warning) 0%, var(--warning-light, #f59e0b) 100%)';
-            $iBorder = 'var(--status-warning)';
+            $iBg = 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)';
+            $iBorder = '#d97706';
         } elseif ($underAlertsCount >= 3 && $capaianRakBulanBerjalan >= 70) {
             $iIcon = 'exclamation-triangle-fill';
             $iText = 'Realisasi anggaran sedikit di bawah target, perlu percepatan.';
-            $iBg = 'linear-gradient(135deg, var(--status-warning) 0%, var(--warning-light, #f59e0b) 100%)';
-            $iBorder = 'var(--status-warning)';
+            $iBg = 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)';
+            $iBorder = '#d97706';
         } else {
             $iIcon = 'exclamation-octagon-fill';
             $iText = 'Realisasi anggaran tertinggal signifikan dari target RAK.';
-            $iBg = 'linear-gradient(135deg, var(--status-danger) 0%, var(--danger-light, #ef4444) 100%)';
-            $iBorder = 'var(--status-danger)';
+            $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+            $iBorder = '#dc2626';
         }
     } else {
         // Fallback jika belum ada konfigurasi RAK bulan berjalan
         if ($stats['percentage'] >= 90) {
             $iIcon = 'exclamation-triangle-fill';
             $iText = 'Realisasi mendekati pagu total! Harap tinjau pengeluaran.';
-            $iBg = 'linear-gradient(135deg, var(--status-warning) 0%, var(--warning-light, #f59e0b) 100%)';
-            $iBorder = 'var(--status-warning)';
+            $iBg = 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)';
+            $iBorder = '#d97706';
         } elseif ($stats['percentage'] < 20 && $bulanBerjalan > 3) {
             $iIcon = 'exclamation-octagon-fill';
             $iText = 'Realisasi anggaran tertinggal signifikan dari target.';
-            $iBg = 'linear-gradient(135deg, var(--status-danger) 0%, var(--danger-light, #ef4444) 100%)';
-            $iBorder = 'var(--status-danger)';
+            $iBg = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+            $iBorder = '#dc2626';
         } else {
             $iIcon = 'check-circle-fill';
             $iText = 'Realisasi anggaran berjalan normal.';
-            $iBg = 'linear-gradient(135deg, var(--status-success) 0%, var(--success-light, #10b981) 100%)';
-            $iBorder = 'var(--status-success)';
+            $iBg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            $iBorder = '#059669';
         }
     }
 
@@ -297,9 +320,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         $proyeksiAkhirTahun = $rataRataPerBulan * 12;
         $proyeksiPct = $stats['total_pagu'] > 0 ? ($proyeksiAkhirTahun / $stats['total_pagu']) * 100 : 0;
         $proyeksiStatus = $proyeksiPct >= 90 ? 'On Track' : ($proyeksiPct >= 60 ? 'Perlu Perhatian' : 'Tidak Mencapai Target');
-        $proyeksiColor = $proyeksiPct >= 90 ? 'var(--status-success)' : ($proyeksiPct >= 60 ? 'var(--status-warning)' : 'var(--status-danger)');
-        $proyeksiBg = $proyeksiPct >= 90 ? 'var(--status-success-bg)' : ($proyeksiPct >= 60 ? 'var(--status-warning-bg)' : 'var(--status-danger-bg)');
-        $proyeksiBorder = $proyeksiPct >= 90 ? 'var(--status-success-border)' : ($proyeksiPct >= 60 ? 'var(--status-warning-border)' : 'var(--status-danger-border)');
+        $proyeksiColor = $proyeksiPct >= 90 ? 'var(--status-success, #059669)' : ($proyeksiPct >= 60 ? 'var(--status-warning, #d97706)' : 'var(--status-danger, #dc2626)');
+        $proyeksiBg = $proyeksiPct >= 90 ? 'var(--status-success-bg, #ecfdf5)' : ($proyeksiPct >= 60 ? 'var(--status-warning-bg, #fffbeb)' : 'var(--status-danger-bg, #fef2f2)');
+        $proyeksiBorder = $proyeksiPct >= 90 ? 'var(--status-success-border, #bbf7d0)' : ($proyeksiPct >= 60 ? 'var(--status-warning-border, #fde68a)' : 'var(--status-danger-border, #fecaca)');
     ?>
     <?php if ($bulanDenganData > 0): ?>
     <div class="row mb-4 g-3">
@@ -519,15 +542,15 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="ps-4" style="font-weight:600;color:var(--gray-700);"><?= $bulanNames[(int)$i] ?></td>
                                     <td class="text-end" style="color:var(--gray-500);">Rp <?= number_format($mRak,0,',','.') ?></td>
                                     <td class="text-end" style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($mRealisasi,0,',','.') ?></td>
-                                    <td class="text-end" style="font-weight:600;color:<?= $selisih<0?'var(--status-danger)':($selisih>0?'#2563EB':'var(--status-neutral)') ?>;">
+                                    <td class="text-end" style="font-weight:600;color:<?= $selisih<0?'var(--status-danger, #dc2626)':($selisih>0?'#2563EB':'var(--status-neutral, #94a3b8)') ?>;">
                                         <?= $selisih<0?'↓':'↑' ?> <?= $selisih>0?'+':'' ?>Rp <?= number_format($selisih,0,',','.') ?>
                                     </td>
                                     <td class="text-end pe-4">
                                         <?php
-                                            if ($pct > 110) { $pctBg='var(--primary-50, #eff6ff)'; $pctColor='#2563EB'; }
-                                            elseif ($pct >= 90) { $pctBg='var(--status-success-bg)'; $pctColor='var(--status-success)'; }
-                                            elseif ($pct >= 50) { $pctBg='var(--status-warning-bg)'; $pctColor='var(--status-warning)'; }
-                                            else { $pctBg='var(--status-danger-bg)'; $pctColor='var(--status-danger)'; }
+                                            if ($pct > 110) { $pctBg='#eff6ff'; $pctColor='#2563EB'; }
+                                            elseif ($pct >= 90) { $pctBg='var(--status-success-bg, #ecfdf5)'; $pctColor='var(--status-success, #059669)'; }
+                                            elseif ($pct >= 50) { $pctBg='var(--status-warning-bg, #fffbeb)'; $pctColor='var(--status-warning, #d97706)'; }
+                                            else { $pctBg='var(--status-danger-bg, #fef2f2)'; $pctColor='var(--status-danger, #dc2626)'; }
                                         ?>
                                         <span style="font-size:var(--fs-xs);font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:<?= $pctBg ?>;color:<?= $pctColor ?>;">
                                             <?= number_format($pct,2) ?>%
@@ -551,7 +574,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="ps-4">Kumulatif s/d <?= $bulanNames[$bulanBerjalanDetail] ?></td>
                                     <td class="text-end">Rp <?= number_format($rakKumBerjalan,0,',','.') ?></td>
                                     <td class="text-end">Rp <?= number_format($realKumBerjalan,0,',','.') ?></td>
-                                    <?php $selisihKumColor = $selisihKum<0?'var(--status-danger)':($selisihKum>0?'#2563EB':'var(--status-neutral)'); ?>
+                                    <?php $selisihKumColor = $selisihKum<0?'var(--status-danger, #dc2626)':($selisihKum>0?'#2563EB':'var(--status-neutral, #94a3b8)'); ?>
                                     <td class="text-end" style="color:<?= $selisihKumColor ?>;">
                                         <?= $selisihKum<0?'↓':'↑' ?> <?= $selisihKum>0?'+':'' ?>Rp <?= number_format($selisihKum,0,',','.') ?>
                                     </td>
@@ -1672,9 +1695,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     $skDevPct = $skTotalRakDev > 0 ? ($skTotalDeviasiAbs / $skTotalRakDev) * 100 : 0;
                     $skRiskLevel = $skDevPct > 50 ? 'kritis' : ($skDevPct >= 20 ? 'sedang' : 'rendah');
                     $skRiskLabel = $skRiskLevel === 'kritis' ? 'Kritis' : ($skRiskLevel === 'sedang' ? 'Sedang' : 'Rendah');
-                    $skRiskColor = $skRiskLevel === 'kritis' ? 'var(--status-danger)' : 'var(--status-warning)';
-                    $skRiskBg = $skRiskLevel === 'kritis' ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)';
-                    $skRiskBorder = $skRiskLevel === 'kritis' ? 'var(--status-danger-border)' : 'var(--status-warning-border)';
+                    $skRiskColor = $skRiskLevel === 'kritis' ? 'var(--status-danger, #dc2626)' : 'var(--status-warning, #d97706)';
+                    $skRiskBg = $skRiskLevel === 'kritis' ? 'var(--status-danger-bg, #fef2f2)' : 'var(--status-warning-bg, #fffbeb)';
+                    $skRiskBorder = $skRiskLevel === 'kritis' ? 'var(--status-danger-border, #fecaca)' : 'var(--status-warning-border, #fde68a)';
                 ?>
                     <!-- ── Sub Kegiatan node (default: COLLAPSED) ── -->
                     <div class="d-node d-collapsed" data-risk="<?= $skRiskLevel ?>" style="padding-top:0;">
@@ -1814,42 +1837,42 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         if ($rakKum > 0) {
                             $capaianRakSeksi = ($data['realisasi'] / $rakKum) * 100;
                             if ($capaianRakSeksi >= 90) {
-                                $clr  = 'var(--status-success)';
-                                $bg   = 'var(--status-success-bg)';
-                                $bdr  = 'var(--status-success-border)';
+                                $clr  = 'var(--status-success, #059669)';
+                                $bg   = 'var(--status-success-bg, #ecfdf5)';
+                                $bdr  = 'var(--status-success-border, #bbf7d0)';
                                 $lbl  = 'Aman';
                                 $icon = 'bi-check-circle-fill';
                             } elseif ($capaianRakSeksi >= 70) {
-                                $clr  = 'var(--status-warning)';
-                                $bg   = 'var(--status-warning-bg)';
-                                $bdr  = 'var(--status-warning-border)';
+                                $clr  = 'var(--status-warning, #d97706)';
+                                $bg   = 'var(--status-warning-bg, #fffbeb)';
+                                $bdr  = 'var(--status-warning-border, #fde68a)';
                                 $lbl  = 'Perlu Dipacu';
                                 $icon = 'bi-exclamation-triangle-fill';
                             } else {
-                                $clr  = 'var(--status-danger)';
-                                $bg   = 'var(--status-danger-bg)';
-                                $bdr  = 'var(--status-danger-border)';
+                                $clr  = 'var(--status-danger, #dc2626)';
+                                $bg   = 'var(--status-danger-bg, #fef2f2)';
+                                $bdr  = 'var(--status-danger-border, #fecaca)';
                                 $lbl  = 'Tertinggal';
                                 $icon = 'bi-exclamation-octagon-fill';
                             }
                         } else {
                             // Fallback jika belum ada data RAK
                             if ($pct >= 80) {
-                                $clr  = 'var(--status-success)';
-                                $bg   = 'var(--status-success-bg)';
-                                $bdr  = 'var(--status-success-border)';
+                                $clr  = 'var(--status-success, #059669)';
+                                $bg   = 'var(--status-success-bg, #ecfdf5)';
+                                $bdr  = 'var(--status-success-border, #bbf7d0)';
                                 $lbl  = 'Aman';
                                 $icon = 'bi-check-circle-fill';
                             } elseif ($pct >= 50) {
-                                $clr  = 'var(--status-warning)';
-                                $bg   = 'var(--status-warning-bg)';
-                                $bdr  = 'var(--status-warning-border)';
+                                $clr  = 'var(--status-warning, #d97706)';
+                                $bg   = 'var(--status-warning-bg, #fffbeb)';
+                                $bdr  = 'var(--status-warning-border, #fde68a)';
                                 $lbl  = 'Perlu Dipacu';
                                 $icon = 'bi-exclamation-triangle-fill';
                             } else {
-                                $clr  = 'var(--status-danger)';
-                                $bg   = 'var(--status-danger-bg)';
-                                $bdr  = 'var(--status-danger-border)';
+                                $clr  = 'var(--status-danger, #dc2626)';
+                                $bg   = 'var(--status-danger-bg, #fef2f2)';
+                                $bdr  = 'var(--status-danger-border, #fecaca)';
                                 $lbl  = 'Tertinggal';
                                 $icon = 'bi-exclamation-octagon-fill';
                             }
