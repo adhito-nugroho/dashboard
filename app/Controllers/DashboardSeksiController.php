@@ -31,7 +31,7 @@ class DashboardSeksiController {
     /**
      * Ambil daftar rekening_id milik seksi ini
      */
-    private function getRekeningIds(PDO $db, int $seksi_id): array {
+    private function getRekeningIds(\PDO $db, int $seksi_id): array {
         $stmt = $db->prepare("
             SELECT rek.id FROM rekening rek
             INNER JOIN sub_kegiatan sk ON sk.id = rek.sub_kegiatan_id
@@ -44,7 +44,7 @@ class DashboardSeksiController {
     /**
      * Ambil daftar sub_kegiatan_id milik seksi ini
      */
-    private function getSubKegiatanIds(PDO $db, int $seksi_id): array {
+    private function getSubKegiatanIds(\PDO $db, int $seksi_id): array {
         $stmt = $db->prepare("SELECT id FROM sub_kegiatan WHERE seksi_id = ?");
         $stmt->execute([$seksi_id]);
         return array_column($stmt->fetchAll(), 'id');
