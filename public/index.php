@@ -467,6 +467,8 @@ try {
         $seksiTransaksiController->getSubKegiatans();
     } elseif ($path === '/seksi/transaksi/rekenings' && $requestMethod === 'GET') {
         $seksiTransaksiController->getRekenings();
+    } elseif ($path === '/seksi/transaksi/sisa-pagu' && $requestMethod === 'GET') {
+        $seksiTransaksiController->getSisaPagu();
     } else {
         // 404 Not Found
         http_response_code(404);

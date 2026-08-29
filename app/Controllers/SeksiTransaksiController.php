@@ -123,6 +123,10 @@ class SeksiTransaksiController
             return;
         }
 
+        $jenisTransaksi = in_array($_POST['jenis_transaksi'] ?? '', ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)
+            ? $_POST['jenis_transaksi']
+            : 'lainnya';
+
         $id = $this->transaksiModel->createSeksi(
             $_POST['tanggal'],
             $seksiId,
@@ -130,7 +134,14 @@ class SeksiTransaksiController
             trim($_POST['uraian']),
             (float) str_replace(['.', ','], '', $_POST['nilai']),
             trim($_POST['nomor_bukti']),
-            $userId
+            $userId,
+            !empty(trim($_POST['nama_penerima'] ?? '')) ? trim($_POST['nama_penerima']) : null,
+            $jenisTransaksi,
+            !empty(trim($_POST['nomor_surat_tugas'] ?? '')) ? trim($_POST['nomor_surat_tugas']) : null,
+            !empty($_POST['tanggal_surat_tugas']) ? $_POST['tanggal_surat_tugas'] : null,
+            !empty($_POST['tanggal_pelaksanaan']) ? $_POST['tanggal_pelaksanaan'] : null,
+            !empty(trim($_POST['lokasi_kegiatan'] ?? '')) ? trim($_POST['lokasi_kegiatan']) : null,
+            !empty($_POST['surat_tugas_ref_id']) ? (int) $_POST['surat_tugas_ref_id'] : null
         );
 
         $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input transaksi oleh seksi menunggu verifikasi');
@@ -207,6 +218,10 @@ class SeksiTransaksiController
             return;
         }
 
+        $jenisTransaksi = in_array($_POST['jenis_transaksi'] ?? '', ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)
+            ? $_POST['jenis_transaksi']
+            : 'lainnya';
+
         $ok = $this->transaksiModel->updateSeksi(
             $id,
             $userId,
@@ -215,7 +230,14 @@ class SeksiTransaksiController
             (int) $_POST['rekening_id'],
             trim($_POST['uraian']),
             (float) str_replace(['.', ','], '', $_POST['nilai']),
-            trim($_POST['nomor_bukti'])
+            trim($_POST['nomor_bukti']),
+            !empty(trim($_POST['nama_penerima'] ?? '')) ? trim($_POST['nama_penerima']) : null,
+            $jenisTransaksi,
+            !empty(trim($_POST['nomor_surat_tugas'] ?? '')) ? trim($_POST['nomor_surat_tugas']) : null,
+            !empty($_POST['tanggal_surat_tugas']) ? $_POST['tanggal_surat_tugas'] : null,
+            !empty($_POST['tanggal_pelaksanaan']) ? $_POST['tanggal_pelaksanaan'] : null,
+            !empty(trim($_POST['lokasi_kegiatan'] ?? '')) ? trim($_POST['lokasi_kegiatan']) : null,
+            !empty($_POST['surat_tugas_ref_id']) ? (int) $_POST['surat_tugas_ref_id'] : null
         );
 
         $this->logAudit($userId, 'update_transaksi_seksi', 'transaksi', $id, $ok ? 'Update transaksi seksi' : 'Gagal update transaksi seksi');
@@ -325,6 +347,48 @@ class SeksiTransaksiController
         exit;
     }
 
+    /**
+     * AJAX: Sisa pagu anggaran rekening untuk tahun transaksi (hanya dikurangi transaksi 'diverifikasi')
+     */
+    public function getSisaPagu(): void
+    {
+        $this->requireSeksi();
+        header('Content-Type: application/json');
+        $db = \Database::getConnection();
+        $seksiId = $this->userSeksiId();
+
+        $rekeningId = (int) ($_GET['rekening_id'] ?? 0);
+        $tahun = (int) ($_GET['tahun'] ?? (int) date('Y'));
+
+        if (!$rekeningId || !$this->rekeningMilikSeksi($rekeningId, $seksiId, $db)) {
+            echo json_encode(['pagu' => null, 'sisa_pagu' => null]);
+            exit;
+        }
+
+        // Pagu rekening tahun tsb
+        $stmtPagu = $db->prepare("SELECT nilai_pagu FROM pagu WHERE rekening_id = ? AND tahun = ?");
+        $stmtPagu->execute([$rekeningId, $tahun]);
+        $paguVal = $stmtPagu->fetchColumn();
+
+        if ($paguVal === false) {
+            echo json_encode(['pagu' => null, 'sisa_pagu' => null, 'message' => 'Pagu belum ditetapkan']);
+            exit;
+        }
+
+        $pagu = (float) $paguVal;
+        $totalRealisasi = $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
+        $sisaPagu = $pagu - $totalRealisasi;
+
+        echo json_encode([
+            'pagu' => $pagu,
+            'realisasi' => $totalRealisasi,
+            'sisa_pagu' => $sisaPagu,
+            'formatted_sisa' => 'Rp ' . number_format($sisaPagu, 0, ',', '.'),
+            'formatted_pagu' => 'Rp ' . number_format($pagu, 0, ',', '.'),
+        ]);
+        exit;
+    }
+
     private function validate(array $data, \PDO $db, int $seksiId): array
     {
         $errors = [];
@@ -354,6 +418,26 @@ class SeksiTransaksiController
 
         if (empty(trim($data['nomor_bukti'] ?? ''))) {
             $errors[] = 'Nomor bukti wajib diisi';
+        }
+
+        $jenis = $data['jenis_transaksi'] ?? 'lainnya';
+        if ($jenis === 'perjalanan_dinas') {
+            if (empty(trim($data['nomor_surat_tugas'] ?? ''))) {
+                $errors[] = 'Nomor Surat Tugas wajib diisi untuk jenis Perjalanan Dinas';
+            }
+            if (empty($data['tanggal_surat_tugas'])) {
+                $errors[] = 'Tanggal Surat Tugas wajib diisi untuk jenis Perjalanan Dinas';
+            } elseif (!strtotime($data['tanggal_surat_tugas'])) {
+                $errors[] = 'Format Tanggal Surat Tugas tidak valid';
+            }
+            if (empty($data['tanggal_pelaksanaan'])) {
+                $errors[] = 'Tanggal Pelaksanaan wajib diisi untuk jenis Perjalanan Dinas';
+            } elseif (!strtotime($data['tanggal_pelaksanaan'])) {
+                $errors[] = 'Format Tanggal Pelaksanaan tidak valid';
+            }
+            if (empty(trim($data['lokasi_kegiatan'] ?? ''))) {
+                $errors[] = 'Lokasi Kegiatan wajib diisi untuk jenis Perjalanan Dinas';
+            }
         }
 
         return $errors;

@@ -203,16 +203,37 @@ class Transaksi
     }
 
     /**
-     * Create new transaction (input oleh seksi, status 'diajukan')
+     * Create new transaction (input oleh seksi, status 'diajukan') dengan dukungan field BKU & Surat Tugas
      *
      * @return int Inserted ID
      */
-    public function createSeksi(string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti, int $inputBy): int
-    {
+    public function createSeksi(
+        string $tanggal,
+        int $seksiId,
+        int $rekeningId,
+        string $uraian,
+        float $nilai,
+        string $nomorBukti,
+        int $inputBy,
+        ?string $namaPenerima = null,
+        string $jenisTransaksi = 'lainnya',
+        ?string $nomorSuratTugas = null,
+        ?string $tanggalSuratTugas = null,
+        ?string $tanggalPelaksanaan = null,
+        ?string $lokasiKegiatan = null,
+        ?int $suratTugasRefId = null
+    ): int {
         try {
             $stmt = $this->db->prepare("
-                INSERT INTO transaksi (tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti, status, input_by)
-                VALUES (:tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti, 'diajukan', :input_by)
+                INSERT INTO transaksi (
+                    tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti, status, input_by,
+                    nama_penerima, jenis_transaksi, nomor_surat_tugas, tanggal_surat_tugas,
+                    tanggal_pelaksanaan, lokasi_kegiatan, surat_tugas_ref_id
+                ) VALUES (
+                    :tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti, 'diajukan', :input_by,
+                    :nama_penerima, :jenis_transaksi, :nomor_surat_tugas, :tanggal_surat_tugas,
+                    :tanggal_pelaksanaan, :lokasi_kegiatan, :surat_tugas_ref_id
+                )
             ");
             $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
             $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
@@ -221,6 +242,13 @@ class Transaksi
             $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
             $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
             $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
+            $stmt->bindParam(':nama_penerima', $namaPenerima, PDO::PARAM_STR);
+            $stmt->bindParam(':jenis_transaksi', $jenisTransaksi, PDO::PARAM_STR);
+            $stmt->bindParam(':nomor_surat_tugas', $nomorSuratTugas, PDO::PARAM_STR);
+            $stmt->bindParam(':tanggal_surat_tugas', $tanggalSuratTugas, PDO::PARAM_STR);
+            $stmt->bindParam(':tanggal_pelaksanaan', $tanggalPelaksanaan, PDO::PARAM_STR);
+            $stmt->bindParam(':lokasi_kegiatan', $lokasiKegiatan, PDO::PARAM_STR);
+            $stmt->bindParam(':surat_tugas_ref_id', $suratTugasRefId, PDO::PARAM_INT);
             $stmt->execute();
             return (int) $this->db->lastInsertId();
         } catch (PDOException $e) {
@@ -311,10 +339,25 @@ class Transaksi
     }
 
     /**
-     * Update transaction oleh seksi (hanya jika status masih 'diajukan')
+     * Update transaction oleh seksi (hanya jika status masih 'diajukan') dengan field BKU
      */
-    public function updateSeksi(int $id, int $inputBy, string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti): bool
-    {
+    public function updateSeksi(
+        int $id,
+        int $inputBy,
+        string $tanggal,
+        int $seksiId,
+        int $rekeningId,
+        string $uraian,
+        float $nilai,
+        string $nomorBukti,
+        ?string $namaPenerima = null,
+        string $jenisTransaksi = 'lainnya',
+        ?string $nomorSuratTugas = null,
+        ?string $tanggalSuratTugas = null,
+        ?string $tanggalPelaksanaan = null,
+        ?string $lokasiKegiatan = null,
+        ?int $suratTugasRefId = null
+    ): bool {
         try {
             $stmt = $this->db->prepare("
                 UPDATE transaksi
@@ -323,7 +366,14 @@ class Transaksi
                     rekening_id = :rekening_id,
                     uraian = :uraian,
                     nilai = :nilai,
-                    nomor_bukti = :nomor_bukti
+                    nomor_bukti = :nomor_bukti,
+                    nama_penerima = :nama_penerima,
+                    jenis_transaksi = :jenis_transaksi,
+                    nomor_surat_tugas = :nomor_surat_tugas,
+                    tanggal_surat_tugas = :tanggal_surat_tugas,
+                    tanggal_pelaksanaan = :tanggal_pelaksanaan,
+                    lokasi_kegiatan = :lokasi_kegiatan,
+                    surat_tugas_ref_id = :surat_tugas_ref_id
                 WHERE id = :id AND input_by = :input_by AND status = 'diajukan'
             ");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
@@ -334,6 +384,13 @@ class Transaksi
             $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
             $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
             $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+            $stmt->bindParam(':nama_penerima', $namaPenerima, PDO::PARAM_STR);
+            $stmt->bindParam(':jenis_transaksi', $jenisTransaksi, PDO::PARAM_STR);
+            $stmt->bindParam(':nomor_surat_tugas', $nomorSuratTugas, PDO::PARAM_STR);
+            $stmt->bindParam(':tanggal_surat_tugas', $tanggalSuratTugas, PDO::PARAM_STR);
+            $stmt->bindParam(':tanggal_pelaksanaan', $tanggalPelaksanaan, PDO::PARAM_STR);
+            $stmt->bindParam(':lokasi_kegiatan', $lokasiKegiatan, PDO::PARAM_STR);
+            $stmt->bindParam(':surat_tugas_ref_id', $suratTugasRefId, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->rowCount() > 0;
         } catch (PDOException $e) {
