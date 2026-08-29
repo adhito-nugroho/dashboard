@@ -52,12 +52,12 @@ class DashboardSeksiController {
                 LEFT JOIN rekening rek ON rek.sub_kegiatan_id = sk.id
                 LEFT JOIN pagu p ON p.rekening_id = rek.id AND p.tahun = ?
                 LEFT JOIN rak r ON r.rekening_id = rek.id AND r.tahun = ?
-                LEFT JOIN transaksi t ON t.rekening_id = rek.id AND YEAR(t.tanggal) = ? AND t.seksi_id = ?
+                LEFT JOIN transaksi t ON t.rekening_id = rek.id AND YEAR(t.tanggal) = ?
                 WHERE sk.seksi_id = ?
             ";
             
             $stmt = $db->prepare($query);
-            $stmt->execute([$tahun, $tahun, $tahun, $seksi_id, $seksi_id]);
+            $stmt->execute([$tahun, $tahun, $tahun, $seksi_id]);
             $stats = $stmt->fetch();
             
             $stats['total_pagu'] = (float) $stats['total_pagu'];
@@ -74,12 +74,12 @@ class DashboardSeksiController {
                 FROM transaksi t
                 INNER JOIN rekening rek ON rek.id = t.rekening_id
                 INNER JOIN sub_kegiatan sk ON sk.id = rek.sub_kegiatan_id
-                WHERE YEAR(t.tanggal) = ? AND sk.seksi_id = ? AND t.seksi_id = ?
+                WHERE YEAR(t.tanggal) = ? AND sk.seksi_id = ?
                 GROUP BY MONTH(t.tanggal)
             ";
             
             $monthlyStmt = $db->prepare($monthlyQuery);
-            $monthlyStmt->execute([$tahun, $seksi_id, $seksi_id]);
+            $monthlyStmt->execute([$tahun, $seksi_id]);
             $monthlyResults = $monthlyStmt->fetchAll();
             
             $monthlyData = ['realisasi' => [], 'rak' => []];
