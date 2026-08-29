@@ -17,8 +17,8 @@
         <div class="card shadow-sm p-4" style="width: 100%; max-width: 400px; border-radius: 12px;">
             <div class="text-center mb-4">
                 <i class="bi bi-shield-lock text-primary" style="font-size: 3rem;"></i>
-                <h3 class="mt-2">Login Admin</h3>
-                <p class="text-muted">Gunakan username: admin, password: admin</p>
+                <h3 class="mt-2">Login</h3>
+                <p class="text-muted">Silakan login dengan akun Anda</p>
             </div>
             
             <?php if (isset($_SESSION['error'])): ?>

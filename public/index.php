@@ -48,6 +48,7 @@ require_once __DIR__ . '/../app/Controllers/RakController.php';
 require_once __DIR__ . '/../app/Controllers/TransaksiController.php';
 require_once __DIR__ . '/../app/Controllers/DashboardController.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
+require_once __DIR__ . '/../app/Controllers/DashboardSeksiController.php';
 require_once __DIR__ . '/../app/Controllers/ExcelController.php';
 
 use App\Models\Program;
@@ -68,6 +69,7 @@ use App\Controllers\RakController;
 use App\Controllers\TransaksiController;
 use App\Controllers\DashboardController;
 use App\Controllers\AuthController;
+use App\Controllers\DashboardSeksiController;
 use App\Controllers\ExcelController;
 
 try {
@@ -93,6 +95,7 @@ try {
     $transaksiController = new TransaksiController($transaksiModel, $seksiModel, $paguModel, $rakModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
     $dashboardController = new DashboardController($paguModel, $rakModel, $transaksiModel, $seksiModel, $programModel, $kegiatanModel, $subKegiatanModel);
     $authController = new AuthController();
+    $dashboardSeksiController = new DashboardSeksiController();
     $excelController = new ExcelController($paguModel, $rakModel, $transaksiModel, $seksiModel);
 
     // Simple routing
@@ -161,7 +164,7 @@ try {
     $publicRoutes = ['/', '', '/dashboard', '/dashboard/', '/login', '/logout', '/export/laporan', '/export/serapan-bulanan', '/export/sisa-semester'];
     
     // Check authentication for protected routes
-    if (!in_array($path, $publicRoutes) && (!isset($_SESSION['is_admin']) || !$_SESSION['is_admin'])) {
+    if (!in_array($path, $publicRoutes) && !isset($_SESSION['user_id'])) {
         header('Location: ' . base_url('login'));
         exit;
     }
@@ -182,6 +185,16 @@ try {
     // Route matching - Dashboard
     if ($path === '/' || $path === '' || $path === '/dashboard' || $path === '/dashboard/') {
         $dashboardController->index();
+    }
+    // Dashboard Seksi Routes
+    elseif ($path === '/dashboard/tu' || $path === '/dashboard/tu/') {
+        $dashboardSeksiController->showTU();
+    }
+    elseif ($path === '/dashboard/rlpm' || $path === '/dashboard/rlpm/') {
+        $dashboardSeksiController->showRLPM();
+    }
+    elseif ($path === '/dashboard/tkuk' || $path === '/dashboard/tkuk/') {
+        $dashboardSeksiController->showTKUK();
     }
     // Route matching - Excel Export
     elseif ($path === '/export/laporan') {
