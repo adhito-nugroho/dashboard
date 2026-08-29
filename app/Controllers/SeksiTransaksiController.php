@@ -689,9 +689,6 @@ class SeksiTransaksiController
             } elseif (!strtotime($data['tanggal_pelaksanaan'])) {
                 $errors[] = 'Format Tanggal Pelaksanaan tidak valid';
             }
-            if (empty(trim($data['lokasi_kegiatan'] ?? ''))) {
-                $errors[] = 'Lokasi Kegiatan wajib diisi untuk jenis Perjalanan Dinas';
-            }
         }
 
         return $errors;

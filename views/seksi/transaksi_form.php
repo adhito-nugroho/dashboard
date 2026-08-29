@@ -459,6 +459,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 const selectedKegiatan = '<?= (int)$kegiatanId ?>';
 const selectedSub = '<?= (int)$subKegiatanId ?>';
 const selectedRekening = '<?= (int)$rekeningId ?>';
+const isEditMode = <?= $isEdit ? 'true' : 'false' ?>;
 const seksiBase = BASE_URL.replace(/\/$/, '');
 
 let selectedSTData = null;
@@ -562,7 +563,10 @@ document.getElementById('sub_kegiatan_id').addEventListener('change', function()
 });
 
 document.getElementById('rekening_id').addEventListener('change', updateSisaPagu);
-document.getElementById('tanggal').addEventListener('change', updateSisaPagu);
+document.getElementById('tanggal').addEventListener('change', function() {
+    updateSisaPagu();
+    if (!isEditMode) autoFillSingleNomorBukti(false);
+});
 
 // Toggle Jenis Transaksi & Field Perjalanan Dinas
 document.getElementById('jenis_transaksi').addEventListener('change', function() {
@@ -625,7 +629,8 @@ function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKe
 function autoFillSingleNomorBukti(force = false) {
     const inputNoBukti = document.getElementById('nomor_bukti');
     const tgl = document.getElementById('tanggal').value;
-    if (!force && inputNoBukti.value && inputNoBukti.value !== 'BKU/...') {
+    const current = inputNoBukti.value.trim();
+    if (!force && current && !current.startsWith('123.6.6/GU/')) {
         return;
     }
     fetch(`${seksiBase}/seksi/transaksi/generate-no-bukti?tanggal=${tgl}&count=1`)
@@ -815,8 +820,11 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
         document.getElementById('surat_tugas_ref_id').value = selectedSTData.id || '';
 
         // Auto uraian
-        const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, '', selectedSTData.untuk);
+        const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, selectedSTData.untuk);
         document.getElementById('uraian').value = draft;
+
+        // Auto nomor bukti
+        autoFillSingleNomorBukti(true);
 
         // Kosongkan nama input items jika ada
         document.getElementById('batchItemsList').innerHTML = '';
@@ -826,50 +834,54 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
         document.getElementById('batchItemsContainer').style.display = 'block';
         document.getElementById('batchCountText').innerText = selectedPegawais.length;
 
-        let batchHtml = '';
-        selectedPegawais.forEach((p, idx) => {
-            const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, '', selectedSTData.untuk);
-            batchHtml += `
-                <div class="batch-item-card" id="batchCard_${idx}">
-                    <div class="fw-bold text-primary mb-2" style="font-size:0.875rem;">
-                        <i class="bi bi-person-badge me-1"></i> #${idx+1} Transaksi an. ${p.nama}
-                    </div>
-                    <input type="hidden" name="items[${idx}][nama_penerima]" value="${p.nama}">
-                    <input type="hidden" name="items[${idx}][nomor_surat_tugas]" value="${selectedSTData.nomor_surat || ''}">
-                    <input type="hidden" name="items[${idx}][tanggal_surat_tugas]" value="${selectedSTData.tanggal_surat || ''}">
-                    <input type="hidden" name="items[${idx}][tanggal_pelaksanaan]" value="${selectedSTData.tanggal_mulai || ''}">
-                    <input type="hidden" name="items[${idx}][surat_tugas_ref_id]" value="${selectedSTData.id || ''}">
-                    
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold">Nomor Bukti / Kwitansi <span class="text-danger">*</span></label>
-                            <input type="text" name="items[${idx}][nomor_bukti]" class="form-control custom-form-input form-control-sm" placeholder="BKU/..." required>
+        // Fetch batch nomor bukti
+        const tgl = document.getElementById('tanggal').value || new Date().toISOString().slice(0, 10);
+        fetch(`${seksiBase}/seksi/transaksi/generate-no-bukti?tanggal=${tgl}&count=${selectedPegawais.length}`)
+            .then(r => r.json())
+            .then(res => {
+                const nomorList = res.success ? res.list : [];
+                let batchHtml = '';
+                selectedPegawais.forEach((p, idx) => {
+                    const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, selectedSTData.untuk);
+                    const noBukti = nomorList[idx] || '';
+                    batchHtml += `
+                        <div class="batch-item-card" id="batchCard_${idx}">
+                            <div class="fw-bold text-primary mb-2" style="font-size:0.875rem;">
+                                <i class="bi bi-person-badge me-1"></i> #${idx+1} Transaksi an. ${p.nama}
+                            </div>
+                            <input type="hidden" name="items[${idx}][nama_penerima]" value="${p.nama}">
+                            <input type="hidden" name="items[${idx}][nomor_surat_tugas]" value="${selectedSTData.nomor_surat || ''}">
+                            <input type="hidden" name="items[${idx}][tanggal_surat_tugas]" value="${selectedSTData.tanggal_surat || ''}">
+                            <input type="hidden" name="items[${idx}][tanggal_pelaksanaan]" value="${selectedSTData.tanggal_mulai || ''}">
+                            <input type="hidden" name="items[${idx}][surat_tugas_ref_id]" value="${selectedSTData.id || ''}">
+                            
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Nomor Bukti / Kwitansi <span class="text-danger">*</span></label>
+                                    <input type="text" name="items[${idx}][nomor_bukti]" class="form-control custom-form-input form-control-sm" value="${noBukti}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold">Nilai (Rp) <span class="text-danger">*</span></label>
+                                    <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required>
+                                </div>
+                                <div class="col-12 mt-2">
+                                    <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
+                                    <textarea name="items[${idx}][uraian]" class="form-control custom-form-textarea form-control-sm" rows="2" required>${draft}</textarea>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold">Lokasi Kegiatan</label>
-                            <input type="text" name="items[${idx}][lokasi_kegiatan]" class="form-control custom-form-input form-control-sm" placeholder="Lokasi...">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold">Nilai (Rp) <span class="text-danger">*</span></label>
-                            <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required>
-                        </div>
-                        <div class="col-12 mt-2">
-                            <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
-                            <textarea name="items[${idx}][uraian]" class="form-control custom-form-textarea form-control-sm" rows="2" required>${draft}</textarea>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        document.getElementById('batchItemsList').innerHTML = batchHtml;
+                    `;
+                });
+                document.getElementById('batchItemsList').innerHTML = batchHtml;
 
-        // Pasang format ribuan di batch nilai inputs
-        document.querySelectorAll('.batch-nilai-input').forEach(inp => {
-            inp.addEventListener('input', function() {
-                let clean = this.value.replace(/[^0-9]/g, '');
-                if (clean) this.value = parseInt(clean, 10).toLocaleString('id-ID');
+                // Pasang format ribuan di batch nilai inputs
+                document.querySelectorAll('.batch-nilai-input').forEach(inp => {
+                    inp.addEventListener('input', function() {
+                        let clean = this.value.replace(/[^0-9]/g, '');
+                        if (clean) this.value = parseInt(clean, 10).toLocaleString('id-ID');
+                    });
+                });
             });
-        });
     }
 
     if (modalSTInstance) modalSTInstance.hide();
@@ -894,6 +906,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(() => {
                 if (selectedRekening) updateSisaPagu();
             });
+    }
+
+    // Auto isi nomor bukti saat tambah transaksi baru
+    if (!isEditMode) {
+        autoFillSingleNomorBukti(false);
     }
 
     // Format nilai awal jika ada
