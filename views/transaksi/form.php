@@ -213,85 +213,84 @@ $batchData = $batchData ?? null;
                 $batchSubKegiatanId = $batchData['sub_kegiatan_id'] ?? '';
                 $batchRekenings = $batchData['rekenings'] ?? [];
                 ?>
-                <div class="row">
-                    <!-- Left Column -->
-                    <div class="col-md-6">
-                        <!-- Tanggal -->
-                        <div class="mb-3">
-                            <label for="batch_tanggal" class="form-label">
-                                Tanggal <span class="text-danger">*</span>
-                            </label>
-                            <input type="date" class="form-control <?= isset($errors['tanggal']) ? 'is-invalid' : '' ?>"
-                                id="batch_tanggal" name="tanggal" value="<?= htmlspecialchars($batchTanggal) ?>"
-                                required>
-                            <?php if (isset($errors['tanggal'])): ?>
-                                <div class="invalid-feedback">
-                                    <?= htmlspecialchars($errors['tanggal']) ?>
+                <style>
+                .batch-step { display: flex; gap: 1rem; }
+                .step-badge { width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: #4f46e5; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: .95rem; }
+                .batch-field-label { font-size: .82rem; font-weight: 700; color: #334155; }
+                .batch-select-wrap { position: relative; }
+                .bulk-card { background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%); border: 1px solid #e0e7ff; border-radius: 14px; box-shadow: 0 6px 18px rgba(79,70,229,.08); }
+                #rekeningTable thead th { background: #f1f5f9; color: #475569; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; padding: .65rem .75rem; border-bottom-width: 2px; border-color: #e2e8f0; }
+                #rekeningTable td { vertical-align: middle; padding: .6rem .75rem; }
+                #rekeningTable tr:hover { background: #f8fafc; }
+                </style>
+
+                <div class="row g-4">
+                    <!-- Left Column: Klasifikasi -->
+                    <div class="col-lg-7">
+                        <div class="card border-0 shadow-sm mb-2" style="border-radius:16px;">
+                            <div class="card-body p-4">
+                                <h6 class="fw-bold text-dark mb-3" style="letter-spacing:-.01em;">
+                                    <i class="bi bi-funnel-fill text-primary me-2"></i>Klasifikasi Anggaran
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="batch_tanggal" class="form-label batch-field-label">Tanggal Transaksi <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control <?= isset($errors['tanggal']) ? 'is-invalid' : '' ?>" id="batch_tanggal" name="tanggal" value="<?= htmlspecialchars($batchTanggal) ?>" required>
+                                        <?php if (isset($errors['tanggal'])): ?>
+                                            <div class="invalid-feedback"><?= htmlspecialchars($errors['tanggal']) ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="batch_program_id" class="form-label batch-field-label">Program <span class="text-danger">*</span></label>
+                                        <div class="batch-select-wrap">
+                                            <select class="form-select" id="batch_program_id" name="program_id" required>
+                                                <option value="">-- Pilih Program --</option>
+                                                <?php foreach ($programs as $program): ?>
+                                                    <option value="<?= $program['id'] ?>" <?= ($batchProgramId == $program['id']) ? 'selected' : '' ?>>
+                                                        <?= htmlspecialchars($program['kode_program'] . ' - ' . $program['nama_program']) ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="batch_kegiatan_id" class="form-label batch-field-label">Kegiatan <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="batch_kegiatan_id" name="kegiatan_id" required disabled>
+                                            <option value="">-- Pilih Kegiatan --</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="batch_sub_kegiatan_id" class="form-label batch-field-label">Sub Kegiatan <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="batch_sub_kegiatan_id" name="sub_kegiatan_id" required disabled>
+                                            <option value="">-- Pilih Sub Kegiatan --</option>
+                                        </select>
+                                    </div>
                                 </div>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- Program -->
-                        <div class="mb-3">
-                            <label for="batch_program_id" class="form-label">
-                                Program <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="batch_program_id" name="program_id" required>
-                                <option value="">-- Pilih Program --</option>
-                                <?php foreach ($programs as $program): ?>
-                                    <option value="<?= $program['id'] ?>" <?= ($batchProgramId == $program['id']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($program['kode_program'] . ' - ' . $program['nama_program']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <!-- Kegiatan -->
-                        <div class="mb-3">
-                            <label for="batch_kegiatan_id" class="form-label">
-                                Kegiatan <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="batch_kegiatan_id" name="kegiatan_id" required disabled>
-                                <option value="">-- Pilih Kegiatan --</option>
-                            </select>
-                        </div>
-
-                        <!-- Sub Kegiatan -->
-                        <div class="mb-3">
-                            <label for="batch_sub_kegiatan_id" class="form-label">
-                                Sub Kegiatan <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="batch_sub_kegiatan_id" name="sub_kegiatan_id" required
-                                disabled>
-                                <option value="">-- Pilih Sub Kegiatan --</option>
-                            </select>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Right Column -->
-                    <div class="col-md-6">
-                        <div class="card bg-light border-0 shadow-sm mb-3">
-                            <div class="card-body">
-                                <h6 class="card-title text-primary mb-3">
-                                    <i class="bi bi-magic me-2"></i>Pengisian Massal (Bulk Fill)
+                    <!-- Right Column: Bulk Fill -->
+                    <div class="col-lg-5">
+                        <div class="card bulk-card border-0 mb-2">
+                            <div class="card-body p-4">
+                                <h6 class="fw-bold text-dark mb-3" style="letter-spacing:-.01em;">
+                                    <i class="bi bi-magic text-primary me-2"></i>Pengisian Massal (Bulk Fill)
                                 </h6>
                                 <div class="row g-2 align-items-end">
-                                    <div class="col-md-5">
-                                        <label for="bulk_uraian" class="form-label small text-muted mb-1">Uraian Masal</label>
-                                        <input type="text" class="form-control form-control-sm" id="bulk_uraian" placeholder="Contoh: Belanja Alat Tulis Kantor">
+                                    <div class="col-12">
+                                        <label for="bulk_uraian" class="form-label batch-field-label small mb-1">Uraian Masal</label>
+                                        <input type="text" class="form-control" id="bulk_uraian" placeholder="Contoh: Belanja Alat Tulis Kantor">
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="bulk_bukti" class="form-label small text-muted mb-1">No. Bukti Masal</label>
-                                        <input type="text" class="form-control form-control-sm" id="bulk_bukti" placeholder="Contoh: BUK/001/2026">
+                                    <div class="col-12">
+                                        <label for="bulk_bukti" class="form-label batch-field-label small mb-1">No. Bukti Masal <small class="text-muted fw-normal">(opsional)</small></label>
+                                        <input type="text" class="form-control" id="bulk_bukti" placeholder="Contoh: BUK/001/2026">
                                     </div>
-                                    <div class="col-md-3">
-                                        <button type="button" class="btn btn-sm btn-primary w-100" id="applyBulkFill">
-                                            <i class="bi bi-check-all me-1"></i> Terapkan
+                                    <div class="col-12">
+                                        <button type="button" class="btn btn-primary w-100 fw-semibold" id="applyBulkFill">
+                                            <i class="bi bi-check-all me-1"></i> Terapkan ke Semua Baris
                                         </button>
                                     </div>
-                                </div>
-                                <div class="form-text mt-2 small text-muted">
-                                    Pilih Sub Kegiatan, isi data massal di atas, lalu klik "Terapkan" untuk mengisi semua baris secara otomatis.
                                 </div>
                             </div>
                         </div>
@@ -299,29 +298,32 @@ $batchData = $batchData ?? null;
                 </div>
 
                 <!-- Rekening Table -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0 fw-bold">
-                            Daftar Rekening <span class="text-danger">*</span>
-                        </label>
+                <div class="card border-0 shadow-sm mt-3" style="border-radius:16px;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark mb-0" style="letter-spacing:-.01em;">
+                                <i class="bi bi-list-check text-primary me-2"></i>Daftar Rekening <span class="text-danger">*</span>
+                            </h6>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2" id="rekeningCountBadge">0 rekening</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table align-middle table-hover" id="rekeningTable" style="font-size:.875rem;">
+                                <thead>
+                                    <tr>
+                                        <th width="30%">Rekening</th>
+                                        <th width="15%" class="text-end">Sisa Anggaran</th>
+                                        <th width="20%">Nilai (Rp)</th>
+                                        <th width="20%">Uraian</th>
+                                        <th width="15%">Nomor Bukti</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rekeningTableBody">
+                                    <!-- Terisi otomatis lewat JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="form-text text-muted">Isi nilai pada satu atau beberapa rekening. Baris dengan nilai kosong atau Rp 0 tidak akan disimpan.</div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle" id="rekeningTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th width="30%">Rekening</th>
-                                    <th width="15%" class="text-end">Sisa Anggaran</th>
-                                    <th width="20%">Nilai (Rp)</th>
-                                    <th width="20%">Uraian</th>
-                                    <th width="15%">Nomor Bukti</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rekeningTableBody">
-                                <!-- Terisi otomatis lewat JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="form-text text-muted">Isi nilai transaksi pada satu atau beberapa rekening di atas. Rekening dengan nilai kosong atau Rp 0 tidak akan disimpan.</div>
                 </div>
 
                 <!-- Form Actions -->
@@ -629,6 +631,8 @@ $batchData = $batchData ?? null;
                 const tanggal = batchTanggalInput.value;
                 if (!subKegiatanId || !tanggal) {
                     rekeningTableBody.innerHTML = '';
+                    const cb = document.getElementById('rekeningCountBadge');
+                    if (cb) cb.innerText = '0 rekening';
                     return;
                 }
 
@@ -747,6 +751,8 @@ $batchData = $batchData ?? null;
                                 nilaiInput.dispatchEvent(new Event('input'));
                             }
                         });
+                        const countBadge = document.getElementById('rekeningCountBadge');
+                        if (countBadge) countBadge.innerText = data.length + ' rekening';
                     })
                     })
                     .catch(error => {
