@@ -77,7 +77,7 @@ class SeksiTransaksiController
         $programs->execute([$seksiId]);
 
         $pageTitle = 'Tambah Transaksi';
-        $activePage = 'transaksi';
+        $activePage = 'transaksicreate';
         $viewFile = __DIR__ . '/../../views/seksi/transaksi_form.php';
         $transaksi = null;
         $action = 'store';
@@ -108,7 +108,7 @@ class SeksiTransaksiController
             ");
             $programs->execute([$seksiId]);
             $pageTitle = 'Tambah Transaksi';
-            $activePage = 'transaksi';
+            $activePage = 'transaksicreate';
             $viewFile = __DIR__ . '/../../views/seksi/transaksi_form.php';
             $transaksi = $_POST;
             $action = 'store';
