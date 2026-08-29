@@ -30,40 +30,49 @@ $urlDashboard = base_url('dashboard/' . strtolower($_SESSION['role']));
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= base_url('css/style.css') ?>">
     <style>
-        :root { --primary: #3b82f6; }
-        body { background: #f1f5f9; }
+        :root { --primary: #4f46e5; --primary-dark: #312e81; }
+        body { background: #f8fafc; color: #0f172a; }
+        .seksi-header {
+            background: linear-gradient(135deg, #312e81 0%, #4338ca 55%, #4f46e5 100%);
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(49,46,129,.18);
+        }
         .seksi-topbar {
-            background: #0f172a; color: #fff; padding: 0.75rem 1.5rem;
-            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 1.5rem .75rem;
+            display: flex; align-items: center; justify-content: space-between; gap: 1rem;
         }
         .seksi-nav {
-            background: #fff; border-bottom: 1px solid #e2e8f0;
-            padding: 0 1.5rem; display: flex; gap: 0.25rem; flex-wrap: wrap;
+            padding: 0 1.5rem; display: flex; gap: .35rem; flex-wrap: wrap;
         }
         .seksi-nav a {
-            padding: 0.75rem 1rem; text-decoration: none; color: #475569;
-            font-size: 0.875rem; font-weight: 600; border-bottom: 2px solid transparent;
+            padding: .8rem 1rem; text-decoration: none; color: rgba(255,255,255,.76);
+            font-size: .875rem; font-weight: 700; border-bottom: 3px solid transparent;
+            border-radius: 10px 10px 0 0; transition: all .15s ease;
         }
-        .seksi-nav a.active { color: #2563eb; border-bottom-color: #2563eb; }
-        .bsa-card { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+        .seksi-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+        .seksi-nav a.active { color: #fff; background: rgba(255,255,255,.12); border-bottom-color: #c7d2fe; }
+        .bsa-card { border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.05); }
+        @media (max-width: 640px) { .seksi-topbar { flex-direction: column; align-items: flex-start; } }
     </style>
 </head>
 <body>
-    <div class="seksi-topbar">
-        <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-calculator" style="font-size:1.3rem;"></i>
-            <span class="fw-bold">CDK Wilayah Bojonegoro <small style="opacity:.8;">· <?= htmlspecialchars($seksiName ?: ucfirst($_SESSION['role'])) ?></small></span>
+    <header class="seksi-header">
+        <div class="seksi-topbar">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-calculator" style="font-size:1.3rem;"></i>
+                <span class="fw-bold">CDK Wilayah Bojonegoro <small style="opacity:.82;">· <?= htmlspecialchars($seksiName ?: ucfirst($_SESSION['role'])) ?></small></span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span><i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['username'] ?? '') ?></span>
+                <a href="<?= base_url('logout') ?>" class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            </div>
         </div>
-        <div class="d-flex align-items-center gap-3">
-            <span><i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['username'] ?? '') ?></span>
-            <a href="<?= base_url('logout') ?>" class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right"></i> Logout</a>
-        </div>
-    </div>
-    <div class="seksi-nav">
-        <a href="<?= $urlDashboard ?>" class="<?= $activePage === 'dashboardseksi' ? 'active' : '' ?>"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
-        <a href="<?= base_url('seksi/transaksi') ?>" class="<?= $activePage === 'transaksi' ? 'active' : '' ?>"><i class="bi bi-receipt me-1"></i>Transaksi Saya</a>
-        <a href="<?= base_url('seksi/transaksi/create') ?>" class="<?= $activePage === 'transaksicreate' ? 'active' : '' ?>"><i class="bi bi-plus-circle me-1"></i>Tambah Transaksi</a>
-    </div>
+        <nav class="seksi-nav">
+            <a href="<?= $urlDashboard ?>" class="<?= $activePage === 'dashboardseksi' ? 'active' : '' ?>"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+            <a href="<?= base_url('seksi/transaksi') ?>" class="<?= $activePage === 'transaksi' ? 'active' : '' ?>"><i class="bi bi-receipt me-1"></i>Transaksi Saya</a>
+            <a href="<?= base_url('seksi/transaksi/create') ?>" class="<?= $activePage === 'transaksicreate' ? 'active' : '' ?>"><i class="bi bi-plus-circle me-1"></i>Tambah Transaksi</a>
+        </nav>
+    </header>
     <script>const BASE_URL = '<?= rtrim(base_url(), '/') ?>/';</script>
     <main class="container-fluid py-4">
         <?php if (!empty($_SESSION['flash_message'])): ?>
