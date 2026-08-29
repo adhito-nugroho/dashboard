@@ -92,8 +92,13 @@ class SeksiTransaksiController
         $this->requireSeksi();
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $seksiId = $this->userSeksiId();
-
         $db = \Database::getConnection();
+
+        // Cek apakah input berupa batch multi-baris (items)
+        if (isset($_POST['items']) && is_array($_POST['items']) && count($_POST['items']) > 0) {
+            $this->storeBatchItems($_POST, $db, $userId, $seksiId);
+            return;
+        }
 
         $errors = $this->validate($_POST, $db, $seksiId);
 
@@ -146,6 +151,69 @@ class SeksiTransaksiController
 
         $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input transaksi oleh seksi menunggu verifikasi');
         $this->redirectWithMessage(base_url('seksi/transaksi'), 'success', 'Transaksi diajukan. Menunggu verifikasi admin.');
+    }
+
+    /**
+     * Simpan batch item transaksi (misal dari multi-select Surat Tugas)
+     */
+    private function storeBatchItems(array $post, \PDO $db, int $userId, int $seksiId): void
+    {
+        $rekeningId = (int) ($post['rekening_id'] ?? 0);
+        if (!$rekeningId || !$this->rekeningMilikSeksi($rekeningId, $seksiId, $db)) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', 'Rekening belanja wajib dipilih dan harus valid untuk seksi Anda.');
+            return;
+        }
+
+        $tanggal = !empty($post['tanggal']) ? $post['tanggal'] : date('Y-m-d');
+        $items = $post['items'];
+        $createdCount = 0;
+        $errors = [];
+
+        foreach ($items as $idx => $item) {
+            $nomorBukti = trim($item['nomor_bukti'] ?? '');
+            $uraian = trim($item['uraian'] ?? '');
+            $rawNilai = str_replace(['.', ','], '', $item['nilai'] ?? '0');
+            $nilai = (float) $rawNilai;
+            $namaPenerima = trim($item['nama_penerima'] ?? '');
+
+            if ($nomorBukti === '' || $uraian === '' || $nilai <= 0) {
+                $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nomor bukti, uraian, dan nilai harus valid.";
+                continue;
+            }
+
+            try {
+                $id = $this->transaksiModel->createSeksi(
+                    $tanggal,
+                    $seksiId,
+                    $rekeningId,
+                    $uraian,
+                    $nilai,
+                    $nomorBukti,
+                    $userId,
+                    $namaPenerima ?: null,
+                    'perjalanan_dinas',
+                    !empty(trim($item['nomor_surat_tugas'] ?? '')) ? trim($item['nomor_surat_tugas']) : null,
+                    !empty($item['tanggal_surat_tugas']) ? $item['tanggal_surat_tugas'] : null,
+                    !empty($item['tanggal_pelaksanaan']) ? $item['tanggal_pelaksanaan'] : null,
+                    !empty(trim($item['lokasi_kegiatan'] ?? '')) ? trim($item['lokasi_kegiatan']) : null,
+                    !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : null
+                );
+                $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input batch transaksi Surat Tugas an. ' . $namaPenerima);
+                $createdCount++;
+            } catch (\Throwable $e) {
+                $errors[] = "Gagal menyimpan baris #" . ($idx + 1) . ": " . $e->getMessage();
+            }
+        }
+
+        if ($createdCount > 0) {
+            $msg = "Berhasil mengajukan {$createdCount} transaksi perjalanan dinas.";
+            if (!empty($errors)) {
+                $msg .= " Catatan: " . implode(' ', $errors);
+            }
+            $this->redirectWithMessage(base_url('seksi/transaksi'), 'success', $msg);
+        } else {
+            $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', 'Gagal menyimpan transaksi: ' . implode(' ', $errors));
+        }
     }
 
     /**
@@ -386,6 +454,112 @@ class SeksiTransaksiController
             'formatted_sisa' => 'Rp ' . number_format($sisaPagu, 0, ',', '.'),
             'formatted_pagu' => 'Rp ' . number_format($pagu, 0, ',', '.'),
         ]);
+        exit;
+    }
+
+    /**
+     * AJAX: Cari Surat Tugas dari db_surat_tugas (Read-only)
+     */
+    public function searchSuratTugas(): void
+    {
+        $this->requireSeksi();
+        header('Content-Type: application/json');
+        require_once __DIR__ . '/../../config/database_surat_tugas.php';
+
+        $pdo = \DatabaseSuratTugas::getConnection();
+        if (!$pdo) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Layanan Database Surat Tugas sedang tidak dapat diakses.'
+            ]);
+            exit;
+        }
+
+        try {
+            $q = trim($_GET['q'] ?? '');
+            $kw = '%' . $q . '%';
+
+            if ($q !== '') {
+                $stmt = $pdo->prepare("
+                    SELECT id, nomor_surat, tanggal_surat, untuk, tanggal_mulai, tanggal_selesai, dasar_surat
+                    FROM surat_tugas
+                    WHERE nomor_surat LIKE :kw OR untuk LIKE :kw
+                    ORDER BY tanggal_mulai DESC
+                    LIMIT 20
+                ");
+                $stmt->bindParam(':kw', $kw, \PDO::PARAM_STR);
+            } else {
+                $stmt = $pdo->prepare("
+                    SELECT id, nomor_surat, tanggal_surat, untuk, tanggal_mulai, tanggal_selesai, dasar_surat
+                    FROM surat_tugas
+                    ORDER BY tanggal_mulai DESC
+                    LIMIT 20
+                ");
+            }
+            $stmt->execute();
+            $results = $stmt->fetchAll();
+
+            echo json_encode([
+                'success' => true,
+                'data' => $results
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Error searchSuratTugas: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Gagal mencari surat tugas: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    /**
+     * AJAX: Ambil daftar Pegawai untuk Surat Tugas tertentu (Read-only)
+     */
+    public function getPegawaiSuratTugas(): void
+    {
+        $this->requireSeksi();
+        header('Content-Type: application/json');
+        require_once __DIR__ . '/../../config/database_surat_tugas.php';
+
+        $pdo = \DatabaseSuratTugas::getConnection();
+        if (!$pdo) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Layanan Database Surat Tugas sedang tidak dapat diakses.'
+            ]);
+            exit;
+        }
+
+        $idST = (int) ($_GET['id_surat_tugas'] ?? 0);
+        if (!$idST) {
+            echo json_encode(['success' => false, 'message' => 'ID Surat Tugas wajib disertakan.']);
+            exit;
+        }
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT p.nip, p.nama, p.pangkat, p.jabatan, pt.urutan
+                FROM pegawai_tugas pt
+                JOIN pegawai p ON p.nip = pt.nip
+                WHERE pt.id_surat_tugas = :id_surat_tugas
+                ORDER BY pt.urutan ASC, p.nama ASC
+            ");
+            $stmt->bindParam(':id_surat_tugas', $idST, \PDO::PARAM_INT);
+            $stmt->execute();
+            $pegawais = $stmt->fetchAll();
+
+            echo json_encode([
+                'success' => true,
+                'data' => $pegawais
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Error getPegawaiSuratTugas: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Gagal memuat pegawai: ' . $e->getMessage()
+            ]);
+        }
         exit;
     }
 

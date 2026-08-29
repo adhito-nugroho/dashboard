@@ -469,6 +469,10 @@ try {
         $seksiTransaksiController->getRekenings();
     } elseif ($path === '/seksi/transaksi/sisa-pagu' && $requestMethod === 'GET') {
         $seksiTransaksiController->getSisaPagu();
+    } elseif ($path === '/seksi/transaksi/search-st' && $requestMethod === 'GET') {
+        $seksiTransaksiController->searchSuratTugas();
+    } elseif ($path === '/seksi/transaksi/pegawai-st' && $requestMethod === 'GET') {
+        $seksiTransaksiController->getPegawaiSuratTugas();
     } else {
         // 404 Not Found
         http_response_code(404);
