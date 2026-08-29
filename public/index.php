@@ -175,7 +175,8 @@ try {
     // Middleware: role seksi (tu/rlpm/tkuk) hanya boleh akses dashboard seksi & halaman transaksi seksi
     $isSeksi = isset($_SESSION['role']) && in_array($_SESSION['role'], ['rlpm', 'tkuk', 'tu', 'seksi'], true);
     if ($isSeksi) {
-        $seksiAllowed = preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
+        $seksiAllowed = in_array($path, ['/logout', '/logout/'], true)
+            || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
             || preg_match('#^/seksi/transaksi#', $path);
         if (!$seksiAllowed) {
             header('Location: ' . base_url('seksi/transaksi'));
