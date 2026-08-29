@@ -396,11 +396,36 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-3">
-                <!-- Search Box -->
-                <div class="input-group mb-3">
-                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" id="inputSearchST" class="form-control" placeholder="Cari nomor surat tugas atau maksud perjalanan dinas...">
-                    <button class="btn btn-primary px-3" type="button" id="btnSearchST">Cari</button>
+                <!-- Search & Filter Box -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-7">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="inputSearchST" class="form-control" placeholder="Cari nomor surat atau maksud kegiatan...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterBulanST" class="form-select">
+                            <option value="">-- Semua Bulan --</option>
+                            <option value="1">Januari</option>
+                            <option value="2">Februari</option>
+                            <option value="3">Maret</option>
+                            <option value="4">April</option>
+                            <option value="5">Mei</option>
+                            <option value="6">Juni</option>
+                            <option value="7">Juli</option>
+                            <option value="8">Agustus</option>
+                            <option value="9">September</option>
+                            <option value="10">Oktober</option>
+                            <option value="11">November</option>
+                            <option value="12">Desember</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100 fw-bold" type="button" id="btnSearchST">
+                            <i class="bi bi-funnel me-1"></i>Cari
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Alert/Status ST -->
@@ -623,17 +648,26 @@ document.getElementById('btnSearchST').addEventListener('click', function() {
 document.getElementById('inputSearchST').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') searchSuratTugas(this.value);
 });
+document.getElementById('filterBulanST').addEventListener('change', function() {
+    searchSuratTugas(document.getElementById('inputSearchST').value);
+});
 
 function searchSuratTugas(keyword) {
     const resultList = document.getElementById('stResultList');
     const loadingText = document.getElementById('stLoadingText');
     const alertBox = document.getElementById('stAlertBox');
+    const bulanVal = document.getElementById('filterBulanST').value;
     
     alertBox.style.display = 'none';
     loadingText.style.display = 'inline-block';
     resultList.innerHTML = '<div class="text-center text-muted py-3 small"><i class="bi bi-arrow-repeat spin"></i> Mencari surat tugas...</div>';
 
-    fetch(`${seksiBase}/seksi/transaksi/search-st?q=${encodeURIComponent(keyword)}`)
+    let url = `${seksiBase}/seksi/transaksi/search-st?q=${encodeURIComponent(keyword)}`;
+    if (bulanVal) {
+        url += `&bulan=${bulanVal}`;
+    }
+
+    fetch(url)
         .then(r => r.json())
         .then(res => {
             loadingText.style.display = 'none';
@@ -651,13 +685,14 @@ function searchSuratTugas(keyword) {
 
             let html = '';
             res.data.forEach(st => {
+                const tglDisplay = st.tanggal_mulai ? (st.tanggal_selesai && st.tanggal_selesai !== st.tanggal_mulai ? `${st.tanggal_mulai} s.d. ${st.tanggal_selesai}` : st.tanggal_mulai) : (st.tanggal_surat || '-');
                 html += `
                     <button type="button" class="list-group-item list-group-item-action item-st-select py-2" data-st='${JSON.stringify(st).replace(/'/g, "&apos;")}'>
                         <div class="d-flex justify-content-between align-items-center">
                             <strong class="text-primary" style="font-size:0.875rem;">No. ${st.nomor_surat || '-'}</strong>
-                            <small class="text-muted">${st.tanggal_mulai ? 'Tgl: ' + st.tanggal_mulai : ''}</small>
+                            <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>${tglDisplay}</small>
                         </div>
-                        <div class="small text-dark mt-1 text-truncate" style="max-width:90%;">${st.untuk || '-'}</div>
+                        <div class="small text-dark mt-1" style="line-height:1.35;">${st.untuk || '-'}</div>
                     </button>
                 `;
             });

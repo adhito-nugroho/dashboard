@@ -477,25 +477,45 @@ class SeksiTransaksiController
 
         try {
             $q = trim($_GET['q'] ?? '');
-            $kw = '%' . $q . '%';
+            $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
+            $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : null;
+
+            $conditions = [];
+            $params = [];
 
             if ($q !== '') {
-                $stmt = $pdo->prepare("
-                    SELECT id, nomor_surat, tanggal_surat, untuk, tanggal_mulai, tanggal_selesai, dasar_surat
-                    FROM surat_tugas
-                    WHERE nomor_surat LIKE :kw OR untuk LIKE :kw
-                    ORDER BY tanggal_mulai DESC
-                    LIMIT 20
-                ");
-                $stmt->bindParam(':kw', $kw, \PDO::PARAM_STR);
-            } else {
-                $stmt = $pdo->prepare("
-                    SELECT id, nomor_surat, tanggal_surat, untuk, tanggal_mulai, tanggal_selesai, dasar_surat
-                    FROM surat_tugas
-                    ORDER BY tanggal_mulai DESC
-                    LIMIT 20
-                ");
+                $conditions[] = '(nomor_surat LIKE :kw OR untuk LIKE :kw)';
+                $params[':kw'] = '%' . $q . '%';
             }
+
+            if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
+                $conditions[] = 'MONTH(tanggal_mulai) = :bulan';
+                $params[':bulan'] = $bulan;
+            }
+
+            if ($tahun !== null && $tahun > 2000) {
+                $conditions[] = 'YEAR(tanggal_mulai) = :tahun';
+                $params[':tahun'] = $tahun;
+            }
+
+            $whereSql = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+            $stmt = $pdo->prepare("
+                SELECT id, nomor_surat, tanggal_surat, untuk, tanggal_mulai, tanggal_selesai, dasar_surat
+                FROM surat_tugas
+                {$whereSql}
+                ORDER BY tanggal_mulai DESC, id DESC
+                LIMIT 50
+            ");
+
+            foreach ($params as $key => $val) {
+                if (is_int($val)) {
+                    $stmt->bindValue($key, $val, \PDO::PARAM_INT);
+                } else {
+                    $stmt->bindValue($key, $val, \PDO::PARAM_STR);
+                }
+            }
+
             $stmt->execute();
             $results = $stmt->fetchAll();
 
@@ -515,6 +535,7 @@ class SeksiTransaksiController
 
     /**
      * AJAX: Ambil daftar Pegawai untuk Surat Tugas tertentu (Read-only)
+     * Menggunakan TRIM & collation-safe join untuk menangani spasi/format NIP yang tidak konsisten
      */
     public function getPegawaiSuratTugas(): void
     {
@@ -538,10 +559,20 @@ class SeksiTransaksiController
         }
 
         try {
+            // LEFT JOIN dengan normalisasi spasi agar semua pegawai tetap muncul meski NIP berformat beda
             $stmt = $pdo->prepare("
-                SELECT p.nip, p.nama, p.pangkat, p.jabatan, pt.urutan
+                SELECT 
+                    pt.nip AS pt_nip,
+                    COALESCE(p.nip, pt.nip) AS nip,
+                    COALESCE(p.nama, pt.nip, 'Pegawai') AS nama,
+                    p.pangkat,
+                    p.jabatan,
+                    pt.urutan
                 FROM pegawai_tugas pt
-                JOIN pegawai p ON p.nip = pt.nip
+                LEFT JOIN pegawai p ON (
+                    p.nip = pt.nip 
+                    OR REPLACE(p.nip, ' ', '') = REPLACE(pt.nip, ' ', '')
+                )
                 WHERE pt.id_surat_tugas = :id_surat_tugas
                 ORDER BY pt.urutan ASC, p.nama ASC
             ");
