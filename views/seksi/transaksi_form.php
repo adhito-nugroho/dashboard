@@ -313,29 +313,23 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                         <i class="bi bi-file-earmark-person me-1"></i> Data Surat Tugas (Perjalanan Dinas)
                                     </div>
                                     <div class="row g-2">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label" style="font-size:0.8rem;font-weight:600;">
                                                 Nomor Surat Tugas <span class="text-danger">*</span>
                                             </label>
                                             <input type="text" name="nomor_surat_tugas" id="nomor_surat_tugas" class="form-control custom-form-input form-control-sm" placeholder="094/012/101.4/2026" value="<?= htmlspecialchars($nomorSuratTugas) ?>">
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label" style="font-size:0.8rem;font-weight:600;">
                                                 Tanggal Surat Tugas <span class="text-danger">*</span>
                                             </label>
                                             <input type="date" name="tanggal_surat_tugas" id="tanggal_surat_tugas" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($tanggalSuratTugas) ?>">
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label" style="font-size:0.8rem;font-weight:600;">
                                                 Tanggal Pelaksanaan <span class="text-danger">*</span>
                                             </label>
                                             <input type="date" name="tanggal_pelaksanaan" id="tanggal_pelaksanaan" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($tanggalPelaksanaan) ?>">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;">
-                                                Lokasi Kegiatan <span class="text-danger">*</span>
-                                            </label>
-                                            <input type="text" name="lokasi_kegiatan" id="lokasi_kegiatan" class="form-control custom-form-input form-control-sm" placeholder="Kec. Temayang, Kab. Bojonegoro" value="<?= htmlspecialchars($lokasiKegiatan) ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -587,8 +581,21 @@ document.getElementById('nilai').addEventListener('input', function(e) {
     }
 });
 
+// Helper membersihkan duplikasi kata "Perjalanan Dinas dalam rangka"
+function cleanMaksudKegiatan(text) {
+    if (!text) return '';
+    let cleaned = text.trim();
+    // Hilangkan variasi awal seperti "Melaksanakan Perjalanan Dinas dalam rangka", "Perjalanan Dinas dalam rangka", "Melakukan Perjalanan Dinas..."
+    cleaned = cleaned.replace(/^(melaksanakan|melakukan)?\s*perjalanan\s*dinas\s*(dalam\s*rangka)?\s*/i, '');
+    // Hilangkan juga jika masih ada "dalam rangka" di awal
+    cleaned = cleaned.replace(/^dalam\s*rangka\s*/i, '');
+    // Hilangkan titik berlebih di akhir
+    cleaned = cleaned.replace(/\.+$/, '');
+    return cleaned.trim();
+}
+
 // Helper susun draf uraian
-function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, lokasi, maksudKegiatan) {
+function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKegiatan) {
     const subKegSelect = document.getElementById('sub_kegiatan_id');
     const subKegText = subKegSelect.selectedIndex > 0 ? subKegSelect.options[subKegSelect.selectedIndex].text : '[nama sub kegiatan]';
     const subKegNama = subKegText.replace(/^[0-9.]+\s*-\s*/, '');
@@ -607,10 +614,27 @@ function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, lokasi, 
 
     const nomorSTVal = nomorST || '[nomor_surat_tugas]';
     const penerimaVal = penerimaNama || '[nama_penerima]';
-    const lokasiText = lokasi ? ` ke ${lokasi}` : '';
-    const rangkaText = maksudKegiatan ? maksudKegiatan : `pelaksanaan kegiatan pada Sub Kegiatan ${subKegNama}`;
+    
+    const maksudCleaned = cleanMaksudKegiatan(maksudKegiatan);
+    const rangkaText = maksudCleaned ? maksudCleaned : `pelaksanaan kegiatan pada Sub Kegiatan ${subKegNama}`;
 
-    return `Perjalanan Dinas dalam rangka ${rangkaText}${lokasiText}. Pada tanggal ${tglPelaksanaFmt}, sesuai Surat Tugas No.: ${nomorSTVal} tanggal ${tglSTFmt}. An. ${penerimaVal}`;
+    return `Perjalanan Dinas dalam rangka ${rangkaText}. Pada tanggal ${tglPelaksanaFmt}, sesuai Surat Tugas No.: ${nomorSTVal} tanggal ${tglSTFmt}. An. ${penerimaVal}`;
+}
+
+// Auto generate nomor bukti untuk single form jika belum diisi
+function autoFillSingleNomorBukti(force = false) {
+    const inputNoBukti = document.getElementById('nomor_bukti');
+    const tgl = document.getElementById('tanggal').value;
+    if (!force && inputNoBukti.value && inputNoBukti.value !== 'BKU/...') {
+        return;
+    }
+    fetch(`${seksiBase}/seksi/transaksi/generate-no-bukti?tanggal=${tgl}&count=1`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.nomor_bukti) {
+                inputNoBukti.value = res.nomor_bukti;
+            }
+        });
 }
 
 // Buat Draf Uraian Otomatis (Single)
@@ -619,9 +643,8 @@ document.getElementById('btnAutoDraft').addEventListener('click', function() {
     const tglSuratRaw = document.getElementById('tanggal_surat_tugas').value;
     const nomorST = document.getElementById('nomor_surat_tugas').value.trim();
     const penerima = document.getElementById('nama_penerima').value.trim();
-    const lokasi = document.getElementById('lokasi_kegiatan').value.trim();
 
-    const draft = buildDraftUraian(penerima, tglPelaksanaanRaw, tglSuratRaw, nomorST, lokasi, '');
+    const draft = buildDraftUraian(penerima, tglPelaksanaanRaw, tglSuratRaw, nomorST, '');
     const uraianEl = document.getElementById('uraian');
     uraianEl.value = draft;
     uraianEl.focus();

@@ -469,6 +469,8 @@ try {
         $seksiTransaksiController->getRekenings();
     } elseif ($path === '/seksi/transaksi/sisa-pagu' && $requestMethod === 'GET') {
         $seksiTransaksiController->getSisaPagu();
+    } elseif ($path === '/seksi/transaksi/generate-no-bukti' && $requestMethod === 'GET') {
+        $seksiTransaksiController->generateNomorBukti();
     } elseif ($path === '/seksi/transaksi/search-st' && $requestMethod === 'GET') {
         $seksiTransaksiController->searchSuratTugas();
     } elseif ($path === '/seksi/transaksi/pegawai-st' && $requestMethod === 'GET') {
