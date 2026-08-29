@@ -49,6 +49,7 @@ require_once __DIR__ . '/../app/Controllers/TransaksiController.php';
 require_once __DIR__ . '/../app/Controllers/DashboardController.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Controllers/DashboardSeksiController.php';
+require_once __DIR__ . '/../app/Controllers/SeksiTransaksiController.php';
 require_once __DIR__ . '/../app/Controllers/ExcelController.php';
 
 use App\Models\Program;
@@ -70,6 +71,7 @@ use App\Controllers\TransaksiController;
 use App\Controllers\DashboardController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardSeksiController;
+use App\Controllers\SeksiTransaksiController;
 use App\Controllers\ExcelController;
 
 try {
@@ -96,6 +98,7 @@ try {
     $dashboardController = new DashboardController($paguModel, $rakModel, $transaksiModel, $seksiModel, $programModel, $kegiatanModel, $subKegiatanModel);
     $authController = new AuthController();
     $dashboardSeksiController = new DashboardSeksiController();
+    $seksiTransaksiController = new SeksiTransaksiController();
     $excelController = new ExcelController($paguModel, $rakModel, $transaksiModel, $seksiModel);
 
     // Simple routing
@@ -167,6 +170,17 @@ try {
     if (!in_array($path, $publicRoutes) && !isset($_SESSION['user_id'])) {
         header('Location: ' . base_url('login'));
         exit;
+    }
+
+    // Middleware: role seksi (rlpm/tkuk) hanya boleh akses dashboard seksi & halaman transaksi seksi
+    $isSeksi = isset($_SESSION['role']) && in_array($_SESSION['role'], ['rlpm', 'tkuk', 'seksi'], true);
+    if ($isSeksi) {
+        $seksiAllowed = preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
+            || preg_match('#^/seksi/transaksi#', $path);
+        if (!$seksiAllowed) {
+            header('Location: ' . base_url('seksi/transaksi'));
+            exit;
+        }
     }
 
     // Route matching - Auth
@@ -425,10 +439,34 @@ try {
     } elseif (preg_match('#^/transaksi/delete/(\d+)$#', $path, $matches)) {
         $id = (int) $matches[1];
         $transaksiController->delete($id);
+    } elseif (preg_match('#^/transaksi/verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $transaksiController->verifikasi((int) $matches[1]);
+    } elseif (preg_match('#^/transaksi/tolak/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $transaksiController->tolak((int) $matches[1]);
     } elseif ($path === '/transaksi/get-remaining-pagu' && $requestMethod === 'GET') {
         $transaksiController->getRemainingPagu();
     } elseif ($path === '/transaksi/get-rekenings-with-budget' && $requestMethod === 'GET') {
         $transaksiController->getRekeningsWithBudget();
+    }
+    // Route matching - Input Transaksi Seksi (role seksi)
+    elseif ($path === '/seksi/transaksi' || $path === '/seksi/transaksi/') {
+        $seksiTransaksiController->index();
+    } elseif ($path === '/seksi/transaksi/create') {
+        $seksiTransaksiController->create();
+    } elseif ($path === '/seksi/transaksi/store' && $requestMethod === 'POST') {
+        $seksiTransaksiController->store();
+    } elseif (preg_match('#^/seksi/transaksi/edit/(\d+)$#', $path, $matches)) {
+        $seksiTransaksiController->edit((int) $matches[1]);
+    } elseif (preg_match('#^/seksi/transaksi/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $seksiTransaksiController->update((int) $matches[1]);
+    } elseif (preg_match('#^/seksi/transaksi/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $seksiTransaksiController->delete((int) $matches[1]);
+    } elseif ($path === '/seksi/transaksi/kegiatans' && $requestMethod === 'GET') {
+        $seksiTransaksiController->getKegiatans();
+    } elseif ($path === '/seksi/transaksi/subkegiatans' && $requestMethod === 'GET') {
+        $seksiTransaksiController->getSubKegiatans();
+    } elseif ($path === '/seksi/transaksi/rekenings' && $requestMethod === 'GET') {
+        $seksiTransaksiController->getRekenings();
     } else {
         // 404 Not Found
         http_response_code(404);

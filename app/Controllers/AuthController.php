@@ -49,16 +49,13 @@ class AuthController {
 
     private function redirectToDashboard(string $role): void {
         switch ($role) {
-            case 'tu':
-                header('Location: ' . base_url('dashboard/tu'));
-                break;
             case 'rlpm':
-                header('Location: ' . base_url('dashboard/rlpm'));
-                break;
             case 'tkuk':
-                header('Location: ' . base_url('dashboard/tkuk'));
+            case 'seksi':
+                header('Location: ' . base_url('seksi/transaksi'));
                 break;
             case 'admin':
+            case 'tu':
             default:
                 header('Location: ' . base_url('seksi'));
                 break;

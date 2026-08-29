@@ -16,6 +16,13 @@ $filterKegiatan     = $filterKegiatan ?? null;
 $filterSubKegiatan  = $filterSubKegiatan ?? null;
 $filterKegiatanList    = $filterKegiatanList ?? [];
 $filterSubKegiatanList = $filterSubKegiatanList ?? [];
+$filterStatus          = $filterStatus ?? null;
+
+$statusLabels = [
+    'diajukan'     => ['Menunggu Verifikasi', 'warning'],
+    'diverifikasi' => ['Terverifikasi', 'success'],
+    'ditolak'      => ['Ditolak', 'danger'],
+];
 
 $namaBulan = [
     1 => 'Januari', 2 => 'Februari', 3 => 'Maret',
@@ -131,6 +138,18 @@ $isFiltered = !empty($activeFilterLabels);
                         <i class="bi bi-x-circle me-1"></i>Reset
                     </a>
                 </div>
+                <!-- Status -->
+                <div class="col-auto">
+                    <label for="filter-status" class="form-label fw-semibold mb-1">
+                        <i class="bi bi-shield-check me-1 text-primary"></i>Status
+                    </label>
+                    <select name="status" id="filter-status" class="form-select" style="min-width:170px;">
+                        <option value="">-- Semua Status --</option>
+                        <option value="diajukan" <?= $filterStatus === 'diajukan' ? 'selected' : '' ?>>Menunggu Verifikasi</option>
+                        <option value="diverifikasi" <?= $filterStatus === 'diverifikasi' ? 'selected' : '' ?>>Terverifikasi</option>
+                        <option value="ditolak" <?= $filterStatus === 'ditolak' ? 'selected' : '' ?>>Ditolak</option>
+                    </select>
+                </div>
                 <?php if ($isFiltered): ?>
                     <div class="col-12 mt-2">
                         <span class="badge bg-primary px-3 py-2 fs-6">
@@ -189,13 +208,14 @@ $isFiltered = !empty($activeFilterLabels);
                         <thead class="table-light">
                             <tr>
                                 <th width="5%">No</th>
-                                <th width="10%">Tanggal</th>
-                                <th width="12%">Seksi</th>
+                                <th width="8%">Tanggal</th>
+                                <th width="10%">Seksi</th>
                                 <th width="10%">Rekening</th>
-                                <th width="25%">Uraian</th>
-                                <th width="15%" class="text-end">Nilai</th>
-                                <th width="13%">Nomor Bukti</th>
-                                <th width="10%" class="text-center">Aksi</th>
+                                <th width="22%">Uraian</th>
+                                <th width="12%" class="text-end">Nilai</th>
+                                <th width="9%">Nomor Bukti</th>
+                                <th width="9%" class="text-center">Status</th>
+                                <th width="15%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -223,25 +243,47 @@ $isFiltered = !empty($activeFilterLabels);
                                     </td>
                                     <td><?= htmlspecialchars($transaksi['nomor_bukti']) ?></td>
                                     <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
-                                            <a href="<?= base_url('transaksi/delete/' . $transaksi['id']) ?>" 
-                                               class="btn btn-sm btn-outline-danger" 
-                                               title="Hapus"
-                                               data-confirm-delete
-                                               onclick="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                                <i class="bi bi-trash"></i>
-                                            </a>
-                                        </div>
+                                        <?php
+                                            $st = $transaksi['status'] ?? 'diverifikasi';
+                                            $stLabel = $statusLabels[$st] ?? [ucfirst($st), 'secondary'];
+                                        ?>
+                                        <span class="badge bg-<?= $stLabel[1] ?>"><?= $stLabel[0] ?></span>
+                                        <?php if ($st === 'ditolak' && !empty($transaksi['catatan_verifikasi'])): ?>
+                                            <div class="small text-danger mt-1" data-bs-toggle="tooltip" title="<?= htmlspecialchars($transaksi['catatan_verifikasi']) ?>">
+                                                <i class="bi bi-info-circle"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center">
+                                        <?php if (($transaksi['status'] ?? 'diverifikasi') === 'diajukan'): ?>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-success btn-verifikasi" data-id="<?= $transaksi['id'] ?>">
+                                                    <i class="bi bi-check-lg"></i> Verifikasi
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger btn-tolak" data-id="<?= $transaksi['id'] ?>">
+                                                    <i class="bi bi-x-lg"></i> Tolak
+                                                </button>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="btn-group" role="group">
+                                                <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="<?= base_url('transaksi/delete/' . $transaksi['id']) ?>"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="Hapus"
+                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="5" class="text-end">
+                                <td colspan="6" class="text-end">
                                     <strong>
                                         Total<?= $filterBulan !== null ? ' ' . $namaBulan[$filterBulan] . ' ' . $filterTahun : '' ?>:
                                     </strong>
@@ -274,3 +316,50 @@ $isFiltered = !empty($activeFilterLabels);
     </div>
 </div>
 
+<!-- Modal Tolak -->
+<div class="modal fade" id="modalTolak" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formTolak" method="POST">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Tolak Transaksi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="catatanVerifikasi" class="form-label">Catatan Penolakan <span class="text-danger">*</span></label>
+                    <textarea name="catatan_verifikasi" id="catatanVerifikasi" class="form-control" rows="3" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-danger">Tolak Transaksi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const VERIF_BASE = '<?= rtrim(base_url(), '/') ?>';
+document.querySelectorAll('.btn-verifikasi').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        if (confirm('Verifikasi transaksi ini?')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = VERIF_BASE + '/transaksi/verifikasi/' + id;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+});
+const modalTolakEl = document.getElementById('modalTolak');
+document.querySelectorAll('.btn-tolak').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const form = document.getElementById('formTolak');
+        form.action = VERIF_BASE + '/transaksi/tolak/' + id;
+        const modal = new bootstrap.Modal(modalTolakEl);
+        modal.show();
+    });
+});
+</script>

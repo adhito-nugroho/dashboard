@@ -54,12 +54,13 @@ class TransaksiController
             $filterTahun      = isset($_GET['tahun'])          && $_GET['tahun']          !== '' ? (int) $_GET['tahun']          : (int) date('Y');
             $filterKegiatan   = isset($_GET['kegiatan_id'])    && $_GET['kegiatan_id']    !== '' ? (int) $_GET['kegiatan_id']    : null;
             $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
+            $filterStatus      = isset($_GET['status']) && $_GET['status'] !== '' ? $_GET['status'] : null;
 
             // Check if any filter is active
-            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null;
+            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterStatus !== null;
 
             if ($hasFilter) {
-                $transaksis = $this->transaksiModel->getWithFilters($filterBulan, $filterTahun, $filterKegiatan, $filterSubKegiatan);
+                $transaksis = $this->transaksiModel->getWithFilters($filterBulan, $filterTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus);
             } else {
                 $transaksis = $this->transaksiModel->getAll();
             }
@@ -84,6 +85,7 @@ class TransaksiController
                 'tahun'           => $filterTahun,
                 'kegiatan_id'     => $filterKegiatan,
                 'sub_kegiatan_id' => $filterSubKegiatan,
+                'status'          => $filterStatus,
             ], fn($v) => $v !== null);
             $paginationBase = base_url('transaksi') . '?' . http_build_query($queryParams) . '&';
 
@@ -834,6 +836,44 @@ class TransaksiController
         $_SESSION['flash_type'] = $type;
         header('Location: ' . $url);
         exit;
+    }
+
+    /**
+     * Verifikasi transaksi oleh admin (status -> 'diverifikasi')
+     */
+    public function verifikasi(int $id): void
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $ok = $this->transaksiModel->verifikasi($id, 'diverifikasi', $userId, '');
+        $this->logAudit($userId, 'verifikasi_transaksi', 'transaksi', $id, 'Verifikasi transaksi id ' . $id);
+        $this->redirectWithMessage(base_url('transaksi'), $ok ? 'success' : 'error', $ok ? 'Transaksi berhasil diverifikasi' : 'Gagal memverifikasi transaksi');
+    }
+
+    /**
+     * Tolak transaksi oleh admin (status -> 'ditolak') wajib catatan
+     */
+    public function tolak(int $id): void
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $catatan = trim($_POST['catatan_verifikasi'] ?? '');
+        if ($catatan === '') {
+            $this->redirectWithMessage(base_url('transaksi'), 'error', 'Catatan penolakan wajib diisi');
+            return;
+        }
+        $ok = $this->transaksiModel->verifikasi($id, 'ditolak', $userId, $catatan);
+        $this->logAudit($userId, 'tolak_transaksi', 'transaksi', $id, 'Tolak transaksi id ' . $id . ' - ' . $catatan);
+        $this->redirectWithMessage(base_url('transaksi'), $ok ? 'success' : 'error', $ok ? 'Transaksi ditolak' : 'Gagal menolak transaksi');
+    }
+
+    private function logAudit(int $userId, string $aksi, string $tabel, ?int $recordId, string $keterangan): void
+    {
+        try {
+            $db = \Database::getConnection();
+            $stmt = $db->prepare('INSERT INTO audit_log (user_id, aksi, tabel, record_id, keterangan) VALUES (?, ?, ?, ?, ?)');
+            $stmt->execute([$userId, $aksi, $tabel, $recordId, $keterangan]);
+        } catch (\Exception $e) {
+            error_log('audit_log error: ' . $e->getMessage());
+        }
     }
 
     /**

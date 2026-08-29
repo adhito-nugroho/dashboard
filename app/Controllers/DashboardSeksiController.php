@@ -93,7 +93,7 @@ class DashboardSeksiController {
                     (SELECT COALESCE(SUM(t.nilai), 0)
                      FROM rekening rek
                      INNER JOIN sub_kegiatan sk ON sk.id = rek.sub_kegiatan_id
-                     INNER JOIN transaksi t ON t.rekening_id = rek.id AND YEAR(t.tanggal) = ?
+                     INNER JOIN transaksi t ON t.rekening_id = rek.id AND YEAR(t.tanggal) = ? AND t.status = 'diverifikasi'
                      WHERE sk.id IN ($placeholders)) AS total_realisasi
             ";
 
@@ -117,7 +117,7 @@ class DashboardSeksiController {
                 FROM transaksi t
                 INNER JOIN rekening rek ON rek.id = t.rekening_id
                 INNER JOIN sub_kegiatan sk ON sk.id = rek.sub_kegiatan_id
-                WHERE YEAR(t.tanggal) = ? AND sk.id IN ($placeholders)
+                WHERE YEAR(t.tanggal) = ? AND sk.id IN ($placeholders) AND t.status = 'diverifikasi'
                 GROUP BY MONTH(t.tanggal)
             ";
             $monthlyParams = array_merge([$tahun], $subKegiatanIds);

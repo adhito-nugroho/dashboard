@@ -23,7 +23,7 @@ class Transaksi
      * @param int|null $subKegiatanId
      * @return array
      */
-    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null): array
+    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null): array
     {
         try {
             $conditions = [];
@@ -36,6 +36,10 @@ class Transaksi
             if ($tahun !== null) {
                 $conditions[] = 'YEAR(t.tanggal) = :tahun';
                 $params[':tahun'] = $tahun;
+            }
+            if ($status !== null && $status !== '') {
+                $conditions[] = 't.status = :status';
+                $params[':status'] = $status;
             }
             if ($subKegiatanId !== null) {
                 $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
@@ -153,6 +157,7 @@ class Transaksi
                 SELECT * FROM transaksi 
                 WHERE rekening_id = :rekening_id 
                 AND YEAR(tanggal) = :tahun
+                AND status = 'diverifikasi'
                 ORDER BY tanggal DESC
             ");
             $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
@@ -194,6 +199,163 @@ class Transaksi
         } catch (PDOException $e) {
             error_log('Error creating transaction: ' . $e->getMessage());
             throw new \RuntimeException('Failed to create transaction');
+        }
+    }
+
+    /**
+     * Create new transaction (input oleh seksi, status 'diajukan')
+     *
+     * @return int Inserted ID
+     */
+    public function createSeksi(string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti, int $inputBy): int
+    {
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO transaksi (tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti, status, input_by)
+                VALUES (:tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti, 'diajukan', :input_by)
+            ");
+            $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
+            $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
+            $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
+            $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+            $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
+            $stmt->execute();
+            return (int) $this->db->lastInsertId();
+        } catch (PDOException $e) {
+            error_log('Error creating seksi transaction: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to create transaction');
+        }
+    }
+
+    /**
+     * Verifikasi atau tolak transaksi oleh admin/bendahara
+     */
+    public function verifikasi(int $id, string $status, int $verifBy, string $catatan): bool
+    {
+        try {
+            $stmt = $this->db->prepare("
+                UPDATE transaksi
+                SET status = :status,
+                    diverifikasi_by = :verif_by,
+                    diverifikasi_at = NOW(),
+                    catatan_verifikasi = :catatan
+                WHERE id = :id
+            ");
+            $stmt->bindParam(':status', $status, PDO::PARAM_STR);
+            $stmt->bindParam(':verif_by', $verifBy, PDO::PARAM_INT);
+            $stmt->bindParam(':catatan', $catatan, PDO::PARAM_STR);
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            return true;
+        } catch (PDOException $e) {
+            error_log('Error verifying transaction: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get transaksi milik seksi (untuk halaman 'Transaksi Saya')
+     */
+    public function getBySeksi(int $seksiId, ?int $inputBy = null): array
+    {
+        try {
+            if ($inputBy !== null) {
+                $stmt = $this->db->prepare("
+                    SELECT t.*,
+                           s.kode_seksi, s.nama_seksi,
+                           r.kode_rekening, r.nama_rekening,
+                           sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                           k.kode_kegiatan, k.nama_kegiatan,
+                           p.kode_program, p.nama_program,
+                           u.username AS input_oleh
+                    FROM transaksi t
+                    INNER JOIN seksi s ON t.seksi_id = s.id
+                    INNER JOIN rekening r ON t.rekening_id = r.id
+                    INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                    INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                    INNER JOIN program p ON k.program_id = p.id
+                    LEFT JOIN users u ON u.id = t.input_by
+                    WHERE t.input_by = :input_by
+                    ORDER BY t.tanggal DESC, t.id DESC
+                ");
+                $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT t.*,
+                           s.kode_seksi, s.nama_seksi,
+                           r.kode_rekening, r.nama_rekening,
+                           sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                           k.kode_kegiatan, k.nama_kegiatan,
+                           p.kode_program, p.nama_program,
+                           u.username AS input_oleh
+                    FROM transaksi t
+                    INNER JOIN seksi s ON t.seksi_id = s.id
+                    INNER JOIN rekening r ON t.rekening_id = r.id
+                    INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                    INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                    INNER JOIN program p ON k.program_id = p.id
+                    LEFT JOIN users u ON u.id = t.input_by
+                    WHERE t.seksi_id = :seksi_id
+                    ORDER BY t.tanggal DESC, t.id DESC
+                ");
+                $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching seksi transactions: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Update transaction oleh seksi (hanya jika status masih 'diajukan')
+     */
+    public function updateSeksi(int $id, int $inputBy, string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti): bool
+    {
+        try {
+            $stmt = $this->db->prepare("
+                UPDATE transaksi
+                SET tanggal = :tanggal,
+                    seksi_id = :seksi_id,
+                    rekening_id = :rekening_id,
+                    uraian = :uraian,
+                    nilai = :nilai,
+                    nomor_bukti = :nomor_bukti
+                WHERE id = :id AND input_by = :input_by AND status = 'diajukan'
+            ");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
+            $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
+            $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
+            $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
+            $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log('Error updating seksi transaction: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Delete transaction oleh seksi (hanya jika status masih 'diajukan')
+     */
+    public function deleteSeksi(int $id, int $inputBy): bool
+    {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id = :id AND input_by = :input_by AND status = 'diajukan'");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log('Error deleting seksi transaction: ' . $e->getMessage());
+            return false;
         }
     }
 
@@ -313,6 +475,7 @@ class Transaksi
                 FROM transaksi 
                 WHERE rekening_id = :rekening_id 
                 AND YEAR(tanggal) = :tahun
+                AND status = 'diverifikasi'
             ");
             $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
             $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
