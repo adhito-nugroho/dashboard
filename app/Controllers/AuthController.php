@@ -51,11 +51,11 @@ class AuthController {
         switch ($role) {
             case 'rlpm':
             case 'tkuk':
+            case 'tu':
             case 'seksi':
                 header('Location: ' . base_url('seksi/transaksi'));
                 break;
             case 'admin':
-            case 'tu':
             default:
                 header('Location: ' . base_url('seksi'));
                 break;

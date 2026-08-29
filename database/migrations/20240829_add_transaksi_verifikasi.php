@@ -59,9 +59,9 @@ if (!migration_table_exists($pdo, 'audit_log')) {
     ");
 }
 
-// ============ 3. Seed akun role seksi (RLPM, TKUK) ============
+// ============ 3. Seed akun role seksi (TU, RLPM, TKUK) ============
 // Role codebase saat ini: admin (bendahara/verifikator), tu, rlpm, tkuk.
-// RLPM & TKUK = pen input transaksi seksi. Pastikan ada akun utk masing-masing.
+// TU/RLPM/TKUK = pen input transaksi seksi. Pastikan ada akun utk masing-masing.
 if (migration_table_exists($pdo, 'users') && migration_table_exists($pdo, 'seksi')) {
     $hash = null;
     $stmt = $pdo->query("SELECT password FROM users WHERE username = 'admin' LIMIT 1");
@@ -71,6 +71,7 @@ if (migration_table_exists($pdo, 'users') && migration_table_exists($pdo, 'seksi
     }
 
     $seksiList = [
+        'tu'   => 'TU',
         'rlpm' => 'RLPM',
         'tkuk' => 'TKUK',
     ];
@@ -87,7 +88,7 @@ if (migration_table_exists($pdo, 'users') && migration_table_exists($pdo, 'seksi
         $seksiId = $seksiStmt->fetchColumn();
 
         if ($row) {
-            // Pastikan role rlpm/tkuk & seksi_id terisi
+            // Pastikan role dan seksi_id terisi
             $pdo->prepare('UPDATE users SET role = ?, seksi_id = ? WHERE id = ?')
                 ->execute([$username, $seksiId ?: null, $row['id']]);
         } else {
