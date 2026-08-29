@@ -154,7 +154,9 @@ class DashboardSeksiController {
             }
 
             $pageTitle = "Dashboard $nama_seksi";
-            include __DIR__ . '/../../views/dashboard/seksi.php';
+            $activePage = 'dashboardseksi';
+            $viewFile = __DIR__ . '/../../views/dashboard/seksi.php';
+            include __DIR__ . '/../../views/layout_seksi.php';
             
         } catch (\Exception $e) {
             error_log('Dashboard error: ' . $e->getMessage());
@@ -169,6 +171,8 @@ class DashboardSeksiController {
         ];
         $monthlyData = ['realisasi' => array_fill(1,12,0), 'rak' => array_fill(1,12,0)];
         $pageTitle = "Dashboard $nama_seksi";
-        include __DIR__ . '/../../views/dashboard/seksi.php';
+        $activePage = 'dashboardseksi';
+        $viewFile = __DIR__ . '/../../views/dashboard/seksi.php';
+        include __DIR__ . '/../../views/layout_seksi.php';
     }
 }
