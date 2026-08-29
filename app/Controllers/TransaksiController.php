@@ -561,6 +561,41 @@ class TransaksiController
     }
 
     /**
+     * AJAX: Generate nomor bukti otomatis format 123.6.6/GU/urut/BULAN_ROMAWI/TAHUN
+     * Urut berdasarkan jumlah transaksi yang sudah terinput pada bulan+tahun tersebut.
+     */
+    public function generateNomorBukti(): void
+    {
+        header('Content-Type: application/json');
+        try {
+            $db = \Database::getConnection();
+            $tanggal = $_GET['tanggal'] ?? date('Y-m-d');
+            $time = strtotime($tanggal) ?: time();
+            $bulan = (int) date('m', $time);
+            $tahun = (int) date('Y', $time);
+            $countRequested = max(1, (int) ($_GET['count'] ?? 1));
+
+            $romawiMap = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'];
+            $bulanRomawi = $romawiMap[$bulan] ?? 'I';
+
+            $stmt = $db->prepare('SELECT COUNT(*) FROM transaksi WHERE MONTH(tanggal) = ? AND YEAR(tanggal) = ?');
+            $stmt->execute([$bulan, $tahun]);
+            $currentCount = (int) $stmt->fetchColumn();
+
+            $generated = [];
+            for ($i = 1; $i <= $countRequested; $i++) {
+                $generated[] = sprintf('123.6.6/GU/%d/%s/%d', $currentCount + $i, $bulanRomawi, $tahun);
+            }
+
+            echo json_encode(['success' => true, 'nomor_bukti' => $generated[0], 'list' => $generated]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
      * AJAX: Get remaining pagu for rekening and year
      */
     public function getRemainingPagu(): void

@@ -446,6 +446,8 @@ try {
         $transaksiController->tolak((int) $matches[1]);
     } elseif ($path === '/transaksi/get-remaining-pagu' && $requestMethod === 'GET') {
         $transaksiController->getRemainingPagu();
+    } elseif ($path === '/transaksi/generate-no-bukti' && $requestMethod === 'GET') {
+        $transaksiController->generateNomorBukti();
     } elseif ($path === '/transaksi/get-rekenings-with-budget' && $requestMethod === 'GET') {
         $transaksiController->getRekeningsWithBudget();
     }

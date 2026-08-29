@@ -647,69 +647,75 @@ $batchData = $batchData ?? null;
                             return;
                         }
 
-                        data.forEach((r, index) => {
-                            const rowId = index + 1;
-                            const row = document.createElement('tr');
-                            row.setAttribute('data-rekening-id', r.id);
-                            
-                            // Find old value if exists
-                            let oldVal = '';
-                            let oldUraian = '';
-                            let oldBukti = '';
+                        // Auto generate nomor bukti berurutan untuk batch ini
+                        fetch(`${BASE_URL}transaksi/generate-no-bukti?tanggal=${encodeURIComponent(tanggal)}&count=${data.length}`)
+                            .then(nr => nr.json())
+                            .then(nres => {
+                                const autoList = nres.success && nres.list ? nres.list : [];
 
-                            if (oldBatchRekenings) {
-                                const oldMatch = Object.values(oldBatchRekenings).find(old => old.rekening_id == r.id);
-                                if (oldMatch) {
-                                    oldVal = oldMatch.nilai || '';
-                                    oldUraian = oldMatch.uraian || '';
-                                    oldBukti = oldMatch.nomor_bukti || '';
-                                }
-                            }
+                                data.forEach((r, index) => {
+                                    const rowId = index + 1;
+                                    const row = document.createElement('tr');
+                                    row.setAttribute('data-rekening-id', r.id);
+                                    
+                                    // Find old value if exists
+                                    let oldVal = '';
+                                    let oldUraian = '';
+                                    let oldBukti = autoList[index] || '';
 
-                            // Format pagu and remaining budget
-                            let sisaPaguText = 'Pagu belum diatur';
-                            let sisaPaguClass = 'text-muted';
-                            if (r.pagu !== null) {
-                                sisaPaguText = 'Rp ' + r.sisa_pagu.toLocaleString('id-ID');
-                                sisaPaguClass = r.sisa_pagu < 0 ? 'text-danger font-monospace fw-bold' : 'text-success font-monospace';
-                            }
+                                    if (oldBatchRekenings) {
+                                        const oldMatch = Object.values(oldBatchRekenings).find(old => old.rekening_id == r.id);
+                                        if (oldMatch) {
+                                            oldVal = oldMatch.nilai || '';
+                                            oldUraian = oldMatch.uraian || '';
+                                            oldBukti = oldMatch.nomor_bukti || oldBukti;
+                                        }
+                                    }
 
-                            row.innerHTML = `
-                                <td>
-                                    <strong>${r.kode_rekening}</strong><br>
-                                    <span class="text-muted small">${r.nama_rekening}</span>
-                                    <input type="hidden" name="rekenings[${rowId}][rekening_id]" value="${r.id}">
-                                </td>
-                                <td class="text-end align-middle ${sisaPaguClass}" data-sisa-pagu="${r.sisa_pagu !== null ? r.sisa_pagu : ''}">
-                                    ${sisaPaguText}
-                                </td>
-                                <td>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text">Rp</span>
-                                        <input type="text" 
-                                               class="form-control text-end nilai-input" 
-                                               name="rekenings[${rowId}][nilai]" 
-                                               value="${oldVal}"
-                                               placeholder="0">
-                                    </div>
-                                    <div class="invalid-feedback text-end small" style="display:none;">Melebihi sisa anggaran!</div>
-                                </td>
-                                <td>
-                                    <textarea class="form-control form-control-sm uraian-input" 
-                                              name="rekenings[${rowId}][uraian]" 
-                                              rows="2" 
-                                              maxlength="500">${oldUraian}</textarea>
-                                </td>
-                                <td>
-                                    <input type="text" 
-                                           class="form-control form-control-sm bukti-input" 
-                                           name="rekenings[${rowId}][nomor_bukti]" 
-                                           value="${oldBukti}"
-                                           placeholder="Contoh: BUK/001/2026" 
-                                           maxlength="100">
-                                </td>
-                            `;
-                            rekeningTableBody.appendChild(row);
+                                    // Format pagu and remaining budget
+                                    let sisaPaguText = 'Pagu belum diatur';
+                                    let sisaPaguClass = 'text-muted';
+                                    if (r.pagu !== null) {
+                                        sisaPaguText = 'Rp ' + r.sisa_pagu.toLocaleString('id-ID');
+                                        sisaPaguClass = r.sisa_pagu < 0 ? 'text-danger font-monospace fw-bold' : 'text-success font-monospace';
+                                    }
+
+                                    row.innerHTML = `
+                                        <td>
+                                            <strong>${r.kode_rekening}</strong><br>
+                                            <span class="text-muted small">${r.nama_rekening}</span>
+                                            <input type="hidden" name="rekenings[${rowId}][rekening_id]" value="${r.id}">
+                                        </td>
+                                        <td class="text-end align-middle ${sisaPaguClass}" data-sisa-pagu="${r.sisa_pagu !== null ? r.sisa_pagu : ''}">
+                                            ${sisaPaguText}
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">Rp</span>
+                                                <input type="text" 
+                                                       class="form-control text-end nilai-input" 
+                                                       name="rekenings[${rowId}][nilai]" 
+                                                       value="${oldVal}"
+                                                       placeholder="0">
+                                            </div>
+                                            <div class="invalid-feedback text-end small" style="display:none;">Melebihi sisa anggaran!</div>
+                                        </td>
+                                        <td>
+                                            <textarea class="form-control form-control-sm uraian-input" 
+                                                      name="rekenings[${rowId}][uraian]" 
+                                                      rows="2" 
+                                                      maxlength="500">${oldUraian}</textarea>
+                                        </td>
+                                        <td>
+                                            <input type="text" 
+                                                   class="form-control form-control-sm bukti-input" 
+                                                   name="rekenings[${rowId}][nomor_bukti]" 
+                                                   value="${oldBukti}"
+                                                   placeholder="Contoh: 123.6.6/GU/1/VIII/2026" 
+                                                   maxlength="100">
+                                        </td>
+                                    `;
+                                    rekeningTableBody.appendChild(row);
 
                             // Event listener for values format and limit check
                             const nilaiInput = row.querySelector('.nilai-input');
@@ -741,6 +747,7 @@ $batchData = $batchData ?? null;
                                 nilaiInput.dispatchEvent(new Event('input'));
                             }
                         });
+                    })
                     })
                     .catch(error => {
                         console.error('Error:', error);
