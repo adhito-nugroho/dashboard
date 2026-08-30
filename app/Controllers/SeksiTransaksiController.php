@@ -41,14 +41,45 @@ class SeksiTransaksiController
 
     /**
      * Halaman "Transaksi Saya" — daftar transaksi yang diinput user seksi ini.
+     * Mendukung filter status/bulan/tahun/q + pagination (10/halaman).
      */
     public function index(): void
     {
         $this->requireSeksi();
-        $db = \Database::getConnection();
         $userId = (int) ($_SESSION['user_id'] ?? 0);
 
-        $transaksis = $this->transaksiModel->getBySeksi(0, $userId);
+        $status = isset($_GET['status']) ? trim($_GET['status']) : '';
+        $bulan  = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int)$_GET['bulan'] : null;
+        $tahun  = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int)$_GET['tahun'] : null;
+        $q      = isset($_GET['q']) ? trim($_GET['q']) : '';
+
+        $allowedStatus = ['diajukan','diverifikasi','ditolak'];
+        if ($status !== '' && !in_array($status, $allowedStatus, true)) $status = '';
+
+        $perPage = 10;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+
+        $total = $this->transaksiModel->countBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        if ($page > $totalPages) $page = $totalPages;
+        $offset = ($page - 1) * $perPage;
+
+        $transaksis = $this->transaksiModel->getBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null, $perPage, $offset);
+
+        $hasFilter = ($status !== '' || $bulan !== null || $tahun !== null || $q !== '');
+        $filters = ['status'=>$status,'bulan'=>$bulan,'tahun'=>$tahun,'q'=>$q];
+
+        // tahun list untuk dropdown (dari transaksi user)
+        $tahunList = [];
+        try {
+            $db = \Database::getConnection();
+            $stmt = $db->prepare("SELECT DISTINCT YEAR(tanggal) as y FROM transaksi WHERE input_by=? ORDER BY y DESC");
+            $stmt->execute([$userId]);
+            $tahunList = array_column($stmt->fetchAll(), 'y');
+        } catch (\Throwable $e) { $tahunList = []; }
+        if (empty($tahunList)) $tahunList = [(int)date('Y')];
+
+        $pagination = ['page'=>$page,'perPage'=>$perPage,'total'=>$total,'totalPages'=>$totalPages,'baseUrl'=>base_url('seksi/transaksi')];
 
         $pageTitle = 'Transaksi Saya';
         $activePage = 'transaksi';
@@ -217,7 +248,7 @@ class SeksiTransaksiController
     }
 
     /**
-     * Form edit transaksi oleh seksi (hanya status 'diajukan').
+     * Form edit transaksi oleh seksi (hanya status 'diajukan' & 'ditolak', diverifikasi terkunci).
      */
     public function edit(int $id): void
     {
@@ -227,7 +258,7 @@ class SeksiTransaksiController
         $seksiId = $this->userSeksiId();
 
         $transaksi = $this->transaksiModel->getById($id);
-        if (!$transaksi || (int) $transaksi['input_by'] !== $userId || ($transaksi['status'] ?? 'diverifikasi') !== 'diajukan') {
+        if (!$transaksi || (int) $transaksi['input_by'] !== $userId || !in_array($transaksi['status'] ?? '', ['diajukan','ditolak'], true)) {
             $this->redirectWithMessage(base_url('seksi/transaksi'), 'error', 'Transaksi tidak dapat diedit');
             return;
         }
@@ -258,7 +289,7 @@ class SeksiTransaksiController
     }
 
     /**
-     * Update transaksi oleh seksi (hanya status 'diajukan').
+     * Update transaksi oleh seksi (hanya status 'diajukan' & 'ditolak', diverifikasi terkunci).
      */
     public function update(int $id): void
     {
@@ -268,7 +299,7 @@ class SeksiTransaksiController
         $db = \Database::getConnection();
 
         $existing = $this->transaksiModel->getById($id);
-        if (!$existing || (int) $existing['input_by'] !== $userId || ($existing['status'] ?? 'diverifikasi') !== 'diajukan') {
+        if (!$existing || (int) $existing['input_by'] !== $userId || !in_array($existing['status'] ?? '', ['diajukan','ditolak'], true)) {
             $this->redirectWithMessage(base_url('seksi/transaksi'), 'error', 'Transaksi tidak dapat diedit');
             return;
         }
@@ -313,7 +344,7 @@ class SeksiTransaksiController
     }
 
     /**
-     * Delete transaksi oleh seksi (hanya status 'diajukan').
+     * Delete transaksi oleh seksi (hanya status 'diajukan' & 'ditolak', diverifikasi terkunci).
      */
     public function delete(int $id): void
     {

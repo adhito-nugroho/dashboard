@@ -284,33 +284,117 @@ class Transaksi
     }
 
     /**
-     * Get transaksi milik seksi (untuk halaman 'Transaksi Saya')
+     * Get transaksi milik seksi dengan filter & search & pagination (untuk halaman 'Transaksi Saya')
+     * Params null = tidak difilter. $q mencari uraian/nomor_bukti (LIKE).
+     */
+    public function getBySeksiFiltered(?int $inputBy, ?string $status = null, ?int $bulan = null, ?int $tahun = null, ?string $q = null, ?int $limit = null, ?int $offset = null): array
+    {
+        try {
+            $conditions = [];
+            $params = [];
+            if ($inputBy !== null) {
+                $conditions[] = 't.input_by = :input_by';
+                $params[':input_by'] = $inputBy;
+            }
+            if ($status !== null && $status !== '' && $status !== 'semua') {
+                $conditions[] = 't.status = :status';
+                $params[':status'] = $status;
+            }
+            if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
+                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $params[':bulan'] = $bulan;
+            }
+            if ($tahun !== null && $tahun > 0) {
+                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $params[':tahun'] = $tahun;
+            }
+            if ($q !== null && trim($q) !== '') {
+                $conditions[] = '(t.uraian LIKE :q OR t.nomor_bukti LIKE :q OR t.nama_penerima LIKE :q)';
+                $params[':q'] = '%' . trim($q) . '%';
+            }
+            $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+            $limitSql = '';
+            if ($limit !== null && $limit > 0) {
+                $limitSql = ' LIMIT ' . (int)$limit;
+                if ($offset !== null && $offset >= 0) $limitSql .= ' OFFSET ' . (int)$offset;
+            }
+            $sql = "
+                SELECT t.*,
+                       s.kode_seksi, s.nama_seksi,
+                       r.kode_rekening, r.nama_rekening,
+                       sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                       k.kode_kegiatan, k.nama_kegiatan,
+                       p.kode_program, p.nama_program,
+                       u.username AS input_oleh
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                INNER JOIN rekening r ON t.rekening_id = r.id
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                INNER JOIN program p ON k.program_id = p.id
+                LEFT JOIN users u ON u.id = t.input_by
+                {$where}
+                ORDER BY t.tanggal DESC, t.id DESC{$limitSql}";
+            $stmt = $this->db->prepare($sql);
+            foreach ($params as $k => $v) {
+                $type = is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($k, $v, $type);
+            }
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching seksi filtered: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function countBySeksiFiltered(?int $inputBy, ?string $status = null, ?int $bulan = null, ?int $tahun = null, ?string $q = null): int
+    {
+        try {
+            $conditions = [];
+            $params = [];
+            if ($inputBy !== null) {
+                $conditions[] = 't.input_by = :input_by';
+                $params[':input_by'] = $inputBy;
+            }
+            if ($status !== null && $status !== '' && $status !== 'semua') {
+                $conditions[] = 't.status = :status';
+                $params[':status'] = $status;
+            }
+            if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
+                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $params[':bulan'] = $bulan;
+            }
+            if ($tahun !== null && $tahun > 0) {
+                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $params[':tahun'] = $tahun;
+            }
+            if ($q !== null && trim($q) !== '') {
+                $conditions[] = '(t.uraian LIKE :q OR t.nomor_bukti LIKE :q OR t.nama_penerima LIKE :q)';
+                $params[':q'] = '%' . trim($q) . '%';
+            }
+            $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM transaksi t {$where}");
+            foreach ($params as $k => $v) {
+                $type = is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($k, $v, $type);
+            }
+            $stmt->execute();
+            return (int)$stmt->fetchColumn();
+        } catch (PDOException $e) {
+            error_log('Error count seksi filtered: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get transaksi milik seksi (untuk halaman 'Transaksi Saya') — legacy wrapper, tetap kompatibel
      */
     public function getBySeksi(int $seksiId, ?int $inputBy = null): array
     {
+        if ($inputBy !== null) return $this->getBySeksiFiltered($inputBy);
         try {
-            if ($inputBy !== null) {
-                $stmt = $this->db->prepare("
-                    SELECT t.*,
-                           s.kode_seksi, s.nama_seksi,
-                           r.kode_rekening, r.nama_rekening,
-                           sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
-                           k.kode_kegiatan, k.nama_kegiatan,
-                           p.kode_program, p.nama_program,
-                           u.username AS input_oleh
-                    FROM transaksi t
-                    INNER JOIN seksi s ON t.seksi_id = s.id
-                    INNER JOIN rekening r ON t.rekening_id = r.id
-                    INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
-                    INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
-                    INNER JOIN program p ON k.program_id = p.id
-                    LEFT JOIN users u ON u.id = t.input_by
-                    WHERE t.input_by = :input_by
-                    ORDER BY t.tanggal DESC, t.id DESC
-                ");
-                $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
-            } else {
-                $stmt = $this->db->prepare("
+            $stmt = $this->db->prepare("
                     SELECT t.*,
                            s.kode_seksi, s.nama_seksi,
                            r.kode_rekening, r.nama_rekening,
@@ -328,8 +412,7 @@ class Transaksi
                     WHERE t.seksi_id = :seksi_id
                     ORDER BY t.tanggal DESC, t.id DESC
                 ");
-                $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
-            }
+            $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -339,7 +422,7 @@ class Transaksi
     }
 
     /**
-     * Update transaction oleh seksi (hanya jika status masih 'diajukan') dengan field BKU
+     * Update transaction oleh seksi (hanya jika status masih 'diajukan' atau 'ditolak') dengan field BKU
      */
     public function updateSeksi(
         int $id,
@@ -374,7 +457,7 @@ class Transaksi
                     tanggal_pelaksanaan = :tanggal_pelaksanaan,
                     lokasi_kegiatan = :lokasi_kegiatan,
                     surat_tugas_ref_id = :surat_tugas_ref_id
-                WHERE id = :id AND input_by = :input_by AND status = 'diajukan'
+                WHERE id = :id AND input_by = :input_by AND status IN ('diajukan','ditolak')
             ");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
@@ -400,12 +483,12 @@ class Transaksi
     }
 
     /**
-     * Delete transaction oleh seksi (hanya jika status masih 'diajukan')
+     * Delete transaction oleh seksi (hanya jika status masih 'diajukan' atau 'ditolak')
      */
     public function deleteSeksi(int $id, int $inputBy): bool
     {
         try {
-            $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id = :id AND input_by = :input_by AND status = 'diajukan'");
+            $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id = :id AND input_by = :input_by AND status IN ('diajukan','ditolak')");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->bindParam(':input_by', $inputBy, PDO::PARAM_INT);
             $stmt->execute();
