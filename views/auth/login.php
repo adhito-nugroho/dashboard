@@ -46,12 +46,20 @@
         }
         .login-brand-panel .brand-content { position: relative; z-index: 1; }
         .login-brand-icon {
-            width: 64px; height: 64px;
+            width: 72px; height: 72px;
             border-radius: 16px;
-            background: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.96);
             display: flex; align-items: center; justify-content: center;
             font-size: 1.8rem;
             margin-bottom: 1.5rem;
+            padding: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        .login-brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
         }
         .login-form-panel {
             flex: 1;
@@ -126,16 +134,12 @@
         <div class="login-brand-panel">
             <div class="brand-content">
                 <div class="login-brand-icon">
-                    <i class="bi bi-tree-fill"></i>
+                    <img src="<?= base_url('images/logo_jatim.png') ?>" alt="Logo Jawa Timur">
                 </div>
-                <h2 class="fw-bold mb-2" style="letter-spacing:-0.02em;">Dashboard Anggaran</h2>
-                <p class="mb-0" style="opacity:.85;font-size:0.95rem;">
-                    Sistem Pengelolaan Anggaran Seksi<br>
-                    CDK Wilayah Bojonegoro
-                </p>
-                <hr style="border-color: rgba(255,255,255,0.2); margin: 1.5rem 0;">
-                <p class="mb-0" style="opacity:.7;font-size:0.8rem;">
-                    Dinas Kehutanan Provinsi Jawa Timur
+                <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.78;margin-bottom:0.45rem;">Dinas Kehutanan Provinsi Jawa Timur</div>
+                <h2 class="fw-bold mb-1" style="letter-spacing:-0.02em;line-height:1.15;">Cabang Dinas<br>Kehutanan Wilayah<br>Bojonegoro</h2>
+                <p class="mb-0" style="opacity:.85;font-size:0.88rem;margin-top:0.75rem;">
+                    Dashboard Anggaran — Sistem Pengelolaan Anggaran
                 </p>
             </div>
         </div>
