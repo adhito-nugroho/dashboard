@@ -69,6 +69,9 @@ class SeksiTransaksiController
         $hasFilter = ($status !== '' || $bulan !== null || $tahun !== null || $q !== '');
         $filters = ['status'=>$status,'bulan'=>$bulan,'tahun'=>$tahun,'q'=>$q];
 
+        // Opsi A: hitung counter per pill hormati bulan/tahun/q (ignore status) — 1 query GROUP BY, bukan N+1
+        $statusCounts = $this->transaksiModel->getStatusCountsBySeksi($userId, $bulan, $tahun, $q ?: null);
+
         // tahun list untuk dropdown (dari transaksi user)
         $tahunList = [];
         try {

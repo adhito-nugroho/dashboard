@@ -388,6 +388,52 @@ class Transaksi
     }
 
     /**
+     * Hitung jumlah per status untuk pill (Opsi A: filter bulan/tahun/q aktif, ignore status).
+     * 1 query GROUP BY, tidak N+1. Menghormati workflow.
+     */
+    public function getStatusCountsBySeksi(?int $inputBy, ?int $bulan = null, ?int $tahun = null, ?string $q = null): array
+    {
+        try {
+            $conditions = [];
+            $params = [];
+            if ($inputBy !== null) {
+                $conditions[] = 't.input_by = :input_by';
+                $params[':input_by'] = $inputBy;
+            }
+            if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
+                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $params[':bulan'] = $bulan;
+            }
+            if ($tahun !== null && $tahun > 0) {
+                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $params[':tahun'] = $tahun;
+            }
+            if ($q !== null && trim($q) !== '') {
+                $conditions[] = '(t.uraian LIKE :q OR t.nomor_bukti LIKE :q OR t.nama_penerima LIKE :q)';
+                $params[':q'] = '%' . trim($q) . '%';
+            }
+            $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+            $stmt = $this->db->prepare("SELECT t.status, COUNT(*) as cnt FROM transaksi t {$where} GROUP BY t.status");
+            foreach ($params as $k => $v) {
+                $type = is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($k, $v, $type);
+            }
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $all = 0; foreach ($rows as $c) $all += (int)$c;
+            return [
+                '' => $all,
+                'diajukan' => (int)($rows['diajukan'] ?? 0),
+                'diverifikasi' => (int)($rows['diverifikasi'] ?? 0),
+                'ditolak' => (int)($rows['ditolak'] ?? 0),
+            ];
+        } catch (PDOException $e) {
+            error_log('Error status counts: ' . $e->getMessage());
+            return [''=>0,'diajukan'=>0,'diverifikasi'=>0,'ditolak'=>0];
+        }
+    }
+
+    /**
      * Get transaksi milik seksi (untuk halaman 'Transaksi Saya') — legacy wrapper, tetap kompatibel
      */
     public function getBySeksi(int $seksiId, ?int $inputBy = null): array

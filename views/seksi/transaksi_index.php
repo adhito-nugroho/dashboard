@@ -29,6 +29,56 @@
 }
 .filter-pill:hover { text-decoration: none; border-color: #4f46e5; color: #4f46e5; }
 .filter-pill.active:hover { color: #fff; }
+.filter-pill .count-badge {
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    min-width: 1.1rem;
+    text-align: center;
+    line-height: 1.2;
+}
+.filter-pill.active .count-badge {
+    background: rgba(255,255,255,0.22);
+    color: #fff;
+}
+.pill-scroll {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.pill-scroll::-webkit-scrollbar { display: none; }
+.filter-card {
+    border-bottom: 1px solid #e2e8f0;
+}
+.search-wrap {
+    position: relative;
+}
+.search-clear {
+    position: absolute;
+    right: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: none;
+    padding: 0.15rem;
+}
+.search-clear.visible { display: block; }
+.search-clear:hover { color: #334155; }
+@media (max-width: 767.98px) {
+    .pill-scroll { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 0.25rem; }
+    .filter-month-year { flex: 0 0 100% !important; max-width: 100% !important; }
+    .search-col, .btn-col { flex: 0 0 100% !important; max-width: 100% !important; }
+    .btn-col .btn { width: 100%; }
+}
 .jenis-chip {
     font-size: 0.7rem;
     font-weight: 700;
@@ -95,26 +145,27 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
 ?>
 
 <!-- FILTER BAR -->
-<div class="card border-0 shadow-sm mb-3" style="border-radius:14px;">
+<div class="card border-0 shadow-sm mb-3 filter-card" style="border-radius:14px;">
     <div class="card-body p-3">
         <form method="GET" action="<?= base_url('seksi/transaksi') ?>" id="filterForm" class="row g-2 align-items-end">
-            <div class="col-12">
-                <div class="d-flex flex-wrap gap-2 mb-2">
+            <div class="col-12 d-flex align-items-center gap-2">
+                <div class="d-flex gap-2 pill-scroll flex-grow-1">
                     <?php
                     $statusOpts = [''=> 'Semua', 'diajukan'=>'Menunggu Verifikasi','diverifikasi'=>'Diverifikasi','ditolak'=>'Ditolak'];
+                    $counts = $statusCounts ?? [''=>0,'diajukan'=>0,'diverifikasi'=>0,'ditolak'=>0];
                     foreach ($statusOpts as $val=>$label):
                         $active = ($curStatus === $val) || ($val==='' && $curStatus==='');
-                        // build URL preserve other filters
                         $qs = array_filter(['status'=>$val===''?null:$val,'bulan'=>$curBulan,'tahun'=>$curTahun,'q'=>$curQ?:null]);
                         $href = base_url('seksi/transaksi') . ($qs ? '?' . http_build_query($qs) : '');
+                        $cnt = $counts[$val] ?? 0;
                     ?>
-                    <a href="<?= $href ?>" class="filter-pill <?= $active?'active':'' ?>"><?= $label ?></a>
+                    <a href="<?= $href ?>" class="filter-pill <?= $active?'active':'' ?>"><?= $label ?> <span class="count-badge"><?= $cnt ?></span></a>
                     <?php endforeach; ?>
-                    <!-- hidden status for form submit fallback -->
                     <input type="hidden" name="status" value="<?= htmlspecialchars($curStatus) ?>">
                 </div>
+                <a href="<?= base_url('seksi/transaksi') ?>" id="resetFilterBtn" class="btn btn-outline-secondary btn-sm flex-shrink-0" style="<?= $hasFilter?'':'display:none;' ?>" title="Reset semua filter"><i class="bi bi-x-circle me-1"></i>Reset Filter</a>
             </div>
-            <div class="col-md-3 col-6">
+            <div class="col-md-3 col-6 filter-month-year">
                 <label class="form-label small fw-semibold mb-1">Bulan</label>
                 <select name="bulan" class="form-select form-select-sm">
                     <option value="">Semua Bulan</option>
@@ -123,7 +174,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                     <?php endfor; ?>
                 </select>
             </div>
-            <div class="col-md-3 col-6">
+            <div class="col-md-3 col-6 filter-month-year">
                 <label class="form-label small fw-semibold mb-1">Tahun</label>
                 <select name="tahun" class="form-select form-select-sm">
                     <option value="">Semua Tahun</option>
@@ -132,15 +183,15 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4 col-12">
+            <div class="col-md-4 col-12 search-col">
                 <label class="form-label small fw-semibold mb-1">Cari uraian / no bukti</label>
-                <input type="text" name="q" value="<?= htmlspecialchars($curQ) ?>" class="form-control form-control-sm" placeholder="Ketik uraian atau nomor bukti...">
+                <div class="search-wrap">
+                    <input type="text" name="q" id="qInput" value="<?= htmlspecialchars($curQ) ?>" class="form-control form-control-sm pe-4" placeholder="Ketik uraian atau nomor bukti..." autocomplete="off">
+                    <button type="button" id="qClear" class="search-clear <?= $curQ!==''?'visible':'' ?>" aria-label="Clear"><i class="bi bi-x-circle-fill"></i></button>
+                </div>
             </div>
-            <div class="col-md-2 col-12 d-flex gap-2">
+            <div class="col-md-2 col-12 d-flex gap-2 btn-col filter-search-row">
                 <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Cari</button>
-                <?php if($hasFilter): ?>
-                <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-outline-secondary btn-sm">Reset</a>
-                <?php endif; ?>
             </div>
         </form>
     </div>
@@ -446,6 +497,59 @@ document.addEventListener('DOMContentLoaded', function(){
             modal.show();
         });
     });
+    // Task3: search UX - Enter, clear x, debounce 350ms
+    const form = document.getElementById('filterForm');
+    const qInput = document.getElementById('qInput');
+    const qClear = document.getElementById('qClear');
+    const resetBtn = document.getElementById('resetFilterBtn');
+    function updateResetVisibility(){
+        if(!resetBtn || !qInput) return;
+        const hasQ = qInput.value.trim() !== '';
+        const selBulan = form ? form.querySelector('select[name="bulan"]').value : '';
+        const selTahun = form ? form.querySelector('select[name="tahun"]').value : '';
+        // status pills active check: presence of active not Semua already implies filter, but we also check window location
+        const hasOther = selBulan !== '' || selTahun !== '' || hasQ;
+        // status pill active is captured via server hasFilter but update live for q
+        if(hasQ || hasOther) resetBtn.style.display = '';
+        else {
+            // fallback to server hasFilter for status pills
+            const serverHas = <?= json_encode($hasFilter) ?>;
+            resetBtn.style.display = serverHas ? '' : 'none';
+        }
+    }
+    function toggleClear(){
+        if(!qInput || !qClear) return;
+        if(qInput.value.trim() !== '') qClear.classList.add('visible');
+        else qClear.classList.remove('visible');
+        updateResetVisibility();
+    }
+    if(qInput){
+        qInput.addEventListener('keyup', function(e){
+            if(e.key === 'Enter'){
+                e.preventDefault();
+                form.submit();
+            }
+        });
+        let debounceTimer;
+        qInput.addEventListener('input', function(){
+            toggleClear();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function(){
+                // auto submit only if value changed (debounce)
+                if(qInput.value !== <?= json_encode($curQ) ?>){
+                    form.submit();
+                }
+            }, 350);
+        });
+        toggleClear();
+    }
+    if(qClear && qInput){
+        qClear.addEventListener('click', function(){
+            qInput.value = '';
+            toggleClear();
+            form.submit();
+        });
+    }
     // pill active handling for filter form (optional)
     document.querySelectorAll('.filter-pill').forEach(function(p){
         p.addEventListener('click', function(e){
