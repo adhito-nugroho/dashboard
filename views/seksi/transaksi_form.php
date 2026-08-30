@@ -10,7 +10,7 @@ $uraian = $transaksi['uraian'] ?? '';
 $nilai = $transaksi['nilai'] ?? '';
 $nomorBukti = $transaksi['nomor_bukti'] ?? '';
 $namaPenerima = $transaksi['nama_penerima'] ?? '';
-$jenisTransaksi = $transaksi['jenis_transaksi'] ?? 'lainnya';
+$jenisTransaksi = $transaksi['jenis_transaksi'] ?? '';
 $nomorSuratTugas = $transaksi['nomor_surat_tugas'] ?? '';
 $tanggalSuratTugas = $transaksi['tanggal_surat_tugas'] ?? '';
 $tanggalPelaksanaan = $transaksi['tanggal_pelaksanaan'] ?? '';
@@ -133,6 +133,52 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
     top: 0.75rem;
     right: 0.75rem;
 }
+.spin {
+    display: inline-block;
+    animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.sticky-action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    padding: 0.85rem 1.25rem;
+    margin-top: 1.5rem;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+}
+#batchTotalNilai {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #0f172a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#batchTotalNilai .total-label {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.cascade-spinner {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+}
 </style>
 
 <div class="row justify-content-center">
@@ -195,6 +241,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" style="font-size:0.85rem;">
                                 Kegiatan <span class="text-danger">*</span>
+                                <span id="spinner-kegiatan" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Memuat...</span>
                             </label>
                             <select name="kegiatan_id" id="kegiatan_id" class="form-select custom-form-select" required disabled>
                                 <option value="">-- 2. Pilih Kegiatan --</option>
@@ -205,6 +252,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" style="font-size:0.85rem;">
                                 Sub Kegiatan <span class="text-danger">*</span>
+                                <span id="spinner-sub_kegiatan" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Memuat...</span>
                             </label>
                             <select name="sub_kegiatan_id" id="sub_kegiatan_id" class="form-select custom-form-select" required disabled>
                                 <option value="">-- 3. Pilih Sub Kegiatan --</option>
@@ -215,6 +263,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                         <div class="col-12">
                             <label class="form-label fw-semibold" style="font-size:0.85rem;">
                                 Rekening Belanja <span class="text-danger">*</span>
+                                <span id="spinner-rekening" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Memuat...</span>
                             </label>
                             <select name="rekening_id" id="rekening_id" class="form-select custom-form-select" required disabled>
                                 <option value="">-- 4. Pilih Rekening Belanja --</option>
@@ -226,6 +275,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                     <i class="bi bi-wallet2"></i>
                                     <span>Sisa Anggaran: <strong id="sisaPaguText">Rp 0</strong></span>
                                     <span class="text-muted" style="font-size:0.75rem;">(dari Pagu <span id="totalPaguText">Rp 0</span>)</span>
+                                    <span id="spinner-sisa-pagu" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i></span>
                                 </div>
                             </div>
                         </div>
@@ -263,6 +313,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 Jenis Transaksi <span class="text-danger">*</span>
                             </label>
                             <select name="jenis_transaksi" id="jenis_transaksi" class="form-select custom-form-select" required <?= $isEdit ? 'disabled' : '' ?>>
+                                <option value="" disabled <?= empty($jenisTransaksi) ? 'selected' : '' ?>>-- Pilih Jenis Transaksi --</option>
                                 <option value="perjalanan_dinas" <?= $jenisTransaksi === 'perjalanan_dinas' ? 'selected' : '' ?>>Perjalanan Dinas</option>
                                 <option value="belanja" <?= $jenisTransaksi === 'belanja' ? 'selected' : '' ?>>Belanja Barang / Jasa</option>
                                 <option value="honorarium" <?= $jenisTransaksi === 'honorarium' ? 'selected' : '' ?>>Honorarium</option>
@@ -285,6 +336,10 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                             </button>
                         </div>
                         <div id="batchItemsList"></div>
+                        <div id="batchTotalNilai" class="mt-3">
+                            <span class="total-label">Total Nilai</span>
+                            <span id="batchTotalNilaiText">Rp 0</span>
+                        </div>
                     </div>
 
                     <!-- SINGLE ITEM FIELDS (Form Normal) -->
@@ -356,7 +411,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light fw-bold" style="border-radius:8px 0 0 8px;font-size:0.875rem;">Rp</span>
-                                    <input type="text" name="nilai" id="nilai" class="form-control custom-form-input" style="border-radius:0 8px 8px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required>
+                                    <input type="text" name="nilai" id="nilai" class="form-control custom-form-input" style="border-radius:0 8px 8px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required inputmode="numeric">
                                 </div>
                             </div>
                         </div>
@@ -364,8 +419,8 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="d-flex align-items-center justify-content-end gap-2 mb-5">
+            <!-- Action Buttons (Sticky) -->
+            <div class="sticky-action-bar d-flex align-items-center justify-content-end gap-2" id="stickyActionBar">
                 <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-light px-4" style="border-radius:8px;font-weight:600;">
                     Batal
                 </a>
@@ -374,6 +429,8 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <?= $isEdit ? 'Simpan Perubahan' : 'Ajukan Transaksi' ?>
                 </button>
             </div>
+            <!-- Spacer supaya konten terakhir tidak tertutup sticky bar -->
+            <div style="height: 1.5rem;"></div>
         </form>
     </div>
 </div>
@@ -464,8 +521,23 @@ const seksiBase = BASE_URL.replace(/\/$/, '');
 
 let selectedSTData = null;
 let currentSTPegawais = [];
+window.currentSisaPagu = null;
+
+function getSpinnerForSelect(selectEl) {
+    const map = {
+        'kegiatan_id': 'spinner-kegiatan',
+        'sub_kegiatan_id': 'spinner-sub_kegiatan',
+        'rekening_id': 'spinner-rekening'
+    };
+    const sid = map[selectEl.id];
+    return sid ? document.getElementById(sid) : null;
+}
 
 function loadOptions(selectEl, url, keepValue, placeholder) {
+    const spinner = getSpinnerForSelect(selectEl);
+    selectEl.innerHTML = `<option value="">Memuat...</option>`;
+    selectEl.disabled = true;
+    if (spinner) spinner.style.display = 'inline-block';
     return fetch(url).then(r => r.json()).then(data => {
         let opts = `<option value="">${placeholder}</option>`;
         data.forEach(d => {
@@ -478,7 +550,13 @@ function loadOptions(selectEl, url, keepValue, placeholder) {
         selectEl.innerHTML = opts;
         selectEl.disabled = false;
         if (keepValue) selectEl.value = keepValue;
+        if (spinner) spinner.style.display = 'none';
         return data;
+    }).catch(err => {
+        selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+        selectEl.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+        throw err;
     });
 }
 
@@ -490,16 +568,28 @@ function updateSisaPagu() {
     const badge = document.getElementById('sisaPaguBadge');
     const sisaText = document.getElementById('sisaPaguText');
     const paguText = document.getElementById('totalPaguText');
+    const spinnerSisa = document.getElementById('spinner-sisa-pagu');
 
     if (!rekId) {
         container.style.display = 'none';
+        window.currentSisaPagu = null;
+        if (spinnerSisa) spinnerSisa.style.display = 'none';
         return;
     }
+
+    container.style.display = 'block';
+    // loading state for sisa pagu
+    sisaText.innerText = 'Memuat...';
+    paguText.innerText = 'Rp ...';
+    badge.className = 'sisa-pagu-badge';
+    if (spinnerSisa) spinnerSisa.style.display = 'inline-block';
 
     fetch(`${seksiBase}/seksi/transaksi/sisa-pagu?rekening_id=${rekId}&tahun=${tahun}`)
         .then(r => r.json())
         .then(res => {
+            if (spinnerSisa) spinnerSisa.style.display = 'none';
             if (res.sisa_pagu !== null && res.sisa_pagu !== undefined) {
+                window.currentSisaPagu = Number(res.sisa_pagu);
                 container.style.display = 'block';
                 sisaText.innerText = res.formatted_sisa || ('Rp ' + Number(res.sisa_pagu).toLocaleString('id-ID'));
                 paguText.innerText = res.formatted_pagu || ('Rp ' + Number(res.pagu).toLocaleString('id-ID'));
@@ -511,12 +601,52 @@ function updateSisaPagu() {
                     badge.classList.add('warning');
                 }
             } else {
+                window.currentSisaPagu = null;
                 container.style.display = 'none';
             }
         })
         .catch(() => {
+            if (spinnerSisa) spinnerSisa.style.display = 'none';
+            window.currentSisaPagu = null;
             container.style.display = 'none';
         });
+}
+
+function formatRibuanWithCursor(input) {
+    const oldVal = input.value;
+    const cursorPos = input.selectionStart;
+    const oldLen = oldVal.length;
+    let clean = oldVal.replace(/[^0-9]/g, '');
+    if (clean) {
+        const formatted = parseInt(clean, 10).toLocaleString('id-ID');
+        input.value = formatted;
+        const newLen = formatted.length;
+        const diff = newLen - oldLen;
+        let newPos = cursorPos + diff;
+        if (newPos < 0) newPos = 0;
+        if (newPos > newLen) newPos = newLen;
+        try { input.setSelectionRange(newPos, newPos); } catch(e) {}
+    } else {
+        input.value = '';
+    }
+}
+
+function parseNilaiToInt(str) {
+    if (!str) return 0;
+    const clean = String(str).replace(/[^0-9]/g, '');
+    return clean ? parseInt(clean, 10) : 0;
+}
+
+function updateBatchTotal() {
+    const inputs = document.querySelectorAll('.batch-nilai-input');
+    let total = 0;
+    inputs.forEach(inp => {
+        total += parseNilaiToInt(inp.value);
+    });
+    const el = document.getElementById('batchTotalNilaiText');
+    if (el) el.innerText = 'Rp ' + total.toLocaleString('id-ID');
+    const container = document.getElementById('batchTotalNilai');
+    if (container) container.style.display = inputs.length ? 'flex' : 'none';
 }
 
 // Cascade dropdowns
@@ -577,12 +707,9 @@ document.getElementById('jenis_transaksi').addEventListener('change', function()
     if (btnST) btnST.style.display = isPerdin ? 'inline-flex' : 'none';
 });
 
-// Format ribuan nilai input single
+// Format ribuan nilai input single — dengan preservasi posisi kursor (Task 3)
 document.getElementById('nilai').addEventListener('input', function(e) {
-    let clean = this.value.replace(/[^0-9]/g, '');
-    if (clean) {
-        this.value = parseInt(clean, 10).toLocaleString('id-ID');
-    }
+    formatRibuanWithCursor(this);
 });
 
 // Helper membersihkan duplikasi kata "Perjalanan Dinas dalam rangka"
@@ -862,7 +989,7 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold">Nilai (Rp) <span class="text-danger">*</span></label>
-                                    <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required>
+                                    <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required inputmode="numeric">
                                 </div>
                                 <div class="col-12 mt-2">
                                     <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
@@ -874,13 +1001,14 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                 });
                 document.getElementById('batchItemsList').innerHTML = batchHtml;
 
-                // Pasang format ribuan di batch nilai inputs
+                // Pasang format ribuan di batch nilai inputs + update total (Task 3 & 5)
                 document.querySelectorAll('.batch-nilai-input').forEach(inp => {
                     inp.addEventListener('input', function() {
-                        let clean = this.value.replace(/[^0-9]/g, '');
-                        if (clean) this.value = parseInt(clean, 10).toLocaleString('id-ID');
+                        formatRibuanWithCursor(this);
+                        updateBatchTotal();
                     });
                 });
+                updateBatchTotal();
             });
     }
 
@@ -893,6 +1021,37 @@ document.getElementById('btnResetBatch').addEventListener('click', function() {
         document.getElementById('batchItemsContainer').style.display = 'none';
         document.getElementById('batchItemsList').innerHTML = '';
         document.getElementById('singleItemContainer').style.display = 'block';
+        updateBatchTotal();
+    }
+});
+
+// Task 2: Validasi nilai vs sisa pagu sebelum submit (WARNING confirm)
+document.getElementById('seksiTransaksiForm').addEventListener('submit', function(e) {
+    if (window.currentSisaPagu === null || window.currentSisaPagu === undefined) return;
+    const sisa = Number(window.currentSisaPagu);
+    if (isNaN(sisa)) return;
+
+    const batchContainer = document.getElementById('batchItemsContainer');
+    const isBatchMode = batchContainer && batchContainer.style.display !== 'none' && document.querySelectorAll('.batch-nilai-input').length > 0;
+
+    let totalNilai = 0;
+    if (isBatchMode) {
+        document.querySelectorAll('.batch-nilai-input').forEach(inp => {
+            totalNilai += parseNilaiToInt(inp.value);
+        });
+    } else {
+        const nilaiEl = document.getElementById('nilai');
+        totalNilai = parseNilaiToInt(nilaiEl ? nilaiEl.value : '0');
+    }
+
+    if (totalNilai === 0) return; // biar required yang handle
+    if (totalNilai > sisa) {
+        const sisaFmt = 'Rp ' + Number(sisa).toLocaleString('id-ID');
+        const totalFmt = 'Rp ' + Number(totalNilai).toLocaleString('id-ID');
+        const msg = `Nilai transaksi (${totalFmt}) melebihi sisa anggaran (${sisaFmt}). Tetap ajukan?`;
+        if (!confirm(msg)) {
+            e.preventDefault();
+        }
     }
 });
 
