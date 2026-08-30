@@ -179,6 +179,16 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
     margin-left: 0.4rem;
     vertical-align: middle;
 }
+.sisa-pagu-badge.unknown {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+.field-highlight {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.18) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
 </style>
 
 <div class="row justify-content-center">
@@ -276,6 +286,10 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                     <span>Sisa Anggaran: <strong id="sisaPaguText">Rp 0</strong></span>
                                     <span class="text-muted" style="font-size:0.75rem;">(dari Pagu <span id="totalPaguText">Rp 0</span>)</span>
                                     <span id="spinner-sisa-pagu" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i></span>
+                                </div>
+                                <div class="sisa-pagu-badge unknown" id="sisaPaguError" style="display:none;">
+                                    <i class="bi bi-exclamation-circle"></i>
+                                    <span>Sisa anggaran tidak dapat dimuat — transaksi tetap bisa diajukan tanpa validasi otomatis.</span>
                                 </div>
                             </div>
                         </div>
@@ -566,6 +580,7 @@ function updateSisaPagu() {
     const tahun = tglVal ? new Date(tglVal).getFullYear() : new Date().getFullYear();
     const container = document.getElementById('sisaPaguContainer');
     const badge = document.getElementById('sisaPaguBadge');
+    const errorBadge = document.getElementById('sisaPaguError');
     const sisaText = document.getElementById('sisaPaguText');
     const paguText = document.getElementById('totalPaguText');
     const spinnerSisa = document.getElementById('spinner-sisa-pagu');
@@ -574,11 +589,15 @@ function updateSisaPagu() {
         container.style.display = 'none';
         window.currentSisaPagu = null;
         if (spinnerSisa) spinnerSisa.style.display = 'none';
+        if (errorBadge) errorBadge.style.display = 'none';
+        if (badge) badge.style.display = 'inline-flex';
         return;
     }
 
     container.style.display = 'block';
     // loading state for sisa pagu
+    if (badge) badge.style.display = 'inline-flex';
+    if (errorBadge) errorBadge.style.display = 'none';
     sisaText.innerText = 'Memuat...';
     paguText.innerText = 'Rp ...';
     badge.className = 'sisa-pagu-badge';
@@ -591,6 +610,8 @@ function updateSisaPagu() {
             if (res.sisa_pagu !== null && res.sisa_pagu !== undefined) {
                 window.currentSisaPagu = Number(res.sisa_pagu);
                 container.style.display = 'block';
+                if (errorBadge) errorBadge.style.display = 'none';
+                if (badge) badge.style.display = 'inline-flex';
                 sisaText.innerText = res.formatted_sisa || ('Rp ' + Number(res.sisa_pagu).toLocaleString('id-ID'));
                 paguText.innerText = res.formatted_pagu || ('Rp ' + Number(res.pagu).toLocaleString('id-ID'));
                 
@@ -603,28 +624,50 @@ function updateSisaPagu() {
             } else {
                 window.currentSisaPagu = null;
                 container.style.display = 'none';
+                if (errorBadge) errorBadge.style.display = 'none';
             }
         })
         .catch(() => {
             if (spinnerSisa) spinnerSisa.style.display = 'none';
             window.currentSisaPagu = null;
-            container.style.display = 'none';
+            container.style.display = 'block';
+            if (badge) badge.style.display = 'none';
+            if (errorBadge) errorBadge.style.display = 'inline-flex';
         });
 }
 
 function formatRibuanWithCursor(input) {
     const oldVal = input.value;
-    const cursorPos = input.selectionStart;
-    const oldLen = oldVal.length;
+    let cursorPos = input.selectionStart;
+    if (cursorPos === null || cursorPos === undefined) cursorPos = oldVal.length;
     let clean = oldVal.replace(/[^0-9]/g, '');
     if (clean) {
+        // hitung jumlah digit sebelum kursor di value lama (abaikan titik)
+        let digitsBeforeCursor = 0;
+        for (let i = 0; i < cursorPos && i < oldVal.length; i++) {
+            if (/[0-9]/.test(oldVal[i])) digitsBeforeCursor++;
+        }
+        // jika clean kosong setelah filter, kursor di 0
+        // jika clean diawali 0 dan panjang >1, parseInt akan hilangkan leading zero — sesuaikan digitsBefore
+        // tapi input numeric jarang pakai leading zero, abaikan edge ultra-rare
         const formatted = parseInt(clean, 10).toLocaleString('id-ID');
         input.value = formatted;
-        const newLen = formatted.length;
-        const diff = newLen - oldLen;
-        let newPos = cursorPos + diff;
+        // cari posisi di string baru yang punya digitsBeforeCursor digit dari kiri
+        let newPos = formatted.length; // default akhir jika kursor di akhir
+        if (digitsBeforeCursor === 0) {
+            newPos = 0;
+        } else {
+            let counted = 0;
+            for (let i = 0; i < formatted.length; i++) {
+                if (/[0-9]/.test(formatted[i])) counted++;
+                if (counted === digitsBeforeCursor) {
+                    newPos = i + 1;
+                    break;
+                }
+            }
+        }
         if (newPos < 0) newPos = 0;
-        if (newPos > newLen) newPos = newLen;
+        if (newPos > formatted.length) newPos = formatted.length;
         try { input.setSelectionRange(newPos, newPos); } catch(e) {}
     } else {
         input.value = '';
@@ -1025,7 +1068,12 @@ document.getElementById('btnResetBatch').addEventListener('click', function() {
     }
 });
 
-// Task 2: Validasi nilai vs sisa pagu sebelum submit (WARNING confirm)
+// Task 2+ C: Validasi nilai vs sisa pagu sebelum submit (WARNING confirm) + scroll/focus/highlight saat cancel
+function highlightField(el) {
+    if (!el) return;
+    el.classList.add('field-highlight');
+    setTimeout(() => el.classList.remove('field-highlight'), 2000);
+}
 document.getElementById('seksiTransaksiForm').addEventListener('submit', function(e) {
     if (window.currentSisaPagu === null || window.currentSisaPagu === undefined) return;
     const sisa = Number(window.currentSisaPagu);
@@ -1051,6 +1099,19 @@ document.getElementById('seksiTransaksiForm').addEventListener('submit', functio
         const msg = `Nilai transaksi (${totalFmt}) melebihi sisa anggaran (${sisaFmt}). Tetap ajukan?`;
         if (!confirm(msg)) {
             e.preventDefault();
+            // Task C: scroll & focus ke field nilai relevan + highlight
+            let targetEl = null;
+            if (isBatchMode) {
+                const batchInputs = document.querySelectorAll('.batch-nilai-input');
+                targetEl = batchInputs.length ? batchInputs[0] : null;
+            } else {
+                targetEl = document.getElementById('nilai');
+            }
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => targetEl.focus(), 300);
+                highlightField(targetEl);
+            }
         }
     }
 });
