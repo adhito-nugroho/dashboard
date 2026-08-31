@@ -183,7 +183,8 @@ try {
     if ($isSeksi) {
         $seksiAllowed = in_array($path, ['/logout', '/logout/'], true)
             || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
-            || preg_match('#^/seksi/transaksi#', $path);
+            || preg_match('#^/seksi/transaksi#', $path)
+            || preg_match('#^/spj#', $path);
         if (!$seksiAllowed) {
             header('Location: ' . base_url('seksi/transaksi'));
             exit;

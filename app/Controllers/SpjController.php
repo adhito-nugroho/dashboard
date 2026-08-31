@@ -35,11 +35,26 @@ class SpjController
     // GUARD
     // ──────────────────────────────────────────────────────────
 
-    private function requireAdmin(): void
+    /**
+     * Izinkan semua user yang sudah login (seksi maupun admin).
+     * Admin bisa mereview semua ST; seksi hanya bisa input rincian
+     * untuk ST yang relevan (validasi lebih lanjut bisa ditambahkan di masing-masing action).
+     */
+    private function requireLogin(): void
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
-        if (empty($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
+        if (empty($_SESSION['user_id'])) {
             header('Location: ' . base_url('login'));
+            exit;
+        }
+    }
+
+    /** Shorthand — dipakai untuk action yang hanya boleh admin (review/hapus). */
+    private function requireAdmin(): void
+    {
+        $this->requireLogin();
+        if (empty($_SESSION['is_admin'])) {
+            header('Location: ' . base_url('spj'));
             exit;
         }
     }
@@ -50,7 +65,7 @@ class SpjController
 
     public function index(): void
     {
-        $this->requireAdmin();
+        $this->requireLogin();
 
         $pdo = \DatabaseSuratTugas::getConnection();
         $suratTugasList = [];
@@ -111,7 +126,7 @@ class SpjController
 
     public function detail(int $suratTugasId): void
     {
-        $this->requireAdmin();
+        $this->requireLogin();
 
         $pdo = \DatabaseSuratTugas::getConnection();
         $suratTugas = null;
@@ -182,7 +197,7 @@ class SpjController
 
     public function create(int $suratTugasId, string $nip): void
     {
-        $this->requireAdmin();
+        $this->requireLogin();
 
         // Cek sudah ada
         $existingId = $this->model->findBySuratTugasDanNip($suratTugasId, $nip);
@@ -221,7 +236,7 @@ class SpjController
 
     public function store(): void
     {
-        $this->requireAdmin();
+        $this->requireLogin();
 
         $suratTugasId = (int) ($_POST['surat_tugas_id'] ?? 0);
         $nip          = trim($_POST['pegawai_nip'] ?? '');
@@ -286,7 +301,7 @@ class SpjController
 
     public function edit(int $id): void
     {
-        $this->requireAdmin();
+        $this->requireLogin();
 
         $data = $this->model->getByIdWithDetails($id);
         if (!$data) {
@@ -321,7 +336,7 @@ class SpjController
 
     public function update(int $id): void
     {
-        $this->requireAdmin();
+        $this->requireLogin();
         $userId = (int) ($_SESSION['user_id'] ?? 0);
 
         $data = $this->model->getByIdWithDetails($id);
