@@ -450,6 +450,8 @@ try {
         $transaksiController->generateNomorBukti();
     } elseif ($path === '/transaksi/get-rekenings-with-budget' && $requestMethod === 'GET') {
         $transaksiController->getRekeningsWithBudget();
+    } elseif ($path === '/transaksi/bku-cdk' && $requestMethod === 'GET') {
+        $transaksiController->downloadBkuCdk();
     }
     // Route matching - Input Transaksi Seksi (role seksi)
     elseif ($path === '/seksi/transaksi' || $path === '/seksi/transaksi/') {

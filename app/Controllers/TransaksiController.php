@@ -920,4 +920,261 @@ class TransaksiController
         // Tampilkan pesan error yang sebenarnya, bukan generic
         $this->redirectWithMessage(base_url('transaksi'), 'error', $message);
     }
+
+    /**
+     * Download BKU CDK Bojonegoro — satu BKU gabungan seluruh kantor (admin only).
+     *
+     * - Semua transaksi lintas seksi, semua status (tidak difilter status kecuali user memilih filter Status).
+     * - Filter Bulan & Tahun wajib; filter Kegiatan/SubKegiatan/Status bersifat opsional.
+     * - Urut tanggal ASC → id ASC, running balance tunggal lintas seksi.
+     * - Kolom: No, Tanggal, Seksi, Uraian, No Bukti, Pengeluaran (Rp), Saldo (Rp), Status.
+     * - Nama file: BKU_CDK_Bojonegoro_[Bulan]_[Tahun].xlsx
+     */
+    public function downloadBkuCdk(): void
+    {
+        // Hanya admin yang boleh mengakses
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . base_url('login'));
+            exit;
+        }
+
+        $bulan  = isset($_GET['bulan'])  && $_GET['bulan']  !== '' ? (int) $_GET['bulan']  : null;
+        $tahun  = isset($_GET['tahun'])  && $_GET['tahun']  !== '' ? (int) $_GET['tahun']  : null;
+
+        if ($bulan === null || $tahun === null || $bulan < 1 || $bulan > 12 || $tahun < 2000) {
+            http_response_code(400);
+            echo 'Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU';
+            exit;
+        }
+
+        // Filter opsional dari query string
+        $filterKegiatan    = isset($_GET['kegiatan_id'])    && $_GET['kegiatan_id']    !== '' ? (int) $_GET['kegiatan_id']    : null;
+        $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
+        $filterStatus      = isset($_GET['status'])          && $_GET['status']          !== '' ? $_GET['status']               : null;
+
+        $db = \Database::getConnection();
+
+        // ── Bangun query dinamis ───────────────────────────────────────────
+        $conditions = [
+            'MONTH(t.tanggal) = :bulan',
+            'YEAR(t.tanggal)  = :tahun',
+        ];
+        $params = [':bulan' => $bulan, ':tahun' => $tahun];
+
+        if ($filterSubKegiatan !== null) {
+            $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
+            $params[':sub_kegiatan_id'] = $filterSubKegiatan;
+        } elseif ($filterKegiatan !== null) {
+            $conditions[] = 'sk.kegiatan_id = :kegiatan_id';
+            $params[':kegiatan_id'] = $filterKegiatan;
+        }
+
+        if ($filterStatus !== null) {
+            $conditions[] = 't.status = :status';
+            $params[':status'] = $filterStatus;
+        }
+
+        $where = 'WHERE ' . implode(' AND ', $conditions);
+
+        $stmt = $db->prepare("
+            SELECT
+                t.tanggal,
+                s.nama_seksi,
+                t.uraian,
+                t.nama_penerima,
+                t.nomor_bukti,
+                t.nilai,
+                t.status
+            FROM transaksi t
+            INNER JOIN seksi    s  ON t.seksi_id    = s.id
+            INNER JOIN rekening r  ON t.rekening_id = r.id
+            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            {$where}
+            ORDER BY t.tanggal ASC, t.id ASC
+        ");
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v, is_int($v) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
+        $stmt->execute();
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // ── Konstanta ──────────────────────────────────────────────────────
+        $namaBulanMap = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret',    4 => 'April',
+            5 => 'Mei',     6 => 'Juni',     7 => 'Juli',      8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+        $namaBulan = $namaBulanMap[$bulan] ?? (string) $bulan;
+
+        $statusLabel = [
+            'diajukan'     => 'Menunggu Verifikasi',
+            'diverifikasi' => 'Diverifikasi',
+            'ditolak'      => 'Ditolak',
+        ];
+        $statusFill  = [
+            'diajukan'     => ['rgb' => 'FEF9C3'],
+            'diverifikasi' => ['rgb' => 'DCFCE7'],
+            'ditolak'      => ['rgb' => 'FEE2E2'],
+        ];
+        $statusColor = [
+            'diajukan'     => ['rgb' => '854D0E'],
+            'diverifikasi' => ['rgb' => '166534'],
+            'ditolak'      => ['rgb' => '991B1B'],
+        ];
+
+        // ── Spreadsheet ────────────────────────────────────────────────────
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('BKU CDK Bojonegoro');
+
+        // Header organisasi (baris 1–3); 8 kolom: A–H
+        $lastCol = 'H';
+        foreach ([
+            ['A1', 'BUKU KAS UMUM (BKU)', 14],
+            ['A2', 'CDK WILAYAH BOJONEGORO', 12],
+            ['A3', 'Bulan: ' . $namaBulan . ' ' . $tahun, 11],
+        ] as [$cell, $val, $size]) {
+            $sheet->mergeCells($cell . ':' . $lastCol . substr($cell, 1));
+            $sheet->setCellValue($cell, $val);
+            $sheet->getStyle($cell)->applyFromArray([
+                'font'      => ['bold' => true, 'size' => $size],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            ]);
+        }
+
+        // Header kolom (baris 5)
+        $headers = ['No', 'Tanggal', 'Seksi', 'Uraian / Keterangan', 'No Bukti', 'Pengeluaran (Rp)', 'Saldo (Rp)', 'Status'];
+        $cols    = ['A','B','C','D','E','F','G','H'];
+        foreach ($headers as $i => $h) {
+            $sheet->setCellValue($cols[$i] . '5', $h);
+        }
+        $sheet->getStyle('A5:H5')->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1e3a5f']],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'wrapText'   => true,
+            ],
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension(5)->setRowHeight(24);
+
+        // ── Baris data ─────────────────────────────────────────────────────
+        $dataRow  = 6;
+        $no       = 1;
+        $saldo    = 0.0;   // running balance tunggal lintas seksi
+
+        $borderStyle = [
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+        ];
+        $altFill = [
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
+        ];
+
+        foreach ($rows as $t) {
+            $nilai     = (float) ($t['nilai'] ?? 0);
+            $statusKey = $t['status'] ?? '';
+            $saldo    += $nilai;   // running balance tanpa memandang status
+
+            $uraianTampil = $t['uraian'] ?? '';
+            if (!empty($t['nama_penerima'])) {
+                $uraianTampil .= "\na.n. " . $t['nama_penerima'];
+            }
+
+            $sheet->setCellValue('A' . $dataRow, $no);
+            $sheet->setCellValue('B' . $dataRow, date('d/m/Y', strtotime($t['tanggal'])));
+            $sheet->setCellValue('C' . $dataRow, $t['nama_seksi'] ?? '-');
+            $sheet->setCellValue('D' . $dataRow, $uraianTampil);
+            $sheet->setCellValue('E' . $dataRow, $t['nomor_bukti'] ?? '-');
+            $sheet->setCellValue('F' . $dataRow, $nilai);
+            $sheet->setCellValue('G' . $dataRow, $saldo);
+            $sheet->setCellValue('H' . $dataRow, $statusLabel[$statusKey] ?? ucfirst($statusKey));
+
+            // Format angka
+            $sheet->getStyle('F' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('G' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
+
+            // Border + zebra
+            $sheet->getStyle('A' . $dataRow . ':H' . $dataRow)->applyFromArray($borderStyle);
+            if ($no % 2 === 0) {
+                $sheet->getStyle('A' . $dataRow . ':H' . $dataRow)->applyFromArray($altFill);
+            }
+
+            // Warna kolom status
+            if (isset($statusFill[$statusKey])) {
+                $sheet->getStyle('H' . $dataRow)->applyFromArray([
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => $statusFill[$statusKey]],
+                    'font' => ['bold' => true, 'color' => $statusColor[$statusKey]],
+                ]);
+            }
+
+            // Alignment
+            $sheet->getStyle('A' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('B' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('C' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('D' . $dataRow)->getAlignment()->setWrapText(true);
+            $sheet->getStyle('E' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('F' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('G' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('H' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+            $dataRow++;
+            $no++;
+        }
+
+        // ── Baris total / kosong ───────────────────────────────────────────
+        if (count($rows) === 0) {
+            $sheet->mergeCells('A6:H6');
+            $sheet->setCellValue('A6', 'Tidak ada transaksi pada periode ini.');
+            $sheet->getStyle('A6')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A6')->getFont()->setItalic(true);
+            $sheet->getStyle('A6')->getFont()->getColor()->setRGB('64748B');
+        } else {
+            $totalRow = $dataRow;
+            $sheet->mergeCells('A' . $totalRow . ':E' . $totalRow);
+            $sheet->setCellValue('A' . $totalRow, 'TOTAL PENGELUARAN');
+
+            $totalNilai = array_sum(array_column($rows, 'nilai'));
+            $sheet->setCellValue('F' . $totalRow, (float) $totalNilai);
+            $sheet->getStyle('F' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+
+            // Saldo akhir (sama dengan total karena semua baris dihitung)
+            $sheet->setCellValue('G' . $totalRow, $saldo);
+            $sheet->getStyle('G' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+
+            $sheet->getStyle('A' . $totalRow . ':H' . $totalRow)->applyFromArray([
+                'font'      => ['bold' => true],
+                'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'DBEAFE']],
+                'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => '93C5FD']]],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT],
+            ]);
+            $sheet->getStyle('A' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('F' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('G' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
+
+        // ── Lebar kolom ────────────────────────────────────────────────────
+        $sheet->getColumnDimension('A')->setWidth(5);
+        $sheet->getColumnDimension('B')->setWidth(13);
+        $sheet->getColumnDimension('C')->setWidth(18);
+        $sheet->getColumnDimension('D')->setWidth(40);
+        $sheet->getColumnDimension('E')->setWidth(28);
+        $sheet->getColumnDimension('F')->setWidth(20);
+        $sheet->getColumnDimension('G')->setWidth(20);
+        $sheet->getColumnDimension('H')->setWidth(22);
+
+        // ── Nama file & kirim ke browser ───────────────────────────────────
+        $fileName = 'BKU_CDK_Bojonegoro_' . $namaBulan . '_' . $tahun . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
 }

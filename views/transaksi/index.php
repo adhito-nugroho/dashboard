@@ -137,6 +137,9 @@ $isFiltered = !empty($activeFilterLabels);
                     <a href="<?= base_url('transaksi') ?>" class="btn btn-outline-secondary" id="btn-reset">
                         <i class="bi bi-x-circle me-1"></i>Reset
                     </a>
+                    <button type="button" class="btn btn-success" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter Bulan &amp; Tahun aktif">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Unduh BKU
+                    </button>
                 </div>
                 <!-- Status -->
                 <div class="col-auto">
@@ -362,4 +365,29 @@ document.querySelectorAll('.btn-tolak').forEach(btn => {
         modal.show();
     });
 });
+
+// Tombol Unduh BKU CDK
+(function () {
+    var btnBku = document.getElementById('btn-unduh-bku');
+    if (!btnBku) return;
+    btnBku.addEventListener('click', function () {
+        var selBulan = document.getElementById('filter-bulan').value;
+        var selTahun = document.getElementById('filter-tahun').value;
+        if (!selBulan || !selTahun) {
+            alert('Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU');
+            return;
+        }
+        // Kumpulkan semua filter yang aktif saat ini
+        var params = new URLSearchParams();
+        params.set('bulan', selBulan);
+        params.set('tahun', selTahun);
+        var keg = document.getElementById('filter-kegiatan').value;
+        if (keg) params.set('kegiatan_id', keg);
+        var subKeg = document.getElementById('filter-sub-kegiatan').value;
+        if (subKeg) params.set('sub_kegiatan_id', subKeg);
+        var status = document.getElementById('filter-status').value;
+        if (status) params.set('status', status);
+        window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
+    });
+})();
 </script>
