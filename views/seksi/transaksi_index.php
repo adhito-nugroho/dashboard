@@ -192,6 +192,9 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
             </div>
             <div class="col-md-2 col-12 d-flex gap-2 btn-col filter-search-row">
                 <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Cari</button>
+                <button type="button" id="btnUnduhBku" class="btn btn-success btn-sm flex-shrink-0" title="Unduh BKU bulan &amp; tahun yang aktif">
+                    <i class="bi bi-file-earmark-excel me-1"></i>BKU
+                </button>
             </div>
         </form>
     </div>
@@ -556,5 +559,21 @@ document.addEventListener('DOMContentLoaded', function(){
             // allow normal link navigation
         });
     });
+
+    // Tombol Unduh Excel BKU
+    var btnBku = document.getElementById('btnUnduhBku');
+    if (btnBku && form) {
+        btnBku.addEventListener('click', function() {
+            var selBulan = form.querySelector('select[name="bulan"]').value;
+            var selTahun = form.querySelector('select[name="tahun"]').value;
+            if (!selBulan || !selTahun) {
+                alert('Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU');
+                return;
+            }
+            var url = <?= json_encode(base_url('seksi/transaksi/bku')) ?>;
+            url += '?bulan=' + encodeURIComponent(selBulan) + '&tahun=' + encodeURIComponent(selTahun);
+            window.location.href = url;
+        });
+    }
 });
 </script>

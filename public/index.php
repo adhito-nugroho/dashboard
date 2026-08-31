@@ -478,6 +478,8 @@ try {
         $seksiTransaksiController->searchSuratTugas();
     } elseif ($path === '/seksi/transaksi/pegawai-st' && $requestMethod === 'GET') {
         $seksiTransaksiController->getPegawaiSuratTugas();
+    } elseif ($path === '/seksi/transaksi/bku' && $requestMethod === 'GET') {
+        $seksiTransaksiController->downloadBku();
     } else {
         // 404 Not Found
         http_response_code(404);

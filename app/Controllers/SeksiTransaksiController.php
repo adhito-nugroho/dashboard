@@ -541,6 +541,187 @@ class SeksiTransaksiController
     }
 
     /**
+     * Download BKU (Buku Kas Umum) seksi dalam format Excel.
+     * Hanya transaksi berstatus 'diverifikasi', filter bulan & tahun wajib.
+     */
+    public function downloadBku(): void
+    {
+        $this->requireSeksi();
+
+        $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
+        $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : null;
+
+        if ($bulan === null || $tahun === null || $bulan < 1 || $bulan > 12 || $tahun < 2000) {
+            http_response_code(400);
+            echo 'Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU';
+            exit;
+        }
+
+        $seksiId = $this->userSeksiId();
+        $db = \Database::getConnection();
+
+        // Ambil nama seksi
+        $stmtSeksi = $db->prepare('SELECT nama_seksi FROM seksi WHERE id = ?');
+        $stmtSeksi->execute([$seksiId]);
+        $namaSeksi = $stmtSeksi->fetchColumn() ?: 'Seksi';
+
+        // Ambil transaksi diverifikasi milik seksi ini, urut tanggal ASC lalu id ASC (saldo berjalan)
+        $stmt = $db->prepare("
+            SELECT t.tanggal, t.uraian, t.nomor_bukti, t.nilai, t.nama_penerima
+            FROM transaksi t
+            WHERE t.seksi_id = :seksi_id
+              AND t.status = 'diverifikasi'
+              AND MONTH(t.tanggal) = :bulan
+              AND YEAR(t.tanggal) = :tahun
+            ORDER BY t.tanggal ASC, t.id ASC
+        ");
+        $stmt->execute([':seksi_id' => $seksiId, ':bulan' => $bulan, ':tahun' => $tahun]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Nama bulan Indonesia
+        $namaBulanMap = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+        $namaBulan = $namaBulanMap[$bulan] ?? (string) $bulan;
+
+        // Generate Excel menggunakan PhpSpreadsheet
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('BKU');
+
+        // ── Header organisasi ──────────────────────────────────────────────
+        $sheet->mergeCells('A1:F1');
+        $sheet->setCellValue('A1', 'BUKU KAS UMUM (BKU)');
+        $sheet->mergeCells('A2:F2');
+        $sheet->setCellValue('A2', strtoupper($namaSeksi));
+        $sheet->mergeCells('A3:F3');
+        $sheet->setCellValue('A3', 'Bulan: ' . $namaBulan . ' ' . $tahun);
+
+        // Style header teks
+        foreach (['A1', 'A2', 'A3'] as $cell) {
+            $sheet->getStyle($cell)->applyFromArray([
+                'font'      => ['bold' => true, 'size' => 12],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            ]);
+        }
+        $sheet->getStyle('A1')->getFont()->setSize(14);
+
+        // ── Header kolom (baris 5) ─────────────────────────────────────────
+        $headers = ['No', 'Tanggal', 'Uraian / Keterangan', 'No Bukti', 'Pengeluaran (Rp)', 'Saldo (Rp)'];
+        $cols    = ['A', 'B', 'C', 'D', 'E', 'F'];
+        foreach ($headers as $i => $h) {
+            $sheet->setCellValue($cols[$i] . '5', $h);
+        }
+        $headerStyle = [
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1e40af']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+        $sheet->getStyle('A5:F5')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(5)->setRowHeight(24);
+
+        // ── Data baris ────────────────────────────────────────────────────
+        $row     = 6;
+        $no      = 1;
+        $saldo   = 0.0;
+
+        $dataStyle = [
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+        ];
+        $altStyle = [
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
+        ];
+
+        foreach ($rows as $t) {
+            $nilai   = (float) ($t['nilai'] ?? 0);
+            $saldo  += $nilai;
+
+            $uraianTampil = $t['uraian'] ?? '';
+            if (!empty($t['nama_penerima'])) {
+                $uraianTampil .= "\na.n. " . $t['nama_penerima'];
+            }
+
+            $sheet->setCellValue('A' . $row, $no);
+            $sheet->setCellValue('B' . $row, date('d/m/Y', strtotime($t['tanggal'])));
+            $sheet->setCellValue('C' . $row, $uraianTampil);
+            $sheet->setCellValue('D' . $row, $t['nomor_bukti'] ?? '-');
+            $sheet->setCellValue('E' . $row, $nilai);
+            $sheet->setCellValue('F' . $row, $saldo);
+
+            // Format angka
+            $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
+
+            $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray($dataStyle);
+            if ($no % 2 === 0) {
+                $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray($altStyle);
+            }
+
+            // Alignment
+            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('C' . $row)->getAlignment()->setWrapText(true);
+            $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('E' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('F' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+            $row++;
+            $no++;
+        }
+
+        // ── Baris total ───────────────────────────────────────────────────
+        if (count($rows) === 0) {
+            $sheet->mergeCells('A6:F6');
+            $sheet->setCellValue('A6', 'Tidak ada transaksi diverifikasi pada periode ini.');
+            $sheet->getStyle('A6')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A6')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF64748B'));
+            $row = 7;
+        } else {
+            $totalRow = $row;
+            $sheet->mergeCells('A' . $totalRow . ':D' . $totalRow);
+            $sheet->setCellValue('A' . $totalRow, 'TOTAL PENGELUARAN');
+            $sheet->setCellValue('E' . $totalRow, $saldo);
+            $sheet->setCellValue('F' . $totalRow, $saldo);
+            $sheet->getStyle('E' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('F' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            $totalStyle = [
+                'font'      => ['bold' => true],
+                'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'DBEAFE']],
+                'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => '93C5FD']]],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT],
+            ];
+            $sheet->getStyle('A' . $totalRow . ':F' . $totalRow)->applyFromArray($totalStyle);
+            $sheet->getStyle('A' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        }
+
+        // ── Lebar kolom ───────────────────────────────────────────────────
+        $sheet->getColumnDimension('A')->setWidth(5);
+        $sheet->getColumnDimension('B')->setWidth(13);
+        $sheet->getColumnDimension('C')->setWidth(45);
+        $sheet->getColumnDimension('D')->setWidth(28);
+        $sheet->getColumnDimension('E')->setWidth(20);
+        $sheet->getColumnDimension('F')->setWidth(20);
+
+        // ── Nama file & download ───────────────────────────────────────────
+        // Sanitasi nama seksi untuk nama file (hapus karakter non-alfanumerik kecuali spasi dan tanda hubung)
+        $namaSeksiFile = preg_replace('/[^A-Za-z0-9\s\-]/', '', $namaSeksi);
+        $namaSeksiFile = preg_replace('/\s+/', '_', trim($namaSeksiFile));
+        $fileName = 'BKU_' . $namaSeksiFile . '_' . $namaBulan . '_' . $tahun . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
      * AJAX: Cari Surat Tugas dari db_surat_tugas (Read-only)
      */
     public function searchSuratTugas(): void
