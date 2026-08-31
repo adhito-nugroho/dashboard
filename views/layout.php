@@ -141,6 +141,13 @@
                                     <span>Transaksi</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'spj') ? 'active' : '' ?>"
+                                    href="<?= base_url('spj') ?>">
+                                    <i class="bi bi-briefcase"></i>
+                                    <span>SPJ Perjalanan Dinas</span>
+                                </a>
+                            </li>
                         <?php endif; ?>
                     </ul>
                 </nav>

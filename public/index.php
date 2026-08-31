@@ -51,6 +51,8 @@ require_once __DIR__ . '/../app/Controllers/AuthController.php';
 require_once __DIR__ . '/../app/Controllers/DashboardSeksiController.php';
 require_once __DIR__ . '/../app/Controllers/SeksiTransaksiController.php';
 require_once __DIR__ . '/../app/Controllers/ExcelController.php';
+require_once __DIR__ . '/../app/Models/RincianBiaya.php';
+require_once __DIR__ . '/../app/Controllers/SpjController.php';
 
 use App\Models\Program;
 use App\Models\Kegiatan;
@@ -73,6 +75,8 @@ use App\Controllers\AuthController;
 use App\Controllers\DashboardSeksiController;
 use App\Controllers\SeksiTransaksiController;
 use App\Controllers\ExcelController;
+use App\Models\RincianBiaya;
+use App\Controllers\SpjController;
 
 try {
     // Get database connection
@@ -100,6 +104,8 @@ try {
     $dashboardSeksiController = new DashboardSeksiController();
     $seksiTransaksiController = new SeksiTransaksiController();
     $excelController = new ExcelController($paguModel, $rakModel, $transaksiModel, $seksiModel);
+    $rincianBiayaModel = new RincianBiaya($db);
+    $spjController = new SpjController($rincianBiayaModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -452,6 +458,23 @@ try {
         $transaksiController->getRekeningsWithBudget();
     } elseif ($path === '/transaksi/bku-cdk' && $requestMethod === 'GET') {
         $transaksiController->downloadBkuCdk();
+    }
+    // Route matching - SPJ Rincian Biaya Perjalanan Dinas (admin only)
+    elseif ($path === '/spj' || $path === '/spj/') {
+        $spjController->index();
+    } elseif (preg_match('#^/spj/detail/(\d+)$#', $path, $matches)) {
+        $spjController->detail((int) $matches[1]);
+    } elseif (preg_match('#^/spj/create/(\d+)/(.+)$#', $path, $matches)) {
+        // $matches[2] = NIP (URL-encoded, sudah di-decode oleh PHP lewat REQUEST_URI)
+        $spjController->create((int) $matches[1], urldecode($matches[2]));
+    } elseif ($path === '/spj/store' && $requestMethod === 'POST') {
+        $spjController->store();
+    } elseif (preg_match('#^/spj/edit/(\d+)$#', $path, $matches)) {
+        $spjController->edit((int) $matches[1]);
+    } elseif (preg_match('#^/spj/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $spjController->update((int) $matches[1]);
+    } elseif (preg_match('#^/spj/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $spjController->delete((int) $matches[1]);
     }
     // Route matching - Input Transaksi Seksi (role seksi)
     elseif ($path === '/seksi/transaksi' || $path === '/seksi/transaksi/') {
