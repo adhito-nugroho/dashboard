@@ -613,6 +613,47 @@ class Transaksi
     }
 
     /**
+     * Delete multiple transactions by IDs in a single database transaction.
+     * Also unlinks any associated rincian_biaya_perjalanan_dinas.
+     * 
+     * @param int[] $ids
+     * @return int Number of deleted transactions
+     */
+    public function deleteBatch(array $ids): int
+    {
+        $validIds = array_values(array_filter(array_map('intval', $ids), fn($id) => $id > 0));
+        if (empty($validIds)) {
+            return 0;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $placeholders = implode(',', array_fill(0, count($validIds), '?'));
+
+            // Unlink rincian_biaya_perjalanan_dinas jika ada
+            try {
+                $unlinkStmt = $this->db->prepare("UPDATE rincian_biaya_perjalanan_dinas SET transaksi_id = NULL WHERE transaksi_id IN ($placeholders)");
+                $unlinkStmt->execute($validIds);
+            } catch (\Exception $e) {
+                // Kolom/tabel mungkin opsional jika belum dimigrasi
+                error_log("Notice unlinking rincian_biaya_perjalanan_dinas on deleteBatch: " . $e->getMessage());
+            }
+
+            // Hapus data transaksi
+            $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id IN ($placeholders)");
+            $stmt->execute($validIds);
+            $deletedCount = $stmt->rowCount();
+
+            $this->db->commit();
+            return $deletedCount;
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            error_log('Error in Transaksi::deleteBatch: ' . $e->getMessage());
+            throw new \RuntimeException('Gagal menghapus batch transaksi: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Get all transactions filtered by month and year
      * 
      * @param int $bulan Month (1-12)
