@@ -588,6 +588,34 @@ class TransaksiController
     }
 
     /**
+     * Delete multiple transactions
+     */
+    public function deleteBatch(): void
+    {
+        try {
+            $ids = $_POST['ids'] ?? [];
+            if (!is_array($ids) || empty($ids)) {
+                $this->redirectWithMessage(base_url('transaksi'), 'error', 'Tidak ada transaksi yang dipilih untuk dihapus.');
+                return;
+            }
+
+            $validIds = array_values(array_filter(array_map('intval', $ids), fn($id) => $id > 0));
+            if (empty($validIds)) {
+                $this->redirectWithMessage(base_url('transaksi'), 'error', 'ID transaksi yang dipilih tidak valid.');
+                return;
+            }
+
+            $deletedCount = $this->transaksiModel->deleteBatch($validIds);
+
+            $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
+            $this->redirectWithMessage($redirectUrl, 'success', "Berhasil menghapus {$deletedCount} transaksi.");
+        } catch (\Exception $e) {
+            $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
+            $this->redirectWithMessage($redirectUrl, 'error', 'Gagal menghapus transaksi: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * AJAX: Generate nomor bukti otomatis format 123.6.6/GU/urut/BULAN_ROMAWI/TAHUN
      * Urut berdasarkan jumlah transaksi yang sudah terinput pada bulan+tahun tersebut.
      */

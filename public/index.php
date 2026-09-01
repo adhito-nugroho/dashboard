@@ -447,6 +447,8 @@ try {
     } elseif (preg_match('#^/transaksi/delete/(\d+)$#', $path, $matches)) {
         $id = (int) $matches[1];
         $transaksiController->delete($id);
+    } elseif ($path === '/transaksi/delete-batch' && $requestMethod === 'POST') {
+        $transaksiController->deleteBatch();
     } elseif (preg_match('#^/transaksi/verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $transaksiController->verifikasi((int) $matches[1]);
     } elseif (preg_match('#^/transaksi/tolak/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
