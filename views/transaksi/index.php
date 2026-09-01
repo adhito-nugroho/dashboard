@@ -182,6 +182,22 @@ $isFiltered = !empty($activeFilterLabels);
     })();
     </script>
 
+    <!-- Bulk Action Toolbar -->
+    <div id="bulk-action-bar" class="d-none alert alert-light border border-danger-subtle bg-danger-subtle bg-opacity-10 d-flex align-items-center justify-content-between p-2 mb-3 shadow-sm rounded">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-check2-square text-danger fs-5 me-2"></i>
+            <span class="fw-semibold text-dark"><span id="selected-count">0</span> transaksi terpilih</span>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-uncheck-all">
+                <i class="bi bi-x me-1"></i>Batal Pilih
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" id="btn-bulk-delete">
+                <i class="bi bi-trash me-1"></i>Hapus Terpilih
+            </button>
+        </div>
+    </div>
+
     <!-- Transactions Table -->
     <div class="card">
         <div class="card-body">
@@ -210,15 +226,18 @@ $isFiltered = !empty($activeFilterLabels);
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th width="5%">No</th>
+                                <th width="4%" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="check-all-trx" title="Pilih Semua di Halaman Ini">
+                                </th>
+                                <th width="4%">No</th>
                                 <th width="8%">Tanggal</th>
                                 <th width="10%">Seksi</th>
                                 <th width="10%">Rekening</th>
-                                <th width="22%">Uraian</th>
+                                <th width="20%">Uraian</th>
                                 <th width="12%" class="text-end">Nilai</th>
                                 <th width="9%">Nomor Bukti</th>
                                 <th width="9%" class="text-center">Status</th>
-                                <th width="15%" class="text-center">Aksi</th>
+                                <th width="14%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -228,6 +247,9 @@ $isFiltered = !empty($activeFilterLabels);
                                 $totalNilai += (float) $transaksi['nilai'];
                             ?>
                                 <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input row-trx-checkbox" value="<?= $transaksi['id'] ?>">
+                                    </td>
                                     <td><?= $index + 1 ?></td>
                                     <td><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></td>
                                     <td>
@@ -247,8 +269,8 @@ $isFiltered = !empty($activeFilterLabels);
                                     <td><?= htmlspecialchars($transaksi['nomor_bukti']) ?></td>
                                     <td class="text-center">
                                         <?php
-                                            $st = $transaksi['status'] ?? 'diverifikasi';
-                                            $stLabel = $statusLabels[$st] ?? [ucfirst($st), 'secondary'];
+                                             $st = $transaksi['status'] ?? 'diverifikasi';
+                                             $stLabel = $statusLabels[$st] ?? [ucfirst($st), 'secondary'];
                                         ?>
                                         <span class="badge bg-<?= $stLabel[1] ?>"><?= $stLabel[0] ?></span>
                                         <?php if ($st === 'ditolak' && !empty($transaksi['catatan_verifikasi'])): ?>
@@ -292,7 +314,7 @@ $isFiltered = !empty($activeFilterLabels);
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="6" class="text-end">
+                                <td colspan="7" class="text-end">
                                     <strong>
                                         Total<?= $filterBulan !== null ? ' ' . $namaBulan[$filterBulan] . ' ' . $filterTahun : '' ?>:
                                     </strong>
@@ -347,6 +369,32 @@ $isFiltered = !empty($activeFilterLabels);
     </div>
 </div>
 
+<!-- Modal Konfirmasi Hapus Banyak -->
+<div class="modal fade" id="modalBulkDelete" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formBulkDelete" method="POST" action="<?= base_url('transaksi/delete-batch') ?>">
+            <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? base_url('transaksi')) ?>">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Banyak Transaksi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Apakah Anda yakin ingin menghapus <strong id="modal-delete-count" class="text-danger">0</strong> transaksi yang dipilih?</p>
+                <div class="alert alert-warning py-2 mb-0 small">
+                    <i class="bi bi-exclamation-circle me-1"></i> Data transaksi yang dihapus tidak dapat dikembalikan.
+                </div>
+                <div id="bulk-delete-inputs"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash me-1"></i> Ya, Hapus Sekarang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 const VERIF_BASE = '<?= rtrim(base_url(), '/') ?>';
 document.querySelectorAll('.btn-verifikasi').forEach(btn => {
@@ -371,6 +419,85 @@ document.querySelectorAll('.btn-tolak').forEach(btn => {
         modal.show();
     });
 });
+
+// Bulk Delete Selection Logic
+(function () {
+    const checkAll = document.getElementById('check-all-trx');
+    const rowCheckboxes = document.querySelectorAll('.row-trx-checkbox');
+    const bulkBar = document.getElementById('bulk-action-bar');
+    const selectedCountEl = document.getElementById('selected-count');
+    const modalDeleteCountEl = document.getElementById('modal-delete-count');
+    const btnUncheck = document.getElementById('btn-uncheck-all');
+    const btnBulkDelete = document.getElementById('btn-bulk-delete');
+    const modalBulkDeleteEl = document.getElementById('modalBulkDelete');
+    const modalBulkDelete = modalBulkDeleteEl ? new bootstrap.Modal(modalBulkDeleteEl) : null;
+    const inputsContainer = document.getElementById('bulk-delete-inputs');
+
+    function updateSelectionState() {
+        const checkedBoxes = document.querySelectorAll('.row-trx-checkbox:checked');
+        const count = checkedBoxes.length;
+
+        if (selectedCountEl) selectedCountEl.textContent = count;
+        if (modalDeleteCountEl) modalDeleteCountEl.textContent = count;
+
+        if (bulkBar) {
+            if (count > 0) {
+                bulkBar.classList.remove('d-none');
+            } else {
+                bulkBar.classList.add('d-none');
+            }
+        }
+
+        if (checkAll && rowCheckboxes.length > 0) {
+            checkAll.checked = count === rowCheckboxes.length;
+            checkAll.indeterminate = count > 0 && count < rowCheckboxes.length;
+        }
+    }
+
+    if (checkAll) {
+        checkAll.addEventListener('change', function () {
+            rowCheckboxes.forEach(cb => {
+                cb.checked = checkAll.checked;
+            });
+            updateSelectionState();
+        });
+    }
+
+    rowCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectionState);
+    });
+
+    if (btnUncheck) {
+        btnUncheck.addEventListener('click', function () {
+            if (checkAll) {
+                checkAll.checked = false;
+                checkAll.indeterminate = false;
+            }
+            rowCheckboxes.forEach(cb => cb.checked = false);
+            updateSelectionState();
+        });
+    }
+
+    if (btnBulkDelete && modalBulkDelete) {
+        btnBulkDelete.addEventListener('click', function () {
+            const checkedBoxes = document.querySelectorAll('.row-trx-checkbox:checked');
+            if (checkedBoxes.length === 0) return;
+
+            if (inputsContainer) {
+                inputsContainer.innerHTML = '';
+                checkedBoxes.forEach(cb => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'ids[]';
+                    hiddenInput.value = cb.value;
+                    inputsContainer.appendChild(hiddenInput);
+                });
+            }
+
+            modalBulkDelete.show();
+        });
+    }
+})();
 
 // Tombol Unduh BKU CDK
 (function () {
