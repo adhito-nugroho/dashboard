@@ -63,6 +63,99 @@ class RincianBiaya
     }
 
     /**
+     * Ambil rincian biaya (header + detail) yang terhubung ke transaksi_id tertentu.
+     */
+    public function getByTransaksiId(int $transaksiId): ?array
+    {
+        $stmt = $this->db->prepare("
+            SELECT * FROM rincian_biaya_perjalanan_dinas
+            WHERE transaksi_id = ? LIMIT 1
+        ");
+        $stmt->execute([$transaksiId]);
+        $header = $stmt->fetch();
+        if (!$header) return null;
+
+        $stmtD = $this->db->prepare("
+            SELECT * FROM rincian_biaya_perjalanan_dinas_detail
+            WHERE rincian_biaya_id = ? ORDER BY urutan ASC, id ASC
+        ");
+        $stmtD->execute([$header['id']]);
+        return ['header' => $header, 'details' => $stmtD->fetchAll()];
+    }
+
+    /**
+     * Simpan rincian biaya yang terhubung langsung ke satu transaksi (diinput seksi).
+     * Jika sudah ada record untuk transaksi_id ini, hapus lalu insert ulang (upsert).
+     */
+    public function upsertDariTransaksi(
+        int     $transaksiId,
+        int     $suratTugasId,
+        string  $nomorSurat,
+        string  $pegawaiNip,
+        string  $pegawaiNama,
+        ?string $pegawaiPangkat,
+        ?string $pegawaiJabatan,
+        float   $ditetapkanSejumlah,
+        float   $dibayarSemula,
+        ?string $tempatTanggal,
+        ?int    $userId,
+        array   $details
+    ): int {
+        $this->db->beginTransaction();
+        try {
+            // Cek sudah ada?
+            $existing = $this->db->prepare(
+                "SELECT id FROM rincian_biaya_perjalanan_dinas WHERE transaksi_id = ? LIMIT 1"
+            );
+            $existing->execute([$transaksiId]);
+            $existingId = $existing->fetchColumn();
+
+            if ($existingId) {
+                // Update header + hapus-insert detail
+                $this->db->prepare("
+                    UPDATE rincian_biaya_perjalanan_dinas
+                    SET surat_tugas_id = ?, nomor_surat = ?, pegawai_nip = ?, pegawai_nama = ?,
+                        pegawai_pangkat = ?, pegawai_jabatan = ?,
+                        ditetapkan_sejumlah = ?, dibayar_semula = ?,
+                        tempat_tanggal = ?, updated_by = ?, updated_at = NOW()
+                    WHERE id = ?
+                ")->execute([
+                    $suratTugasId, $nomorSurat, $pegawaiNip, $pegawaiNama,
+                    $pegawaiPangkat, $pegawaiJabatan,
+                    $ditetapkanSejumlah, $dibayarSemula,
+                    $tempatTanggal, $userId, $existingId,
+                ]);
+                $this->db->prepare(
+                    "DELETE FROM rincian_biaya_perjalanan_dinas_detail WHERE rincian_biaya_id = ?"
+                )->execute([$existingId]);
+                $this->insertDetails($existingId, $details);
+                $this->db->commit();
+                return (int) $existingId;
+            }
+
+            // Insert baru
+            $this->db->prepare("
+                INSERT INTO rincian_biaya_perjalanan_dinas
+                    (transaksi_id, surat_tugas_id, nomor_surat, pegawai_nip, pegawai_nama,
+                     pegawai_pangkat, pegawai_jabatan, ditetapkan_sejumlah, dibayar_semula,
+                     tempat_tanggal, created_by, updated_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $transaksiId, $suratTugasId, $nomorSurat, $pegawaiNip, $pegawaiNama,
+                $pegawaiPangkat, $pegawaiJabatan, $ditetapkanSejumlah, $dibayarSemula,
+                $tempatTanggal, $userId, $userId,
+            ]);
+            $newId = (int) $this->db->lastInsertId();
+            $this->insertDetails($newId, $details);
+            $this->db->commit();
+            return $newId;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Cek apakah rincian biaya untuk (surat_tugas_id, pegawai_nip) sudah ada.
      * Mengembalikan ID jika ada, null jika belum.
      */

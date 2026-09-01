@@ -260,6 +260,9 @@ $isFiltered = !empty($activeFilterLabels);
                                     <td class="text-center">
                                         <?php if (($transaksi['status'] ?? 'diverifikasi') === 'diajukan'): ?>
                                             <div class="btn-group" role="group">
+                                                <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-secondary" title="Detail">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
                                                 <button type="button" class="btn btn-sm btn-success btn-verifikasi" data-id="<?= $transaksi['id'] ?>">
                                                     <i class="bi bi-check-lg"></i> Verifikasi
                                                 </button>
@@ -269,6 +272,9 @@ $isFiltered = !empty($activeFilterLabels);
                                             </div>
                                         <?php else: ?>
                                             <div class="btn-group" role="group">
+                                                <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-secondary" title="Detail">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
                                                 <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>

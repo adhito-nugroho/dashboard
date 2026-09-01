@@ -506,6 +506,10 @@ try {
         $seksiTransaksiController->getPegawaiSuratTugas();
     } elseif ($path === '/seksi/transaksi/bku' && $requestMethod === 'GET') {
         $seksiTransaksiController->downloadBku();
+    } elseif ($path === '/seksi/transaksi/unduh-rincian-biaya' && $requestMethod === 'GET') {
+        $seksiTransaksiController->downloadRincianBiaya();
+    } elseif (preg_match('#^/transaksi/show/(\d+)$#', $path, $matches)) {
+        $transaksiController->show((int) $matches[1]);
     } else {
         // 404 Not Found
         http_response_code(404);

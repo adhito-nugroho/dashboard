@@ -203,12 +203,16 @@ class SeksiTransaksiController
         $createdCount = 0;
         $errors = [];
 
+        // Instansiasi model rincian biaya (reuse koneksi yang sama)
+        $rincianBiayaModel = new \App\Models\RincianBiaya($db);
+
         foreach ($items as $idx => $item) {
-            $nomorBukti = trim($item['nomor_bukti'] ?? '');
-            $uraian = trim($item['uraian'] ?? '');
-            $rawNilai = str_replace(['.', ','], '', $item['nilai'] ?? '0');
-            $nilai = (float) $rawNilai;
+            $nomorBukti   = trim($item['nomor_bukti'] ?? '');
+            $uraian       = trim($item['uraian'] ?? '');
+            $rawNilai     = str_replace(['.', ','], '', $item['nilai'] ?? '0');
+            $nilai        = (float) $rawNilai;
             $namaPenerima = trim($item['nama_penerima'] ?? '');
+            $pegawaiNip   = trim($item['pegawai_nip'] ?? '');
 
             if ($nomorBukti === '' || $uraian === '' || $nilai <= 0) {
                 $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nomor bukti, uraian, dan nilai harus valid.";
@@ -230,10 +234,51 @@ class SeksiTransaksiController
                     !empty($item['tanggal_surat_tugas']) ? $item['tanggal_surat_tugas'] : null,
                     !empty($item['tanggal_pelaksanaan']) ? $item['tanggal_pelaksanaan'] : null,
                     !empty(trim($item['lokasi_kegiatan'] ?? '')) ? trim($item['lokasi_kegiatan']) : null,
-                    !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : null
+                    !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : null,
+                    $pegawaiNip ?: null
                 );
                 $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input batch transaksi Surat Tugas an. ' . $namaPenerima);
                 $createdCount++;
+
+                // Simpan rincian biaya jika ada komponen terisi
+                $komponen = $item['komponen'] ?? [];
+                $detailsValid = [];
+                if (is_array($komponen)) {
+                    foreach ($komponen as $k) {
+                        $namaK = trim($k['nama_komponen'] ?? '');
+                        if ($namaK === '') continue;
+                        $harga  = (float) str_replace(['.', ','], ['', '.'], $k['harga_satuan'] ?? '0');
+                        $hari   = isset($k['jumlah_hari']) && $k['jumlah_hari'] !== '' ? (float) $k['jumlah_hari'] : null;
+                        $jml    = (float) str_replace(['.', ','], ['', '.'], $k['jumlah'] ?? '0');
+                        if ($jml <= 0) $jml = $hari !== null ? $harga * $hari : $harga;
+                        $detailsValid[] = [
+                            'nama_komponen' => $namaK,
+                            'harga_satuan'  => $harga,
+                            'jumlah_hari'   => $hari,
+                            'jumlah'        => $jml,
+                            'keterangan'    => trim($k['keterangan'] ?? '') ?: null,
+                        ];
+                    }
+                }
+
+                if (!empty($detailsValid) && $pegawaiNip !== '') {
+                    $stRefId    = !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : 0;
+                    $nomorSurat = trim($item['nomor_surat_tugas'] ?? '');
+                    $rincianBiayaModel->upsertDariTransaksi(
+                        $id,
+                        $stRefId,
+                        $nomorSurat,
+                        $pegawaiNip,
+                        $namaPenerima ?: 'Pegawai',
+                        null, // pangkat tidak tersedia di form batch
+                        null, // jabatan tidak tersedia di form batch
+                        (float) str_replace(['.', ','], ['', '.'], $item['ditetapkan_sejumlah'] ?? '0'),
+                        (float) str_replace(['.', ','], ['', '.'], $item['dibayar_semula'] ?? '0'),
+                        trim($item['tempat_tanggal'] ?? '') ?: null,
+                        $userId,
+                        $detailsValid
+                    );
+                }
             } catch (\Throwable $e) {
                 $errors[] = "Gagal menyimpan baris #" . ($idx + 1) . ": " . $e->getMessage();
             }
@@ -793,6 +838,180 @@ class SeksiTransaksiController
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Unduh Excel Rincian Biaya untuk satu transaksi perjalanan dinas (per pegawai).
+     * Akses: GET /seksi/transaksi/unduh-rincian-biaya?transaksi_id=X
+     */
+    public function downloadRincianBiaya(): void
+    {
+        $this->requireSeksi();
+        $userId      = (int) ($_SESSION['user_id'] ?? 0);
+        $transaksiId = (int) ($_GET['transaksi_id'] ?? 0);
+
+        if (!$transaksiId) {
+            http_response_code(400);
+            echo 'ID Transaksi tidak valid.';
+            exit;
+        }
+
+        $db = \Database::getConnection();
+
+        // Pastikan transaksi ini milik user yang sedang login
+        $stmtT = $db->prepare("SELECT * FROM transaksi WHERE id = ? AND input_by = ? LIMIT 1");
+        $stmtT->execute([$transaksiId, $userId]);
+        $transaksi = $stmtT->fetch(\PDO::FETCH_ASSOC);
+        if (!$transaksi) {
+            http_response_code(403);
+            echo 'Transaksi tidak ditemukan atau Anda tidak memiliki akses.';
+            exit;
+        }
+
+        require_once __DIR__ . '/../../app/Models/RincianBiaya.php';
+        $rincianModel = new \App\Models\RincianBiaya($db);
+        $data = $rincianModel->getByTransaksiId($transaksiId);
+
+        if (!$data) {
+            http_response_code(404);
+            echo 'Rincian biaya untuk transaksi ini belum diisi.';
+            exit;
+        }
+
+        $header  = $data['header'];
+        $details = $data['details'];
+
+        $namaBulanMap = [
+            1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',
+            5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',
+            9=>'September',10=>'Oktober',11=>'November',12=>'Desember',
+        ];
+        $tglTransaksi = $transaksi['tanggal'] ?? date('Y-m-d');
+        $bulanIdx     = (int) date('n', strtotime($tglTransaksi));
+        $namaBulan    = $namaBulanMap[$bulanIdx] ?? (string) $bulanIdx;
+        $tahun        = date('Y', strtotime($tglTransaksi));
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rincian Biaya');
+
+        // Header judul
+        $sheet->mergeCells('A1:F1');
+        $sheet->setCellValue('A1', 'RINCIAN BIAYA PERJALANAN DINAS');
+        $sheet->mergeCells('A2:F2');
+        $sheet->setCellValue('A2', strtoupper($header['pegawai_nama'] ?? '-'));
+        $sheet->mergeCells('A3:F3');
+        $sheet->setCellValue('A3', 'NIP: ' . ($header['pegawai_nip'] ?? '-') . '  |  ST: ' . ($header['nomor_surat'] ?? '-'));
+        $sheet->mergeCells('A4:F4');
+        $sheet->setCellValue('A4', 'Nomor Bukti: ' . ($transaksi['nomor_bukti'] ?? '-') . '  |  Tanggal: ' . date('d/m/Y', strtotime($tglTransaksi)));
+
+        foreach (['A1','A2','A3','A4'] as $cell) {
+            $sheet->getStyle($cell)->applyFromArray([
+                'font'      => ['bold' => $cell === 'A1', 'size' => $cell === 'A1' ? 13 : 10],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            ]);
+        }
+
+        // Header kolom baris 6
+        $colHeaders = ['No', 'Nama Komponen', 'Harga Satuan (Rp)', 'Hari/Unit', 'Jumlah (Rp)', 'Keterangan'];
+        foreach ($colHeaders as $i => $h) {
+            $sheet->setCellValue(chr(65 + $i) . '6', $h);
+        }
+        $sheet->getStyle('A6:F6')->applyFromArray([
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '3730a3']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension(6)->setRowHeight(22);
+
+        // Data baris
+        $row   = 7;
+        $total = 0.0;
+        $borderStyle = ['borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]]];
+        $altFill     = ['fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']]];
+
+        foreach ($details as $no => $d) {
+            $jumlah = (float) ($d['jumlah'] ?? 0);
+            $total += $jumlah;
+            $sheet->setCellValue('A' . $row, $no + 1);
+            $sheet->setCellValue('B' . $row, $d['nama_komponen'] ?? '');
+            $sheet->setCellValue('C' . $row, (float) ($d['harga_satuan'] ?? 0));
+            $sheet->setCellValue('D' . $row, $d['jumlah_hari'] !== null ? (float) $d['jumlah_hari'] : '-');
+            $sheet->setCellValue('E' . $row, $jumlah);
+            $sheet->setCellValue('F' . $row, $d['keterangan'] ?? '');
+            $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray($borderStyle);
+            if ($no % 2 === 1) $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray($altFill);
+            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('C' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('E' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $row++;
+        }
+
+        // Total
+        $sheet->mergeCells('A' . $row . ':D' . $row);
+        $sheet->setCellValue('A' . $row, 'TOTAL');
+        $sheet->setCellValue('E' . $row, $total);
+        $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray([
+            'font'      => ['bold' => true],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EDE9FE']],
+            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'A5B4FC']]],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT],
+        ]);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $row += 2;
+
+        // SPPD Rampung
+        $ditetapkan = (float) ($header['ditetapkan_sejumlah'] ?? 0);
+        $dibayar    = (float) ($header['dibayar_semula']      ?? 0);
+        $sisa       = $ditetapkan - $dibayar;
+        $sheet->mergeCells('A' . $row . ':D' . $row);
+        $sheet->setCellValue('A' . $row, 'Ditetapkan Sejumlah');
+        $sheet->setCellValue('E' . $row, $ditetapkan);
+        $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $row++;
+        $sheet->mergeCells('A' . $row . ':D' . $row);
+        $sheet->setCellValue('A' . $row, 'Yang Telah Dibayar Semula');
+        $sheet->setCellValue('E' . $row, $dibayar);
+        $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $row++;
+        $sheet->mergeCells('A' . $row . ':D' . $row);
+        $sheet->setCellValue('A' . $row, 'Sisa Kurang / Lebih');
+        $sheet->setCellValue('E' . $row, $sisa);
+        $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+        $row += 2;
+
+        // Tempat & Tanggal
+        if (!empty($header['tempat_tanggal'])) {
+            $sheet->mergeCells('D' . $row . ':F' . $row);
+            $sheet->setCellValue('D' . $row, $header['tempat_tanggal']);
+            $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        }
+
+        // Lebar kolom
+        $sheet->getColumnDimension('A')->setWidth(5);
+        $sheet->getColumnDimension('B')->setWidth(25);
+        $sheet->getColumnDimension('C')->setWidth(20);
+        $sheet->getColumnDimension('D')->setWidth(10);
+        $sheet->getColumnDimension('E')->setWidth(20);
+        $sheet->getColumnDimension('F')->setWidth(25);
+
+        // Nama file & kirim
+        $namaFile = 'Rincian_Biaya_' . preg_replace('/[^A-Za-z0-9]/', '_', $header['pegawai_nama'] ?? 'Pegawai')
+                  . '_' . $namaBulan . '_' . $tahun . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $namaFile . '"');
         header('Cache-Control: max-age=0');
         header('Pragma: public');
 

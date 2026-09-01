@@ -108,6 +108,33 @@ class TransaksiController
     }
 
     /**
+     * Tampilkan detail satu transaksi (admin — read only) + rincian biaya SPJ terkait.
+     */
+    public function show(int $id): void
+    {
+        try {
+            $transaksi = $this->transaksiModel->getById($id);
+            if (!$transaksi) {
+                $this->redirectWithMessage(base_url('transaksi'), 'error', 'Transaksi tidak ditemukan.');
+                return;
+            }
+
+            // Load rincian biaya jika ada
+            $db = \Database::getConnection();
+            require_once __DIR__ . '/../../app/Models/RincianBiaya.php';
+            $rincianModel = new \App\Models\RincianBiaya($db);
+            $rincianBiaya = $rincianModel->getByTransaksiId($id);
+
+            $pageTitle  = 'Detail Transaksi #' . $id;
+            $activePage = 'transaksi';
+            $viewFile   = __DIR__ . '/../../views/transaksi/show.php';
+            include __DIR__ . '/../../views/layout.php';
+        } catch (\Exception $e) {
+            $this->handleError('Gagal memuat transaksi: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Show form for creating new transaction
      */
     public function create(): void

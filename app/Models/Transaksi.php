@@ -221,18 +221,19 @@ class Transaksi
         ?string $tanggalSuratTugas = null,
         ?string $tanggalPelaksanaan = null,
         ?string $lokasiKegiatan = null,
-        ?int $suratTugasRefId = null
+        ?int $suratTugasRefId = null,
+        ?string $pegawaiNip = null
     ): int {
         try {
             $stmt = $this->db->prepare("
                 INSERT INTO transaksi (
                     tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti, status, input_by,
                     nama_penerima, jenis_transaksi, nomor_surat_tugas, tanggal_surat_tugas,
-                    tanggal_pelaksanaan, lokasi_kegiatan, surat_tugas_ref_id
+                    tanggal_pelaksanaan, lokasi_kegiatan, surat_tugas_ref_id, pegawai_nip
                 ) VALUES (
                     :tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti, 'diajukan', :input_by,
                     :nama_penerima, :jenis_transaksi, :nomor_surat_tugas, :tanggal_surat_tugas,
-                    :tanggal_pelaksanaan, :lokasi_kegiatan, :surat_tugas_ref_id
+                    :tanggal_pelaksanaan, :lokasi_kegiatan, :surat_tugas_ref_id, :pegawai_nip
                 )
             ");
             $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
@@ -249,6 +250,7 @@ class Transaksi
             $stmt->bindParam(':tanggal_pelaksanaan', $tanggalPelaksanaan, PDO::PARAM_STR);
             $stmt->bindParam(':lokasi_kegiatan', $lokasiKegiatan, PDO::PARAM_STR);
             $stmt->bindParam(':surat_tugas_ref_id', $suratTugasRefId, PDO::PARAM_INT);
+            $stmt->bindParam(':pegawai_nip', $pegawaiNip, PDO::PARAM_STR);
             $stmt->execute();
             return (int) $this->db->lastInsertId();
         } catch (PDOException $e) {

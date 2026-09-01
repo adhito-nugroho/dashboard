@@ -335,6 +335,15 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <?php else: ?>
                                         <span class="text-muted" style="font-size:0.8rem;"><i class="bi bi-lock-fill"></i> Terkunci</span>
                                     <?php endif; ?>
+                                    <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
+                                        <div class="mt-1">
+                                            <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                               class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.2rem .45rem;"
+                                               title="Unduh Excel Rincian Biaya">
+                                                <i class="bi bi-file-earmark-excel"></i>
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

@@ -1020,6 +1020,7 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                                 <i class="bi bi-person-badge me-1"></i> #${idx+1} Transaksi an. ${p.nama}
                             </div>
                             <input type="hidden" name="items[${idx}][nama_penerima]" value="${p.nama}">
+                            <input type="hidden" name="items[${idx}][pegawai_nip]" value="${p.nip || ''}">
                             <input type="hidden" name="items[${idx}][nomor_surat_tugas]" value="${selectedSTData.nomor_surat || ''}">
                             <input type="hidden" name="items[${idx}][tanggal_surat_tugas]" value="${selectedSTData.tanggal_surat || ''}">
                             <input type="hidden" name="items[${idx}][tanggal_pelaksanaan]" value="${selectedSTData.tanggal_mulai || ''}">
@@ -1039,6 +1040,73 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                                     <textarea name="items[${idx}][uraian]" class="form-control custom-form-textarea form-control-sm" rows="2" required>${draft}</textarea>
                                 </div>
                             </div>
+
+                            <!-- ── Sub-section Rincian Biaya SPJ ───────────────── -->
+                            <div class="rincian-biaya-section mt-3">
+                                <div class="rincian-biaya-header" onclick="toggleRincianBiaya(this)">
+                                    <span><i class="bi bi-receipt-cutoff me-1"></i>Rincian Biaya Perjalanan Dinas</span>
+                                    <span class="rincian-toggle-icon"><i class="bi bi-chevron-down"></i></span>
+                                </div>
+                                <div class="rincian-biaya-body">
+                                    <!-- Komponen biaya baris -->
+                                    <div class="rb-col-header d-none d-md-flex mb-1">
+                                        <div style="flex:2">Nama Komponen</div>
+                                        <div style="flex:1.5">Harga Satuan (Rp)</div>
+                                        <div style="flex:.8">Hari</div>
+                                        <div style="flex:1.5">Jumlah (Rp)</div>
+                                        <div style="flex:1.5">Keterangan</div>
+                                        <div style="flex:.4"></div>
+                                    </div>
+                                    <div class="rb-rows" id="rbRows_${idx}">
+                                        ${buildDefaultKomponenRows(idx)}
+                                    </div>
+                                    <button type="button" class="btn-rb-add mt-2" onclick="addRbRow(${idx})">
+                                        <i class="bi bi-plus-circle me-1"></i>Tambah Baris
+                                    </button>
+                                    <!-- Total -->
+                                    <div class="rb-total-row mt-2 d-flex justify-content-between align-items-center">
+                                        <span class="text-success fw-semibold" style="font-size:.8rem;"><i class="bi bi-sigma me-1"></i>Total Rincian:</span>
+                                        <span class="fw-bold" id="rbTotal_${idx}" style="font-size:.9rem;">Rp 0</span>
+                                    </div>
+                                    <!-- SPPD Rampung -->
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Ditetapkan Sejumlah (Rp)</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light" style="font-size:.75rem;">Rp</span>
+                                                <input type="text" name="items[${idx}][ditetapkan_sejumlah]"
+                                                    class="form-control form-control-sm custom-form-input rb-rp-input"
+                                                    placeholder="0" inputmode="numeric"
+                                                    oninput="hitungSisaSppdBatch(${idx})"
+                                                    onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Dibayar Semula (Rp)</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light" style="font-size:.75rem;">Rp</span>
+                                                <input type="text" name="items[${idx}][dibayar_semula]"
+                                                    class="form-control form-control-sm custom-form-input rb-rp-input"
+                                                    placeholder="0" inputmode="numeric"
+                                                    oninput="hitungSisaSppdBatch(${idx})"
+                                                    onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Sisa Kurang/Lebih</label>
+                                            <div class="rb-sisa-box" id="rbSisa_${idx}">—</div>
+                                        </div>
+                                    </div>
+                                    <!-- Tempat & Tanggal -->
+                                    <div class="mt-2">
+                                        <label class="form-label small fw-semibold mb-1">Tempat &amp; Tanggal (cetak)</label>
+                                        <input type="text" name="items[${idx}][tempat_tanggal]"
+                                            class="form-control form-control-sm custom-form-input"
+                                            placeholder="Bojonegoro, 31 Agustus 2026"
+                                            value="Bojonegoro, ${todayStr()}">
+                                    </div>
+                                </div><!-- /rincian-biaya-body -->
+                            </div><!-- /rincian-biaya-section -->
                         </div>
                     `;
                 });
@@ -1140,4 +1208,191 @@ document.addEventListener('DOMContentLoaded', function() {
         if (clean) nilaiEl.value = parseInt(clean, 10).toLocaleString('id-ID');
     }
 });
+
+// ── Rincian Biaya SPJ — helpers ──────────────────────────────────────────
+
+function todayStr() {
+    const d = new Date();
+    const bl = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    return `${d.getDate()} ${bl[d.getMonth()+1]} ${d.getFullYear()}`;
+}
+
+const DEFAULT_KOMPONEN = [
+    { nama: 'Uang Harian', hari: '1' },
+    { nama: 'BBM',         hari: '' },
+    { nama: 'Tol',         hari: '' },
+    { nama: 'Hotel',       hari: '1' },
+];
+
+function buildDefaultKomponenRows(itemIdx) {
+    return DEFAULT_KOMPONEN.map((k, r) => buildRbRow(itemIdx, r, k.nama, k.hari)).join('');
+}
+
+function buildRbRow(itemIdx, rowIdx, namaVal = '', hariVal = '') {
+    return `<div class="rb-row d-flex flex-wrap gap-1 align-items-center mb-1" data-item="${itemIdx}" data-row="${rowIdx}">
+        <input type="text"   name="items[${itemIdx}][komponen][${rowIdx}][nama_komponen]"
+               class="form-control form-control-sm custom-form-input" style="flex:2;min-width:110px;"
+               placeholder="Komponen" value="${namaVal}">
+        <div class="input-group input-group-sm" style="flex:1.5;min-width:100px;">
+            <span class="input-group-text bg-light" style="font-size:.7rem;padding:.2rem .35rem;">Rp</span>
+            <input type="text" name="items[${itemIdx}][komponen][${rowIdx}][harga_satuan]"
+                   class="form-control form-control-sm custom-form-input rb-harga"
+                   placeholder="0" inputmode="numeric"
+                   oninput="recalcRbRow(this)" onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
+        </div>
+        <input type="number" name="items[${itemIdx}][komponen][${rowIdx}][jumlah_hari]"
+               class="form-control form-control-sm custom-form-input rb-hari"
+               placeholder="Hari" value="${hariVal}" min="0" step="0.5" style="flex:.8;min-width:60px;"
+               oninput="recalcRbRow(this)">
+        <div class="input-group input-group-sm" style="flex:1.5;min-width:100px;">
+            <span class="input-group-text bg-light" style="font-size:.7rem;padding:.2rem .35rem;">Rp</span>
+            <input type="text" name="items[${itemIdx}][komponen][${rowIdx}][jumlah]"
+                   class="form-control form-control-sm custom-form-input rb-jumlah"
+                   placeholder="0" inputmode="numeric"
+                   oninput="updateRbTotal(${itemIdx})" onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
+        </div>
+        <input type="text"   name="items[${itemIdx}][komponen][${rowIdx}][keterangan]"
+               class="form-control form-control-sm custom-form-input"
+               placeholder="Ket." style="flex:1.5;min-width:90px;">
+        <button type="button" class="btn btn-link text-danger p-0" style="flex:.4;font-size:.9rem;"
+                onclick="removeRbRow(this,${itemIdx})" title="Hapus baris">
+            <i class="bi bi-x-circle"></i>
+        </button>
+    </div>`;
+}
+
+function parseRbRp(val) {
+    return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+}
+function fmtRbRp(el)   { const v = parseRbRp(el.value); if (v > 0) el.value = Math.floor(v).toLocaleString('id-ID'); else el.value = ''; }
+function unfmtRbRp(el) { const v = parseRbRp(el.value); el.value = v > 0 ? String(Math.floor(v)) : ''; }
+
+function recalcRbRow(el) {
+    const row  = el.closest('.rb-row');
+    const harga = parseRbRp(row.querySelector('.rb-harga').value);
+    const hari  = parseFloat(row.querySelector('.rb-hari').value) || 0;
+    const jumlahEl = row.querySelector('.rb-jumlah');
+    if (harga > 0) {
+        const hasil = hari > 0 ? harga * hari : harga;
+        jumlahEl.value = Math.floor(hasil).toLocaleString('id-ID');
+    }
+    updateRbTotal(parseInt(row.dataset.item));
+}
+
+function updateRbTotal(itemIdx) {
+    const rows = document.querySelectorAll(`#rbRows_${itemIdx} .rb-jumlah`);
+    let total = 0;
+    rows.forEach(el => total += parseRbRp(el.value));
+    const el = document.getElementById(`rbTotal_${itemIdx}`);
+    if (el) el.textContent = 'Rp ' + Math.floor(total).toLocaleString('id-ID');
+    hitungSisaSppdBatch(itemIdx);
+}
+
+function hitungSisaSppdBatch(itemIdx) {
+    const card = document.getElementById(`batchCard_${itemIdx}`);
+    if (!card) return;
+    const det  = parseRbRp(card.querySelector(`[name="items[${itemIdx}][ditetapkan_sejumlah]"]`)?.value || '0');
+    const dib  = parseRbRp(card.querySelector(`[name="items[${itemIdx}][dibayar_semula]"]`)?.value || '0');
+    const el   = document.getElementById(`rbSisa_${itemIdx}`);
+    if (!el) return;
+    if (!det && !dib) { el.textContent = '—'; el.className = 'rb-sisa-box'; return; }
+    const sisa = det - dib;
+    el.textContent = (sisa < 0 ? '– ' : sisa > 0 ? '+ ' : '') + 'Rp ' + Math.floor(Math.abs(sisa)).toLocaleString('id-ID');
+    el.className   = 'rb-sisa-box ' + (sisa < 0 ? 'rb-sisa-kurang' : sisa > 0 ? 'rb-sisa-lebih' : 'rb-sisa-pas');
+}
+
+function addRbRow(itemIdx) {
+    const container = document.getElementById(`rbRows_${itemIdx}`);
+    if (!container) return;
+    const existingRows = container.querySelectorAll('.rb-row').length;
+    const newHtml = buildRbRow(itemIdx, existingRows);
+    container.insertAdjacentHTML('beforeend', newHtml);
+}
+
+function removeRbRow(btn, itemIdx) {
+    const row = btn.closest('.rb-row');
+    if (!row) return;
+    row.remove();
+    // Re-index name attrs
+    const container = document.getElementById(`rbRows_${itemIdx}`);
+    container.querySelectorAll('.rb-row').forEach((r, i) => {
+        r.dataset.row = i;
+        r.querySelectorAll('[name]').forEach(el => {
+            el.name = el.name.replace(
+                /items\[(\d+)\]\[komponen\]\[\d+\]/,
+                `items[$1][komponen][${i}]`
+            );
+        });
+    });
+    updateRbTotal(itemIdx);
+}
+
+function toggleRincianBiaya(headerEl) {
+    const body = headerEl.nextElementSibling;
+    const icon = headerEl.querySelector('.rincian-toggle-icon i');
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    if (icon) icon.className = isOpen ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+}
 </script>
+
+<style>
+/* ── Rincian Biaya SPJ — styles ─────────────────────────────── */
+.rincian-biaya-section {
+    border: 1px solid #e0e7ff;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fafbff;
+}
+.rincian-biaya-header {
+    background: linear-gradient(90deg, #ede9fe 0%, #e0e7ff 100%);
+    padding: .55rem .85rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: .82rem;
+    font-weight: 700;
+    color: #3730a3;
+    user-select: none;
+}
+.rincian-biaya-header:hover { background: #ddd6fe; }
+.rincian-biaya-body { padding: .75rem .85rem; }
+.rb-col-header {
+    font-size: .68rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    gap: .4rem;
+}
+.rb-row { gap: .35rem; }
+.btn-rb-add {
+    background: #eff6ff;
+    border: 1px dashed #93c5fd;
+    color: #1d4ed8;
+    border-radius: 7px;
+    padding: .3rem .75rem;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+}
+.btn-rb-add:hover { background: #dbeafe; }
+.rb-total-row {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: .4rem .75rem;
+}
+.rb-sisa-box {
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: .35rem .65rem;
+    font-size: .82rem;
+    font-weight: 700;
+}
+.rb-sisa-kurang { background: #fef2f2; color: #dc2626; }
+.rb-sisa-lebih  { background: #f0fdf4; color: #059669; }
+.rb-sisa-pas    { background: #eff6ff; color: #4f46e5; }
+</style>
