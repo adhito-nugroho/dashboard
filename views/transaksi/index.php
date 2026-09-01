@@ -182,6 +182,31 @@ $isFiltered = !empty($activeFilterLabels);
     })();
     </script>
 
+<style>
+/* Custom High-Contrast Checkbox Styling */
+.trx-checkbox {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    border: 2px solid #475569 !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    vertical-align: middle !important;
+    transition: all 0.15s ease-in-out !important;
+}
+.trx-checkbox:hover {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2) !important;
+}
+.trx-checkbox:checked {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+.trx-checkbox:indeterminate {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+</style>
+
     <!-- Bulk Action Toolbar -->
     <div id="bulk-action-bar" class="d-none alert alert-light border border-danger-subtle bg-danger-subtle bg-opacity-10 d-flex align-items-center justify-content-between p-2 mb-3 shadow-sm rounded">
         <div class="d-flex align-items-center">
@@ -226,8 +251,8 @@ $isFiltered = !empty($activeFilterLabels);
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th width="4%" class="text-center">
-                                    <input type="checkbox" class="form-check-input" id="check-all-trx" title="Pilih Semua di Halaman Ini">
+                                <th width="4%" class="text-center align-middle">
+                                    <input type="checkbox" class="form-check-input trx-checkbox" id="check-all-trx" title="Pilih Semua di Halaman Ini">
                                 </th>
                                 <th width="4%">No</th>
                                 <th width="8%">Tanggal</th>
@@ -247,8 +272,8 @@ $isFiltered = !empty($activeFilterLabels);
                                 $totalNilai += (float) $transaksi['nilai'];
                             ?>
                                 <tr>
-                                    <td class="text-center">
-                                        <input type="checkbox" class="form-check-input row-trx-checkbox" value="<?= $transaksi['id'] ?>">
+                                    <td class="text-center align-middle">
+                                        <input type="checkbox" class="form-check-input trx-checkbox row-trx-checkbox" value="<?= $transaksi['id'] ?>">
                                     </td>
                                     <td><?= $index + 1 ?></td>
                                     <td><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></td>
@@ -396,32 +421,38 @@ $isFiltered = !empty($activeFilterLabels);
 </div>
 
 <script>
-const VERIF_BASE = '<?= rtrim(base_url(), '/') ?>';
-document.querySelectorAll('.btn-verifikasi').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        if (confirm('Verifikasi transaksi ini?')) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = VERIF_BASE + '/transaksi/verifikasi/' + id;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    });
-});
-const modalTolakEl = document.getElementById('modalTolak');
-document.querySelectorAll('.btn-tolak').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const form = document.getElementById('formTolak');
-        form.action = VERIF_BASE + '/transaksi/tolak/' + id;
-        const modal = new bootstrap.Modal(modalTolakEl);
-        modal.show();
-    });
-});
+document.addEventListener('DOMContentLoaded', function () {
+    const VERIF_BASE = '<?= rtrim(base_url(), '/') ?>';
 
-// Bulk Delete Selection Logic
-(function () {
+    // Verifikasi Transaksi
+    document.querySelectorAll('.btn-verifikasi').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (confirm('Verifikasi transaksi ini?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = VERIF_BASE + '/transaksi/verifikasi/' + id;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    });
+
+    // Tolak Transaksi Modal
+    const modalTolakEl = document.getElementById('modalTolak');
+    document.querySelectorAll('.btn-tolak').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const form = document.getElementById('formTolak');
+            if (form) form.action = VERIF_BASE + '/transaksi/tolak/' + id;
+            if (modalTolakEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalTolakEl) || new bootstrap.Modal(modalTolakEl);
+                modal.show();
+            }
+        });
+    });
+
+    // Bulk Delete Selection Logic
     const checkAll = document.getElementById('check-all-trx');
     const rowCheckboxes = document.querySelectorAll('.row-trx-checkbox');
     const bulkBar = document.getElementById('bulk-action-bar');
@@ -430,7 +461,6 @@ document.querySelectorAll('.btn-tolak').forEach(btn => {
     const btnUncheck = document.getElementById('btn-uncheck-all');
     const btnBulkDelete = document.getElementById('btn-bulk-delete');
     const modalBulkDeleteEl = document.getElementById('modalBulkDelete');
-    const modalBulkDelete = modalBulkDeleteEl ? new bootstrap.Modal(modalBulkDeleteEl) : null;
     const inputsContainer = document.getElementById('bulk-delete-inputs');
 
     function updateSelectionState() {
@@ -473,15 +503,20 @@ document.querySelectorAll('.btn-tolak').forEach(btn => {
                 checkAll.checked = false;
                 checkAll.indeterminate = false;
             }
-            rowCheckboxes.forEach(cb => cb.checked = false);
+            rowCheckboxes.forEach(cb => {
+                cb.checked = false;
+            });
             updateSelectionState();
         });
     }
 
-    if (btnBulkDelete && modalBulkDelete) {
+    if (btnBulkDelete) {
         btnBulkDelete.addEventListener('click', function () {
             const checkedBoxes = document.querySelectorAll('.row-trx-checkbox:checked');
-            if (checkedBoxes.length === 0) return;
+            if (checkedBoxes.length === 0) {
+                alert('Pilih setidaknya satu transaksi terlebih dahulu.');
+                return;
+            }
 
             if (inputsContainer) {
                 inputsContainer.innerHTML = '';
@@ -494,33 +529,37 @@ document.querySelectorAll('.btn-tolak').forEach(btn => {
                 });
             }
 
-            modalBulkDelete.show();
+            if (modalBulkDeleteEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalBulkDeleteEl) || new bootstrap.Modal(modalBulkDeleteEl);
+                modal.show();
+            }
         });
     }
-})();
 
-// Tombol Unduh BKU CDK
-(function () {
-    var btnBku = document.getElementById('btn-unduh-bku');
-    if (!btnBku) return;
-    btnBku.addEventListener('click', function () {
-        var selBulan = document.getElementById('filter-bulan').value;
-        var selTahun = document.getElementById('filter-tahun').value;
-        if (!selBulan || !selTahun) {
-            alert('Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU');
-            return;
-        }
-        // Kumpulkan semua filter yang aktif saat ini
-        var params = new URLSearchParams();
-        params.set('bulan', selBulan);
-        params.set('tahun', selTahun);
-        var keg = document.getElementById('filter-kegiatan').value;
-        if (keg) params.set('kegiatan_id', keg);
-        var subKeg = document.getElementById('filter-sub-kegiatan').value;
-        if (subKeg) params.set('sub_kegiatan_id', subKeg);
-        var status = document.getElementById('filter-status').value;
-        if (status) params.set('status', status);
-        window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
-    });
-})();
+    // Initial check state
+    updateSelectionState();
+
+    // Tombol Unduh BKU CDK
+    const btnBku = document.getElementById('btn-unduh-bku');
+    if (btnBku) {
+        btnBku.addEventListener('click', function () {
+            const selBulan = document.getElementById('filter-bulan').value;
+            const selTahun = document.getElementById('filter-tahun').value;
+            if (!selBulan || !selTahun) {
+                alert('Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU');
+                return;
+            }
+            const params = new URLSearchParams();
+            params.set('bulan', selBulan);
+            params.set('tahun', selTahun);
+            const keg = document.getElementById('filter-kegiatan').value;
+            if (keg) params.set('kegiatan_id', keg);
+            const subKeg = document.getElementById('filter-sub-kegiatan').value;
+            if (subKeg) params.set('sub_kegiatan_id', subKeg);
+            const status = document.getElementById('filter-status').value;
+            if (status) params.set('status', status);
+            window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
+        });
+    }
+});
 </script>
