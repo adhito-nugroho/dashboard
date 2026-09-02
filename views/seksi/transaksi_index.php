@@ -7,6 +7,21 @@
     text-overflow: ellipsis;
     word-break: break-word;
 }
+.btn-action-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.825rem;
+    line-height: 1;
+    transition: all 0.15s ease;
+}
+.btn-action-icon:hover {
+    transform: translateY(-1px);
+}
 .filter-pill {
     border-radius: 999px;
     font-size: 0.8rem;
@@ -191,8 +206,10 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                 </div>
             </div>
             <div class="col-md-2 col-12 d-flex gap-2 btn-col filter-search-row">
-                <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Cari</button>
-                <button type="button" id="btnUnduhBku" class="btn btn-success btn-sm flex-shrink-0" title="Unduh BKU bulan &amp; tahun yang aktif">
+                <button type="submit" class="btn btn-outline-primary btn-sm flex-fill fw-semibold" style="border-color:#4f46e5;color:#4f46e5;background:transparent;">
+                    <i class="bi bi-search me-1"></i>Cari
+                </button>
+                <button type="button" id="btnUnduhBku" class="btn btn-outline-success btn-sm flex-shrink-0 fw-semibold" title="Unduh BKU bulan &amp; tahun yang aktif">
                     <i class="bi bi-file-earmark-excel me-1"></i>BKU
                 </button>
             </div>
@@ -233,11 +250,11 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <tr>
                             <th class="ps-3 py-3" style="width:10%;">Tanggal</th>
                             <th style="width:18%;">Sub Kegiatan</th>
-                            <th style="width:14%;">Rekening</th>
+                            <th style="width:16%;">Rekening</th>
                             <th style="width:24%;">Uraian & Penerima</th>
-                            <th class="text-end" style="width:14%;">Nilai (Rp)</th>
-                            <th class="text-center" style="width:10%;">Status</th>
-                            <th class="text-center pe-3" style="width:10%;">Aksi</th>
+                            <th class="text-end" style="width:12%;">Nilai (Rp)</th>
+                            <th class="text-center" style="width:9%;">Status</th>
+                            <th class="text-center pe-3" style="width:11%; min-width:115px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -249,7 +266,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     'diverifikasi' => ['Diverifikasi', 'success', '#f0fdf4', '#166534', '#bbf7d0'],
                                     'ditolak'      => ['Ditolak', 'danger', '#fef2f2', '#991b1b', '#fecaca'],
                                     default        => [ucfirst($status), 'secondary', '#f1f5f9', '#475569', '#e2e8f0'],
-                                };
+                                    };
                                 $bolehEdit = in_array($status, ['diajukan','ditolak'], true);
 
                                 $jenisMap = [
@@ -275,35 +292,32 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?></small>
                                 </td>
                                 <td>
-                                    <span class="badge bg-light text-dark border" style="font-weight:600;font-size:0.775rem;">
-                                        <?= htmlspecialchars($t['kode_rekening'] ?? '') ?>
-                                    </span>
-                                    <div class="small text-muted text-truncate mt-1" style="max-width:180px;" title="<?= htmlspecialchars($t['nama_rekening'] ?? '') ?>">
-                                        <?= htmlspecialchars($t['nama_rekening'] ?? '') ?>
+                                    <div class="fw-semibold text-dark text-truncate" style="max-width:180px;font-size:0.825rem;" title="<?= htmlspecialchars($t['nama_rekening'] ?? '') ?>">
+                                        <?= htmlspecialchars($t['nama_rekening'] ?? '-') ?>
                                     </div>
+                                    <small class="font-monospace d-block text-truncate" style="font-size:0.75rem;color:#94a3b8;max-width:180px;" title="<?= htmlspecialchars($t['kode_rekening'] ?? '') ?>">
+                                        <?= htmlspecialchars($t['kode_rekening'] ?? '') ?>
+                                    </small>
                                 </td>
                                 <td>
-                                    <?php if ($jenisInfo): ?>
-                                        <span class="jenis-chip <?= $jenisInfo[1] ?> me-1"><?= $jenisInfo[0] ?></span>
-                                    <?php endif; ?>
-                                    <div class="uraian-clamp text-dark" id="uraian-<?= $t['id'] ?>" style="font-size:0.85rem;line-height:1.4;"><?= htmlspecialchars($uraianFull) ?></div>
-                                    <a href="#" class="small link-lihat" data-id="<?= $t['id'] ?>" style="display:none;font-size:0.75rem;">Lihat selengkapnya</a>
-                                    <?php if (!empty($namaPenerima)): ?>
-                                        <div class="small text-muted mt-1">
-                                            <i class="bi bi-person-fill text-secondary me-1"></i><?= htmlspecialchars($namaPenerima) ?>
+                                    <div class="d-flex align-items-center gap-1 mb-1">
+                                        <?php if ($jenisInfo): ?>
+                                            <span class="jenis-chip <?= $jenisInfo[1] ?>"><?= $jenisInfo[0] ?></span>
+                                        <?php endif; ?>
+                                        <div class="text-truncate text-dark fw-medium" style="max-width:270px;font-size:0.85rem;cursor:default;" title="<?= htmlspecialchars($uraianFull) ?>">
+                                            <?= htmlspecialchars($uraianFull) ?>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($namaPenerima) || !empty($noST)): ?>
+                                        <div class="small text-muted text-truncate" style="max-width:270px;font-size:0.75rem;">
+                                            <?php if (!empty($namaPenerima)): ?>
+                                                <span class="me-2"><i class="bi bi-person-fill text-secondary me-1"></i><?= htmlspecialchars($namaPenerima) ?></span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($noST)): ?>
+                                                <span><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($noST) ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     <?php endif; ?>
-                                    <?php if (!empty($noST)): ?>
-                                        <div class="small text-muted" style="font-size:0.75rem;">
-                                            <i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($noST) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    <!-- hidden data for modal -->
-                                    <span class="d-none uraian-data"
-                                        data-uraian="<?= htmlspecialchars($uraianFull) ?>"
-                                        data-penerima="<?= htmlspecialchars($namaPenerima) ?>"
-                                        data-bukti="<?= htmlspecialchars($noBukti) ?>"
-                                        data-st="<?= htmlspecialchars($noST) ?>"></span>
                                 </td>
                                 <td class="text-end fw-bold text-dark">
                                     Rp <?= number_format($t['nilai'], 0, ',', '.') ?>
@@ -321,29 +335,39 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center pe-3">
-                                    <?php if ($bolehEdit): ?>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>" class="btn btn-outline-primary" title="Edit Transaksi">
+                                    <div class="d-inline-flex align-items-center justify-content-center gap-1">
+                                        <?php if ($bolehEdit): ?>
+                                            <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
+                                               class="btn btn-outline-primary btn-action-icon"
+                                               title="Edit Transaksi">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>" style="display:inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                                <button type="submit" class="btn btn-outline-danger" title="Hapus Transaksi">
+                                            <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>"
+                                                  class="d-inline m-0 p-0"
+                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
+                                                <button type="submit" class="btn btn-outline-danger btn-action-icon" title="Hapus Transaksi">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>
-                                        </div>
-                                    <?php else: ?>
-                                        <span class="text-muted" style="font-size:0.8rem;"><i class="bi bi-lock-fill"></i> Terkunci</span>
-                                    <?php endif; ?>
-                                    <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                        <div class="mt-1">
+                                        <?php else: ?>
+                                            <span class="badge bg-light text-muted border d-inline-flex align-items-center py-1 px-2"
+                                                  style="font-size:0.75rem;height:32px;"
+                                                  title="Terkunci (sudah diverifikasi)">
+                                                <i class="bi bi-lock-fill me-1"></i>Terkunci
+                                            </span>
+                                        <?php endif; ?>
+
+                                        <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                             <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
-                                               class="btn btn-outline-secondary btn-sm" style="font-size:.72rem;padding:.2rem .45rem;"
-                                               title="Unduh Excel Rincian Biaya">
+                                               class="btn btn-outline-success btn-action-icon"
+                                               title="Unduh Excel Rincian Biaya SPPD">
                                                 <i class="bi bi-file-earmark-excel"></i>
                                             </a>
-                                        </div>
-                                    <?php endif; ?>
+                                        <?php elseif ($bolehEdit): ?>
+                                            <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
+                                            <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -379,13 +403,16 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <div class="mc-label">Sub Kegiatan</div>
                         <div class="mc-value"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?> - <?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
                         <div class="mc-label">Rekening</div>
-                        <div class="mc-value"><?= htmlspecialchars($t['kode_rekening'] ?? '') ?> <small class="text-muted"><?= htmlspecialchars($t['nama_rekening'] ?? '') ?></small></div>
+                        <div class="mc-value">
+                            <div class="fw-semibold text-dark"><?= htmlspecialchars($t['nama_rekening'] ?? '-') ?></div>
+                            <small class="font-monospace d-block" style="font-size:0.75rem;color:#94a3b8;"><?= htmlspecialchars($t['kode_rekening'] ?? '') ?></small>
+                        </div>
                         <div class="mc-label">Uraian</div>
-                        <div class="uraian-clamp mc-value" id="m-uraian-<?= $t['id'] ?>"><?= htmlspecialchars($t['uraian']) ?></div>
-                        <a href="#" class="small link-lihat" data-id="<?= $t['id'] ?>" style="display:none;">Lihat selengkapnya</a>
+                        <div class="text-truncate text-dark fw-medium mb-1" style="font-size:0.875rem;" title="<?= htmlspecialchars($t['uraian']) ?>">
+                            <?= htmlspecialchars($t['uraian']) ?>
+                        </div>
                         <?php if(!empty($t['nama_penerima'])): ?><div class="small text-muted"><i class="bi bi-person-fill me-1"></i><?= htmlspecialchars($t['nama_penerima']) ?></div><?php endif; ?>
                         <?php if(!empty($t['nomor_surat_tugas'])): ?><div class="small text-muted"><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($t['nomor_surat_tugas']) ?></div><?php endif; ?>
-                        <span class="d-none uraian-data" data-uraian="<?= htmlspecialchars($t['uraian']) ?>" data-penerima="<?= htmlspecialchars($t['nama_penerima'] ?? '') ?>" data-bukti="<?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?>" data-st="<?= htmlspecialchars($t['nomor_surat_tugas'] ?? '') ?>"></span>
                         <div class="mc-label mt-2">Nilai</div>
                         <div class="mc-value fw-bold">Rp <?= number_format($t['nilai'], 0, ',', '.') ?></div>
                         <?php if($status==='ditolak' && !empty($t['catatan_verifikasi'])): ?>
@@ -398,7 +425,14 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1"></i>Hapus</button>
                                 </form>
                             <?php else: ?>
-                                <span class="text-muted small"><i class="bi bi-lock-fill"></i> Terkunci (sudah diverifikasi)</span>
+                                <span class="text-muted small d-inline-flex align-items-center"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
+                            <?php endif; ?>
+                            <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
+                                <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                   class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                   title="Unduh Excel Rincian Biaya SPPD">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                </a>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -466,50 +500,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    // Task1: show Lihat selengkapnya only if truncated (per element sibling)
-    function toggleLihat(){
-        document.querySelectorAll('.uraian-clamp').forEach(function(el){
-            let link = el.nextElementSibling;
-            // walk to next link-lihat
-            while(link && !link.classList.contains('link-lihat')) link = link.nextElementSibling;
-            if(!link){
-                const id = (el.id||'').replace('m-uraian-','').replace('uraian-','');
-                link = document.querySelector('a.link-lihat[data-id="'+id+'"]');
-            }
-            if(!link) return;
-            if(el.scrollHeight > el.clientHeight + 2) link.style.display='inline';
-            else link.style.display='none';
-        });
-    }
-    toggleLihat();
-    window.addEventListener('resize', toggleLihat);
-    document.querySelectorAll('a.link-lihat').forEach(function(a){
-        a.addEventListener('click', function(e){
-            e.preventDefault();
-            const id = this.getAttribute('data-id');
-            const row = this.closest('tr') || this.closest('.mobile-tx-card');
-            const dataEl = row ? row.querySelector('.uraian-data') : null;
-            // fallback find in document
-            let uraian='', penerima='-', bukti='-', st='-';
-            if(dataEl){
-                uraian = dataEl.getAttribute('data-uraian')||'';
-                penerima = dataEl.getAttribute('data-penerima')||'-';
-                bukti = dataEl.getAttribute('data-bukti')||'-';
-                st = dataEl.getAttribute('data-st')||'-';
-            } else {
-                // mobile without data-el: try parent
-                const el = document.getElementById('uraian-'+id) || document.getElementById('m-uraian-'+id);
-                uraian = el ? el.textContent : '';
-            }
-            document.getElementById('muUraian').textContent = uraian||'-';
-            document.getElementById('muPenerima').textContent = penerima||'-';
-            document.getElementById('muBukti').textContent = bukti||'-';
-            document.getElementById('muST').textContent = st && st!=='' ? st : '-';
-            var modal = new bootstrap.Modal(document.getElementById('modalUraian'));
-            modal.show();
-        });
-    });
-    // Task3: search UX - Enter, clear x, debounce 350ms
+    // Search UX - Enter, clear x, debounce 350ms
     const form = document.getElementById('filterForm');
     const qInput = document.getElementById('qInput');
     const qClear = document.getElementById('qClear');
