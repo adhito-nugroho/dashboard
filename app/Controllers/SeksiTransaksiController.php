@@ -949,29 +949,47 @@ class SeksiTransaksiController
             $params = [];
 
             if ($q !== '') {
-                $conditions[] = '(nomor_surat LIKE :kw OR untuk LIKE :kw)';
-                $params[':kw'] = '%' . $q . '%';
+                // Gunakan unique named parameter untuk setiap kemunculan agar kompatibel dengan PDO tanpa emulate prepares
+                $conditions[] = '(st.nomor_surat LIKE :kw_no OR st.untuk LIKE :kw_untuk OR p.nama LIKE :kw_pegawai)';
+                $kw = '%' . $q . '%';
+                $params[':kw_no'] = $kw;
+                $params[':kw_untuk'] = $kw;
+                $params[':kw_pegawai'] = $kw;
             }
 
             if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
-                $conditions[] = 'MONTH(tanggal_mulai) = :bulan';
+                $conditions[] = 'MONTH(st.tanggal_mulai) = :bulan';
                 $params[':bulan'] = $bulan;
             }
 
             if ($tahun !== null && $tahun > 2000) {
-                $conditions[] = 'YEAR(tanggal_mulai) = :tahun';
+                $conditions[] = 'YEAR(st.tanggal_mulai) = :tahun';
                 $params[':tahun'] = $tahun;
             }
 
             $whereSql = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
-            $stmt = $pdo->prepare("
-                SELECT id, nomor_surat, tanggal_surat, untuk, tanggal_mulai, tanggal_selesai, dasar_surat
-                FROM surat_tugas
+            $sql = "
+                SELECT 
+                    st.id, 
+                    st.nomor_surat, 
+                    st.tanggal_surat, 
+                    st.untuk, 
+                    st.tanggal_mulai, 
+                    st.tanggal_selesai, 
+                    st.dasar_surat,
+                    COUNT(DISTINCT pt.nip) AS total_pegawai,
+                    GROUP_CONCAT(DISTINCT p.nama ORDER BY pt.urutan ASC SEPARATOR ', ') AS daftar_pegawai
+                FROM surat_tugas st
+                LEFT JOIN pegawai_tugas pt ON pt.id_surat_tugas = st.id
+                LEFT JOIN pegawai p ON TRIM(p.nip) = TRIM(pt.nip)
                 {$whereSql}
-                ORDER BY tanggal_mulai DESC, id DESC
+                GROUP BY st.id
+                ORDER BY st.tanggal_mulai DESC, st.id DESC
                 LIMIT 50
-            ");
+            ";
+
+            $stmt = $pdo->prepare($sql);
 
             foreach ($params as $key => $val) {
                 if (is_int($val)) {
@@ -989,7 +1007,12 @@ class SeksiTransaksiController
                 'data' => $results
             ]);
         } catch (\Throwable $e) {
-            error_log('Error searchSuratTugas: ' . $e->getMessage());
+            $context = [
+                'error' => $e->getMessage(),
+                'sql' => preg_replace('/\s+/', ' ', $sql ?? ''),
+                'params' => $params ?? [],
+            ];
+            error_log('Error searchSuratTugas: ' . json_encode($context));
             echo json_encode([
                 'success' => false,
                 'message' => 'Gagal mencari surat tugas: ' . $e->getMessage()

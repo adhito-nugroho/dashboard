@@ -500,10 +500,13 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 <div id="step1ST">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold text-muted small text-uppercase">1. Pilih Surat Tugas:</span>
-                        <span id="stLoadingText" class="text-primary small" style="display:none;"><i class="bi bi-hourglass-split me-1"></i>Memuat data...</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="stCountBadge" class="badge bg-light text-secondary border" style="font-size:0.75rem;display:none;"></span>
+                            <span id="stLoadingText" class="text-primary small" style="display:none;"><i class="bi bi-hourglass-split me-1"></i>Mencari...</span>
+                        </div>
                     </div>
-                    <div class="list-group" id="stResultList" style="max-height:220px;overflow-y:auto;">
-                        <div class="text-center text-muted py-4 small">Ketik kata kunci atau klik Cari untuk menampilkan daftar surat tugas.</div>
+                    <div class="list-group" id="stResultList" style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
+                        <div class="text-center text-muted py-4 small">Ketik kata kunci atau pilih bulan untuk mencari surat tugas.</div>
                     </div>
                 </div>
 
@@ -840,25 +843,70 @@ if (btnOpenST) {
     });
 }
 
-document.getElementById('btnSearchST').addEventListener('click', function() {
-    searchSuratTugas(document.getElementById('inputSearchST').value);
-});
-document.getElementById('inputSearchST').addEventListener('keyup', function(e) {
-    if (e.key === 'Enter') searchSuratTugas(this.value);
-});
-document.getElementById('filterBulanST').addEventListener('change', function() {
-    searchSuratTugas(document.getElementById('inputSearchST').value);
-});
+let debounceSTTimer = null;
+const inputSearchST = document.getElementById('inputSearchST');
+const btnSearchST = document.getElementById('btnSearchST');
+const filterBulanST = document.getElementById('filterBulanST');
+
+if (btnSearchST) {
+    btnSearchST.addEventListener('click', function() {
+        clearTimeout(debounceSTTimer);
+        searchSuratTugas(inputSearchST ? inputSearchST.value : '');
+    });
+}
+if (inputSearchST) {
+    // Live search dengan debounce 350ms
+    inputSearchST.addEventListener('input', function() {
+        clearTimeout(debounceSTTimer);
+        debounceSTTimer = setTimeout(function() {
+            searchSuratTugas(inputSearchST.value);
+        }, 350);
+    });
+    inputSearchST.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(debounceSTTimer);
+            searchSuratTugas(this.value);
+        }
+    });
+}
+if (filterBulanST) {
+    filterBulanST.addEventListener('change', function() {
+        clearTimeout(debounceSTTimer);
+        searchSuratTugas(inputSearchST ? inputSearchST.value : '');
+    });
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function highlightMatch(text, query) {
+    if (!text) return '';
+    const safeText = escapeHtml(text);
+    const q = (query || '').trim();
+    if (!q) return safeText;
+    const escapedQ = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQ})`, 'gi');
+    return safeText.replace(regex, '<mark class="bg-warning-subtle text-dark px-1 rounded">$1</mark>');
+}
 
 function searchSuratTugas(keyword) {
     const resultList = document.getElementById('stResultList');
     const loadingText = document.getElementById('stLoadingText');
+    const countBadge = document.getElementById('stCountBadge');
     const alertBox = document.getElementById('stAlertBox');
     const bulanVal = document.getElementById('filterBulanST').value;
     
     alertBox.style.display = 'none';
-    loadingText.style.display = 'inline-block';
-    resultList.innerHTML = '<div class="text-center text-muted py-3 small"><i class="bi bi-arrow-repeat spin"></i> Mencari surat tugas...</div>';
+    if (loadingText) loadingText.style.display = 'inline-block';
+    if (countBadge) countBadge.style.display = 'none';
+    resultList.innerHTML = '<div class="text-center text-muted py-4 small"><i class="bi bi-arrow-repeat spin me-1"></i> Mencari surat tugas...</div>';
 
     let url = `${seksiBase}/seksi/transaksi/search-st?q=${encodeURIComponent(keyword)}`;
     if (bulanVal) {
@@ -868,29 +916,71 @@ function searchSuratTugas(keyword) {
     fetch(url)
         .then(r => r.json())
         .then(res => {
-            loadingText.style.display = 'none';
+            if (loadingText) loadingText.style.display = 'none';
             if (!res.success) {
                 alertBox.innerText = res.message || 'Gagal memuat Surat Tugas.';
                 alertBox.style.display = 'block';
-                resultList.innerHTML = '<div class="text-center text-muted py-3 small">Layanan surat tugas tidak tersedia.</div>';
+                resultList.innerHTML = '<div class="text-center text-muted py-4 small">Layanan surat tugas tidak tersedia.</div>';
                 return;
             }
 
             if (!res.data || res.data.length === 0) {
-                resultList.innerHTML = '<div class="text-center text-muted py-3 small">Tidak ditemukan surat tugas yang sesuai.</div>';
+                const kwDisplay = keyword.trim() ? escapeHtml(keyword.trim()) : '';
+                resultList.innerHTML = `
+                    <div class="text-center py-4 px-3">
+                        <div style="width:48px;height:48px;border-radius:50%;background:#f1f5f9;color:#64748b;display:inline-flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:0.75rem;">
+                            <i class="bi bi-search"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">
+                            ${kwDisplay ? `Tidak ditemukan Surat Tugas yang cocok dengan "${kwDisplay}"` : 'Tidak ada Surat Tugas pada periode/filter ini'}
+                        </h6>
+                        <p class="text-muted small mx-auto mb-0" style="max-width:380px;">
+                            Coba gunakan kata kunci nomor surat, maksud perjalanan dinas, atau nama pegawai yang ditugaskan.
+                        </p>
+                    </div>
+                `;
                 return;
+            }
+
+            if (countBadge) {
+                countBadge.innerText = `Menampilkan ${res.data.length} Surat Tugas`;
+                countBadge.style.display = 'inline-block';
             }
 
             let html = '';
             res.data.forEach(st => {
                 const tglDisplay = st.tanggal_mulai ? (st.tanggal_selesai && st.tanggal_selesai !== st.tanggal_mulai ? `${st.tanggal_mulai} s.d. ${st.tanggal_selesai}` : st.tanggal_mulai) : (st.tanggal_surat || '-');
+                const hlNomor = highlightMatch(st.nomor_surat || '-', keyword);
+                const hlUntuk = highlightMatch(st.untuk || '-', keyword);
+
+                // Info pegawai yang terlibat
+                let pegawaiInfoHtml = '';
+                const totalPegawai = parseInt(st.total_pegawai || 0, 10);
+                if (totalPegawai > 0 && st.daftar_pegawai) {
+                    const rawNames = st.daftar_pegawai.split(',').map(n => n.trim()).filter(Boolean);
+                    let summaryText = '';
+                    if (rawNames.length <= 2) {
+                        summaryText = rawNames.join(', ');
+                    } else {
+                        summaryText = rawNames.slice(0, 2).join(', ') + `, +${rawNames.length - 2} lainnya`;
+                    }
+                    const hlPegawai = highlightMatch(summaryText, keyword);
+                    pegawaiInfoHtml = `
+                        <div class="mt-1 pt-1 border-top border-light-subtle small text-muted" style="font-size:0.75rem;">
+                            <i class="bi bi-people-fill text-primary me-1"></i>
+                            <span class="fw-semibold text-dark">${totalPegawai} Pegawai:</span> ${hlPegawai}
+                        </div>
+                    `;
+                }
+
                 html += `
                     <button type="button" class="list-group-item list-group-item-action item-st-select py-2" data-st='${JSON.stringify(st).replace(/'/g, "&apos;")}'>
                         <div class="d-flex justify-content-between align-items-center">
-                            <strong class="text-primary" style="font-size:0.875rem;">No. ${st.nomor_surat || '-'}</strong>
-                            <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>${tglDisplay}</small>
+                            <strong class="text-primary" style="font-size:0.875rem;">No. ${hlNomor}</strong>
+                            <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>${escapeHtml(tglDisplay)}</small>
                         </div>
-                        <div class="small text-dark mt-1" style="line-height:1.35;">${st.untuk || '-'}</div>
+                        <div class="small text-dark mt-1" style="line-height:1.35;">${hlUntuk}</div>
+                        ${pegawaiInfoHtml}
                     </button>
                 `;
             });
@@ -906,10 +996,11 @@ function searchSuratTugas(keyword) {
             });
         })
         .catch(err => {
-            loadingText.style.display = 'none';
-            alertBox.innerText = 'Koneksi ke database surat tugas gagal atau terputus.';
+            if (loadingText) loadingText.style.display = 'none';
+            if (countBadge) countBadge.style.display = 'none';
+            alertBox.innerText = 'Koneksi ke database surat tugas gagal atau terputus: ' + (err.message || '');
             alertBox.style.display = 'block';
-            resultList.innerHTML = '<div class="text-center text-muted py-3 small">Koneksi Surat Tugas gagal.</div>';
+            resultList.innerHTML = '<div class="text-center text-muted py-4 small">Koneksi Surat Tugas gagal.</div>';
         });
 }
 
