@@ -7,6 +7,9 @@
 CREATE TABLE IF NOT EXISTS `rincian_biaya_perjalanan_dinas` (
     `id`                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
 
+    -- Hubungkan satu baris rincian biaya ke satu baris transaksi (opsional)
+    `transaksi_id`        INT UNSIGNED DEFAULT NULL COMMENT 'FK ke transaksi.id — NULL jika diinput mandiri dari /spj',
+
     -- Referensi ke db_surat_tugas (disimpan sebagai value, bukan FK lintas DB)
     `surat_tugas_id`      INT UNSIGNED NOT NULL COMMENT 'ID dari surat_tugas.id di db_surat_tugas',
     `nomor_surat`         VARCHAR(120) NOT NULL  COMMENT 'Cache nomor_surat dari surat_tugas',
@@ -36,6 +39,7 @@ CREATE TABLE IF NOT EXISTS `rincian_biaya_perjalanan_dinas` (
     -- Satu pegawai hanya boleh punya 1 rincian per Surat Tugas
     UNIQUE KEY `uq_st_pegawai` (`surat_tugas_id`, `pegawai_nip`),
 
+    KEY `idx_transaksi_id`   (`transaksi_id`),
     KEY `idx_surat_tugas_id` (`surat_tugas_id`),
     KEY `idx_pegawai_nip`    (`pegawai_nip`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
