@@ -975,10 +975,30 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
     const checkedBoxes = Array.from(document.querySelectorAll('.check-pegawai-st:checked'));
     if (checkedBoxes.length === 0) return;
 
+function setSingleItemActive(isActive) {
+    const container = document.getElementById('singleItemContainer');
+    if (!container) return;
+    container.style.display = isActive ? 'block' : 'none';
+    const fields = container.querySelectorAll('input, select, textarea');
+    fields.forEach(el => {
+        el.disabled = !isActive;
+        if (!isActive) {
+            if (el.hasAttribute('required')) {
+                el.dataset.wasRequired = 'true';
+                el.removeAttribute('required');
+            }
+        } else {
+            if (el.dataset.wasRequired === 'true') {
+                el.setAttribute('required', '');
+            }
+        }
+    });
+}
+
     const selectedPegawais = checkedBoxes.map(c => currentSTPegawais[parseInt(c.value, 10)]);
 
     // Baik 1 maupun banyak pegawai dari Surat Tugas, gunakan batch container agar rincian biaya SPJ selalu tersedia
-    document.getElementById('singleItemContainer').style.display = 'none';
+    setSingleItemActive(false);
     document.getElementById('batchItemsContainer').style.display = 'block';
     document.getElementById('batchCountText').innerText = selectedPegawais.length;
 
@@ -1109,7 +1129,7 @@ document.getElementById('btnResetBatch').addEventListener('click', function() {
     if (confirm('Kembali ke mode pengisian 1 transaksi biasa? Data rincian multi-pegawai akan dikosongkan.')) {
         document.getElementById('batchItemsContainer').style.display = 'none';
         document.getElementById('batchItemsList').innerHTML = '';
-        document.getElementById('singleItemContainer').style.display = 'block';
+        setSingleItemActive(true);
         updateBatchTotal();
     }
 });
@@ -1121,12 +1141,15 @@ function highlightField(el) {
     setTimeout(() => el.classList.remove('field-highlight'), 2000);
 }
 document.getElementById('seksiTransaksiForm').addEventListener('submit', function(e) {
+    const batchContainer = document.getElementById('batchItemsContainer');
+    const isBatchMode = batchContainer && batchContainer.style.display !== 'none' && document.querySelectorAll('.batch-nilai-input').length > 0;
+
+    // Pastikan single inputs di-disable dan unrequired saat mode batch agar browser tidak komplain form control is not focusable
+    setSingleItemActive(!isBatchMode);
+
     if (window.currentSisaPagu === null || window.currentSisaPagu === undefined) return;
     const sisa = Number(window.currentSisaPagu);
     if (isNaN(sisa)) return;
-
-    const batchContainer = document.getElementById('batchItemsContainer');
-    const isBatchMode = batchContainer && batchContainer.style.display !== 'none' && document.querySelectorAll('.batch-nilai-input').length > 0;
 
     let totalNilai = 0;
     if (isBatchMode) {
