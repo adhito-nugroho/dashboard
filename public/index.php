@@ -5,8 +5,19 @@
  * Simple routing example for Program CRUD
  */
 
-// Start session
+// Start session with secure cookie parameters
 if (session_status() === PHP_SESSION_NONE) {
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => $isSecure,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
 
@@ -169,8 +180,8 @@ try {
     // Log path for debugging (can be removed later)
     error_log("Routing Debug: URI='$requestUri', Path='$path', ScriptDir='$scriptDir', SCRIPT_NAME='$scriptName'");
 
-    // Define public routes
-    $publicRoutes = ['/', '', '/dashboard', '/dashboard/', '/login', '/logout', '/export/laporan', '/export/serapan-bulanan', '/export/sisa-semester'];
+    // Define public routes (laporan keuangan dilindungi autentikasi login)
+    $publicRoutes = ['/', '', '/dashboard', '/dashboard/', '/login', '/logout'];
     
     // Check authentication for protected routes
     if (!in_array($path, $publicRoutes) && !isset($_SESSION['user_id'])) {

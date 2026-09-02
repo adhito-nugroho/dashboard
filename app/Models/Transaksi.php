@@ -68,7 +68,7 @@ class Transaksi
                 ORDER BY t.tanggal DESC, t.id DESC
             ");
             foreach ($params as $key => $val) {
-                $stmt->bindValue($key, $val, PDO::PARAM_INT);
+                $stmt->bindValue($key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
             }
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -311,8 +311,11 @@ class Transaksi
                 $params[':tahun'] = $tahun;
             }
             if ($q !== null && trim($q) !== '') {
-                $conditions[] = '(t.uraian LIKE :q OR t.nomor_bukti LIKE :q OR t.nama_penerima LIKE :q)';
-                $params[':q'] = '%' . trim($q) . '%';
+                $conditions[] = '(t.uraian LIKE :q_uraian OR t.nomor_bukti LIKE :q_bukti OR t.nama_penerima LIKE :q_penerima)';
+                $kw = '%' . trim($q) . '%';
+                $params[':q_uraian'] = $kw;
+                $params[':q_bukti'] = $kw;
+                $params[':q_penerima'] = $kw;
             }
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
             $limitSql = '';
@@ -372,8 +375,11 @@ class Transaksi
                 $params[':tahun'] = $tahun;
             }
             if ($q !== null && trim($q) !== '') {
-                $conditions[] = '(t.uraian LIKE :q OR t.nomor_bukti LIKE :q OR t.nama_penerima LIKE :q)';
-                $params[':q'] = '%' . trim($q) . '%';
+                $conditions[] = '(t.uraian LIKE :q_uraian OR t.nomor_bukti LIKE :q_bukti OR t.nama_penerima LIKE :q_penerima)';
+                $kw = '%' . trim($q) . '%';
+                $params[':q_uraian'] = $kw;
+                $params[':q_bukti'] = $kw;
+                $params[':q_penerima'] = $kw;
             }
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
             $stmt = $this->db->prepare("SELECT COUNT(*) FROM transaksi t {$where}");
@@ -411,8 +417,11 @@ class Transaksi
                 $params[':tahun'] = $tahun;
             }
             if ($q !== null && trim($q) !== '') {
-                $conditions[] = '(t.uraian LIKE :q OR t.nomor_bukti LIKE :q OR t.nama_penerima LIKE :q)';
-                $params[':q'] = '%' . trim($q) . '%';
+                $conditions[] = '(t.uraian LIKE :q_uraian OR t.nomor_bukti LIKE :q_bukti OR t.nama_penerima LIKE :q_penerima)';
+                $kw = '%' . trim($q) . '%';
+                $params[':q_uraian'] = $kw;
+                $params[':q_bukti'] = $kw;
+                $params[':q_penerima'] = $kw;
             }
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
             $stmt = $this->db->prepare("SELECT t.status, COUNT(*) as cnt FROM transaksi t {$where} GROUP BY t.status");

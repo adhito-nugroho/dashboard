@@ -580,10 +580,13 @@ class TransaksiController
     public function delete(int $id): void
     {
         try {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
             $this->transaksiModel->delete($id);
+            $this->logAudit($userId, 'delete_transaksi_admin', 'transaksi', $id, 'Hapus transaksi ID ' . $id);
             $this->redirectWithMessage(base_url('transaksi'), 'success', 'Transaksi berhasil dihapus');
         } catch (\Exception $e) {
-            $this->redirectWithMessage(base_url('transaksi'), 'error', 'Gagal menghapus transaksi: ' . $e->getMessage());
+            error_log('Error delete transaksi ID ' . $id . ': ' . $e->getMessage());
+            $this->redirectWithMessage(base_url('transaksi'), 'error', 'Gagal menghapus transaksi. Terjadi kesalahan pada sistem.');
         }
     }
 
@@ -606,12 +609,15 @@ class TransaksiController
             }
 
             $deletedCount = $this->transaksiModel->deleteBatch($validIds);
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $this->logAudit($userId, 'delete_batch_transaksi_admin', 'transaksi', null, "Hapus massal {$deletedCount} transaksi: " . implode(',', $validIds));
 
             $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
             $this->redirectWithMessage($redirectUrl, 'success', "Berhasil menghapus {$deletedCount} transaksi.");
         } catch (\Exception $e) {
+            error_log('Error delete batch transaksi: ' . $e->getMessage());
             $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
-            $this->redirectWithMessage($redirectUrl, 'error', 'Gagal menghapus transaksi: ' . $e->getMessage());
+            $this->redirectWithMessage($redirectUrl, 'error', 'Gagal menghapus transaksi. Terjadi kesalahan pada sistem.');
         }
     }
 

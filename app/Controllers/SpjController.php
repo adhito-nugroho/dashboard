@@ -83,8 +83,10 @@ class SpjController
                 $params     = [];
 
                 if ($q !== '') {
-                    $conditions[] = '(nomor_surat LIKE :kw OR untuk LIKE :kw)';
-                    $params[':kw'] = '%' . $q . '%';
+                    $conditions[] = '(nomor_surat LIKE :kw_no OR untuk LIKE :kw_untuk)';
+                    $kw = '%' . $q . '%';
+                    $params[':kw_no'] = $kw;
+                    $params[':kw_untuk'] = $kw;
                 }
                 if ($bulan !== null) {
                     $conditions[] = 'MONTH(tanggal_mulai) = :bulan';
@@ -110,7 +112,7 @@ class SpjController
                 $suratTugasList = $stmt->fetchAll();
             } catch (\Throwable $e) {
                 error_log('SpjController::index ST query error: ' . $e->getMessage());
-                $stError = 'Gagal memuat daftar Surat Tugas: ' . $e->getMessage();
+                $stError = 'Gagal memuat daftar Surat Tugas. Silakan coba beberapa saat lagi.';
             }
         }
 
