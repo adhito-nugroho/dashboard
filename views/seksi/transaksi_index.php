@@ -1,4 +1,6 @@
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <style>
+[x-cloak] { display: none !important; }
 .uraian-clamp {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -21,6 +23,50 @@
 }
 .btn-action-icon:hover {
     transform: translateY(-1px);
+}
+/* Mode Compact / Density */
+.table-compact th,
+.table-compact td {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    padding-left: 0.6rem !important;
+    padding-right: 0.6rem !important;
+    font-size: 0.8rem !important;
+}
+.table-compact .btn-action-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important;
+}
+.table-compact .badge {
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.7rem !important;
+}
+.table-compact .mobile-tx-card {
+    padding: 0.65rem 0.85rem !important;
+    margin-bottom: 0.6rem !important;
+}
+/* Grouping Collapsible Styling */
+.group-parent-row {
+    background-color: #f8fafc;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.group-parent-row:hover {
+    background-color: #f1f5f9;
+}
+.group-child-row {
+    background-color: #ffffff;
+    border-left: 4px solid #6366f1;
+}
+.group-child-row:hover {
+    background-color: #fafafa;
+}
+.group-child-indent {
+    display: inline-flex;
+    align-items: center;
+    color: #94a3b8;
+    margin-right: 0.35rem;
 }
 .filter-pill {
     border-radius: 999px;
@@ -212,6 +258,9 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                 <button type="button" id="btnUnduhBku" class="btn btn-outline-success btn-sm flex-shrink-0 fw-semibold" title="Unduh BKU bulan &amp; tahun yang aktif">
                     <i class="bi bi-file-earmark-excel me-1"></i>BKU
                 </button>
+                <button type="button" id="btnToggleDensity" class="btn btn-outline-secondary btn-sm flex-shrink-0 fw-semibold" title="Ubah Kerapatan Tampilan (Normal / Compact)">
+                    <i class="bi bi-distribute-vertical" id="densityIcon"></i>
+                </button>
             </div>
         </form>
     </div>
@@ -219,30 +268,115 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
 
 <div class="card border-0 shadow-sm" style="border-radius:14px;overflow:hidden;">
     <div class="card-body p-0">
-        <?php if (empty($transaksis) && !$isFilteredEmpty): ?>
-            <!-- EMPTY STATE UTAMA -->
+        <?php if (empty($transaksis)): ?>
+            <?php
+                $emptyTitle = 'Belum Ada Transaksi yang Diajukan';
+                $emptySubtitle = 'Seksi Anda belum pernah mengajukan transaksi belanja. Klik tombol di bawah untuk mulai menginput transaksi baru.';
+                $emptyIcon = 'bi-receipt-cutoff';
+                $emptyIconColor = '#3b82f6';
+                $emptyIconBg = '#eff6ff';
+
+                if ($curStatus === 'diverifikasi') {
+                    $emptyTitle = 'Belum Ada Transaksi yang Diverifikasi';
+                    $emptySubtitle = 'Transaksi belanja yang telah disetujui oleh admin/verifikator akan tampil di sini.';
+                    $emptyIcon = 'bi-check2-circle';
+                    $emptyIconColor = '#16a34a';
+                    $emptyIconBg = '#f0fdf4';
+                } elseif ($curStatus === 'ditolak') {
+                    $emptyTitle = 'Belum Ada Transaksi yang Ditolak';
+                    $emptySubtitle = 'Bagus! Tidak ada transaksi belanja seksi Anda yang ditolak oleh verifikator.';
+                    $emptyIcon = 'bi-shield-check';
+                    $emptyIconColor = '#059669';
+                    $emptyIconBg = '#ecfdf5';
+                } elseif ($curStatus === 'diajukan') {
+                    $emptyTitle = 'Tidak Ada Transaksi yang Menunggu Verifikasi';
+                    $emptySubtitle = 'Semua pengajuan transaksi belanja seksi Anda saat ini sudah diproses.';
+                    $emptyIcon = 'bi-inbox';
+                    $emptyIconColor = '#d97706';
+                    $emptyIconBg = '#fef3c7';
+                } elseif ($hasFilter) {
+                    $emptyTitle = 'Tidak ada transaksi yang cocok dengan filter ini.';
+                    $emptySubtitle = 'Coba ubah filter status, bulan, tahun, atau kata kunci pencarian Anda.';
+                    $emptyIcon = 'bi-search';
+                    $emptyIconColor = '#64748b';
+                    $emptyIconBg = '#f1f5f9';
+                }
+            ?>
             <div class="text-center py-5 px-3">
-                <div style="width:72px;height:72px;border-radius:50%;background:#eff6ff;color:#3b82f6;display:inline-flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:1rem;">
-                    <i class="bi bi-receipt-cutoff"></i>
+                <div style="width:68px;height:68px;border-radius:50%;background:<?= $emptyIconBg ?>;color:<?= $emptyIconColor ?>;display:inline-flex;align-items:center;justify-content:center;font-size:1.8rem;margin-bottom:1rem;">
+                    <i class="bi <?= $emptyIcon ?>"></i>
                 </div>
-                <h5 class="fw-bold text-dark mb-1">Belum Ada Transaksi yang Diajukan</h5>
-                <p class="text-muted mx-auto mb-4" style="max-width:420px;font-size:0.875rem;">
-                    Seksi Anda belum pernah mengajukan transaksi belanja. Klik tombol di bawah untuk mulai menginput transaksi baru.
+                <h5 class="fw-bold text-dark mb-1"><?= htmlspecialchars($emptyTitle) ?></h5>
+                <p class="text-muted mx-auto mb-4" style="max-width:440px;font-size:0.875rem;">
+                    <?= htmlspecialchars($emptySubtitle) ?>
                 </p>
-                <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-primary px-4 py-2 fw-semibold" style="border-radius:8px;">
-                    <i class="bi bi-plus-circle me-1"></i> Tambah Transaksi Sekarang
-                </a>
-            </div>
-        <?php elseif ($isFilteredEmpty): ?>
-            <div class="text-center py-5 px-3">
-                <div style="width:56px;height:56px;border-radius:50%;background:#f1f5f9;color:#64748b;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:0.8rem;">
-                    <i class="bi bi-search"></i>
-                </div>
-                <h6 class="fw-bold text-dark mb-1">Tidak ada transaksi yang cocok dengan filter ini.</h6>
-                <p class="text-muted small mb-3">Coba ubah filter status/bulan/tahun atau kata kunci pencarian.</p>
-                <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-outline-secondary btn-sm">Reset Filter</a>
+                <?php if ($hasFilter): ?>
+                    <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fw-semibold" style="border-radius:8px;">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filter
+                    </a>
+                <?php else: ?>
+                    <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-primary px-4 py-2 fw-semibold" style="border-radius:8px;">
+                        <i class="bi bi-plus-circle me-1"></i> Tambah Transaksi Sekarang
+                    </a>
+                <?php endif; ?>
             </div>
         <?php else: ?>
+            <?php
+                // Logic Grouping Surat Tugas di Layer View PHP
+                $stCounts = [];
+                foreach ($transaksis as $t) {
+                    $stNum = trim((string)($t['nomor_surat_tugas'] ?? ''));
+                    if ($stNum !== '') {
+                        $stCounts[$stNum] = ($stCounts[$stNum] ?? 0) + 1;
+                    }
+                }
+
+                $groupedItems = [];
+                $processedSt = [];
+                foreach ($transaksis as $t) {
+                    $stNum = trim((string)($t['nomor_surat_tugas'] ?? ''));
+                    if ($stNum !== '' && ($stCounts[$stNum] ?? 0) >= 2) {
+                        if (!isset($processedSt[$stNum])) {
+                            $processedSt[$stNum] = true;
+                            $members = [];
+                            foreach ($transaksis as $subT) {
+                                if (trim((string)($subT['nomor_surat_tugas'] ?? '')) === $stNum) {
+                                    $members[] = $subT;
+                                }
+                            }
+                            $groupedItems[] = [
+                                'type'    => 'group',
+                                'st'      => $stNum,
+                                'members' => $members,
+                            ];
+                        }
+                    } else {
+                        $groupedItems[] = [
+                            'type' => 'single',
+                            'data' => $t,
+                        ];
+                    }
+                }
+
+                // Resolver Status Campuran: Ditolak > Menunggu Verifikasi > Diverifikasi
+                $resolveGroupStatus = function(array $members): array {
+                    $hasDitolak = false;
+                    $hasDiajukan = false;
+                    foreach ($members as $m) {
+                        $st = $m['status'] ?? 'diverifikasi';
+                        if ($st === 'ditolak') $hasDitolak = true;
+                        if ($st === 'diajukan') $hasDiajukan = true;
+                    }
+                    if ($hasDitolak) {
+                        return ['Ditolak', 'danger', '#fef2f2', '#991b1b', '#fecaca'];
+                    }
+                    if ($hasDiajukan) {
+                        return ['Menunggu Verifikasi', 'warning', '#fefce8', '#854d0e', '#fef08a'];
+                    }
+                    return ['Diverifikasi', 'success', '#f0fdf4', '#166534', '#bbf7d0'];
+                };
+            ?>
+
             <!-- DESKTOP TABLE -->
             <div class="table-responsive table-sticky-wrap d-none d-md-block">
                 <table class="table table-hover align-middle mb-0" style="font-size:0.875rem;">
@@ -257,16 +391,17 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <th class="text-center pe-3" style="width:11%; min-width:115px;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach ($transaksis as $t): ?>
+                    <?php foreach ($groupedItems as $gItem): ?>
+                        <?php if ($gItem['type'] === 'single'): ?>
                             <?php
+                                $t = $gItem['data'];
                                 $status = $t['status'] ?? 'diverifikasi';
                                 $badge = match ($status) {
                                     'diajukan'     => ['Menunggu Verifikasi', 'warning', '#fefce8', '#854d0e', '#fef08a'],
                                     'diverifikasi' => ['Diverifikasi', 'success', '#f0fdf4', '#166534', '#bbf7d0'],
                                     'ditolak'      => ['Ditolak', 'danger', '#fef2f2', '#991b1b', '#fecaca'],
                                     default        => [ucfirst($status), 'secondary', '#f1f5f9', '#475569', '#e2e8f0'],
-                                    };
+                                };
                                 $bolehEdit = in_array($status, ['diajukan','ditolak'], true);
 
                                 $jenisMap = [
@@ -282,160 +417,377 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                 $noBukti = $t['nomor_bukti'] ?? '-';
                                 $noST = $t['nomor_surat_tugas'] ?? '';
                             ?>
-                            <tr>
-                                <td class="ps-3">
-                                    <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
-                                    <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($noBukti) ?></small>
-                                </td>
-                                <td>
-                                    <div class="fw-semibold text-dark" style="font-size:0.825rem;"><?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
-                                    <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?></small>
-                                </td>
-                                <td>
-                                    <div class="fw-semibold text-dark text-truncate" style="max-width:180px;font-size:0.825rem;" title="<?= htmlspecialchars($t['nama_rekening'] ?? '') ?>">
-                                        <?= htmlspecialchars($t['nama_rekening'] ?? '-') ?>
-                                    </div>
-                                    <small class="font-monospace d-block text-truncate" style="font-size:0.75rem;color:#94a3b8;max-width:180px;" title="<?= htmlspecialchars($t['kode_rekening'] ?? '') ?>">
-                                        <?= htmlspecialchars($t['kode_rekening'] ?? '') ?>
-                                    </small>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-1 mb-1">
-                                        <?php if ($jenisInfo): ?>
-                                            <span class="jenis-chip <?= $jenisInfo[1] ?>"><?= $jenisInfo[0] ?></span>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
+                                        <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($noBukti) ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark" style="font-size:0.825rem;"><?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
+                                        <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark text-truncate" style="max-width:180px;font-size:0.825rem;" title="<?= htmlspecialchars($t['nama_rekening'] ?? '') ?>">
+                                            <?= htmlspecialchars($t['nama_rekening'] ?? '-') ?>
+                                        </div>
+                                        <small class="font-monospace d-block text-truncate" style="font-size:0.75rem;color:#94a3b8;max-width:180px;" title="<?= htmlspecialchars($t['kode_rekening'] ?? '') ?>">
+                                            <?= htmlspecialchars($t['kode_rekening'] ?? '') ?>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-1 mb-1">
+                                            <?php if ($jenisInfo): ?>
+                                                <span class="jenis-chip <?= $jenisInfo[1] ?>"><?= $jenisInfo[0] ?></span>
+                                            <?php endif; ?>
+                                            <div class="text-truncate text-dark fw-medium" style="max-width:270px;font-size:0.85rem;cursor:default;" title="<?= htmlspecialchars($uraianFull) ?>">
+                                                <?= htmlspecialchars($uraianFull) ?>
+                                            </div>
+                                        </div>
+                                        <?php if (!empty($namaPenerima) || !empty($noST)): ?>
+                                            <div class="small text-muted text-truncate" style="max-width:270px;font-size:0.75rem;">
+                                                <?php if (!empty($namaPenerima)): ?>
+                                                    <span class="me-2"><i class="bi bi-person-fill text-secondary me-1"></i><?= htmlspecialchars($namaPenerima) ?></span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($noST)): ?>
+                                                    <span><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($noST) ?></span>
+                                                <?php endif; ?>
+                                            </div>
                                         <?php endif; ?>
-                                        <div class="text-truncate text-dark fw-medium" style="max-width:270px;font-size:0.85rem;cursor:default;" title="<?= htmlspecialchars($uraianFull) ?>">
-                                            <?= htmlspecialchars($uraianFull) ?>
-                                        </div>
-                                    </div>
-                                    <?php if (!empty($namaPenerima) || !empty($noST)): ?>
-                                        <div class="small text-muted text-truncate" style="max-width:270px;font-size:0.75rem;">
-                                            <?php if (!empty($namaPenerima)): ?>
-                                                <span class="me-2"><i class="bi bi-person-fill text-secondary me-1"></i><?= htmlspecialchars($namaPenerima) ?></span>
-                                            <?php endif; ?>
-                                            <?php if (!empty($noST)): ?>
-                                                <span><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($noST) ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-end fw-bold text-dark">
-                                    Rp <?= number_format($t['nilai'], 0, ',', '.') ?>
-                                </td>
-                                <td class="text-center">
-                                    <span style="font-size:0.75rem;font-weight:700;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $badge[2] ?>;color:<?= $badge[3] ?>;border:1px solid <?= $badge[4] ?>;white-space:nowrap;">
-                                        <?= $badge[0] ?>
-                                    </span>
-                                    <?php if ($status === 'ditolak' && !empty($t['catatan_verifikasi'])): ?>
-                                        <div class="mt-1">
-                                            <button type="button" class="btn btn-link p-0 text-danger" style="font-size:0.75rem;text-decoration:none;" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>">
-                                                <i class="bi bi-info-circle"></i> Alasan
-                                            </button>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-center pe-3">
-                                    <div class="d-inline-flex align-items-center justify-content-center gap-1">
-                                        <?php if ($bolehEdit): ?>
-                                            <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
-                                               class="btn btn-outline-primary btn-action-icon"
-                                               title="Edit Transaksi">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
-                                            <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>"
-                                                  class="d-inline m-0 p-0"
-                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                                <button type="submit" class="btn btn-outline-danger btn-action-icon" title="Hapus Transaksi">
-                                                    <i class="bi bi-trash"></i>
+                                    </td>
+                                    <td class="text-end fw-bold text-dark">
+                                        Rp <?= number_format($t['nilai'], 0, ',', '.') ?>
+                                    </td>
+                                    <td class="text-center">
+                                        <span style="font-size:0.75rem;font-weight:700;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $badge[2] ?>;color:<?= $badge[3] ?>;border:1px solid <?= $badge[4] ?>;white-space:nowrap;">
+                                            <?= $badge[0] ?>
+                                        </span>
+                                        <?php if ($status === 'ditolak' && !empty($t['catatan_verifikasi'])): ?>
+                                            <div class="mt-1">
+                                                <button type="button" class="btn btn-link p-0 text-danger" style="font-size:0.75rem;text-decoration:none;" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>">
+                                                    <i class="bi bi-info-circle"></i> Alasan
                                                 </button>
-                                            </form>
-                                        <?php else: ?>
-                                            <span class="badge bg-light text-muted border d-inline-flex align-items-center py-1 px-2"
-                                                  style="font-size:0.75rem;height:32px;"
-                                                  title="Terkunci (sudah diverifikasi)">
-                                                <i class="bi bi-lock-fill me-1"></i>Terkunci
-                                            </span>
+                                            </div>
                                         <?php endif; ?>
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        <div class="d-inline-flex align-items-center justify-content-center gap-1">
+                                            <?php if ($bolehEdit): ?>
+                                                <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
+                                                   class="btn btn-outline-primary btn-action-icon"
+                                                   title="Edit Transaksi">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>"
+                                                      class="d-inline m-0 p-0"
+                                                      onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
+                                                    <button type="submit" class="btn btn-outline-danger btn-action-icon" title="Hapus Transaksi">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-muted border d-inline-flex align-items-center py-1 px-2"
+                                                      style="font-size:0.75rem;height:32px;"
+                                                      title="Terkunci (sudah diverifikasi)">
+                                                    <i class="bi bi-lock-fill me-1"></i>Terkunci
+                                                </span>
+                                            <?php endif; ?>
 
-                                        <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                            <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
-                                               class="btn btn-outline-success btn-action-icon"
-                                               title="Unduh Excel Rincian Biaya SPPD">
-                                                <i class="bi bi-file-earmark-excel"></i>
-                                            </a>
-                                        <?php elseif ($bolehEdit): ?>
-                                            <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
-                                            <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+                                            <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
+                                                <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                                   class="btn btn-outline-success btn-action-icon"
+                                                   title="Unduh Excel Rincian Biaya SPPD">
+                                                    <i class="bi bi-file-earmark-excel"></i>
+                                                </a>
+                                            <?php elseif ($bolehEdit): ?>
+                                                <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
+                                                <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        <?php else: ?>
+                            <?php
+                                // ITEM GROUP COLLAPSIBLE
+                                $members = $gItem['members'];
+                                $first = $members[0];
+                                $totalNilaiGroup = array_sum(array_column($members, 'nilai'));
+                                $badgeGroup = $resolveGroupStatus($members);
+                                $stNum = $gItem['st'];
+                            ?>
+                            <tbody x-data="{ open: false }">
+                                <!-- BARIS INDUK / PARENT -->
+                                <tr class="group-parent-row" @click="open = !open" title="Klik untuk membuka/menutup rincian pegawai">
+                                    <td class="ps-3">
+                                        <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($first['tanggal'])) ?></div>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size:0.75rem;font-weight:700;">
+                                            <i class="bi bi-file-earmark-person me-1"></i>ST: <?= htmlspecialchars($stNum) ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark" style="font-size:0.825rem;"><?= htmlspecialchars($first['nama_sub_kegiatan'] ?? '-') ?></div>
+                                        <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($first['kode_sub_kegiatan'] ?? '') ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark text-truncate" style="max-width:180px;font-size:0.825rem;" title="<?= htmlspecialchars($first['nama_rekening'] ?? '') ?>">
+                                            <?= htmlspecialchars($first['nama_rekening'] ?? '-') ?>
+                                        </div>
+                                        <small class="font-monospace d-block text-truncate" style="font-size:0.75rem;color:#94a3b8;max-width:180px;" title="<?= htmlspecialchars($first['kode_rekening'] ?? '') ?>">
+                                            <?= htmlspecialchars($first['kode_rekening'] ?? '') ?>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-1 mb-1">
+                                            <span class="jenis-chip perjadin">Perjadin</span>
+                                            <span class="badge bg-dark text-white" style="font-size:0.72rem;font-weight:700;border-radius:999px;">
+                                                <?= count($members) ?> Pegawai
+                                            </span>
+                                            <div class="text-truncate text-dark fw-semibold ms-1" style="max-width:200px;font-size:0.85rem;" title="<?= htmlspecialchars($first['uraian']) ?>">
+                                                <?= htmlspecialchars($first['uraian']) ?>
+                                            </div>
+                                        </div>
+                                        <div class="small text-muted text-truncate" style="max-width:270px;font-size:0.75rem;">
+                                            <i class="bi bi-people-fill text-primary me-1"></i><?= htmlspecialchars(implode(', ', array_filter(array_column($members, 'nama_penerima')))) ?>
+                                        </div>
+                                    </td>
+                                    <td class="text-end fw-bold text-primary" style="font-size:0.9rem;">
+                                        Rp <?= number_format($totalNilaiGroup, 0, ',', '.') ?>
+                                        <div class="text-muted fw-normal" style="font-size:0.7rem;">Total <?= count($members) ?> Pegawai</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span style="font-size:0.75rem;font-weight:700;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $badgeGroup[2] ?>;color:<?= $badgeGroup[3] ?>;border:1px solid <?= $badgeGroup[4] ?>;white-space:nowrap;">
+                                            <?= $badgeGroup[0] ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center pe-3" @click.stop>
+                                        <button type="button" @click="open = !open" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 fw-semibold" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;">
+                                            <span x-text="open ? 'Tutup' : 'Rincian'"></span>
+                                            <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- SUB-BARIS PER PEGAWAI -->
+                                <?php foreach ($members as $subIdx => $t): ?>
+                                    <?php
+                                        $subStatus = $t['status'] ?? 'diverifikasi';
+                                        $subBadge = match ($subStatus) {
+                                            'diajukan'     => ['Menunggu Verifikasi', 'warning', '#fefce8', '#854d0e', '#fef08a'],
+                                            'diverifikasi' => ['Diverifikasi', 'success', '#f0fdf4', '#166534', '#bbf7d0'],
+                                            'ditolak'      => ['Ditolak', 'danger', '#fef2f2', '#991b1b', '#fecaca'],
+                                            default        => [ucfirst($subStatus), 'secondary', '#f1f5f9', '#475569', '#e2e8f0'],
+                                        };
+                                        $subBolehEdit = in_array($subStatus, ['diajukan','ditolak'], true);
+                                        $subNoBukti = $t['nomor_bukti'] ?? '-';
+                                    ?>
+                                    <tr x-show="open" x-cloak class="group-child-row">
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center">
+                                                <span class="group-child-indent"><i class="bi bi-arrow-return-right"></i></span>
+                                                <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($subNoBukti) ?></small>
+                                            </div>
+                                        </td>
+                                        <td colspan="2" class="text-muted" style="font-size:0.78rem;">
+                                            <span class="badge bg-light text-secondary border me-1" style="font-size:0.7rem;">#<?= $subIdx + 1 ?></span>
+                                            <span class="text-truncate d-inline-block align-middle" style="max-width:250px;">Sub-transaksi SPT</span>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold text-dark text-truncate" style="max-width:270px;font-size:0.825rem;">
+                                                <i class="bi bi-person-fill text-primary me-1"></i><?= htmlspecialchars($t['nama_penerima'] ?: '-') ?>
+                                            </div>
+                                            <div class="text-muted text-truncate" style="font-size:0.75rem;max-width:270px;" title="<?= htmlspecialchars($t['uraian']) ?>">
+                                                <?= htmlspecialchars($t['uraian']) ?>
+                                            </div>
+                                        </td>
+                                        <td class="text-end fw-semibold text-dark">
+                                            Rp <?= number_format($t['nilai'], 0, ',', '.') ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <span style="font-size:0.72rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $subBadge[2] ?>;color:<?= $subBadge[3] ?>;border:1px solid <?= $subBadge[4] ?>;white-space:nowrap;">
+                                                <?= $subBadge[0] ?>
+                                            </span>
+                                            <?php if ($subStatus === 'ditolak' && !empty($t['catatan_verifikasi'])): ?>
+                                                <div class="mt-1">
+                                                    <button type="button" class="btn btn-link p-0 text-danger" style="font-size:0.72rem;text-decoration:none;" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>">
+                                                        <i class="bi bi-info-circle"></i> Alasan
+                                                    </button>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center pe-3">
+                                            <div class="d-inline-flex align-items-center justify-content-center gap-1">
+                                                <?php if ($subBolehEdit): ?>
+                                                    <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
+                                                       class="btn btn-outline-primary btn-action-icon"
+                                                       title="Edit Transaksi Pegawai">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                    <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>"
+                                                          class="d-inline m-0 p-0"
+                                                          onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi pegawai ini?')">
+                                                        <button type="submit" class="btn btn-outline-danger btn-action-icon" title="Hapus Transaksi Pegawai">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <span class="badge bg-light text-muted border d-inline-flex align-items-center py-1 px-2"
+                                                          style="font-size:0.75rem;height:32px;"
+                                                          title="Terkunci (sudah diverifikasi)">
+                                                        <i class="bi bi-lock-fill me-1"></i>Terkunci
+                                                    </span>
+                                                <?php endif; ?>
+
+                                                <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                                   class="btn btn-outline-success btn-action-icon"
+                                                   title="Unduh Excel Rincian Biaya SPPD Pegawai">
+                                                    <i class="bi bi-file-earmark-excel"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </table>
             </div>
 
             <!-- MOBILE CARD LIST -->
             <div class="d-md-none p-3">
-                <?php foreach ($transaksis as $t): ?>
-                    <?php
-                        $status = $t['status'] ?? 'diverifikasi';
-                        $badge = match ($status) {
-                            'diajukan'     => ['Menunggu Verifikasi', '#fefce8', '#854d0e', '#fef08a'],
-                            'diverifikasi' => ['Diverifikasi', '#f0fdf4', '#166534', '#bbf7d0'],
-                            'ditolak'      => ['Ditolak', '#fef2f2', '#991b1b', '#fecaca'],
-                            default        => [ucfirst($status), '#f1f5f9', '#475569', '#e2e8f0'],
-                        };
-                        $bolehEdit = in_array($status, ['diajukan','ditolak'], true);
-                        $jv = $t['jenis_transaksi'] ?? '';
-                        $jenisMap2 = ['perjalanan_dinas'=>['Perjadin','perjadin'],'belanja'=>['Belanja','belanja'],'honorarium'=>['Honor','honorarium'],'lainnya'=>['Lainnya','lainnya']];
-                        $jenisInfo2 = $jenisMap2[$jv] ?? null;
-                    ?>
-                    <div class="mobile-tx-card">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <div class="mc-label">Tanggal / No Bukti</div>
-                                <div class="mc-value fw-semibold"><?= date('d/m/Y', strtotime($t['tanggal'])) ?> <small class="text-muted font-monospace"><?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?></small></div>
+                <?php foreach ($groupedItems as $gItem): ?>
+                    <?php if ($gItem['type'] === 'single'): ?>
+                        <?php
+                            $t = $gItem['data'];
+                            $status = $t['status'] ?? 'diverifikasi';
+                            $badge = match ($status) {
+                                'diajukan'     => ['Menunggu Verifikasi', '#fefce8', '#854d0e', '#fef08a'],
+                                'diverifikasi' => ['Diverifikasi', '#f0fdf4', '#166534', '#bbf7d0'],
+                                'ditolak'      => ['Ditolak', '#fef2f2', '#991b1b', '#fecaca'],
+                                default        => [ucfirst($status), '#f1f5f9', '#475569', '#e2e8f0'],
+                            };
+                            $bolehEdit = in_array($status, ['diajukan','ditolak'], true);
+                            $jv = $t['jenis_transaksi'] ?? '';
+                            $jenisMap2 = ['perjalanan_dinas'=>['Perjadin','perjadin'],'belanja'=>['Belanja','belanja'],'honorarium'=>['Honor','honorarium'],'lainnya'=>['Lainnya','lainnya']];
+                            $jenisInfo2 = $jenisMap2[$jv] ?? null;
+                        ?>
+                        <div class="mobile-tx-card">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <div class="mc-label">Tanggal / No Bukti</div>
+                                    <div class="mc-value fw-semibold"><?= date('d/m/Y', strtotime($t['tanggal'])) ?> <small class="text-muted font-monospace"><?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?></small></div>
+                                </div>
+                                <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
                             </div>
-                            <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
-                        </div>
-                        <?php if($jenisInfo2): ?><span class="jenis-chip <?= $jenisInfo2[1] ?> mb-2 d-inline-block"><?= $jenisInfo2[0] ?></span><?php endif; ?>
-                        <div class="mc-label">Sub Kegiatan</div>
-                        <div class="mc-value"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?> - <?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
-                        <div class="mc-label">Rekening</div>
-                        <div class="mc-value">
-                            <div class="fw-semibold text-dark"><?= htmlspecialchars($t['nama_rekening'] ?? '-') ?></div>
-                            <small class="font-monospace d-block" style="font-size:0.75rem;color:#94a3b8;"><?= htmlspecialchars($t['kode_rekening'] ?? '') ?></small>
-                        </div>
-                        <div class="mc-label">Uraian</div>
-                        <div class="text-truncate text-dark fw-medium mb-1" style="font-size:0.875rem;" title="<?= htmlspecialchars($t['uraian']) ?>">
-                            <?= htmlspecialchars($t['uraian']) ?>
-                        </div>
-                        <?php if(!empty($t['nama_penerima'])): ?><div class="small text-muted"><i class="bi bi-person-fill me-1"></i><?= htmlspecialchars($t['nama_penerima']) ?></div><?php endif; ?>
-                        <?php if(!empty($t['nomor_surat_tugas'])): ?><div class="small text-muted"><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($t['nomor_surat_tugas']) ?></div><?php endif; ?>
-                        <div class="mc-label mt-2">Nilai</div>
-                        <div class="mc-value fw-bold">Rp <?= number_format($t['nilai'], 0, ',', '.') ?></div>
-                        <?php if($status==='ditolak' && !empty($t['catatan_verifikasi'])): ?>
-                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>"><i class="bi bi-info-circle me-1"></i>Alasan Ditolak</button>
-                        <?php endif; ?>
-                        <div class="d-flex gap-2 mt-3">
-                            <?php if($bolehEdit): ?>
-                                <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill"><i class="bi bi-pencil me-1"></i>Edit</a>
-                                <form method="POST" action="<?= base_url('seksi/transaksi/delete/'.$t['id']) ?>" class="flex-fill" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1"></i>Hapus</button>
-                                </form>
-                            <?php else: ?>
-                                <span class="text-muted small d-inline-flex align-items-center"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
+                            <?php if($jenisInfo2): ?><span class="jenis-chip <?= $jenisInfo2[1] ?> mb-2 d-inline-block"><?= $jenisInfo2[0] ?></span><?php endif; ?>
+                            <div class="mc-label">Sub Kegiatan</div>
+                            <div class="mc-value"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?> - <?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
+                            <div class="mc-label">Rekening</div>
+                            <div class="mc-value">
+                                <div class="fw-semibold text-dark"><?= htmlspecialchars($t['nama_rekening'] ?? '-') ?></div>
+                                <small class="font-monospace d-block" style="font-size:0.75rem;color:#94a3b8;"><?= htmlspecialchars($t['kode_rekening'] ?? '') ?></small>
+                            </div>
+                            <div class="mc-label">Uraian</div>
+                            <div class="text-truncate text-dark fw-medium mb-1" style="font-size:0.875rem;" title="<?= htmlspecialchars($t['uraian']) ?>">
+                                <?= htmlspecialchars($t['uraian']) ?>
+                            </div>
+                            <?php if(!empty($t['nama_penerima'])): ?><div class="small text-muted"><i class="bi bi-person-fill me-1"></i><?= htmlspecialchars($t['nama_penerima']) ?></div><?php endif; ?>
+                            <?php if(!empty($t['nomor_surat_tugas'])): ?><div class="small text-muted"><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($t['nomor_surat_tugas']) ?></div><?php endif; ?>
+                            <div class="mc-label mt-2">Nilai</div>
+                            <div class="mc-value fw-bold">Rp <?= number_format($t['nilai'], 0, ',', '.') ?></div>
+                            <?php if($status==='ditolak' && !empty($t['catatan_verifikasi'])): ?>
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>"><i class="bi bi-info-circle me-1"></i>Alasan Ditolak</button>
                             <?php endif; ?>
-                            <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
-                                   class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   title="Unduh Excel Rincian Biaya SPPD">
-                                    <i class="bi bi-file-earmark-excel me-1"></i>Excel
-                                </a>
-                            <?php endif; ?>
+                            <div class="d-flex gap-2 mt-3">
+                                <?php if($bolehEdit): ?>
+                                    <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill"><i class="bi bi-pencil me-1"></i>Edit</a>
+                                    <form method="POST" action="<?= base_url('seksi/transaksi/delete/'.$t['id']) ?>" class="flex-fill" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1"></i>Hapus</button>
+                                    </form>
+                                <?php else: ?>
+                                    <span class="text-muted small d-inline-flex align-items-center"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
+                                <?php endif; ?>
+                                <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
+                                    <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                       class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                       title="Unduh Excel Rincian Biaya SPPD">
+                                        <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                    </a>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                    </div>
+                    <?php else: ?>
+                        <?php
+                            $members = $gItem['members'];
+                            $first = $members[0];
+                            $totalNilaiGroup = array_sum(array_column($members, 'nilai'));
+                            $badgeGroup = $resolveGroupStatus($members);
+                            $stNum = $gItem['st'];
+                        ?>
+                        <div x-data="{ open: false }" class="mobile-tx-card" style="border-left-color: #6366f1;">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <div class="mc-label">Surat Tugas & Tanggal</div>
+                                    <div class="mc-value fw-bold text-primary mb-0">ST: <?= htmlspecialchars($stNum) ?></div>
+                                    <small class="text-muted"><?= date('d/m/Y', strtotime($first['tanggal'])) ?></small>
+                                </div>
+                                <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badgeGroup[2] ?>;color:<?= $badgeGroup[3] ?>;border:1px solid <?= $badgeGroup[4] ?>;"><?= $badgeGroup[0] ?></span>
+                            </div>
+                            <div class="d-flex gap-1 mb-2">
+                                <span class="jenis-chip perjadin">Perjadin</span>
+                                <span class="badge bg-dark text-white" style="font-size:0.7rem;"><?= count($members) ?> Pegawai</span>
+                            </div>
+                            <div class="mc-label">Sub Kegiatan</div>
+                            <div class="mc-value small"><?= htmlspecialchars($first['kode_sub_kegiatan'] ?? '') ?> - <?= htmlspecialchars($first['nama_sub_kegiatan'] ?? '-') ?></div>
+                            <div class="mc-label">Rekening</div>
+                            <div class="mc-value">
+                                <div class="fw-semibold text-dark small"><?= htmlspecialchars($first['nama_rekening'] ?? '-') ?></div>
+                                <small class="font-monospace text-muted" style="font-size:0.72rem;"><?= htmlspecialchars($first['kode_rekening'] ?? '') ?></small>
+                            </div>
+                            <div class="mc-label">Total Pengeluaran ST</div>
+                            <div class="mc-value fw-bold text-primary fs-6">Rp <?= number_format($totalNilaiGroup, 0, ',', '.') ?></div>
+
+                            <button type="button" @click="open = !open" class="btn btn-sm btn-outline-primary w-100 mt-2 d-flex justify-content-between align-items-center fw-semibold">
+                                <span x-text="open ? 'Tutup Rincian Pegawai' : 'Lihat ' + <?= count($members) ?> + ' Rincian Pegawai'"></span>
+                                <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                            </button>
+
+                            <!-- Sub-transaksi pegawai di mobile -->
+                            <div x-show="open" x-cloak class="mt-3 pt-3 border-top">
+                                <?php foreach ($members as $subIdx => $t): ?>
+                                    <?php
+                                        $subStatus = $t['status'] ?? 'diverifikasi';
+                                        $subBadge = match ($subStatus) {
+                                            'diajukan'     => ['Menunggu', '#fefce8', '#854d0e', '#fef08a'],
+                                            'diverifikasi' => ['Diverifikasi', '#f0fdf4', '#166534', '#bbf7d0'],
+                                            'ditolak'      => ['Ditolak', '#fef2f2', '#991b1b', '#fecaca'],
+                                            default        => [ucfirst($subStatus), '#f1f5f9', '#475569', '#e2e8f0'],
+                                        };
+                                        $subBolehEdit = in_array($subStatus, ['diajukan','ditolak'], true);
+                                    ?>
+                                    <div class="p-2 mb-2 bg-light rounded border">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-bold small text-dark"><i class="bi bi-person-fill text-primary me-1"></i><?= htmlspecialchars($t['nama_penerima'] ?: '-') ?></span>
+                                            <span style="font-size:0.68rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:999px;background:<?= $subBadge[1] ?>;color:<?= $subBadge[2] ?>;border:1px solid <?= $subBadge[3] ?>;"><?= $subBadge[0] ?></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center small mb-2">
+                                            <span class="text-muted font-monospace" style="font-size:0.7rem;"><?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?></span>
+                                            <span class="fw-bold text-dark">Rp <?= number_format($t['nilai'], 0, ',', '.') ?></span>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            <?php if ($subBolehEdit): ?>
+                                                <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>" class="btn btn-xs btn-outline-primary flex-fill py-1" style="font-size:0.75rem;"><i class="bi bi-pencil me-1"></i>Edit</a>
+                                                <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>" class="flex-fill" onsubmit="return confirm('Hapus transaksi ini?')">
+                                                    <button type="submit" class="btn btn-xs btn-outline-danger w-100 py-1" style="font-size:0.75rem;"><i class="bi bi-trash me-1"></i>Hapus</button>
+                                                </form>
+                                            <?php endif; ?>
+                                            <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>" class="btn btn-xs btn-outline-success <?= $subBolehEdit ? 'flex-shrink-0' : 'w-100' ?> py-1" style="font-size:0.75rem;"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </div>
 
@@ -559,6 +911,37 @@ document.addEventListener('DOMContentLoaded', function(){
             // allow normal link navigation
         });
     });
+
+    // Mode Density Toggle (Normal vs Compact) dengan localStorage
+    const densityBtn = document.getElementById('btnToggleDensity');
+    const densityIcon = document.getElementById('densityIcon');
+    const txTable = document.querySelector('.table-responsive table');
+    const mobileContainer = document.querySelector('.d-md-none');
+
+    function applyDensity(mode) {
+        if (mode === 'compact') {
+            if (txTable) txTable.classList.add('table-compact');
+            if (mobileContainer) mobileContainer.classList.add('table-compact');
+            if (densityIcon) densityIcon.className = 'bi bi-list-ul';
+            if (densityBtn) densityBtn.title = 'Ubah ke Mode Normal (Renggang)';
+        } else {
+            if (txTable) txTable.classList.remove('table-compact');
+            if (mobileContainer) mobileContainer.classList.remove('table-compact');
+            if (densityIcon) densityIcon.className = 'bi bi-distribute-vertical';
+            if (densityBtn) densityBtn.title = 'Ubah ke Mode Compact (Rapat)';
+        }
+        localStorage.setItem('seksi_tx_density', mode);
+    }
+
+    const savedDensity = localStorage.getItem('seksi_tx_density') || 'normal';
+    applyDensity(savedDensity);
+
+    if (densityBtn) {
+        densityBtn.addEventListener('click', function() {
+            const isCompact = txTable ? txTable.classList.contains('table-compact') : (localStorage.getItem('seksi_tx_density') === 'compact');
+            applyDensity(isCompact ? 'normal' : 'compact');
+        });
+    }
 
     // Tombol Unduh Excel BKU
     var btnBku = document.getElementById('btnUnduhBku');
