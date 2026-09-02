@@ -67,15 +67,15 @@ class ExcelController {
             $skid = $pagu['sub_kegiatan_id'];
             $rid  = $pagu['rekening_id'];
 
-            // RAK for the selected month
-            $rakBulan   = $this->rakModel->getByRekeningAndYear($rid, $tahun);
+            // RAK for the selected month (cached batch)
+            $rakBulan   = $this->getRakByRekeningAndYear($rid, $tahun);
             $monthlyRak = array_fill(1, 12, 0);
             foreach ($rakBulan as $r) {
                 $monthlyRak[$r['bulan']] += (float)$r['nilai_rak'];
             }
 
-            // Realisasi — only up to selected bulan
-            $transaksis = $this->transaksiModel->getByRekeningAndYear($rid, $tahun);
+            // Realisasi — only up to selected bulan (cached batch)
+            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realisasiSd          = 0;  // s/d bulan terpilih
             $realisasiSebelumnya  = 0;  // s/d bulan terpilih - 1
             $realisasiSaatIni     = 0;  // bulan terpilih saja
@@ -491,7 +491,7 @@ class ExcelController {
             }
 
             $rekeningMonths = array_fill(1, 12, 0);
-            $transaksis     = $this->transaksiModel->getByRekeningAndYear($rid, $tahun);
+            $transaksis     = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             foreach ($transaksis as $t) {
                 $bulan = (int) date('n', strtotime($t['tanggal']));
                 if ($bulan >= 1 && $bulan <= 12) {
@@ -742,8 +742,8 @@ class ExcelController {
             $rNama  = $pagu['nama_rekening']     ?? 'Unknown';
             $rKode  = $pagu['kode_rekening']     ?? '';
 
-            // RAK per semester
-            $raks  = $this->rakModel->getByRekeningAndYear($rid, $tahun);
+            // RAK per semester (cached batch)
+            $raks  = $this->getRakByRekeningAndYear($rid, $tahun);
             $rakS1 = 0; $rakS2 = 0;
             foreach ($raks as $r) {
                 $b   = (int)   $r['bulan'];
@@ -752,8 +752,8 @@ class ExcelController {
                 elseif ($b >= 7 && $b <= 12)  $rakS2 += $val;
             }
 
-            // Realisasi per semester
-            $transaksis = $this->transaksiModel->getByRekeningAndYear($rid, $tahun);
+            // Realisasi per semester (cached batch)
+            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realS1 = 0; $realS2 = 0;
             foreach ($transaksis as $t) {
                 $b   = (int)   date('n', strtotime($t['tanggal']));
@@ -1030,5 +1030,63 @@ class ExcelController {
             $sheet->getStyle("{$col}{$row}")->getFont()->getColor()->setRGB($rgb);
             $sheet->getStyle("{$col}{$row}")->getFont()->setBold(true);
         }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // BATCH CACHING HELPERS (OPTIMASI N+1 QUERY EXCEL)
+    // ──────────────────────────────────────────────────────────
+
+    private array $rakByYearCache = [];
+    private array $transaksiByYearCache = [];
+
+    private function loadRakByYear(int $tahun): void {
+        if (isset($this->rakByYearCache[$tahun])) return;
+        $db = \Database::getConnection();
+        $stmt = $db->prepare("SELECT * FROM rak WHERE tahun = :tahun ORDER BY bulan ASC");
+        $stmt->execute([':tahun' => $tahun]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $byRekening = [];
+        foreach ($rows as $r) {
+            $byRekening[(int)$r['rekening_id']][] = $r;
+        }
+        $this->rakByYearCache[$tahun] = $byRekening;
+    }
+
+    private function getRakByRekeningAndYear(int $rekeningId, int $tahun): array {
+        $this->loadRakByYear($tahun);
+        return $this->rakByYearCache[$tahun][$rekeningId] ?? [];
+    }
+
+    private function loadTransaksiByYear(int $tahun): void {
+        if (isset($this->transaksiByYearCache[$tahun])) return;
+        $db = \Database::getConnection();
+        try {
+            $stmt = $db->prepare("
+                SELECT * FROM transaksi 
+                WHERE YEAR(tanggal) = :tahun
+                AND status = 'diverifikasi'
+                ORDER BY tanggal DESC
+            ");
+            $stmt->execute([':tahun' => $tahun]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            $stmt = $db->prepare("
+                SELECT * FROM transaksi 
+                WHERE YEAR(tanggal) = :tahun
+                ORDER BY tanggal DESC
+            ");
+            $stmt->execute([':tahun' => $tahun]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        }
+        $byRekening = [];
+        foreach ($rows as $t) {
+            $byRekening[(int)$t['rekening_id']][] = $t;
+        }
+        $this->transaksiByYearCache[$tahun] = $byRekening;
+    }
+
+    private function getTransaksiByRekeningAndYear(int $rekeningId, int $tahun): array {
+        $this->loadTransaksiByYear($tahun);
+        return $this->transaksiByYearCache[$tahun][$rekeningId] ?? [];
     }
 }

@@ -18,6 +18,14 @@ class DashboardController {
     private Program $programModel;
     private Kegiatan $kegiatanModel;
     private SubKegiatan $subKegiatanModel;
+
+    // In-memory request caches to eliminate N+1 queries
+    private ?array $allPagusCache = null;
+    private array $rakByYearCache = [];
+    private array $rakTotalByYearCache = [];
+    private array $transaksiByYearCache = [];
+    private array $transaksiTotalByYearCache = [];
+    private ?array $seksiCache = null;
     
     public function __construct(
         Pagu $paguModel,
@@ -217,8 +225,8 @@ class DashboardController {
      * @return array
      */
     private function getStatistics(int $tahun, array $filters = []): array {
-        // Get all pagu for the year
-        $pagus = $this->paguModel->getAll();
+        // Get all pagu for the year from cache
+        $pagus = $this->getPagusCache();
         $totalPagu = 0;
         $totalRak = 0;
         $totalRealisasi = 0;
@@ -227,12 +235,12 @@ class DashboardController {
             if ($pagu['tahun'] == $tahun && $this->matchesFilters($pagu, $filters)) {
                 $totalPagu += (float) $pagu['nilai_pagu'];
                 
-                // Get total RAK for this rekening and year
-                $rakTotal = $this->rakModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                // Get total RAK for this rekening and year (cached batch)
+                $rakTotal = $this->getRakTotalByRekeningAndYear((int) $pagu['rekening_id'], $tahun);
                 $totalRak += $rakTotal;
                 
-                // Get total transactions for this rekening and year
-                $transaksiTotal = $this->transaksiModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                // Get total transactions for this rekening and year (cached batch)
+                $transaksiTotal = $this->getTransaksiTotalByRekeningAndYear((int) $pagu['rekening_id'], $tahun);
                 $totalRealisasi += $transaksiTotal;
             }
         }
@@ -262,22 +270,25 @@ class DashboardController {
         $monthlyRealisasi = array_fill(1, 12, 0);
         $monthlyAlerts = [];
         
-        // Get all pagu for the year
-        $pagus = $this->paguModel->getAll();
+        // Get all pagu for the year from cache
+        $pagus = $this->getPagusCache();
         
         foreach ($pagus as $pagu) {
             if ($pagu['tahun'] == $tahun && $this->matchesFilters($pagu, $filters)) {
-                // Get RAK data for each month
-                $raks = $this->rakModel->getByRekeningAndYear($pagu['rekening_id'], $tahun);
+                $rid = (int) $pagu['rekening_id'];
+                // Get RAK data for each month (cached batch)
+                $raks = $this->getRakByRekeningAndYear($rid, $tahun);
                 foreach ($raks as $rak) {
-                    $monthlyRak[$rak['bulan']] += (float) $rak['nilai_rak'];
+                    $monthlyRak[(int)$rak['bulan']] += (float) $rak['nilai_rak'];
                 }
                 
-                // Get transactions for each month
-                $transaksis = $this->transaksiModel->getByRekeningAndYear($pagu['rekening_id'], $tahun);
+                // Get transactions for each month (cached batch)
+                $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
                 foreach ($transaksis as $transaksi) {
                     $bulan = (int) date('n', strtotime($transaksi['tanggal']));
-                    $monthlyRealisasi[$bulan] += (float) $transaksi['nilai'];
+                    if ($bulan >= 1 && $bulan <= 12) {
+                        $monthlyRealisasi[$bulan] += (float) $transaksi['nilai'];
+                    }
                 }
             }
         }
@@ -333,11 +344,11 @@ class DashboardController {
         $totalPagu = 0;
         $totalRealisasi = 0;
         
-        $pagus = $this->paguModel->getAll();
+        $pagus = $this->getPagusCache();
         foreach ($pagus as $pagu) {
             if ($pagu['tahun'] == $tahun && $this->matchesFilters($pagu, $filters)) {
                 $totalPagu += (float) $pagu['nilai_pagu'];
-                $transaksiTotal = $this->transaksiModel->getTotalByRekeningAndYear($pagu['rekening_id'], $tahun);
+                $transaksiTotal = $this->getTransaksiTotalByRekeningAndYear((int) $pagu['rekening_id'], $tahun);
                 $totalRealisasi += $transaksiTotal;
             }
         }
@@ -393,19 +404,20 @@ class DashboardController {
      * @return array
      */
     private function getBreakdownData(int $tahun, array $filters): array {
-        $pagus = $this->paguModel->getAll();
+        $pagus = $this->getPagusCache();
         $breakdown = [];
         $bulanBerjalan = $tahun == (int) date('Y') ? (int) date('n') : 12;
+        $seksiMap = $this->getSeksiMap();
         
         foreach ($pagus as $pagu) {
             if ($pagu['tahun'] == $tahun && $this->matchesFilters($pagu, $filters)) {
                 $rid = (int) $pagu['rekening_id'];
                 $paguVal = (float) $pagu['nilai_pagu'];
-                $realisasiVal = $this->transaksiModel->getTotalByRekeningAndYear($rid, $tahun);
+                $realisasiVal = $this->getTransaksiTotalByRekeningAndYear($rid, $tahun);
                 
-                // Hitung RAK kumulatif s/d bulan berjalan untuk rekening ini
+                // Hitung RAK kumulatif s/d bulan berjalan untuk rekening ini (cached batch)
                 $rakKumulatifVal = 0;
-                $raks = $this->rakModel->getByRekeningAndYear($rid, $tahun);
+                $raks = $this->getRakByRekeningAndYear($rid, $tahun);
                 foreach ($raks as $rak) {
                     if ((int)$rak['bulan'] <= $bulanBerjalan) {
                         $rakKumulatifVal += (float) $rak['nilai_rak'];
@@ -414,18 +426,16 @@ class DashboardController {
 
                 // Determine breakdown level based on filters
                 if (empty($filters['seksi_id'])) {
-                    // Group by seksi
-                    if (isset($pagu['sub_kegiatan_seksi_id'])) {
-                        $seksi = $this->seksiModel->getById($pagu['sub_kegiatan_seksi_id']);
-                        if ($seksi) {
-                            $key = $seksi['nama_seksi'];
-                            if (!isset($breakdown[$key])) {
-                                $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0, 'rak_kumulatif' => 0];
-                            }
-                            $breakdown[$key]['pagu'] += $paguVal;
-                            $breakdown[$key]['realisasi'] += $realisasiVal;
-                            $breakdown[$key]['rak_kumulatif'] += $rakKumulatifVal;
+                    // Group by seksi (cached mapping)
+                    $sid = $pagu['sub_kegiatan_seksi_id'] ?? null;
+                    if ($sid && isset($seksiMap[$sid])) {
+                        $key = $seksiMap[$sid];
+                        if (!isset($breakdown[$key])) {
+                            $breakdown[$key] = ['pagu' => 0, 'realisasi' => 0, 'rak_kumulatif' => 0];
                         }
+                        $breakdown[$key]['pagu'] += $paguVal;
+                        $breakdown[$key]['realisasi'] += $realisasiVal;
+                        $breakdown[$key]['rak_kumulatif'] += $rakKumulatifVal;
                     }
                 } elseif (empty($filters['program_id'])) {
                     // Group by program - data already in pagu
@@ -469,7 +479,7 @@ class DashboardController {
      * @return array
      */
     private function getHierarchicalData(int $tahun, array $filters): array {
-        $pagus = $this->paguModel->getAll();
+        $pagus = $this->getPagusCache();
         
         // Fetch seksi data for mapping
         $seksis = $this->seksiModel->getAll();
@@ -488,9 +498,9 @@ class DashboardController {
                 $pid = $pagu['program_id'];
                 $kid = $pagu['kegiatan_id'];
                 $skid = $pagu['sub_kegiatan_id'];
-                $rid = $pagu['rekening_id'];
+                $rid = (int) $pagu['rekening_id'];
                 
-                $realisasiRek = $this->transaksiModel->getTotalByRekeningAndYear($rid, $tahun);
+                $realisasiRek = $this->getTransaksiTotalByRekeningAndYear($rid, $tahun);
                 $paguRek = (float) $pagu['nilai_pagu'];
                 
                 if (!isset($hierarchy[$sid])) {
@@ -587,7 +597,7 @@ class DashboardController {
      * @return array
      */
     private function getMonthlyAbsorptionDetails(int $tahun, array $filters): array {
-        $pagus = $this->paguModel->getAll();
+        $pagus = $this->getPagusCache();
         $subKegiatanMap = [];
         $totals = [
             'pagu' => 0,
@@ -617,7 +627,7 @@ class DashboardController {
             }
 
             $rekeningMonths = array_fill(1, 12, 0);
-            $transaksis = $this->transaksiModel->getByRekeningAndYear($rid, $tahun);
+            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             foreach ($transaksis as $transaksi) {
                 $bulan = (int) date('n', strtotime($transaksi['tanggal']));
                 if ($bulan >= 1 && $bulan <= 12) {
@@ -667,7 +677,7 @@ class DashboardController {
      * @return array
      */
     private function getDeviationDetails(int $tahun, array $filters): array {
-        $pagus = $this->paguModel->getAll();
+        $pagus = $this->getPagusCache();
         $currentMonth = (int) date('n');
         $currentYear  = (int) date('Y');
 
@@ -677,21 +687,21 @@ class DashboardController {
             if ($pagu['tahun'] != $tahun || !$this->matchesFilters($pagu, $filters)) continue;
 
             $skid   = $pagu['sub_kegiatan_id'];
-            $rid    = $pagu['rekening_id'];
+            $rid    = (int) $pagu['rekening_id'];
             $skNama = $pagu['nama_sub_kegiatan'] ?? 'Unknown';
             $skKode = $pagu['kode_sub_kegiatan'] ?? '';
             $rNama  = $pagu['nama_rekening']  ?? 'Unknown';
             $rKode  = $pagu['kode_rekening']  ?? '';
 
-            // Get RAK per month for this rekening
-            $raks = $this->rakModel->getByRekeningAndYear($rid, $tahun);
+            // Get RAK per month for this rekening (cached batch)
+            $raks = $this->getRakByRekeningAndYear($rid, $tahun);
             $rakByMonth = [];
             foreach ($raks as $r) {
                 $rakByMonth[(int)$r['bulan']] = (float)$r['nilai_rak'];
             }
 
-            // Get realisasi per month
-            $transaksis = $this->transaksiModel->getByRekeningAndYear($rid, $tahun);
+            // Get realisasi per month (cached batch)
+            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realisasiByMonth = [];
             foreach ($transaksis as $t) {
                 $b = (int) date('n', strtotime($t['tanggal']));
@@ -756,7 +766,7 @@ class DashboardController {
      * @return array Grouped by sub kegiatan
      */
     private function getSemesterRekapData(int $tahun, array $filters): array {
-        $pagus = $this->paguModel->getAll();
+        $pagus = $this->getPagusCache();
 
         $subKegiatanMap = [];
         $totals = [
@@ -772,14 +782,14 @@ class DashboardController {
             if ($pagu['tahun'] != $tahun || !$this->matchesFilters($pagu, $filters)) continue;
 
             $skid   = $pagu['sub_kegiatan_id'];
-            $rid    = $pagu['rekening_id'];
+            $rid    = (int) $pagu['rekening_id'];
             $skNama = $pagu['nama_sub_kegiatan'] ?? 'Unknown';
             $skKode = $pagu['kode_sub_kegiatan'] ?? '';
             $rNama  = $pagu['nama_rekening']  ?? 'Unknown';
             $rKode  = $pagu['kode_rekening']  ?? '';
 
-            // Get RAK per month
-            $raks = $this->rakModel->getByRekeningAndYear($rid, $tahun);
+            // Get RAK per month (cached batch)
+            $raks = $this->getRakByRekeningAndYear($rid, $tahun);
             $rakS1 = 0; $rakS2 = 0;
             foreach ($raks as $r) {
                 $b = (int) $r['bulan'];
@@ -788,8 +798,8 @@ class DashboardController {
                 elseif ($b >= 7 && $b <= 12) $rakS2 += $val;
             }
 
-            // Get realisasi per month
-            $transaksis = $this->transaksiModel->getByRekeningAndYear($rid, $tahun);
+            // Get realisasi per month (cached batch)
+            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realS1 = 0; $realS2 = 0;
             foreach ($transaksis as $t) {
                 $b = (int) date('n', strtotime($t['tanggal']));
@@ -865,6 +875,104 @@ class DashboardController {
             'sub_kegiatan' => $subKegiatanMap,
             'totals'       => $totals,
         ];
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // BATCH CACHING HELPERS (OPTIMASI N+1 QUERY)
+    // ──────────────────────────────────────────────────────────
+
+    private function getPagusCache(): array {
+        if ($this->allPagusCache === null) {
+            $this->allPagusCache = $this->paguModel->getAll();
+        }
+        return $this->allPagusCache;
+    }
+
+    private function loadRakByYear(int $tahun): void {
+        if (isset($this->rakByYearCache[$tahun])) {
+            return;
+        }
+        $db = \Database::getConnection();
+        $stmt = $db->prepare("SELECT * FROM rak WHERE tahun = :tahun ORDER BY bulan ASC");
+        $stmt->execute([':tahun' => $tahun]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $byRekening = [];
+        $totalByRekening = [];
+        foreach ($rows as $r) {
+            $rid = (int) $r['rekening_id'];
+            $byRekening[$rid][] = $r;
+            $totalByRekening[$rid] = ($totalByRekening[$rid] ?? 0) + (float) $r['nilai_rak'];
+        }
+        $this->rakByYearCache[$tahun] = $byRekening;
+        $this->rakTotalByYearCache[$tahun] = $totalByRekening;
+    }
+
+    private function getRakByRekeningAndYear(int $rekeningId, int $tahun): array {
+        $this->loadRakByYear($tahun);
+        return $this->rakByYearCache[$tahun][$rekeningId] ?? [];
+    }
+
+    private function getRakTotalByRekeningAndYear(int $rekeningId, int $tahun): float {
+        $this->loadRakByYear($tahun);
+        return (float) ($this->rakTotalByYearCache[$tahun][$rekeningId] ?? 0);
+    }
+
+    private function loadTransaksiByYear(int $tahun): void {
+        if (isset($this->transaksiByYearCache[$tahun])) {
+            return;
+        }
+        $db = \Database::getConnection();
+        try {
+            $stmt = $db->prepare("
+                SELECT * FROM transaksi 
+                WHERE YEAR(tanggal) = :tahun
+                AND status = 'diverifikasi'
+                ORDER BY tanggal DESC
+            ");
+            $stmt->execute([':tahun' => $tahun]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            // Fallback jika kolom status belum ada (lingkungan lokal belum migrate)
+            $stmt = $db->prepare("
+                SELECT * FROM transaksi 
+                WHERE YEAR(tanggal) = :tahun
+                ORDER BY tanggal DESC
+            ");
+            $stmt->execute([':tahun' => $tahun]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        }
+
+        $byRekening = [];
+        $totalByRekening = [];
+        foreach ($rows as $t) {
+            $rid = (int) $t['rekening_id'];
+            $byRekening[$rid][] = $t;
+            $totalByRekening[$rid] = ($totalByRekening[$rid] ?? 0) + (float) $t['nilai'];
+        }
+        $this->transaksiByYearCache[$tahun] = $byRekening;
+        $this->transaksiTotalByYearCache[$tahun] = $totalByRekening;
+    }
+
+    private function getTransaksiByRekeningAndYear(int $rekeningId, int $tahun): array {
+        $this->loadTransaksiByYear($tahun);
+        return $this->transaksiByYearCache[$tahun][$rekeningId] ?? [];
+    }
+
+    private function getTransaksiTotalByRekeningAndYear(int $rekeningId, int $tahun): float {
+        $this->loadTransaksiByYear($tahun);
+        return (float) ($this->transaksiTotalByYearCache[$tahun][$rekeningId] ?? 0);
+    }
+
+    private function getSeksiMap(): array {
+        if ($this->seksiCache === null) {
+            $seksis = $this->seksiModel->getAll();
+            $this->seksiCache = [];
+            foreach ($seksis as $s) {
+                $this->seksiCache[$s['id']] = $s['nama_seksi'];
+            }
+        }
+        return $this->seksiCache;
     }
 }
 
