@@ -478,6 +478,8 @@ try {
         $spjController->update((int) $matches[1]);
     } elseif (preg_match('#^/spj/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $spjController->delete((int) $matches[1]);
+    } elseif (preg_match('#^/spj/unduh/(\d+)$#', $path, $matches)) {
+        $spjController->download((int) $matches[1]);
     }
     // Route matching - Input Transaksi Seksi (role seksi)
     elseif ($path === '/seksi/transaksi' || $path === '/seksi/transaksi/') {

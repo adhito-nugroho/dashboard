@@ -121,9 +121,17 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
 
     <!-- Rincian Biaya SPJ (read-only) -->
     <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #4f46e5 !important;">
-        <div class="card-header bg-white fw-bold" style="font-size:.9rem;">
-            <i class="bi bi-receipt-cutoff text-primary me-2"></i>Rincian Biaya Perjalanan Dinas
-            <span class="badge bg-light text-muted fw-normal ms-2" style="font-size:.72rem;">Read-only</span>
+        <div class="card-header bg-white d-flex justify-content-between align-items-center" style="font-size:.9rem;">
+            <div>
+                <span class="fw-bold"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Rincian Biaya Perjalanan Dinas</span>
+                <span class="badge bg-light text-muted fw-normal ms-2" style="font-size:.72rem;">Read-only</span>
+            </div>
+            <?php if ($rincianBiaya): ?>
+                <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $transaksi['id']) ?>"
+                   class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Unduh Excel
+                </a>
+            <?php endif; ?>
         </div>
         <div class="card-body">
         <?php if (!$rincianBiaya): ?>

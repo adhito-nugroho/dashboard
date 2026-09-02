@@ -121,6 +121,10 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                     <td class="text-center">
                                         <?php if ($sudahAda): ?>
                                             <div class="btn-group btn-group-sm" role="group">
+                                                <a href="<?= base_url('spj/unduh/' . $rincian['id']) ?>"
+                                                   class="btn btn-outline-success" title="Unduh Excel Rincian Biaya">
+                                                    <i class="bi bi-file-earmark-excel"></i>
+                                                </a>
                                                 <a href="<?= base_url('spj/edit/' . $rincian['id']) ?>"
                                                    class="btn btn-outline-primary" title="Edit">
                                                     <i class="bi bi-pencil"></i>

@@ -549,6 +549,37 @@ class SpjController
         ];
     }
 
+    /**
+     * Unduh Excel Rincian Biaya Perjalanan Dinas.
+     * Akses: GET /spj/unduh/{id}
+     */
+    public function download(int $id): void
+    {
+        $this->requireLogin();
+        $data = $this->model->getById($id);
+        if (!$data) {
+            http_response_code(404);
+            echo 'Data rincian biaya tidak ditemukan.';
+            exit;
+        }
+
+        $header  = $data['header'];
+        $details = $data['details'];
+
+        // Coba cari data transaksi terkait jika ada
+        $transaksi = [];
+        if (!empty($header['transaksi_id'])) {
+            $db = \Database::getConnection();
+            $stmt = $db->prepare("SELECT * FROM transaksi WHERE id = ? LIMIT 1");
+            $stmt->execute([(int) $header['transaksi_id']]);
+            $transaksi = $stmt->fetch(\PDO::FETCH_ASSOC) ?: [];
+        }
+
+        require_once __DIR__ . '/../Services/RincianBiayaExportService.php';
+        $exportService = new \App\Services\RincianBiayaExportService();
+        $exportService->download($header, $details, $transaksi);
+    }
+
     private function redirectWithMessage(string $url, string $type, string $message): void
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
@@ -558,3 +589,4 @@ class SpjController
         exit;
     }
 }
+
