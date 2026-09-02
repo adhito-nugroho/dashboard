@@ -214,9 +214,47 @@ class SeksiTransaksiController
             $namaPenerima = trim($item['nama_penerima'] ?? '');
             $pegawaiNip   = trim($item['pegawai_nip'] ?? '');
 
+            // Proses rincian komponen terlebih dahulu jika ada
+            $komponen = $item['komponen'] ?? [];
+            $detailsValid = [];
+            $totalRincian = 0;
+            if (is_array($komponen)) {
+                foreach ($komponen as $k) {
+                    $namaK = trim($k['nama_komponen'] ?? '');
+                    if ($namaK === '') continue;
+                    $harga  = (float) str_replace(['.', ','], ['', '.'], $k['harga_satuan'] ?? '0');
+                    $hari   = isset($k['jumlah_hari']) && $k['jumlah_hari'] !== '' ? (float) $k['jumlah_hari'] : null;
+                    $jml    = (float) str_replace(['.', ','], ['', '.'], $k['jumlah'] ?? '0');
+                    if ($jml <= 0) $jml = $hari !== null ? $harga * $hari : $harga;
+                    $detailsValid[] = [
+                        'nama_komponen' => $namaK,
+                        'harga_satuan'  => $harga,
+                        'jumlah_hari'   => $hari,
+                        'jumlah'        => $jml,
+                        'keterangan'    => trim($k['keterangan'] ?? '') ?: null,
+                    ];
+                    $totalRincian += $jml;
+                }
+            }
+
+            // Jika nilai transaksi belum terisi atau 0 tapi ada total rincian, otomatis gunakan total rincian
+            if ($nilai <= 0 && $totalRincian > 0) {
+                $nilai = $totalRincian;
+            }
+
             if ($nomorBukti === '' || $uraian === '' || $nilai <= 0) {
                 $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nomor bukti, uraian, dan nilai harus valid.";
                 continue;
+            }
+
+            // Ditetapkan sejumlah & dibayar semula: jika belum terisi, otomatis gunakan total rincian
+            $ditetapkanRaw = (float) str_replace(['.', ','], ['', '.'], $item['ditetapkan_sejumlah'] ?? '0');
+            $dibayarRaw    = (float) str_replace(['.', ','], ['', '.'], $item['dibayar_semula'] ?? '0');
+            if ($ditetapkanRaw <= 0 && $totalRincian > 0) {
+                $ditetapkanRaw = $totalRincian;
+            }
+            if ($dibayarRaw <= 0 && $totalRincian > 0) {
+                $dibayarRaw = $totalRincian;
             }
 
             try {
@@ -240,27 +278,6 @@ class SeksiTransaksiController
                 $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input batch transaksi Surat Tugas an. ' . $namaPenerima);
                 $createdCount++;
 
-                // Simpan rincian biaya jika ada komponen terisi
-                $komponen = $item['komponen'] ?? [];
-                $detailsValid = [];
-                if (is_array($komponen)) {
-                    foreach ($komponen as $k) {
-                        $namaK = trim($k['nama_komponen'] ?? '');
-                        if ($namaK === '') continue;
-                        $harga  = (float) str_replace(['.', ','], ['', '.'], $k['harga_satuan'] ?? '0');
-                        $hari   = isset($k['jumlah_hari']) && $k['jumlah_hari'] !== '' ? (float) $k['jumlah_hari'] : null;
-                        $jml    = (float) str_replace(['.', ','], ['', '.'], $k['jumlah'] ?? '0');
-                        if ($jml <= 0) $jml = $hari !== null ? $harga * $hari : $harga;
-                        $detailsValid[] = [
-                            'nama_komponen' => $namaK,
-                            'harga_satuan'  => $harga,
-                            'jumlah_hari'   => $hari,
-                            'jumlah'        => $jml,
-                            'keterangan'    => trim($k['keterangan'] ?? '') ?: null,
-                        ];
-                    }
-                }
-
                 if (!empty($detailsValid) && $pegawaiNip !== '') {
                     $stRefId    = !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : 0;
                     $nomorSurat = trim($item['nomor_surat_tugas'] ?? '');
@@ -272,8 +289,8 @@ class SeksiTransaksiController
                         $namaPenerima ?: 'Pegawai',
                         null, // pangkat tidak tersedia di form batch
                         null, // jabatan tidak tersedia di form batch
-                        (float) str_replace(['.', ','], ['', '.'], $item['ditetapkan_sejumlah'] ?? '0'),
-                        (float) str_replace(['.', ','], ['', '.'], $item['dibayar_semula'] ?? '0'),
+                        $ditetapkanRaw,
+                        $dibayarRaw,
                         trim($item['tempat_tanggal'] ?? '') ?: null,
                         $userId,
                         $detailsValid

@@ -371,6 +371,17 @@ function hitungTotal() {
     document.getElementById('totalDisplay').textContent = 'Rp ' + formatRp(total);
     document.getElementById('terbilangBox').textContent =
         'Terbilang: ' + terbilang(total) + ' Rupiah';
+
+    // Otomatis isi Ditetapkan Sejumlah dan Dibayar Semula jika belum diubah manual
+    const detEl = document.getElementById('ditetapkan_sejumlah');
+    const dibEl = document.getElementById('dibayar_semula');
+    if (detEl && (!detEl.dataset.customized || detEl.value === '' || detEl.value === '0')) {
+        detEl.value = total > 0 ? formatRp(total) : '';
+    }
+    if (dibEl && (!dibEl.dataset.customized || dibEl.value === '' || dibEl.value === '0')) {
+        dibEl.value = total > 0 ? formatRp(total) : '';
+    }
+
     hitungSppd();
     return total;
 }
@@ -381,8 +392,13 @@ function hitungSppd() {
     const sisa       = ditetapkan - dibayar;
     const el         = document.getElementById('sisaSppd');
     if (!ditetapkan && !dibayar) { el.textContent = '—'; el.className = 'saldo-sppd'; return; }
-    el.textContent = (sisa < 0 ? '– ' : sisa > 0 ? '+ ' : '') + 'Rp ' + formatRp(Math.abs(sisa));
-    el.className   = 'saldo-sppd ' + (sisa < 0 ? 'saldo-kurang' : sisa > 0 ? 'saldo-lebih' : 'saldo-pas');
+    if (sisa === 0) {
+        el.textContent = 'Rp 0';
+        el.className   = 'saldo-sppd saldo-pas';
+    } else {
+        el.textContent = (sisa < 0 ? '– ' : '+ ') + 'Rp ' + formatRp(Math.abs(sisa));
+        el.className   = 'saldo-sppd ' + (sisa < 0 ? 'saldo-kurang' : 'saldo-lebih');
+    }
 }
 
 // ── Auto-hitung Jumlah per baris (harga × hari) ────────────────────────────
@@ -460,7 +476,10 @@ document.querySelectorAll('.rp-input').forEach(function (el) {
         const v = parseRp(this.value);
         this.value = v > 0 ? String(Math.floor(v)) : '';
     });
-    el.addEventListener('input', hitungSppd);
+    el.addEventListener('input', function() {
+        this.dataset.customized = 'true';
+        hitungSppd();
+    });
 });
 
 // ── Init semua baris yang sudah ada ───────────────────────────────────────

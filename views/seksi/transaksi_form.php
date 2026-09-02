@@ -977,151 +977,129 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
 
     const selectedPegawais = checkedBoxes.map(c => currentSTPegawais[parseInt(c.value, 10)]);
 
-    if (selectedPegawais.length === 1) {
-        // Mode 1 Pegawai: Isi ke Single Container
-        const p = selectedPegawais[0];
-        document.getElementById('singleItemContainer').style.display = 'block';
-        document.getElementById('batchItemsContainer').style.display = 'none';
+    // Baik 1 maupun banyak pegawai dari Surat Tugas, gunakan batch container agar rincian biaya SPJ selalu tersedia
+    document.getElementById('singleItemContainer').style.display = 'none';
+    document.getElementById('batchItemsContainer').style.display = 'block';
+    document.getElementById('batchCountText').innerText = selectedPegawais.length;
 
-        document.getElementById('nama_penerima').value = p.nama;
-        document.getElementById('nomor_surat_tugas').value = selectedSTData.nomor_surat || '';
-        document.getElementById('tanggal_surat_tugas').value = selectedSTData.tanggal_surat || '';
-        document.getElementById('tanggal_pelaksanaan').value = selectedSTData.tanggal_mulai || '';
-        document.getElementById('surat_tugas_ref_id').value = selectedSTData.id || '';
-
-        // Auto uraian
-        const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, selectedSTData.untuk);
-        document.getElementById('uraian').value = draft;
-
-        // Auto nomor bukti
-        autoFillSingleNomorBukti(true);
-
-        // Kosongkan nama input items jika ada
-        document.getElementById('batchItemsList').innerHTML = '';
-    } else {
-        // Mode Multi Pegawai: Bangun Batch Items
-        document.getElementById('singleItemContainer').style.display = 'none';
-        document.getElementById('batchItemsContainer').style.display = 'block';
-        document.getElementById('batchCountText').innerText = selectedPegawais.length;
-
-        // Fetch batch nomor bukti
-        const tgl = document.getElementById('tanggal').value || new Date().toISOString().slice(0, 10);
-        fetch(`${seksiBase}/seksi/transaksi/generate-no-bukti?tanggal=${tgl}&count=${selectedPegawais.length}`)
-            .then(r => r.json())
-            .then(res => {
-                const nomorList = res.success ? res.list : [];
-                let batchHtml = '';
-                selectedPegawais.forEach((p, idx) => {
-                    const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, selectedSTData.untuk);
-                    const noBukti = nomorList[idx] || '';
-                    batchHtml += `
-                        <div class="batch-item-card" id="batchCard_${idx}">
-                            <div class="fw-bold text-primary mb-2" style="font-size:0.875rem;">
-                                <i class="bi bi-person-badge me-1"></i> #${idx+1} Transaksi an. ${p.nama}
-                            </div>
-                            <input type="hidden" name="items[${idx}][nama_penerima]" value="${p.nama}">
-                            <input type="hidden" name="items[${idx}][pegawai_nip]" value="${p.nip || ''}">
-                            <input type="hidden" name="items[${idx}][nomor_surat_tugas]" value="${selectedSTData.nomor_surat || ''}">
-                            <input type="hidden" name="items[${idx}][tanggal_surat_tugas]" value="${selectedSTData.tanggal_surat || ''}">
-                            <input type="hidden" name="items[${idx}][tanggal_pelaksanaan]" value="${selectedSTData.tanggal_mulai || ''}">
-                            <input type="hidden" name="items[${idx}][surat_tugas_ref_id]" value="${selectedSTData.id || ''}">
-                            
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Nomor Bukti / Kwitansi <span class="text-danger">*</span></label>
-                                    <input type="text" name="items[${idx}][nomor_bukti]" class="form-control custom-form-input form-control-sm" value="${noBukti}" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Nilai (Rp) <span class="text-danger">*</span></label>
-                                    <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required inputmode="numeric">
-                                </div>
-                                <div class="col-12 mt-2">
-                                    <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
-                                    <textarea name="items[${idx}][uraian]" class="form-control custom-form-textarea form-control-sm" rows="2" required>${draft}</textarea>
-                                </div>
-                            </div>
-
-                            <!-- ── Sub-section Rincian Biaya SPJ ───────────────── -->
-                            <div class="rincian-biaya-section mt-3">
-                                <div class="rincian-biaya-header" onclick="toggleRincianBiaya(this)">
-                                    <span><i class="bi bi-receipt-cutoff me-1"></i>Rincian Biaya Perjalanan Dinas</span>
-                                    <span class="rincian-toggle-icon"><i class="bi bi-chevron-down"></i></span>
-                                </div>
-                                <div class="rincian-biaya-body">
-                                    <!-- Komponen biaya baris -->
-                                    <div class="rb-col-header d-none d-md-flex mb-1">
-                                        <div style="flex:2">Nama Komponen</div>
-                                        <div style="flex:1.5">Harga Satuan (Rp)</div>
-                                        <div style="flex:.8">Hari</div>
-                                        <div style="flex:1.5">Jumlah (Rp)</div>
-                                        <div style="flex:1.5">Keterangan</div>
-                                        <div style="flex:.4"></div>
-                                    </div>
-                                    <div class="rb-rows" id="rbRows_${idx}">
-                                        ${buildDefaultKomponenRows(idx)}
-                                    </div>
-                                    <button type="button" class="btn-rb-add mt-2" onclick="addRbRow(${idx})">
-                                        <i class="bi bi-plus-circle me-1"></i>Tambah Baris
-                                    </button>
-                                    <!-- Total -->
-                                    <div class="rb-total-row mt-2 d-flex justify-content-between align-items-center">
-                                        <span class="text-success fw-semibold" style="font-size:.8rem;"><i class="bi bi-sigma me-1"></i>Total Rincian:</span>
-                                        <span class="fw-bold" id="rbTotal_${idx}" style="font-size:.9rem;">Rp 0</span>
-                                    </div>
-                                    <!-- SPPD Rampung -->
-                                    <div class="row g-2 mt-2">
-                                        <div class="col-md-4">
-                                            <label class="form-label small fw-semibold mb-1">Ditetapkan Sejumlah (Rp)</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-light" style="font-size:.75rem;">Rp</span>
-                                                <input type="text" name="items[${idx}][ditetapkan_sejumlah]"
-                                                    class="form-control form-control-sm custom-form-input rb-rp-input"
-                                                    placeholder="0" inputmode="numeric"
-                                                    oninput="hitungSisaSppdBatch(${idx})"
-                                                    onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small fw-semibold mb-1">Dibayar Semula (Rp)</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-light" style="font-size:.75rem;">Rp</span>
-                                                <input type="text" name="items[${idx}][dibayar_semula]"
-                                                    class="form-control form-control-sm custom-form-input rb-rp-input"
-                                                    placeholder="0" inputmode="numeric"
-                                                    oninput="hitungSisaSppdBatch(${idx})"
-                                                    onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label small fw-semibold mb-1">Sisa Kurang/Lebih</label>
-                                            <div class="rb-sisa-box" id="rbSisa_${idx}">—</div>
-                                        </div>
-                                    </div>
-                                    <!-- Tempat & Tanggal -->
-                                    <div class="mt-2">
-                                        <label class="form-label small fw-semibold mb-1">Tempat &amp; Tanggal (cetak)</label>
-                                        <input type="text" name="items[${idx}][tempat_tanggal]"
-                                            class="form-control form-control-sm custom-form-input"
-                                            placeholder="Bojonegoro, 31 Agustus 2026"
-                                            value="Bojonegoro, ${todayStr()}">
-                                    </div>
-                                </div><!-- /rincian-biaya-body -->
-                            </div><!-- /rincian-biaya-section -->
+    // Fetch batch nomor bukti
+    const tgl = document.getElementById('tanggal').value || new Date().toISOString().slice(0, 10);
+    fetch(`${seksiBase}/seksi/transaksi/generate-no-bukti?tanggal=${tgl}&count=${selectedPegawais.length}`)
+        .then(r => r.json())
+        .then(res => {
+            const nomorList = res.success ? res.list : [];
+            let batchHtml = '';
+            selectedPegawais.forEach((p, idx) => {
+                const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, selectedSTData.untuk);
+                const noBukti = nomorList[idx] || '';
+                batchHtml += `
+                    <div class="batch-item-card" id="batchCard_${idx}">
+                        <div class="fw-bold text-primary mb-2" style="font-size:0.875rem;">
+                            <i class="bi bi-person-badge me-1"></i> #${idx+1} Transaksi an. ${p.nama}
                         </div>
-                    `;
-                });
-                document.getElementById('batchItemsList').innerHTML = batchHtml;
+                        <input type="hidden" name="items[${idx}][nama_penerima]" value="${p.nama}">
+                        <input type="hidden" name="items[${idx}][pegawai_nip]" value="${p.nip || ''}">
+                        <input type="hidden" name="items[${idx}][nomor_surat_tugas]" value="${selectedSTData.nomor_surat || ''}">
+                        <input type="hidden" name="items[${idx}][tanggal_surat_tugas]" value="${selectedSTData.tanggal_surat || ''}">
+                        <input type="hidden" name="items[${idx}][tanggal_pelaksanaan]" value="${selectedSTData.tanggal_mulai || ''}">
+                        <input type="hidden" name="items[${idx}][surat_tugas_ref_id]" value="${selectedSTData.id || ''}">
+                        
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Nomor Bukti / Kwitansi <span class="text-danger">*</span></label>
+                                <input type="text" name="items[${idx}][nomor_bukti]" class="form-control custom-form-input form-control-sm" value="${noBukti}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold d-flex justify-content-between align-items-center">
+                                    <span>Nilai (Rp) <span class="text-danger">*</span></span>
+                                    <span class="text-primary fw-normal" style="font-size:0.7rem;"><i class="bi bi-magic me-1"></i>Otomatis dari Rincian</span>
+                                </label>
+                                <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required inputmode="numeric" readonly style="background-color: #f8fafc; font-weight: 600;" title="Otomatis terisi dari Total Rincian Biaya">
+                            </div>
+                            <div class="col-12 mt-2">
+                                <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
+                                <textarea name="items[${idx}][uraian]" class="form-control custom-form-textarea form-control-sm" rows="2" required>${draft}</textarea>
+                            </div>
+                        </div>
 
-                // Pasang format ribuan di batch nilai inputs + update total (Task 3 & 5)
-                document.querySelectorAll('.batch-nilai-input').forEach(inp => {
-                    inp.addEventListener('input', function() {
-                        formatRibuanWithCursor(this);
-                        updateBatchTotal();
-                    });
-                });
-                updateBatchTotal();
+                        <!-- ── Sub-section Rincian Biaya SPJ ───────────────── -->
+                        <div class="rincian-biaya-section mt-3">
+                            <div class="rincian-biaya-header" onclick="toggleRincianBiaya(this)">
+                                <span><i class="bi bi-receipt-cutoff me-1"></i>Rincian Biaya Perjalanan Dinas</span>
+                                <span class="rincian-toggle-icon"><i class="bi bi-chevron-down"></i></span>
+                            </div>
+                            <div class="rincian-biaya-body">
+                                <!-- Komponen biaya baris -->
+                                <div class="rb-col-header d-none d-md-flex mb-1">
+                                    <div style="flex:2">Nama Komponen</div>
+                                    <div style="flex:1.5">Harga Satuan (Rp)</div>
+                                    <div style="flex:.8">Hari</div>
+                                    <div style="flex:1.5">Jumlah (Rp)</div>
+                                    <div style="flex:1.5">Keterangan</div>
+                                    <div style="flex:.4"></div>
+                                </div>
+                                <div class="rb-rows" id="rbRows_${idx}">
+                                    ${buildDefaultKomponenRows(idx)}
+                                </div>
+                                <button type="button" class="btn-rb-add mt-2" onclick="addRbRow(${idx})">
+                                    <i class="bi bi-plus-circle me-1"></i>Tambah Baris
+                                </button>
+                                <!-- Total -->
+                                <div class="rb-total-row mt-2 d-flex justify-content-between align-items-center">
+                                    <span class="text-success fw-semibold" style="font-size:.8rem;"><i class="bi bi-sigma me-1"></i>Total Rincian:</span>
+                                    <span class="fw-bold text-success" id="rbTotal_${idx}" style="font-size:.9rem;">Rp 0</span>
+                                </div>
+                                <!-- SPPD Rampung -->
+                                <div class="row g-2 mt-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold mb-1">Ditetapkan Sejumlah (Rp)</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light" style="font-size:.75rem;">Rp</span>
+                                            <input type="text" name="items[${idx}][ditetapkan_sejumlah]"
+                                                class="form-control form-control-sm custom-form-input rb-rp-input"
+                                                placeholder="0" inputmode="numeric"
+                                                oninput="onRbSppdInput(this, ${idx})">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold mb-1">Dibayar Semula (Rp)</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light" style="font-size:.75rem;">Rp</span>
+                                            <input type="text" name="items[${idx}][dibayar_semula]"
+                                                class="form-control form-control-sm custom-form-input rb-rp-input"
+                                                placeholder="0" inputmode="numeric"
+                                                oninput="onRbSppdInput(this, ${idx})">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold mb-1">Sisa Kurang/Lebih</label>
+                                        <div class="rb-sisa-box" id="rbSisa_${idx}">—</div>
+                                    </div>
+                                </div>
+                                <!-- Tempat & Tanggal -->
+                                <div class="mt-2">
+                                    <label class="form-label small fw-semibold mb-1">Tempat &amp; Tanggal (cetak)</label>
+                                    <input type="text" name="items[${idx}][tempat_tanggal]"
+                                        class="form-control form-control-sm custom-form-input"
+                                        placeholder="Bojonegoro, 31 Agustus 2026"
+                                        value="Bojonegoro, ${todayStr()}">
+                                </div>
+                            </div><!-- /rincian-biaya-body -->
+                        </div><!-- /rincian-biaya-section -->
+                    </div>
+                `;
             });
-    }
+            document.getElementById('batchItemsList').innerHTML = batchHtml;
+
+            // Pasang format ribuan di batch nilai inputs + update total (Task 3 & 5)
+            document.querySelectorAll('.batch-nilai-input').forEach(inp => {
+                inp.addEventListener('input', function() {
+                    formatRibuanWithCursor(this);
+                    updateBatchTotal();
+                });
+            });
+            updateBatchTotal();
+        });
 
     if (modalSTInstance) modalSTInstance.hide();
 });
@@ -1238,7 +1216,7 @@ function buildRbRow(itemIdx, rowIdx, namaVal = '', hariVal = '') {
             <input type="text" name="items[${itemIdx}][komponen][${rowIdx}][harga_satuan]"
                    class="form-control form-control-sm custom-form-input rb-harga"
                    placeholder="0" inputmode="numeric"
-                   oninput="recalcRbRow(this)" onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
+                   oninput="recalcRbRow(this)">
         </div>
         <input type="number" name="items[${itemIdx}][komponen][${rowIdx}][jumlah_hari]"
                class="form-control form-control-sm custom-form-input rb-hari"
@@ -1249,7 +1227,7 @@ function buildRbRow(itemIdx, rowIdx, namaVal = '', hariVal = '') {
             <input type="text" name="items[${itemIdx}][komponen][${rowIdx}][jumlah]"
                    class="form-control form-control-sm custom-form-input rb-jumlah"
                    placeholder="0" inputmode="numeric"
-                   oninput="updateRbTotal(${itemIdx})" onblur="fmtRbRp(this)" onfocus="unfmtRbRp(this)">
+                   oninput="onRbJumlahInput(this, ${itemIdx})">
         </div>
         <input type="text"   name="items[${itemIdx}][komponen][${rowIdx}][keterangan]"
                class="form-control form-control-sm custom-form-input"
@@ -1262,43 +1240,117 @@ function buildRbRow(itemIdx, rowIdx, namaVal = '', hariVal = '') {
 }
 
 function parseRbRp(val) {
-    return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+    return parseFloat(String(val || '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 function fmtRbRp(el)   { const v = parseRbRp(el.value); if (v > 0) el.value = Math.floor(v).toLocaleString('id-ID'); else el.value = ''; }
 function unfmtRbRp(el) { const v = parseRbRp(el.value); el.value = v > 0 ? String(Math.floor(v)) : ''; }
 
 function recalcRbRow(el) {
-    const row  = el.closest('.rb-row');
-    const harga = parseRbRp(row.querySelector('.rb-harga').value);
-    const hari  = parseFloat(row.querySelector('.rb-hari').value) || 0;
+    const row = el.closest('.rb-row');
+    if (!row) return;
+    const itemIdx = parseInt(row.dataset.item, 10);
+    const hargaEl = row.querySelector('.rb-harga');
+    const hariEl  = row.querySelector('.rb-hari');
     const jumlahEl = row.querySelector('.rb-jumlah');
-    if (harga > 0) {
-        const hasil = hari > 0 ? harga * hari : harga;
-        jumlahEl.value = Math.floor(hasil).toLocaleString('id-ID');
+
+    if (el === hargaEl) {
+        formatRibuanWithCursor(hargaEl);
     }
-    updateRbTotal(parseInt(row.dataset.item));
+
+    const harga = parseRbRp(hargaEl.value);
+    const hariVal = hariEl ? hariEl.value.trim() : '';
+    const hari = parseFloat(hariVal) || 0;
+
+    if (harga > 0) {
+        const hasil = (hariVal !== '' && hari > 0) ? harga * hari : harga;
+        jumlahEl.value = Math.floor(hasil).toLocaleString('id-ID');
+    } else if (hargaEl.value === '') {
+        jumlahEl.value = '';
+    }
+    updateRbTotal(itemIdx);
+}
+
+function onRbJumlahInput(el, itemIdx) {
+    formatRibuanWithCursor(el);
+    updateRbTotal(itemIdx);
+}
+
+function onRbSppdInput(el, itemIdx) {
+    formatRibuanWithCursor(el);
+    hitungSisaSppdBatch(itemIdx);
 }
 
 function updateRbTotal(itemIdx) {
     const rows = document.querySelectorAll(`#rbRows_${itemIdx} .rb-jumlah`);
     let total = 0;
     rows.forEach(el => total += parseRbRp(el.value));
-    const el = document.getElementById(`rbTotal_${itemIdx}`);
-    if (el) el.textContent = 'Rp ' + Math.floor(total).toLocaleString('id-ID');
+
+    // Update label Total Rincian
+    const totalEl = document.getElementById(`rbTotal_${itemIdx}`);
+    if (totalEl) {
+        totalEl.textContent = 'Rp ' + Math.floor(total).toLocaleString('id-ID');
+    }
+
+    const card = document.getElementById(`batchCard_${itemIdx}`);
+    if (card) {
+        const formattedTotal = total > 0 ? Math.floor(total).toLocaleString('id-ID') : '0';
+        const formattedValOrEmpty = total > 0 ? Math.floor(total).toLocaleString('id-ID') : '';
+
+        // 1. Nilai transaksi otomatis dari total rincian
+        const nilaiInput = card.querySelector(`[name="items[${itemIdx}][nilai]"]`);
+        if (nilaiInput) {
+            nilaiInput.value = formattedTotal;
+        }
+
+        // 2. Ditetapkan sejumlah otomatis dari total rincian
+        const detInput = card.querySelector(`[name="items[${itemIdx}][ditetapkan_sejumlah]"]`);
+        if (detInput) {
+            detInput.value = formattedValOrEmpty;
+        }
+
+        // 3. Dibayarkan semula otomatis dari total rincian
+        const dibInput = card.querySelector(`[name="items[${itemIdx}][dibayar_semula]"]`);
+        if (dibInput) {
+            dibInput.value = formattedValOrEmpty;
+        }
+    }
+
+    // 4. Hitung sisa SPPD Rampung
     hitungSisaSppdBatch(itemIdx);
+
+    // 5. Update akumulasi grand total batch
+    updateBatchTotal();
 }
 
 function hitungSisaSppdBatch(itemIdx) {
     const card = document.getElementById(`batchCard_${itemIdx}`);
     if (!card) return;
-    const det  = parseRbRp(card.querySelector(`[name="items[${itemIdx}][ditetapkan_sejumlah]"]`)?.value || '0');
-    const dib  = parseRbRp(card.querySelector(`[name="items[${itemIdx}][dibayar_semula]"]`)?.value || '0');
-    const el   = document.getElementById(`rbSisa_${itemIdx}`);
+    const detInput = card.querySelector(`[name="items[${itemIdx}][ditetapkan_sejumlah]"]`);
+    const dibInput = card.querySelector(`[name="items[${itemIdx}][dibayar_semula]"]`);
+    const detVal = detInput ? detInput.value.trim() : '';
+    const dibVal = dibInput ? dibInput.value.trim() : '';
+    const det    = parseRbRp(detVal);
+    const dib    = parseRbRp(dibVal);
+    const el     = document.getElementById(`rbSisa_${itemIdx}`);
     if (!el) return;
-    if (!det && !dib) { el.textContent = '—'; el.className = 'rb-sisa-box'; return; }
+
+    if (!detVal && !dibVal) {
+        el.textContent = '—';
+        el.className = 'rb-sisa-box';
+        return;
+    }
+
     const sisa = det - dib;
-    el.textContent = (sisa < 0 ? '– ' : sisa > 0 ? '+ ' : '') + 'Rp ' + Math.floor(Math.abs(sisa)).toLocaleString('id-ID');
-    el.className   = 'rb-sisa-box ' + (sisa < 0 ? 'rb-sisa-kurang' : sisa > 0 ? 'rb-sisa-lebih' : 'rb-sisa-pas');
+    if (sisa === 0) {
+        el.textContent = 'Rp 0';
+        el.className   = 'rb-sisa-box rb-sisa-pas';
+    } else if (sisa < 0) {
+        el.textContent = '– Rp ' + Math.floor(Math.abs(sisa)).toLocaleString('id-ID');
+        el.className   = 'rb-sisa-box rb-sisa-kurang';
+    } else {
+        el.textContent = '+ Rp ' + Math.floor(sisa).toLocaleString('id-ID');
+        el.className   = 'rb-sisa-box rb-sisa-lebih';
+    }
 }
 
 function addRbRow(itemIdx) {
