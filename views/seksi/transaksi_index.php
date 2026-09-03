@@ -328,7 +328,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <th style="width:24%;">Uraian & Penerima</th>
                             <th class="text-end" style="width:12%;">Nilai (Rp)</th>
                             <th class="text-center" style="width:9%;">Status</th>
-                            <th class="text-center pe-3" style="width:11%; min-width:115px;">Aksi</th>
+                            <th class="text-center pe-3" style="width:11%; min-width:145px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -356,6 +356,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             $namaPenerima = $t['nama_penerima'] ?? '';
                             $noBukti = $t['nomor_bukti'] ?? '-';
                             $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
+
+                            // Format teks copy untuk kuitansi NCR
+                            $copyLines = [];
+                            $copyLines[] = 'Uraian   : ' . trim((string)$uraianFull);
+                            $penerimaTrim = trim((string)$namaPenerima);
+                            if ($penerimaTrim !== '' && $penerimaTrim !== '-') {
+                                $copyLines[] = 'Penerima : ' . $penerimaTrim;
+                            }
+                            $copyLines[] = 'Nilai    : Rp ' . number_format((float)($t['nilai'] ?? 0), 0, ',', '.');
+                            $copyLines[] = 'Tanggal  : ' . (!empty($t['tanggal']) ? date('d/m/Y', strtotime($t['tanggal'])) : '-');
+                            $noBuktiTrim = trim((string)($t['nomor_bukti'] ?? ''));
+                            if ($noBuktiTrim !== '' && $noBuktiTrim !== '-') {
+                                $copyLines[] = 'No Bukti : ' . $noBuktiTrim;
+                            }
+                            $copyText = implode("\n", $copyLines);
 
                             // Cek apakah transaksi ini berbagi Nomor ST yang sama (>= 2 transaksi)
                             $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
@@ -416,6 +431,20 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             </td>
                             <td class="text-center pe-3">
                                 <div class="d-inline-flex align-items-center justify-content-center gap-1">
+                                    <button type="button"
+                                            x-data="{ copied: false }"
+                                            class="btn btn-outline-secondary btn-action-icon"
+                                            :class="{ 'border-success text-success bg-success-subtle': copied }"
+                                            @click="
+                                                copyTextToClipboard(<?= htmlspecialchars(json_encode($copyText), ENT_QUOTES, 'UTF-8') ?>).then(() => {
+                                                    copied = true;
+                                                    setTimeout(() => { copied = false; }, 1500);
+                                                })
+                                            "
+                                            :title="copied ? 'Tersalin ke clipboard!' : 'Salin data kuitansi'">
+                                        <i :class="copied ? 'bi bi-check-lg text-success' : 'bi bi-clipboard'"></i>
+                                    </button>
+
                                     <?php if ($bolehEdit): ?>
                                         <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
                                            class="btn btn-outline-primary btn-action-icon"
@@ -472,6 +501,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         $jenisInfo2 = $jenisMap2[$jv] ?? null;
                         $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
                         $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
+
+                        // Format teks copy untuk kuitansi NCR (mobile)
+                        $mCopyLines = [];
+                        $mCopyLines[] = 'Uraian   : ' . trim((string)($t['uraian'] ?? ''));
+                        $mPenerima = trim((string)($t['nama_penerima'] ?? ''));
+                        if ($mPenerima !== '' && $mPenerima !== '-') {
+                            $mCopyLines[] = 'Penerima : ' . $mPenerima;
+                        }
+                        $mCopyLines[] = 'Nilai    : Rp ' . number_format((float)($t['nilai'] ?? 0), 0, ',', '.');
+                        $mCopyLines[] = 'Tanggal  : ' . (!empty($t['tanggal']) ? date('d/m/Y', strtotime($t['tanggal'])) : '-');
+                        $mNoBukti = trim((string)($t['nomor_bukti'] ?? ''));
+                        if ($mNoBukti !== '' && $mNoBukti !== '-') {
+                            $mCopyLines[] = 'No Bukti : ' . $mNoBukti;
+                        }
+                        $mCopyText = implode("\n", $mCopyLines);
                     ?>
                     <div class="mobile-tx-card" style="<?= $isSharedSt ? 'border-left: 4px solid #6366f1;' : '' ?>">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -502,14 +546,26 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <?php if($status==='ditolak' && !empty($t['catatan_verifikasi'])): ?>
                         <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>"><i class="bi bi-info-circle me-1"></i>Alasan Ditolak</button>
                         <?php endif; ?>
-                        <div class="d-flex gap-2 mt-3">
+                        <div class="d-flex gap-2 mt-3 align-items-center" x-data="{ copied: false }">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                                    :class="{ 'border-success text-success bg-success-subtle': copied }"
+                                    @click="
+                                        copyTextToClipboard(<?= htmlspecialchars(json_encode($mCopyText), ENT_QUOTES, 'UTF-8') ?>).then(() => {
+                                            copied = true;
+                                            setTimeout(() => { copied = false; }, 1500);
+                                        })
+                                    "
+                                    :title="copied ? 'Tersalin ke clipboard!' : 'Salin data kuitansi'">
+                                <i :class="copied ? 'bi bi-check-lg text-success me-1' : 'bi bi-clipboard me-1'"></i><span x-text="copied ? 'Tersalin' : 'Salin'">Salin</span>
+                            </button>
                             <?php if($bolehEdit): ?>
                                 <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill"><i class="bi bi-pencil me-1"></i>Edit</a>
                                 <form method="POST" action="<?= base_url('seksi/transaksi/delete/'.$t['id']) ?>" class="flex-fill" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
                                     <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1"></i>Hapus</button>
                                 </form>
                             <?php else: ?>
-                                <span class="text-muted small d-inline-flex align-items-center"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
+                                <span class="text-muted small d-inline-flex align-items-center ms-auto"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
                             <?php endif; ?>
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                 <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
@@ -583,6 +639,36 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
 <?php endif; endforeach; ?>
 
 <script>
+function copyTextToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+    } else {
+        return new Promise(function(resolve, reject) {
+            var textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                var successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    resolve();
+                } else {
+                    reject(new Error('Copy failed'));
+                }
+            } catch (err) {
+                document.body.removeChild(textArea);
+                reject(err);
+            }
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function(){
     // Search UX - Enter, clear x, debounce 350ms
     const form = document.getElementById('filterForm');
