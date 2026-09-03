@@ -357,20 +357,8 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             $noBukti = $t['nomor_bukti'] ?? '-';
                             $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
 
-                            // Format teks copy untuk kuitansi NCR
-                            $copyLines = [];
-                            $copyLines[] = 'Uraian   : ' . trim((string)$uraianFull);
-                            $penerimaTrim = trim((string)$namaPenerima);
-                            if ($penerimaTrim !== '' && $penerimaTrim !== '-') {
-                                $copyLines[] = 'Penerima : ' . $penerimaTrim;
-                            }
-                            $copyLines[] = 'Nilai    : Rp ' . number_format((float)($t['nilai'] ?? 0), 0, ',', '.');
-                            $copyLines[] = 'Tanggal  : ' . (!empty($t['tanggal']) ? date('d/m/Y', strtotime($t['tanggal'])) : '-');
-                            $noBuktiTrim = trim((string)($t['nomor_bukti'] ?? ''));
-                            if ($noBuktiTrim !== '' && $noBuktiTrim !== '-') {
-                                $copyLines[] = 'No Bukti : ' . $noBuktiTrim;
-                            }
-                            $copyText = implode("\n", $copyLines);
+                            // Teks copy uraian transaksi
+                            $copyText = trim((string)$uraianFull);
 
                             // Cek apakah transaksi ini berbagi Nomor ST yang sama (>= 2 transaksi)
                             $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
@@ -441,7 +429,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                                     setTimeout(() => { copied = false; }, 1500);
                                                 })
                                             "
-                                            :title="copied ? 'Tersalin ke clipboard!' : 'Salin data kuitansi'">
+                                            :title="copied ? 'Uraian tersalin!' : 'Salin uraian'">
                                         <i :class="copied ? 'bi bi-check-lg text-success' : 'bi bi-clipboard'"></i>
                                     </button>
 
@@ -502,20 +490,8 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
                         $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
 
-                        // Format teks copy untuk kuitansi NCR (mobile)
-                        $mCopyLines = [];
-                        $mCopyLines[] = 'Uraian   : ' . trim((string)($t['uraian'] ?? ''));
-                        $mPenerima = trim((string)($t['nama_penerima'] ?? ''));
-                        if ($mPenerima !== '' && $mPenerima !== '-') {
-                            $mCopyLines[] = 'Penerima : ' . $mPenerima;
-                        }
-                        $mCopyLines[] = 'Nilai    : Rp ' . number_format((float)($t['nilai'] ?? 0), 0, ',', '.');
-                        $mCopyLines[] = 'Tanggal  : ' . (!empty($t['tanggal']) ? date('d/m/Y', strtotime($t['tanggal'])) : '-');
-                        $mNoBukti = trim((string)($t['nomor_bukti'] ?? ''));
-                        if ($mNoBukti !== '' && $mNoBukti !== '-') {
-                            $mCopyLines[] = 'No Bukti : ' . $mNoBukti;
-                        }
-                        $mCopyText = implode("\n", $mCopyLines);
+                        // Teks copy uraian transaksi (mobile)
+                        $mCopyText = trim((string)($t['uraian'] ?? ''));
                     ?>
                     <div class="mobile-tx-card" style="<?= $isSharedSt ? 'border-left: 4px solid #6366f1;' : '' ?>">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -556,7 +532,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                             setTimeout(() => { copied = false; }, 1500);
                                         })
                                     "
-                                    :title="copied ? 'Tersalin ke clipboard!' : 'Salin data kuitansi'">
+                                    :title="copied ? 'Uraian tersalin!' : 'Salin uraian'">
                                 <i :class="copied ? 'bi bi-check-lg text-success me-1' : 'bi bi-clipboard me-1'"></i><span x-text="copied ? 'Tersalin' : 'Salin'">Salin</span>
                             </button>
                             <?php if($bolehEdit): ?>
