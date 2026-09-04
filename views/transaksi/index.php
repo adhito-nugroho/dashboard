@@ -43,226 +43,463 @@ if ($filterSubKegiatan !== null) {
         if ($kg['id'] == $filterKegiatan) { $activeFilterLabels[] = $kg['kode_kegiatan'] . ' ' . $kg['nama_kegiatan']; break; }
     }
 }
+if ($filterStatus !== null && isset($statusLabels[$filterStatus])) {
+    $activeFilterLabels[] = 'Status: ' . $statusLabels[$filterStatus][0];
+}
 $isFiltered = !empty($activeFilterLabels);
 ?>
 
-<div class="container-fluid py-4">
-    <!-- Flash Message -->
-    <?php if ($flashMessage): ?>
-        <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'success' ? 'success' : 'info') ?> alert-dismissible fade show" role="alert" data-auto-dismiss>
-            <?= htmlspecialchars($flashMessage) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-
-    <!-- Page Header -->
-    <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="mb-1">
-                    <i class="bi bi-receipt text-primary me-2"></i>Data Transaksi
-                </h2>
-                <p class="text-muted mb-0">Riwayat transaksi anggaran</p>
-            </div>
-            <a href="<?= base_url('transaksi/create') ?>" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i> Input Transaksi (Batch)
-            </a>
-        </div>
-    </div>
-
-    <!-- Filter Form -->
-    <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-body py-3">
-            <form method="GET" action="<?= base_url('transaksi') ?>" id="filterForm" class="row g-2 align-items-end">
-                <!-- Bulan -->
-                <div class="col-auto">
-                    <label for="filter-bulan" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-calendar-month me-1 text-primary"></i>Bulan
-                    </label>
-                    <select name="bulan" id="filter-bulan" class="form-select" style="min-width:150px;">
-                        <option value="">-- Semua Bulan --</option>
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
-                            <option value="<?= $m ?>" <?= $filterBulan == $m ? 'selected' : '' ?>>
-                                <?= $namaBulan[$m] ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-                <!-- Tahun -->
-                <div class="col-auto">
-                    <label for="filter-tahun" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-calendar-year me-1 text-primary"></i>Tahun
-                    </label>
-                    <select name="tahun" id="filter-tahun" class="form-select" style="min-width:110px;">
-                        <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
-                            <option value="<?= $y ?>" <?= $filterTahun == $y ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-                <!-- Kegiatan -->
-                <div class="col-auto">
-                    <label for="filter-kegiatan" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-layers me-1 text-primary"></i>Kegiatan
-                    </label>
-                    <select name="kegiatan_id" id="filter-kegiatan" class="form-select" style="min-width:210px;">
-                        <option value="">-- Semua Kegiatan --</option>
-                        <?php foreach ($filterKegiatanList as $kg): ?>
-                            <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <!-- Sub Kegiatan -->
-                <div class="col-auto">
-                    <label for="filter-sub-kegiatan" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-diagram-3 me-1 text-primary"></i>Sub Kegiatan
-                    </label>
-                    <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select" style="min-width:210px;">
-                        <option value="">-- Semua Sub Kegiatan --</option>
-                        <?php foreach ($filterSubKegiatanList as $sk): ?>
-                            <option value="<?= $sk['id'] ?>"
-                                    data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
-                                    <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <!-- Buttons -->
-                <div class="col-auto d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" id="btn-filter">
-                        <i class="bi bi-funnel me-1"></i>Filter
-                    </button>
-                    <a href="<?= base_url('transaksi') ?>" class="btn btn-outline-secondary" id="btn-reset">
-                        <i class="bi bi-x-circle me-1"></i>Reset
-                    </a>
-                    <button type="button" class="btn btn-success" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter Bulan &amp; Tahun aktif">
-                        <i class="bi bi-file-earmark-excel me-1"></i>Unduh BKU
-                    </button>
-                </div>
-                <!-- Status -->
-                <div class="col-auto">
-                    <label for="filter-status" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-shield-check me-1 text-primary"></i>Status
-                    </label>
-                    <select name="status" id="filter-status" class="form-select" style="min-width:170px;">
-                        <option value="">-- Semua Status --</option>
-                        <option value="diajukan" <?= $filterStatus === 'diajukan' ? 'selected' : '' ?>>Menunggu Verifikasi</option>
-                        <option value="diverifikasi" <?= $filterStatus === 'diverifikasi' ? 'selected' : '' ?>>Terverifikasi</option>
-                        <option value="ditolak" <?= $filterStatus === 'ditolak' ? 'selected' : '' ?>>Ditolak</option>
-                    </select>
-                </div>
-                <?php if ($isFiltered): ?>
-                    <div class="col-12 mt-2">
-                        <span class="badge bg-primary px-3 py-2 fs-6">
-                            <i class="bi bi-filter-circle me-1"></i>
-                            Filter aktif: <?= htmlspecialchars(implode(' | ', $activeFilterLabels)) ?>
-                        </span>
-                    </div>
-                <?php endif; ?>
-            </form>
-        </div>
-    </div>
-    <script>
-    (function() {
-        const kegiatanSel   = document.getElementById('filter-kegiatan');
-        const subKegSel     = document.getElementById('filter-sub-kegiatan');
-        const allSubOptions = Array.from(subKegSel.querySelectorAll('option[data-kegiatan-id]'));
-        function cascade() {
-            const selectedKeg = kegiatanSel.value;
-            allSubOptions.forEach(opt => {
-                const match = !selectedKeg || opt.dataset.kegiatanId === selectedKeg;
-                opt.style.display = match ? '' : 'none';
-                if (!match && opt.selected) { opt.selected = false; subKegSel.value = ''; }
-            });
+<!-- Alpine.js CDN & Tailwind CDN (preflight disabled to preserve Bootstrap compatibility) -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        corePlugins: {
+            preflight: false,
+        },
+        theme: {
+            extend: {
+                colors: {
+                    navy: {
+                        800: '#1e293b',
+                        900: '#0f172a',
+                    }
+                }
+            }
         }
-        kegiatanSel.addEventListener('change', cascade);
-        cascade();
-    })();
-    </script>
+    }
+</script>
 
 <style>
-/* Custom High-Contrast Checkbox Styling */
+/* Styling Design System Data Transaksi */
+.badge-seksi {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    border-radius: 4px;
+    padding: 2px 7px;
+    display: inline-block;
+    line-height: 1.3;
+}
+.code-rekening {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    background-color: #f8fafc;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 5px;
+    display: inline-block;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+}
+.badge-status {
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.badge-status-diajukan {
+    background-color: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+.badge-status-diverifikasi {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+.badge-status-ditolak {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+.table-trx thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.85rem 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+    border-top: none;
+    white-space: nowrap;
+}
+.table-trx tbody td {
+    padding: 0.85rem 0.75rem;
+    font-size: 0.86rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+.table-trx tbody tr {
+    transition: background-color 0.15s ease;
+}
+.table-trx tbody tr:hover td {
+    background-color: #f8fafc !important;
+}
+.uraian-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.45;
+    max-width: 320px;
+    color: #1e293b;
+}
+.btn-action {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    cursor: pointer;
+}
+.btn-action:hover {
+    transform: translateY(-1px);
+}
+.btn-action-detail {
+    background-color: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+.btn-action-detail:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+.btn-action-verif {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+.btn-action-verif:hover {
+    background-color: #059669;
+    color: #ffffff;
+    border-color: #059669;
+}
+.btn-action-reject {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+.btn-action-reject:hover {
+    background-color: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+}
+.btn-action-edit {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+.btn-action-edit:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+.btn-action-delete {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+.btn-action-delete:hover {
+    background-color: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+}
 .trx-checkbox {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
-    border: 2px solid #475569 !important;
+    width: 1.2rem !important;
+    height: 1.2rem !important;
+    border: 2px solid #94a3b8 !important;
     border-radius: 4px !important;
     cursor: pointer !important;
     vertical-align: middle !important;
     transition: all 0.15s ease-in-out !important;
 }
 .trx-checkbox:hover {
-    border-color: #0d6efd !important;
-    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2) !important;
+    border-color: #4338ca !important;
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.15) !important;
 }
 .trx-checkbox:checked {
-    background-color: #0d6efd !important;
-    border-color: #0d6efd !important;
+    background-color: #4338ca !important;
+    border-color: #4338ca !important;
 }
 .trx-checkbox:indeterminate {
-    background-color: #0d6efd !important;
-    border-color: #0d6efd !important;
+    background-color: #4338ca !important;
+    border-color: #4338ca !important;
+}
+.filter-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
 }
 </style>
 
+<div class="transaksi-page-container">
+    <!-- Flash Message -->
+    <?php if ($flashMessage): ?>
+        <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'success' ? 'success' : 'info') ?> alert-dismissible fade show shadow-sm mb-4" role="alert" data-auto-dismiss>
+            <div class="d-flex align-items-center">
+                <i class="bi bi-<?= $flashType === 'error' ? 'exclamation-circle-fill' : ($flashType === 'success' ? 'check-circle-fill' : 'info-circle-fill') ?> me-2 fs-5"></i>
+                <div><?= htmlspecialchars($flashMessage) ?></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Page Header (Simplified & Balanced) -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-2" style="width: 34px; height: 34px;">
+                    <i class="bi bi-receipt-cutoff fs-5"></i>
+                </span>
+                <h1 class="h4 mb-0 fw-bold text-dark tracking-tight">Data Transaksi</h1>
+            </div>
+            <p class="text-muted small mb-0 ms-1">
+                Monitoring riwayat realisasi anggaran, verifikasi pengajuan transaksi seksi, dan pembukuan BKU
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="<?= base_url('transaksi/create') ?>" class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-medium shadow-sm" style="border-radius: 8px;">
+                <i class="bi bi-plus-lg fs-6"></i>
+                <span>Input Transaksi (Batch)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Card (Structured 2-row layout) -->
+    <div class="card filter-card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-primary"><i class="bi bi-funnel-fill"></i></span>
+                <span class="fw-bold text-dark small text-uppercase tracking-wider">Filter Data Transaksi</span>
+            </div>
+            <?php if ($isFiltered): ?>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 text-xs fw-semibold">
+                    <i class="bi bi-funnel me-1"></i><?= count($activeFilterLabels) ?> Filter Aktif
+                </span>
+            <?php endif; ?>
+        </div>
+        <div class="card-body p-3">
+            <form method="GET" action="<?= base_url('transaksi') ?>" id="filterForm">
+                <!-- Baris 1: Kontrol Filter Sejajar -->
+                <div class="row g-2.5 g-lg-3 align-items-end">
+                    <!-- Bulan -->
+                    <div class="col-12 col-sm-6 col-lg">
+                        <label for="filter-bulan" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                            <i class="bi bi-calendar-month text-muted"></i> Bulan
+                        </label>
+                        <select name="bulan" id="filter-bulan" class="form-select form-select-sm">
+                            <option value="">-- Semua Bulan --</option>
+                            <?php for ($m = 1; $m <= 12; $m++): ?>
+                                <option value="<?= $m ?>" <?= $filterBulan == $m ? 'selected' : '' ?>>
+                                    <?= $namaBulan[$m] ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+
+                    <!-- Tahun -->
+                    <div class="col-12 col-sm-6 col-lg-auto" style="min-width: 110px;">
+                        <label for="filter-tahun" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                            <i class="bi bi-calendar3 text-muted"></i> Tahun
+                        </label>
+                        <select name="tahun" id="filter-tahun" class="form-select form-select-sm">
+                            <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+                                <option value="<?= $y ?>" <?= $filterTahun == $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+
+                    <!-- Kegiatan -->
+                    <div class="col-12 col-sm-6 col-lg">
+                        <label for="filter-kegiatan" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                            <i class="bi bi-layers text-muted"></i> Kegiatan
+                        </label>
+                        <select name="kegiatan_id" id="filter-kegiatan" class="form-select form-select-sm">
+                            <option value="">-- Semua Kegiatan --</option>
+                            <?php foreach ($filterKegiatanList as $kg): ?>
+                                <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Sub Kegiatan -->
+                    <div class="col-12 col-sm-6 col-lg">
+                        <label for="filter-sub-kegiatan" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                            <i class="bi bi-diagram-3 text-muted"></i> Sub Kegiatan
+                        </label>
+                        <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select form-select-sm">
+                            <option value="">-- Semua Sub Kegiatan --</option>
+                            <?php foreach ($filterSubKegiatanList as $sk): ?>
+                                <option value="<?= $sk['id'] ?>"
+                                        data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
+                                        <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Status (Sejajar rapi bersama filter lainnya) -->
+                    <div class="col-12 col-sm-6 col-lg">
+                        <label for="filter-status" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                            <i class="bi bi-shield-check text-muted"></i> Status
+                        </label>
+                        <select name="status" id="filter-status" class="form-select form-select-sm">
+                            <option value="">-- Semua Status --</option>
+                            <option value="diajukan" <?= $filterStatus === 'diajukan' ? 'selected' : '' ?>>Menunggu Verifikasi</option>
+                            <option value="diverifikasi" <?= $filterStatus === 'diverifikasi' ? 'selected' : '' ?>>Terverifikasi</option>
+                            <option value="ditolak" <?= $filterStatus === 'ditolak' ? 'selected' : '' ?>>Ditolak</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Baris 2: Informasi Filter Aktif & Tombol Aksi -->
+                <div class="pt-3 mt-3 border-top d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                    <!-- Status Filter Aktif -->
+                    <div class="d-flex flex-wrap align-items-center gap-1.5">
+                        <?php if ($isFiltered): ?>
+                            <span class="text-xs text-secondary fw-semibold me-1"><i class="bi bi-funnel me-1"></i>Filter aktif:</span>
+                            <?php foreach ($activeFilterLabels as $flabel): ?>
+                                <span class="badge bg-light text-dark border px-2 py-1 small rounded-pill fw-normal">
+                                    <?= htmlspecialchars($flabel) ?>
+                                </span>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <span class="text-xs text-muted">
+                                <i class="bi bi-info-circle me-1"></i>Menampilkan seluruh riwayat transaksi tanpa filter khusus
+                            </span>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Tombol Aksi di Ujung Kanan Konsisten -->
+                    <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto justify-content-md-end">
+                        <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter Bulan &amp; Tahun aktif">
+                            <i class="bi bi-file-earmark-excel"></i>
+                            <span>Unduh BKU</span>
+                        </button>
+                        <a href="<?= base_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-3" id="btn-reset">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                            <span>Reset</span>
+                        </a>
+                        <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 px-3.5 fw-semibold shadow-sm" id="btn-filter">
+                            <i class="bi bi-funnel-fill"></i>
+                            <span>Terapkan Filter</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cascade Script for Kegiatan -> Sub Kegiatan -->
+    <script>
+    (function() {
+        const kegiatanSel   = document.getElementById('filter-kegiatan');
+        const subKegSel     = document.getElementById('filter-sub-kegiatan');
+        if (kegiatanSel && subKegSel) {
+            const allSubOptions = Array.from(subKegSel.querySelectorAll('option[data-kegiatan-id]'));
+            function cascade() {
+                const selectedKeg = kegiatanSel.value;
+                allSubOptions.forEach(opt => {
+                    const match = !selectedKeg || opt.dataset.kegiatanId === selectedKeg;
+                    opt.style.display = match ? '' : 'none';
+                    if (!match && opt.selected) { opt.selected = false; subKegSel.value = ''; }
+                });
+            }
+            kegiatanSel.addEventListener('change', cascade);
+            cascade();
+        }
+    })();
+    </script>
+
     <!-- Bulk Action Toolbar -->
-    <div id="bulk-action-bar" class="d-none alert alert-light border border-danger-subtle bg-danger-subtle bg-opacity-10 d-flex align-items-center justify-content-between p-2 mb-3 shadow-sm rounded">
-        <div class="d-flex align-items-center">
-            <i class="bi bi-check2-square text-danger fs-5 me-2"></i>
-            <span class="fw-semibold text-dark"><span id="selected-count">0</span> transaksi terpilih</span>
+    <div id="bulk-action-bar" class="d-none alert alert-light border border-danger-subtle bg-danger-subtle bg-opacity-10 d-flex align-items-center justify-content-between p-2.5 mb-3 shadow-sm rounded-3">
+        <div class="d-flex align-items-center gap-2">
+            <span class="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded p-1" style="width: 26px; height: 26px;">
+                <i class="bi bi-check2-square fs-6"></i>
+            </span>
+            <span class="fw-semibold text-dark small"><span id="selected-count" class="text-danger fw-bold">0</span> transaksi terpilih</span>
         </div>
         <div class="d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-uncheck-all">
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3" id="btn-uncheck-all">
                 <i class="bi bi-x me-1"></i>Batal Pilih
             </button>
-            <button type="button" class="btn btn-danger btn-sm" id="btn-bulk-delete">
+            <button type="button" class="btn btn-danger btn-sm px-3 fw-medium shadow-sm" id="btn-bulk-delete">
                 <i class="bi bi-trash me-1"></i>Hapus Terpilih
             </button>
         </div>
     </div>
 
-    <!-- Transactions Table -->
-    <div class="card">
-        <div class="card-body">
+    <!-- Transactions Table Card -->
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <div class="card-body p-0">
             <?php if (empty($transaksis)): ?>
-                <div class="empty-state">
-                    <i class="bi bi-inbox"></i>
-                    <p>
+                <div class="p-5 text-center">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-light text-muted rounded-circle mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-inbox fs-2"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1">
                         <?php if ($filterBulan !== null): ?>
-                            Tidak ada transaksi pada <?= $namaBulan[$filterBulan] ?> <?= $filterTahun ?>
+                            Tidak Ada Transaksi pada <?= $namaBulan[$filterBulan] ?> <?= $filterTahun ?>
                         <?php else: ?>
-                            Belum ada data transaksi
+                            Belum Ada Data Transaksi
+                        <?php endif; ?>
+                    </h6>
+                    <p class="text-muted small mb-3">
+                        <?php if ($isFiltered): ?>
+                            Tidak ditemukan data transaksi yang sesuai dengan kriteria filter aktif saat ini.
+                        <?php else: ?>
+                            Belum ada riwayat transaksi anggaran yang tercatat di sistem.
                         <?php endif; ?>
                     </p>
-                    <?php if ($filterBulan === null): ?>
-                        <a href="<?= base_url('transaksi/create') ?>" class="btn btn-primary">
+                    <?php if ($filterBulan === null && !$isFiltered): ?>
+                        <a href="<?= base_url('transaksi/create') ?>" class="btn btn-sm btn-primary px-3 py-2 fw-medium shadow-sm">
                             <i class="bi bi-plus-circle me-1"></i> Input Transaksi Pertama (Batch)
                         </a>
                     <?php else: ?>
-                        <a href="<?= base_url('transaksi') ?>" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle me-1"></i> Tampilkan Semua
+                        <a href="<?= base_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary px-3 py-2">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Semua Filter
                         </a>
                     <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
+                    <table class="table table-trx align-middle mb-0">
+                        <thead>
                             <tr>
-                                <th width="4%" class="text-center align-middle">
+                                <th width="3%" class="text-center align-middle">
                                     <input type="checkbox" class="form-check-input trx-checkbox" id="check-all-trx" title="Pilih Semua di Halaman Ini">
                                 </th>
-                                <th width="4%">No</th>
+                                <th width="3%" class="text-center">No</th>
                                 <th width="8%">Tanggal</th>
-                                <th width="10%">Seksi</th>
-                                <th width="10%">Rekening</th>
-                                <th width="20%">Uraian</th>
-                                <th width="12%" class="text-end">Nilai</th>
+                                <th width="12%">Seksi</th>
+                                <th width="16%">Rekening</th>
+                                <th width="24%">Uraian</th>
+                                <th width="13%" class="text-end">Nilai (Rp)</th>
                                 <th width="9%">Nomor Bukti</th>
-                                <th width="9%" class="text-center">Status</th>
-                                <th width="14%" class="text-center">Aksi</th>
+                                <th width="11%" class="text-center">Status</th>
+                                <th width="9%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -270,102 +507,180 @@ $isFiltered = !empty($activeFilterLabels);
                             $totalNilai = 0;
                             foreach ($transaksis as $index => $transaksi): 
                                 $totalNilai += (float) $transaksi['nilai'];
+                                $st = $transaksi['status'] ?? 'diverifikasi';
                             ?>
                                 <tr>
+                                    <!-- Checkbox -->
                                     <td class="text-center align-middle">
                                         <input type="checkbox" class="form-check-input trx-checkbox row-trx-checkbox" value="<?= $transaksi['id'] ?>">
                                     </td>
-                                    <td><?= $index + 1 ?></td>
-                                    <td><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></td>
+
+                                    <!-- No -->
+                                    <td class="text-center text-muted font-monospace text-xs"><?= $index + 1 ?></td>
+
+                                    <!-- Tanggal -->
                                     <td>
-                                        <span class="badge bg-info"><?= htmlspecialchars($transaksi['kode_seksi']) ?></span>
-                                        <br>
-                                        <small><?= htmlspecialchars($transaksi['nama_seksi']) ?></small>
+                                        <span class="fw-medium text-dark"><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></span>
                                     </td>
+
+                                    <!-- Seksi (Dedicated neutral slate badge) -->
                                     <td>
-                                        <span class="badge bg-warning text-dark"><?= htmlspecialchars($transaksi['kode_rekening']) ?></span>
-                                        <br>
-                                        <small class="text-muted"><?= htmlspecialchars($transaksi['kode_program'] . ' / ' . $transaksi['kode_kegiatan']) ?></small>
+                                        <span class="badge-seksi"><?= htmlspecialchars($transaksi['kode_seksi']) ?></span>
+                                        <div class="text-xs text-secondary mt-1 text-truncate" style="max-width: 140px;" title="<?= htmlspecialchars($transaksi['nama_seksi']) ?>">
+                                            <?= htmlspecialchars($transaksi['nama_seksi']) ?>
+                                        </div>
                                     </td>
-                                    <td><?= htmlspecialchars($transaksi['uraian']) ?></td>
+
+                                    <!-- Rekening (Monospace accounting code + structured Prog/Keg) -->
+                                    <td>
+                                        <span class="code-rekening"><?= htmlspecialchars($transaksi['kode_rekening']) ?></span>
+                                        <div class="text-xs text-muted mt-1 d-flex align-items-center gap-1 font-monospace">
+                                            <span class="opacity-75">Prog/Keg:</span>
+                                            <span class="text-dark fw-medium text-truncate" style="max-width: 170px;" title="<?= htmlspecialchars($transaksi['kode_program'] . ' / ' . $transaksi['kode_kegiatan']) ?>">
+                                                <?= htmlspecialchars($transaksi['kode_program'] . ' / ' . $transaksi['kode_kegiatan']) ?>
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Uraian (Clamped to 2 lines for clean vertical rhythm) -->
+                                    <td>
+                                        <div class="uraian-clamp" title="<?= htmlspecialchars($transaksi['uraian']) ?>">
+                                            <?= htmlspecialchars($transaksi['uraian']) ?>
+                                        </div>
+                                    </td>
+
+                                    <!-- Nilai (Right-aligned, tabular font) -->
                                     <td class="text-end">
-                                        <strong>Rp <?= number_format($transaksi['nilai'], 0, ',', '.') ?></strong>
+                                        <span class="fw-bold text-dark font-monospace" style="font-size: 0.9rem;">
+                                            Rp <?= number_format($transaksi['nilai'], 0, ',', '.') ?>
+                                        </span>
                                     </td>
-                                    <td><?= htmlspecialchars($transaksi['nomor_bukti']) ?></td>
+
+                                    <!-- Nomor Bukti -->
+                                    <td>
+                                        <div class="d-flex align-items-center gap-1 text-secondary font-monospace text-xs">
+                                            <i class="bi bi-receipt opacity-50"></i>
+                                            <span><?= htmlspecialchars($transaksi['nomor_bukti'] ?: '-') ?></span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Status (Clear hierarchy, no clash with badges) -->
                                     <td class="text-center">
-                                        <?php
-                                             $st = $transaksi['status'] ?? 'diverifikasi';
-                                             $stLabel = $statusLabels[$st] ?? [ucfirst($st), 'secondary'];
-                                        ?>
-                                        <span class="badge bg-<?= $stLabel[1] ?>"><?= $stLabel[0] ?></span>
-                                        <?php if ($st === 'ditolak' && !empty($transaksi['catatan_verifikasi'])): ?>
-                                            <div class="small text-danger mt-1" data-bs-toggle="tooltip" title="<?= htmlspecialchars($transaksi['catatan_verifikasi']) ?>">
-                                                <i class="bi bi-info-circle"></i>
-                                            </div>
+                                        <?php if ($st === 'diajukan'): ?>
+                                            <span class="badge-status badge-status-diajukan">
+                                                <i class="bi bi-clock-history"></i>
+                                                <span>Menunggu Verifikasi</span>
+                                            </span>
+                                        <?php elseif ($st === 'diverifikasi'): ?>
+                                            <span class="badge-status badge-status-diverifikasi">
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                <span>Terverifikasi</span>
+                                            </span>
+                                        <?php elseif ($st === 'ditolak'): ?>
+                                            <span class="badge-status badge-status-ditolak">
+                                                <i class="bi bi-x-circle-fill"></i>
+                                                <span>Ditolak</span>
+                                            </span>
+                                            <?php if (!empty($transaksi['catatan_verifikasi'])): ?>
+                                                <div class="small text-danger mt-1 cursor-pointer" data-bs-toggle="tooltip" title="<?= htmlspecialchars($transaksi['catatan_verifikasi']) ?>">
+                                                    <i class="bi bi-info-circle me-1"></i><span class="text-xs">Catatan</span>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary"><?= htmlspecialchars(ucfirst($st)) ?></span>
                                         <?php endif; ?>
                                     </td>
+
+                                    <!-- Aksi (Uniform 32px action buttons with tooltips) -->
                                     <td class="text-center">
-                                        <?php if (($transaksi['status'] ?? 'diverifikasi') === 'diajukan'): ?>
-                                            <div class="btn-group" role="group">
-                                                <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-secondary" title="Detail">
+                                        <div class="d-flex align-items-center justify-content-center gap-1.5">
+                                            <?php if (($transaksi['status'] ?? 'diverifikasi') === 'diajukan'): ?>
+                                                <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" 
+                                                   class="btn-action btn-action-detail" 
+                                                   data-bs-toggle="tooltip" 
+                                                   title="Lihat Detail Transaksi">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-success btn-verifikasi" data-id="<?= $transaksi['id'] ?>">
-                                                    <i class="bi bi-check-lg"></i> Verifikasi
+                                                <button type="button" 
+                                                        class="btn-action btn-action-verif btn-verifikasi" 
+                                                        data-id="<?= $transaksi['id'] ?>"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Verifikasi Transaksi">
+                                                    <i class="bi bi-check-lg"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-danger btn-tolak" data-id="<?= $transaksi['id'] ?>">
-                                                    <i class="bi bi-x-lg"></i> Tolak
+                                                <button type="button" 
+                                                        class="btn-action btn-action-reject btn-tolak" 
+                                                        data-id="<?= $transaksi['id'] ?>"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Tolak Transaksi">
+                                                    <i class="bi bi-x-lg"></i>
                                                 </button>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="btn-group" role="group">
-                                                <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-secondary" title="Detail">
+                                            <?php else: ?>
+                                                <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" 
+                                                   class="btn-action btn-action-detail" 
+                                                   data-bs-toggle="tooltip" 
+                                                   title="Lihat Detail Transaksi">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" 
+                                                   class="btn-action btn-action-edit" 
+                                                   data-bs-toggle="tooltip" 
+                                                   title="Edit Transaksi">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
                                                 <a href="<?= base_url('transaksi/delete/' . $transaksi['id']) ?>"
-                                                   class="btn btn-sm btn-outline-danger"
-                                                   title="Hapus"
+                                                   class="btn-action btn-action-delete"
+                                                   data-bs-toggle="tooltip"
+                                                   title="Hapus Transaksi"
                                                    onclick="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
-                                            </div>
-                                        <?php endif; ?>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="7" class="text-end">
-                                    <strong>
-                                        Total<?= $filterBulan !== null ? ' ' . $namaBulan[$filterBulan] . ' ' . $filterTahun : '' ?>:
-                                    </strong>
+                                <td colspan="6" class="text-end py-3 fw-bold text-secondary">
+                                    Total Nilai<?= $filterBulan !== null ? ' (' . $namaBulan[$filterBulan] . ' ' . $filterTahun . ')' : '' ?>:
                                 </td>
-                                <td class="text-end"><strong>Rp <?= number_format($totalNilai, 0, ',', '.') ?></strong></td>
-                                <td colspan="2"></td>
+                                <td class="text-end py-3 fw-bold text-dark font-monospace" style="font-size: 0.95rem;">
+                                    Rp <?= number_format($totalNilai, 0, ',', '.') ?>
+                                </td>
+                                <td colspan="3"></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+
+                <!-- Pagination -->
                 <?php if (!empty($pagination) && $pagination['totalPages'] > 1): ?>
-                    <nav class="mt-3">
-                        <ul class="pagination justify-content-center">
-                            <li class="page-item <?= $pagination['page'] <= 1 ? 'disabled' : '' ?>">
-                                <a class="page-link" href="<?= $pagination['page'] <= 1 ? '#' : $pagination['baseUrl'] . '&page=' . ($pagination['page'] - 1) ?>">«</a>
-                            </li>
-                            <?php for ($p = 1; $p <= $pagination['totalPages']; $p++): ?>
-                                <li class="page-item <?= $p == $pagination['page'] ? 'active' : '' ?>">
-                                    <a class="page-link" href="<?= $pagination['baseUrl'] . '&page=' . $p ?>"><?= $p ?></a>
+                    <div class="card-footer bg-white border-top py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="text-xs text-muted">
+                            Menampilkan halaman <strong class="text-dark"><?= $pagination['page'] ?></strong> dari <strong class="text-dark"><?= $pagination['totalPages'] ?></strong> (Total <strong class="text-dark"><?= $pagination['total'] ?></strong> transaksi)
+                        </div>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item <?= $pagination['page'] <= 1 ? 'disabled' : '' ?>">
+                                    <a class="page-link" href="<?= $pagination['page'] <= 1 ? '#' : $pagination['baseUrl'] . '&page=' . ($pagination['page'] - 1) ?>" aria-label="Sebelumnya">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
                                 </li>
-                            <?php endfor; ?>
-                            <li class="page-item <?= $pagination['page'] >= $pagination['totalPages'] ? 'disabled' : '' ?>">
-                                <a class="page-link" href="<?= $pagination['page'] >= $pagination['totalPages'] ? '#' : $pagination['baseUrl'] . '&page=' . ($pagination['page'] + 1) ?>">»</a>
-                            </li>
-                        </ul>
-                    </nav>
+                                <?php for ($p = 1; $p <= $pagination['totalPages']; $p++): ?>
+                                    <li class="page-item <?= $p == $pagination['page'] ? 'active' : '' ?>">
+                                        <a class="page-link" href="<?= $pagination['baseUrl'] . '&page=' . $p ?>"><?= $p ?></a>
+                                    </li>
+                                <?php endfor; ?>
+                                <li class="page-item <?= $pagination['page'] >= $pagination['totalPages'] ? 'disabled' : '' ?>">
+                                    <a class="page-link" href="<?= $pagination['page'] >= $pagination['totalPages'] ? '#' : $pagination['baseUrl'] . '&page=' . ($pagination['page'] + 1) ?>" aria-label="Berikutnya">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
                 <?php endif; ?>
             <?php endif; ?>
         </div>
@@ -374,21 +689,23 @@ $isFiltered = !empty($activeFilterLabels);
 
 <!-- Modal Tolak -->
 <div class="modal fade" id="modalTolak" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form class="modal-content" id="formTolak" method="POST">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Tolak Transaksi</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content border-0 shadow" id="formTolak" method="POST">
+            <div class="modal-header bg-danger-subtle text-danger py-2.5">
+                <h6 class="modal-title fw-bold"><i class="bi bi-x-circle me-2"></i>Tolak Transaksi</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="catatanVerifikasi" class="form-label">Catatan Penolakan <span class="text-danger">*</span></label>
-                    <textarea name="catatan_verifikasi" id="catatanVerifikasi" class="form-control" rows="3" required></textarea>
+            <div class="modal-body p-3">
+                <div class="mb-2">
+                    <label for="catatanVerifikasi" class="form-label small fw-semibold text-secondary">
+                        Catatan Penolakan <span class="text-danger">*</span>
+                    </label>
+                    <textarea name="catatan_verifikasi" id="catatanVerifikasi" class="form-control" rows="3" placeholder="Sebutkan alasan penolakan untuk diperbaiki oleh seksi pengaju..." required></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger">Tolak Transaksi</button>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-danger px-3 fw-medium">Tolak Transaksi</button>
             </div>
         </form>
     </div>
@@ -396,23 +713,24 @@ $isFiltered = !empty($activeFilterLabels);
 
 <!-- Modal Konfirmasi Hapus Banyak -->
 <div class="modal fade" id="modalBulkDelete" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form class="modal-content" id="formBulkDelete" method="POST" action="<?= base_url('transaksi/delete-batch') ?>">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content border-0 shadow" id="formBulkDelete" method="POST" action="<?= base_url('transaksi/delete-batch') ?>">
             <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? base_url('transaksi')) ?>">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Banyak Transaksi</h5>
+            <div class="modal-header bg-danger text-white py-2.5">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Banyak Transaksi</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p>Apakah Anda yakin ingin menghapus <strong id="modal-delete-count" class="text-danger">0</strong> transaksi yang dipilih?</p>
-                <div class="alert alert-warning py-2 mb-0 small">
-                    <i class="bi bi-exclamation-circle me-1"></i> Data transaksi yang dihapus tidak dapat dikembalikan.
+            <div class="modal-body p-3">
+                <p class="mb-2">Apakah Anda yakin ingin menghapus <strong id="modal-delete-count" class="text-danger">0</strong> transaksi yang dipilih?</p>
+                <div class="alert alert-warning py-2 mb-0 small d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-circle text-warning fs-5"></i>
+                    <div>Data transaksi yang dihapus tidak dapat dikembalikan.</div>
                 </div>
                 <div id="bulk-delete-inputs"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger">
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-danger px-3 fw-medium">
                     <i class="bi bi-trash me-1"></i> Ya, Hapus Sekarang
                 </button>
             </div>
@@ -423,6 +741,14 @@ $isFiltered = !empty($activeFilterLabels);
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const VERIF_BASE = '<?= rtrim(base_url(), '/') ?>';
+
+    // Inisialisasi Tooltips Bootstrap
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
 
     // Verifikasi Transaksi
     document.querySelectorAll('.btn-verifikasi').forEach(btn => {
