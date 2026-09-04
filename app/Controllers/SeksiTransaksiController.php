@@ -346,6 +346,135 @@ class SeksiTransaksiController
         $transaksi['kegiatan_id'] = $rekeningData['kegiatan_id'] ?? '';
         $transaksi['sub_kegiatan_id'] = $rekeningData['sub_kegiatan_id'] ?? '';
 
+        // Query item batch + komponen biaya tersimpan
+        $batchItemsData = [];
+        $stMetadata = null;
+        $rincianBiayaModel = new \App\Models\RincianBiaya($db);
+
+        // Jika transaksi memiliki surat_tugas_ref_id, cari seluruh transaksi yang diajukan bersama dalam batch ini
+        if (!empty($transaksi['surat_tugas_ref_id'])) {
+            $stmtBatch = $db->prepare("
+                SELECT t.*
+                FROM transaksi t
+                WHERE t.surat_tugas_ref_id = ?
+                  AND t.seksi_id = ?
+                  AND t.input_by = ?
+                  AND t.status IN ('diajukan', 'ditolak')
+                ORDER BY t.id ASC
+            ");
+            $stmtBatch->execute([$transaksi['surat_tugas_ref_id'], $seksiId, $userId]);
+            $rawBatch = $stmtBatch->fetchAll(\PDO::FETCH_ASSOC);
+        } else {
+            $rawBatch = [$transaksi];
+        }
+
+        if (empty($rawBatch)) {
+            $rawBatch = [$transaksi];
+        } else {
+            // Pastikan $transaksi saat ini ada di dalam list
+            $foundCurrent = false;
+            foreach ($rawBatch as $b) {
+                if ((int) $b['id'] === (int) $transaksi['id']) {
+                    $foundCurrent = true;
+                    break;
+                }
+            }
+            if (!$foundCurrent) {
+                array_unshift($rawBatch, $transaksi);
+            }
+        }
+
+        $hasAnyComponents = false;
+        foreach ($rawBatch as $itemTrx) {
+            $rb = $rincianBiayaModel->getByTransaksiId((int) $itemTrx['id']);
+
+            // Fallback jika belum terlink by transaksi_id tapi punya surat_tugas_id & nip
+            if (!$rb && !empty($itemTrx['surat_tugas_ref_id']) && !empty($itemTrx['pegawai_nip'])) {
+                $stmtFallback = $db->prepare("
+                    SELECT id FROM rincian_biaya_perjalanan_dinas
+                    WHERE surat_tugas_id = ? AND pegawai_nip = ? LIMIT 1
+                ");
+                $stmtFallback->execute([(int) $itemTrx['surat_tugas_ref_id'], $itemTrx['pegawai_nip']]);
+                $rbId = $stmtFallback->fetchColumn();
+                if ($rbId) {
+                    $rb = $rincianBiayaModel->getByIdWithDetails((int) $rbId);
+                }
+            }
+
+            $details = [];
+            if ($rb && !empty($rb['details'])) {
+                $hasAnyComponents = true;
+                foreach ($rb['details'] as $d) {
+                    $details[] = [
+                        'nama_komponen' => $d['nama_komponen'] ?? '',
+                        'harga_satuan'  => (float) ($d['harga_satuan'] ?? 0),
+                        'jumlah_hari'   => isset($d['jumlah_hari']) && $d['jumlah_hari'] !== null ? (float) $d['jumlah_hari'] : '',
+                        'jumlah'        => (float) ($d['jumlah'] ?? 0),
+                        'keterangan'    => $d['keterangan'] ?? '',
+                    ];
+                }
+            }
+
+            $ditetapkan = isset($rb['header']['ditetapkan_sejumlah']) && (float) $rb['header']['ditetapkan_sejumlah'] > 0
+                ? (float) $rb['header']['ditetapkan_sejumlah']
+                : (float) $itemTrx['nilai'];
+            $dibayar = isset($rb['header']['dibayar_semula']) && (float) $rb['header']['dibayar_semula'] > 0
+                ? (float) $rb['header']['dibayar_semula']
+                : (float) $itemTrx['nilai'];
+            $tempatTgl = !empty($rb['header']['tempat_tanggal'])
+                ? $rb['header']['tempat_tanggal']
+                : '';
+
+            $batchItemsData[] = [
+                'id'                  => (int) $itemTrx['id'],
+                'nama_penerima'       => $itemTrx['nama_penerima'] ?? '',
+                'pegawai_nip'         => $itemTrx['pegawai_nip'] ?? '',
+                'nomor_surat_tugas'   => $itemTrx['nomor_surat_tugas'] ?? '',
+                'tanggal_surat_tugas' => $itemTrx['tanggal_surat_tugas'] ?? '',
+                'tanggal_pelaksanaan' => $itemTrx['tanggal_pelaksanaan'] ?? '',
+                'surat_tugas_ref_id'  => $itemTrx['surat_tugas_ref_id'] ?? '',
+                'nomor_bukti'         => $itemTrx['nomor_bukti'] ?? '',
+                'nilai'               => (float) $itemTrx['nilai'],
+                'uraian'              => $itemTrx['uraian'] ?? '',
+                'ditetapkan_sejumlah' => $ditetapkan,
+                'dibayar_semula'      => $dibayar,
+                'tempat_tanggal'      => $tempatTgl,
+                'komponen'            => $details,
+            ];
+        }
+
+        // Syarat masuk mode batch saat edit:
+        // 1. Jumlah item > 1 ATAU
+        // 2. Transaksi memiliki komponen rincian biaya tersimpan ($hasAnyComponents === true)
+        if (count($batchItemsData) > 1 || $hasAnyComponents) {
+            if (!empty($transaksi['surat_tugas_ref_id'])) {
+                $stMetadata = [
+                    'id'            => (int) $transaksi['surat_tugas_ref_id'],
+                    'nomor_surat'   => $transaksi['nomor_surat_tugas'] ?? '',
+                    'tanggal_surat' => $transaksi['tanggal_surat_tugas'] ?? '',
+                    'tanggal_mulai' => $transaksi['tanggal_pelaksanaan'] ?? '',
+                    'lokasi'        => $transaksi['lokasi_kegiatan'] ?? '',
+                    'untuk'         => '',
+                ];
+                try {
+                    require_once __DIR__ . '/../../config/database_surat_tugas.php';
+                    $dbST = \DatabaseSuratTugas::getConnection();
+                    if ($dbST) {
+                        $stQuery = $dbST->prepare("SELECT maksud_tugas FROM surat_tugas WHERE id = ? LIMIT 1");
+                        $stQuery->execute([(int) $transaksi['surat_tugas_ref_id']]);
+                        $maksud = $stQuery->fetchColumn();
+                        if ($maksud) {
+                            $stMetadata['untuk'] = $maksud;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback aman jika database ST tidak dapat dihubungi
+                }
+            }
+        } else {
+            $batchItemsData = [];
+        }
+
         $pageTitle = 'Edit Transaksi';
         $activePage = 'transaksi';
         $viewFile = __DIR__ . '/../../views/seksi/transaksi_form.php';
@@ -366,6 +495,12 @@ class SeksiTransaksiController
         $existing = $this->transaksiModel->getById($id);
         if (!$existing || (int) $existing['input_by'] !== $userId || !in_array($existing['status'] ?? '', ['diajukan','ditolak'], true)) {
             $this->redirectWithMessage(base_url('seksi/transaksi'), 'error', 'Transaksi tidak dapat diedit');
+            return;
+        }
+
+        // Cek jika update berupa batch items
+        if (isset($_POST['items']) && is_array($_POST['items']) && count($_POST['items']) > 0) {
+            $this->updateBatchItems($id, $_POST, $db, $userId, $seksiId);
             return;
         }
 
@@ -406,6 +541,164 @@ class SeksiTransaksiController
 
         $this->logAudit($userId, 'update_transaksi_seksi', 'transaksi', $id, $ok ? 'Update transaksi seksi' : 'Gagal update transaksi seksi');
         $this->redirectWithMessage(base_url('seksi/transaksi'), $ok ? 'success' : 'error', $ok ? 'Transaksi berhasil diperbarui' : 'Transaksi tidak dapat diperbarui');
+    }
+
+    /**
+     * Simpan update batch item transaksi beserta rincian komponen biaya
+     */
+    private function updateBatchItems(int $sourceId, array $post, \PDO $db, int $userId, int $seksiId): void
+    {
+        $rekeningId = (int) ($post['rekening_id'] ?? 0);
+        if (!$rekeningId || !$this->rekeningMilikSeksi($rekeningId, $seksiId, $db)) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/edit/' . $sourceId), 'error', 'Rekening belanja wajib dipilih dan harus valid untuk seksi Anda.');
+            return;
+        }
+
+        $tanggal = !empty($post['tanggal']) ? $post['tanggal'] : date('Y-m-d');
+        $items = $post['items'];
+        $updatedCount = 0;
+        $errors = [];
+
+        $rincianBiayaModel = new \App\Models\RincianBiaya($db);
+
+        foreach ($items as $idx => $item) {
+            $itemId       = !empty($item['id']) ? (int) $item['id'] : null;
+            $nomorBukti   = trim($item['nomor_bukti'] ?? '');
+            $uraian       = trim($item['uraian'] ?? '');
+            $rawNilai     = str_replace(['.', ','], '', $item['nilai'] ?? '0');
+            $nilai        = (float) $rawNilai;
+            $namaPenerima = trim($item['nama_penerima'] ?? '');
+            $pegawaiNip   = trim($item['pegawai_nip'] ?? '');
+
+            // Proses rincian komponen biaya
+            $komponen = $item['komponen'] ?? [];
+            $detailsValid = [];
+            $totalRincian = 0;
+            if (is_array($komponen)) {
+                foreach ($komponen as $k) {
+                    $namaK = trim($k['nama_komponen'] ?? '');
+                    if ($namaK === '') continue;
+                    $harga = (float) str_replace(['.', ','], ['', '.'], $k['harga_satuan'] ?? '0');
+                    $hari  = isset($k['jumlah_hari']) && $k['jumlah_hari'] !== '' ? (float) $k['jumlah_hari'] : null;
+                    $jml   = (float) str_replace(['.', ','], ['', '.'], $k['jumlah'] ?? '0');
+                    if ($jml <= 0) $jml = $hari !== null ? $harga * $hari : $harga;
+                    $detailsValid[] = [
+                        'nama_komponen' => $namaK,
+                        'harga_satuan'  => $harga,
+                        'jumlah_hari'   => $hari,
+                        'jumlah'        => $jml,
+                        'keterangan'    => trim($k['keterangan'] ?? '') ?: null,
+                    ];
+                    $totalRincian += $jml;
+                }
+            }
+
+            if ($nilai <= 0 && $totalRincian > 0) {
+                $nilai = $totalRincian;
+            }
+
+            if ($nomorBukti === '' || $uraian === '' || $nilai <= 0) {
+                $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nomor bukti, uraian, dan nilai harus valid.";
+                continue;
+            }
+
+            $ditetapkanRaw = (float) str_replace(['.', ','], ['', '.'], $item['ditetapkan_sejumlah'] ?? '0');
+            $dibayarRaw    = (float) str_replace(['.', ','], ['', '.'], $item['dibayar_semula'] ?? '0');
+            if ($ditetapkanRaw <= 0 && $totalRincian > 0) {
+                $ditetapkanRaw = $totalRincian;
+            }
+            if ($dibayarRaw <= 0 && $totalRincian > 0) {
+                $dibayarRaw = $totalRincian;
+            }
+
+            $stRefId      = !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : null;
+            $nomorSurat   = !empty(trim($item['nomor_surat_tugas'] ?? '')) ? trim($item['nomor_surat_tugas']) : null;
+            $tglSurat     = !empty($item['tanggal_surat_tugas']) ? $item['tanggal_surat_tugas'] : null;
+            $tglPelaksana = !empty($item['tanggal_pelaksanaan']) ? $item['tanggal_pelaksanaan'] : null;
+            $lokasi       = !empty(trim($item['lokasi_kegiatan'] ?? '')) ? trim($item['lokasi_kegiatan']) : null;
+
+            try {
+                $targetId = null;
+                if ($itemId) {
+                    $check = $this->transaksiModel->getById($itemId);
+                    if ($check && (int) $check['input_by'] === $userId && in_array($check['status'] ?? '', ['diajukan', 'ditolak'], true)) {
+                        $this->transaksiModel->updateSeksi(
+                            $itemId,
+                            $userId,
+                            $tanggal,
+                            $seksiId,
+                            $rekeningId,
+                            $uraian,
+                            $nilai,
+                            $nomorBukti,
+                            $namaPenerima ?: null,
+                            'perjalanan_dinas',
+                            $nomorSurat,
+                            $tglSurat,
+                            $tglPelaksana,
+                            $lokasi,
+                            $stRefId
+                        );
+                        if ($pegawaiNip) {
+                            $db->prepare("UPDATE transaksi SET pegawai_nip = ? WHERE id = ?")->execute([$pegawaiNip, $itemId]);
+                        }
+                        $targetId = $itemId;
+                        $updatedCount++;
+                    }
+                }
+
+                if (!$targetId) {
+                    $targetId = $this->transaksiModel->createSeksi(
+                        $tanggal,
+                        $seksiId,
+                        $rekeningId,
+                        $uraian,
+                        $nilai,
+                        $nomorBukti,
+                        $userId,
+                        $namaPenerima ?: null,
+                        'perjalanan_dinas',
+                        $nomorSurat,
+                        $tglSurat,
+                        $tglPelaksana,
+                        $lokasi,
+                        $stRefId,
+                        $pegawaiNip ?: null
+                    );
+                    $updatedCount++;
+                }
+
+                if (!empty($detailsValid) && $pegawaiNip !== '' && $targetId) {
+                    $rincianBiayaModel->upsertDariTransaksi(
+                        $targetId,
+                        $stRefId ?: 0,
+                        $nomorSurat ?: '',
+                        $pegawaiNip,
+                        $namaPenerima ?: 'Pegawai',
+                        null,
+                        null,
+                        $ditetapkanRaw,
+                        $dibayarRaw,
+                        trim($item['tempat_tanggal'] ?? '') ?: null,
+                        $userId,
+                        $detailsValid
+                    );
+                }
+            } catch (\Throwable $e) {
+                $errors[] = "Gagal memperbarui baris #" . ($idx + 1) . ": " . $e->getMessage();
+            }
+        }
+
+        if ($updatedCount > 0) {
+            $msg = "Berhasil memperbarui {$updatedCount} transaksi perjalanan dinas.";
+            if (!empty($errors)) {
+                $msg .= " Catatan: " . implode(' ', $errors);
+            }
+            $this->logAudit($userId, 'update_transaksi_seksi_batch', 'transaksi', $sourceId, $msg);
+            $this->redirectWithMessage(base_url('seksi/transaksi'), 'success', $msg);
+        } else {
+            $this->redirectWithMessage(base_url('seksi/transaksi/edit/' . $sourceId), 'error', 'Gagal memperbarui transaksi: ' . implode(' ', $errors));
+        }
     }
 
     /**

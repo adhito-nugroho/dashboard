@@ -63,6 +63,11 @@ if (!migration_table_exists($pdo, 'audit_log')) {
 // Role codebase saat ini: admin (bendahara/verifikator), tu, rlpm, tkuk.
 // TU/RLPM/TKUK = pen input transaksi seksi. Pastikan ada akun utk masing-masing.
 if (migration_table_exists($pdo, 'users') && migration_table_exists($pdo, 'seksi')) {
+    if (!migration_column_exists($pdo, 'users', 'seksi_id')) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN seksi_id INT NULL DEFAULT NULL AFTER role");
+    }
+    $pdo->exec("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'seksi'");
+
     $hash = null;
     $stmt = $pdo->query("SELECT password FROM users WHERE username = 'admin' LIMIT 1");
     $adminRow = $stmt->fetch(PDO::FETCH_ASSOC);
