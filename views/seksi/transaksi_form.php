@@ -356,6 +356,25 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                         </div>
                     </div>
 
+                    <!-- PERJALANAN DINAS PLACEHOLDER (Muncul saat jenis transaksi = Perjalanan Dinas dan belum memilih Surat Tugas) -->
+                    <div id="perdinPlaceholderContainer" style="display:none;" class="p-4 mb-3 text-center border rounded-3 bg-light">
+                        <div style="width:52px;height:52px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:0.75rem;">
+                            <i class="bi bi-file-earmark-person"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Perjalanan Dinas Memerlukan Surat Tugas</h6>
+                        <p class="text-muted small mx-auto mb-3" style="max-width:440px;">
+                            Pilih Surat Tugas dan pegawai yang bertugas untuk mengisi data transaksi, nomor bukti, dan rincian biaya SPJ secara otomatis.
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-2">
+                            <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" id="btnPlaceholderOpenST">
+                                <i class="bi bi-cloud-arrow-down-fill me-1"></i> Pilih Surat Tugas & Pegawai
+                            </button>
+                            <button type="button" class="btn btn-link btn-sm text-secondary text-decoration-none" id="btnFallbackManualPerdin" style="font-size:0.8rem;">
+                                <i class="bi bi-pencil-square me-1"></i> Isi manual tanpa Surat Tugas
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- SINGLE ITEM FIELDS (Form Normal) -->
                     <div id="singleItemContainer">
                         <div class="row g-3">
@@ -539,6 +558,8 @@ const seksiBase = BASE_URL.replace(/\/$/, '');
 let selectedSTData = null;
 let currentSTPegawais = [];
 window.currentSisaPagu = null;
+let jenisTransaksiAutoSet = false;
+let isManualPerdinFallback = false;
 
 function getSpinnerForSelect(selectEl) {
     const map = {
@@ -695,6 +716,26 @@ function updateBatchTotal() {
     if (container) container.style.display = inputs.length ? 'flex' : 'none';
 }
 
+function setSingleItemActive(isActive) {
+    const container = document.getElementById('singleItemContainer');
+    if (!container) return;
+    container.style.display = isActive ? 'block' : 'none';
+    const fields = container.querySelectorAll('input, select, textarea');
+    fields.forEach(el => {
+        el.disabled = !isActive;
+        if (!isActive) {
+            if (el.hasAttribute('required')) {
+                el.dataset.wasRequired = 'true';
+                el.removeAttribute('required');
+            }
+        } else {
+            if (el.dataset.wasRequired === 'true') {
+                el.setAttribute('required', '');
+            }
+        }
+    });
+}
+
 // Cascade dropdowns
 document.getElementById('program_id').addEventListener('change', function() {
     const programId = this.value;
@@ -739,18 +780,81 @@ document.getElementById('sub_kegiatan_id').addEventListener('change', function()
 });
 
 document.getElementById('rekening_id').addEventListener('change', updateSisaPagu);
+document.getElementById('rekening_id').addEventListener('change', function() {
+    if (isEditMode) return;
+
+    const selectedOpt = this.selectedIndex >= 0 ? this.options[this.selectedIndex] : null;
+    const optText = selectedOpt ? selectedOpt.text.toLowerCase() : '';
+    const jenisSelect = document.getElementById('jenis_transaksi');
+    if (!jenisSelect) return;
+
+    if (optText.includes('perjalanan dinas')) {
+        jenisTransaksiAutoSet = true;
+        isManualPerdinFallback = false;
+        jenisSelect.value = 'perjalanan_dinas';
+        jenisSelect.dispatchEvent(new Event('change'));
+        openModalST();
+    } else {
+        if (jenisTransaksiAutoSet) {
+            jenisTransaksiAutoSet = false;
+            isManualPerdinFallback = false;
+            jenisSelect.value = '';
+            jenisSelect.dispatchEvent(new Event('change'));
+        }
+    }
+});
+
 document.getElementById('tanggal').addEventListener('change', function() {
     updateSisaPagu();
     if (!isEditMode) autoFillSingleNomorBukti(false);
 });
 
 // Toggle Jenis Transaksi & Field Perjalanan Dinas
-document.getElementById('jenis_transaksi').addEventListener('change', function() {
+document.getElementById('jenis_transaksi').addEventListener('change', function(e) {
+    if (e && e.isTrusted) {
+        jenisTransaksiAutoSet = false;
+        isManualPerdinFallback = false;
+    }
+
     const isPerdin = this.value === 'perjalanan_dinas';
-    document.getElementById('sectionPerjalananDinas').style.display = isPerdin ? 'block' : 'none';
-    document.getElementById('btnAutoDraft').style.display = isPerdin ? 'inline-flex' : 'none';
+    const sectionPerdin = document.getElementById('sectionPerjalananDinas');
+    if (sectionPerdin) sectionPerdin.style.display = isPerdin ? 'block' : 'none';
+
+    const btnAutoDraft = document.getElementById('btnAutoDraft');
+    if (btnAutoDraft) btnAutoDraft.style.display = isPerdin ? 'inline-flex' : 'none';
+
     const btnST = document.getElementById('btnOpenModalST');
     if (btnST) btnST.style.display = isPerdin ? 'inline-flex' : 'none';
+
+    const btnResetBatch = document.getElementById('btnResetBatch');
+    if (btnResetBatch) {
+        btnResetBatch.style.display = isPerdin ? 'none' : 'inline-block';
+    }
+
+    if (!isEditMode) {
+        const batchList = document.getElementById('batchItemsList');
+        const hasBatchItems = batchList && batchList.children.length > 0;
+        const perdinPlaceholder = document.getElementById('perdinPlaceholderContainer');
+
+        if (isPerdin) {
+            if (!hasBatchItems && !isManualPerdinFallback) {
+                if (perdinPlaceholder) perdinPlaceholder.style.display = 'block';
+                setSingleItemActive(false);
+            } else if (hasBatchItems) {
+                if (perdinPlaceholder) perdinPlaceholder.style.display = 'none';
+                setSingleItemActive(false);
+                document.getElementById('batchItemsContainer').style.display = 'block';
+            } else if (isManualPerdinFallback) {
+                if (perdinPlaceholder) perdinPlaceholder.style.display = 'none';
+                setSingleItemActive(true);
+            }
+        } else {
+            if (perdinPlaceholder) perdinPlaceholder.style.display = 'none';
+            if (!hasBatchItems) {
+                setSingleItemActive(true);
+            }
+        }
+    }
 });
 
 // Format ribuan nilai input single — dengan preservasi posisi kursor (Task 3)
@@ -832,14 +936,33 @@ document.getElementById('btnAutoDraft').addEventListener('click', function() {
 const modalSTEl = document.getElementById('modalSuratTugas');
 let modalSTInstance = null;
 
+function openModalST() {
+    if (!modalSTInstance && modalSTEl) {
+        modalSTInstance = new bootstrap.Modal(modalSTEl);
+    }
+    if (modalSTInstance) {
+        modalSTInstance.show();
+        searchSuratTugas(inputSearchST ? inputSearchST.value : '');
+    }
+}
+
 const btnOpenST = document.getElementById('btnOpenModalST');
 if (btnOpenST) {
-    btnOpenST.addEventListener('click', function() {
-        if (!modalSTInstance) {
-            modalSTInstance = new bootstrap.Modal(modalSTEl);
-        }
-        modalSTInstance.show();
-        searchSuratTugas('');
+    btnOpenST.addEventListener('click', openModalST);
+}
+
+const btnPlaceholderOpen = document.getElementById('btnPlaceholderOpenST');
+if (btnPlaceholderOpen) {
+    btnPlaceholderOpen.addEventListener('click', openModalST);
+}
+
+const btnFallbackManual = document.getElementById('btnFallbackManualPerdin');
+if (btnFallbackManual) {
+    btnFallbackManual.addEventListener('click', function() {
+        isManualPerdinFallback = true;
+        const perdinPlaceholder = document.getElementById('perdinPlaceholderContainer');
+        if (perdinPlaceholder) perdinPlaceholder.style.display = 'none';
+        setSingleItemActive(true);
     });
 }
 
@@ -1066,25 +1189,9 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
     const checkedBoxes = Array.from(document.querySelectorAll('.check-pegawai-st:checked'));
     if (checkedBoxes.length === 0) return;
 
-function setSingleItemActive(isActive) {
-    const container = document.getElementById('singleItemContainer');
-    if (!container) return;
-    container.style.display = isActive ? 'block' : 'none';
-    const fields = container.querySelectorAll('input, select, textarea');
-    fields.forEach(el => {
-        el.disabled = !isActive;
-        if (!isActive) {
-            if (el.hasAttribute('required')) {
-                el.dataset.wasRequired = 'true';
-                el.removeAttribute('required');
-            }
-        } else {
-            if (el.dataset.wasRequired === 'true') {
-                el.setAttribute('required', '');
-            }
-        }
-    });
-}
+    isManualPerdinFallback = false;
+    const perdinPlaceholder = document.getElementById('perdinPlaceholderContainer');
+    if (perdinPlaceholder) perdinPlaceholder.style.display = 'none';
 
     const selectedPegawais = checkedBoxes.map(c => currentSTPegawais[parseInt(c.value, 10)]);
 
@@ -1092,6 +1199,13 @@ function setSingleItemActive(isActive) {
     setSingleItemActive(false);
     document.getElementById('batchItemsContainer').style.display = 'block';
     document.getElementById('batchCountText').innerText = selectedPegawais.length;
+
+    // Sembunyikan btnResetBatch jika jenis transaksi adalah perjalanan dinas
+    const jenisVal = document.getElementById('jenis_transaksi').value;
+    const btnResetBatch = document.getElementById('btnResetBatch');
+    if (btnResetBatch) {
+        btnResetBatch.style.display = (jenisVal === 'perjalanan_dinas') ? 'none' : 'inline-block';
+    }
 
     // Fetch batch nomor bukti
     const tgl = document.getElementById('tanggal').value || new Date().toISOString().slice(0, 10);
@@ -1220,6 +1334,8 @@ document.getElementById('btnResetBatch').addEventListener('click', function() {
     if (confirm('Kembali ke mode pengisian 1 transaksi biasa? Data rincian multi-pegawai akan dikosongkan.')) {
         document.getElementById('batchItemsContainer').style.display = 'none';
         document.getElementById('batchItemsList').innerHTML = '';
+        const perdinPlaceholder = document.getElementById('perdinPlaceholderContainer');
+        if (perdinPlaceholder) perdinPlaceholder.style.display = 'none';
         setSingleItemActive(true);
         updateBatchTotal();
     }
