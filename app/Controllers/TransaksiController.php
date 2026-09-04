@@ -123,7 +123,7 @@ class TransaksiController
             $db = \Database::getConnection();
             require_once __DIR__ . '/../../app/Models/RincianBiaya.php';
             $rincianModel = new \App\Models\RincianBiaya($db);
-            $rincianBiaya = $rincianModel->getByTransaksiId($id);
+            $rincianBiaya = $rincianModel->findForTransaksi($transaksi);
 
             $pageTitle  = 'Detail Transaksi #' . $id;
             $activePage = 'transaksi';

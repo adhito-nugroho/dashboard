@@ -64,6 +64,7 @@ class RincianBiaya
 
     /**
      * Ambil rincian biaya (header + detail) yang terhubung ke transaksi_id tertentu.
+     * Jika tidak ditemukan langsung by transaksi_id, lakukan fallback pencarian via relasi transaksi.
      */
     public function getByTransaksiId(int $transaksiId): ?array
     {
@@ -72,20 +73,150 @@ class RincianBiaya
             WHERE transaksi_id = ? LIMIT 1
         ");
         $stmt->execute([$transaksiId]);
-        $header = $stmt->fetch();
-        if (!$header) return null;
+        $header = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$header) {
+            // Ambil data transaksi terkait untuk fallback lookup
+            $stmtT = $this->db->prepare("
+                SELECT id, jenis_transaksi, surat_tugas_ref_id, nomor_surat_tugas, pegawai_nip, nama_penerima
+                FROM transaksi WHERE id = ? LIMIT 1
+            ");
+            $stmtT->execute([$transaksiId]);
+            $trx = $stmtT->fetch(\PDO::FETCH_ASSOC);
+            if ($trx) {
+                return $this->findForTransaksi($trx);
+            }
+            return null;
+        }
 
         $stmtD = $this->db->prepare("
             SELECT * FROM rincian_biaya_perjalanan_dinas_detail
             WHERE rincian_biaya_id = ? ORDER BY urutan ASC, id ASC
         ");
-        $stmtD->execute([$header['id']]);
-        return ['header' => $header, 'details' => $stmtD->fetchAll()];
+        $stmtD->execute([(int) $header['id']]);
+        return ['header' => $header, 'details' => $stmtD->fetchAll(\PDO::FETCH_ASSOC)];
+    }
+
+    /**
+     * Cari rincian biaya (header + detail) untuk suatu record transaksi.
+     * 1. Cek langsung via transaksi_id
+     * 2. Fallback via surat_tugas_ref_id + pegawai_nip / nama_penerima
+     * 3. Fallback via nomor_surat_tugas + pegawai_nip / nama_penerima
+     * Jika ditemukan tapi transaksi_id masih null/0, otomatis tautkan transaksi_id.
+     */
+    public function findForTransaksi(array $transaksi): ?array
+    {
+        $transaksiId = (int) ($transaksi['id'] ?? 0);
+        if ($transaksiId > 0) {
+            $stmt = $this->db->prepare("
+                SELECT * FROM rincian_biaya_perjalanan_dinas
+                WHERE transaksi_id = ? LIMIT 1
+            ");
+            $stmt->execute([$transaksiId]);
+            $header = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($header) {
+                $stmtD = $this->db->prepare("
+                    SELECT * FROM rincian_biaya_perjalanan_dinas_detail
+                    WHERE rincian_biaya_id = ? ORDER BY urutan ASC, id ASC
+                ");
+                $stmtD->execute([(int) $header['id']]);
+                return ['header' => $header, 'details' => $stmtD->fetchAll(\PDO::FETCH_ASSOC)];
+            }
+        }
+
+        $stRefId = !empty($transaksi['surat_tugas_ref_id']) ? (int) $transaksi['surat_tugas_ref_id'] : 0;
+        $nip     = trim((string) ($transaksi['pegawai_nip'] ?? ''));
+        $nama    = trim((string) ($transaksi['nama_penerima'] ?? ''));
+        $noST    = trim((string) ($transaksi['nomor_surat_tugas'] ?? ''));
+
+        $header = null;
+
+        // Fallback 1: via surat_tugas_ref_id
+        if ($stRefId > 0) {
+            if ($nip !== '' && $nip !== '-') {
+                $stmt = $this->db->prepare("
+                    SELECT * FROM rincian_biaya_perjalanan_dinas
+                    WHERE surat_tugas_id = ? AND pegawai_nip = ?
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $stmt->execute([$stRefId, $nip]);
+                $header = $stmt->fetch(\PDO::FETCH_ASSOC);
+            }
+            if (!$header && $nama !== '') {
+                $stmt = $this->db->prepare("
+                    SELECT * FROM rincian_biaya_perjalanan_dinas
+                    WHERE surat_tugas_id = ? AND (pegawai_nama = ? OR pegawai_nama LIKE ?)
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $stmt->execute([$stRefId, $nama, '%' . $nama . '%']);
+                $header = $stmt->fetch(\PDO::FETCH_ASSOC);
+            }
+            if (!$header) {
+                $stmt = $this->db->prepare("
+                    SELECT * FROM rincian_biaya_perjalanan_dinas
+                    WHERE surat_tugas_id = ?
+                    ORDER BY id DESC
+                ");
+                $stmt->execute([$stRefId]);
+                $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+                if (count($rows) === 1) {
+                    $header = $rows[0];
+                }
+            }
+        }
+
+        // Fallback 2: via nomor_surat_tugas
+        if (!$header && $noST !== '') {
+            if ($nip !== '' && $nip !== '-') {
+                $stmt = $this->db->prepare("
+                    SELECT * FROM rincian_biaya_perjalanan_dinas
+                    WHERE (nomor_surat = ? OR nomor_surat LIKE ?) AND pegawai_nip = ?
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $stmt->execute([$noST, '%' . $noST . '%', $nip]);
+                $header = $stmt->fetch(\PDO::FETCH_ASSOC);
+            }
+            if (!$header && $nama !== '') {
+                $stmt = $this->db->prepare("
+                    SELECT * FROM rincian_biaya_perjalanan_dinas
+                    WHERE (nomor_surat = ? OR nomor_surat LIKE ?) AND (pegawai_nama = ? OR pegawai_nama LIKE ?)
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $stmt->execute([$noST, '%' . $noST . '%', $nama, '%' . $nama . '%']);
+                $header = $stmt->fetch(\PDO::FETCH_ASSOC);
+            }
+        }
+
+        if (!$header) {
+            return null;
+        }
+
+        // Otomatis tautkan transaksi_id jika masih kosong
+        if ($transaksiId > 0 && empty($header['transaksi_id'])) {
+            try {
+                $stmtLink = $this->db->prepare("
+                    UPDATE rincian_biaya_perjalanan_dinas
+                    SET transaksi_id = ?
+                    WHERE id = ? AND (transaksi_id IS NULL OR transaksi_id = 0)
+                ");
+                $stmtLink->execute([$transaksiId, (int) $header['id']]);
+                $header['transaksi_id'] = $transaksiId;
+            } catch (\Throwable $e) {
+                // non-blocking
+            }
+        }
+
+        $stmtD = $this->db->prepare("
+            SELECT * FROM rincian_biaya_perjalanan_dinas_detail
+            WHERE rincian_biaya_id = ? ORDER BY urutan ASC, id ASC
+        ");
+        $stmtD->execute([(int) $header['id']]);
+        return ['header' => $header, 'details' => $stmtD->fetchAll(\PDO::FETCH_ASSOC)];
     }
 
     /**
      * Simpan rincian biaya yang terhubung langsung ke satu transaksi (diinput seksi).
-     * Jika sudah ada record untuk transaksi_id ini, hapus lalu insert ulang (upsert).
+     * Jika sudah ada record untuk transaksi_id ini atau (surat_tugas_id + pegawai_nip), perbarui lalu insert ulang detail.
      */
     public function upsertDariTransaksi(
         int     $transaksiId,
@@ -103,23 +234,27 @@ class RincianBiaya
     ): int {
         $this->db->beginTransaction();
         try {
-            // Cek sudah ada?
-            $existing = $this->db->prepare(
-                "SELECT id FROM rincian_biaya_perjalanan_dinas WHERE transaksi_id = ? LIMIT 1"
-            );
-            $existing->execute([$transaksiId]);
+            // Cek sudah ada berdasarkan transaksi_id ATAU (surat_tugas_id + pegawai_nip)?
+            $existing = $this->db->prepare("
+                SELECT id FROM rincian_biaya_perjalanan_dinas
+                WHERE transaksi_id = ?
+                   OR (? > 0 AND surat_tugas_id = ? AND ? != '' AND ? != '-' AND pegawai_nip = ?)
+                LIMIT 1
+            ");
+            $existing->execute([$transaksiId, $suratTugasId, $suratTugasId, $pegawaiNip, $pegawaiNip, $pegawaiNip]);
             $existingId = $existing->fetchColumn();
 
             if ($existingId) {
-                // Update header + hapus-insert detail
+                // Update header + tautkan transaksi_id + hapus-insert detail
                 $this->db->prepare("
                     UPDATE rincian_biaya_perjalanan_dinas
-                    SET surat_tugas_id = ?, nomor_surat = ?, pegawai_nip = ?, pegawai_nama = ?,
+                    SET transaksi_id = ?, surat_tugas_id = ?, nomor_surat = ?, pegawai_nip = ?, pegawai_nama = ?,
                         pegawai_pangkat = ?, pegawai_jabatan = ?,
                         ditetapkan_sejumlah = ?, dibayar_semula = ?,
                         tempat_tanggal = ?, updated_by = ?, updated_at = NOW()
                     WHERE id = ?
                 ")->execute([
+                    $transaksiId,
                     $suratTugasId, $nomorSurat, $pegawaiNip, $pegawaiNama,
                     $pegawaiPangkat, $pegawaiJabatan,
                     $ditetapkanSejumlah, $dibayarSemula,

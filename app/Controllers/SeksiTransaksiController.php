@@ -278,14 +278,15 @@ class SeksiTransaksiController
                 $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input batch transaksi Surat Tugas an. ' . $namaPenerima);
                 $createdCount++;
 
-                if (!empty($detailsValid) && $pegawaiNip !== '') {
+                if (!empty($detailsValid)) {
                     $stRefId    = !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : 0;
                     $nomorSurat = trim($item['nomor_surat_tugas'] ?? '');
+                    $nipToSave  = $pegawaiNip !== '' ? $pegawaiNip : '-';
                     $rincianBiayaModel->upsertDariTransaksi(
                         $id,
                         $stRefId,
                         $nomorSurat,
-                        $pegawaiNip,
+                        $nipToSave,
                         $namaPenerima ?: 'Pegawai',
                         null, // pangkat tidak tersedia di form batch
                         null, // jabatan tidak tersedia di form batch
@@ -668,12 +669,13 @@ class SeksiTransaksiController
                     $updatedCount++;
                 }
 
-                if (!empty($detailsValid) && $pegawaiNip !== '' && $targetId) {
+                if (!empty($detailsValid) && $targetId) {
+                    $nipToSave  = $pegawaiNip !== '' ? $pegawaiNip : '-';
                     $rincianBiayaModel->upsertDariTransaksi(
                         $targetId,
                         $stRefId ?: 0,
                         $nomorSurat ?: '',
-                        $pegawaiNip,
+                        $nipToSave,
                         $namaPenerima ?: 'Pegawai',
                         null,
                         null,
@@ -1200,7 +1202,7 @@ class SeksiTransaksiController
         require_once __DIR__ . '/../Services/RincianBiayaExportService.php';
 
         $rincianModel = new \App\Models\RincianBiaya($db);
-        $data = $rincianModel->getByTransaksiId($transaksiId);
+        $data = $rincianModel->findForTransaksi($transaksi);
 
         if (!$data) {
             http_response_code(404);
