@@ -930,8 +930,10 @@ function cleanMaksudKegiatan(text) {
 // Helper susun draf uraian
 function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKegiatan) {
     const subKegSelect = document.getElementById('sub_kegiatan_id');
-    const subKegText = subKegSelect.selectedIndex > 0 ? subKegSelect.options[subKegSelect.selectedIndex].text : '[nama sub kegiatan]';
-    const subKegNama = subKegText.replace(/^[0-9.]+\s*-\s*/, '');
+    let subKegNama = '';
+    if (subKegSelect && subKegSelect.selectedIndex > 0) {
+        subKegNama = subKegSelect.options[subKegSelect.selectedIndex].text.replace(/^[0-9.]+\s*-\s*/, '').trim();
+    }
 
     let tglPelaksanaFmt = '[tanggal_pelaksanaan]';
     if (tglPelaksanaan) {
@@ -949,9 +951,11 @@ function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKe
     const penerimaVal = penerimaNama || '[nama_penerima]';
     
     const maksudCleaned = cleanMaksudKegiatan(maksudKegiatan);
-    const rangkaText = maksudCleaned ? maksudCleaned : `pelaksanaan kegiatan pada Sub Kegiatan ${subKegNama}`;
+    const rangkaText = maksudCleaned ? maksudCleaned : (subKegNama ? `pelaksanaan kegiatan ${subKegNama}` : 'pelaksanaan kegiatan');
 
-    return `Perjalanan Dinas dalam rangka ${rangkaText}. Pada tanggal ${tglPelaksanaFmt}, sesuai Surat Tugas No.: ${nomorSTVal} tanggal ${tglSTFmt}. An. ${penerimaVal}`;
+    const subKegPart = subKegNama ? `Sub Kegiatan ${subKegNama} ` : '';
+
+    return `Perjalanan Dinas dalam rangka ${rangkaText}. Pada tanggal ${tglPelaksanaFmt}, sesuai Surat Tugas No.: ${nomorSTVal} tanggal ${tglSTFmt}. ${subKegPart}An. ${penerimaVal}`;
 }
 
 // Auto generate nomor bukti untuk single form jika belum diisi
@@ -978,7 +982,8 @@ document.getElementById('btnAutoDraft').addEventListener('click', function() {
     const nomorST = document.getElementById('nomor_surat_tugas').value.trim();
     const penerima = document.getElementById('nama_penerima').value.trim();
 
-    const draft = buildDraftUraian(penerima, tglPelaksanaanRaw, tglSuratRaw, nomorST, '');
+    const maksud = selectedSTData ? (selectedSTData.untuk || '') : '';
+    const draft = buildDraftUraian(penerima, tglPelaksanaanRaw, tglSuratRaw, nomorST, maksud);
     const uraianEl = document.getElementById('uraian');
     uraianEl.value = draft;
     uraianEl.focus();
