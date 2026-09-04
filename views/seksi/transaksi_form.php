@@ -23,44 +23,62 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 
 <style>
 .form-section-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border: 1px solid #DBD5C6;
+    border-radius: 10px;
     background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(35, 36, 31, 0.04);
     margin-bottom: 1.5rem;
     overflow: hidden;
 }
 .form-section-header {
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 0.9rem 1.25rem;
+    background: #F7F5EF;
+    border-bottom: 1px solid #DBD5C6;
+    padding: 0.85rem 1.25rem;
 }
 .form-section-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #1e293b;
+    font-family: 'Source Serif 4', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1F3D2B;
     margin: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
+.step-mark {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: #1F3D2B;
+    color: #ffffff;
+    font-size: 11.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+    font-family: 'IBM Plex Sans', sans-serif;
+}
 .form-section-body {
     padding: 1.25rem;
 }
 .custom-form-select, .custom-form-input, .custom-form-textarea {
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    border: 1px solid #DBD5C6;
     font-size: 0.875rem;
     padding: 0.55rem 0.75rem;
     transition: all 0.15s ease-in-out;
+    color: #23241F;
+    font-family: 'IBM Plex Sans', sans-serif;
+    background-color: #ffffff;
 }
 .custom-form-select:focus, .custom-form-input:focus, .custom-form-textarea:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    border-color: #B8874B !important;
+    box-shadow: 0 0 0 3px #F3E7D4 !important;
     outline: none;
 }
 .custom-form-select:disabled, .custom-form-input:disabled {
-    background-color: #f1f5f9;
+    background-color: #F7F5EF;
     cursor: not-allowed;
     opacity: 0.8;
 }
@@ -70,12 +88,12 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
     gap: 0.4rem;
     font-size: 0.8rem;
     font-weight: 600;
-    padding: 0.35rem 0.75rem;
+    padding: 0.4rem 0.85rem;
     border-radius: 6px;
     margin-top: 0.4rem;
-    background: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
+    background: #E4EBE6;
+    color: #1F3D2B;
+    border: 1px solid rgba(107, 144, 128, 0.4);
 }
 .sisa-pagu-badge.warning {
     background: #fefce8;
@@ -91,42 +109,75 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
     font-size: 0.775rem;
     padding: 0.25rem 0.65rem;
     border-radius: 6px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    border: 1px solid #bfdbfe;
+    background: #E4EBE6;
+    color: #1F3D2B;
+    border: 1px solid rgba(107, 144, 128, 0.4);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 .btn-auto-draft:hover {
-    background: #dbeafe;
-    color: #1e40af;
+    background: #d7e2dc;
+    color: #1F3D2B;
 }
 .btn-surat-tugas {
-    background: #f0fdf4;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
-    font-weight: 700;
+    background: #ffffff;
+    color: #1F3D2B;
+    border: 1px solid #DBD5C6;
+    font-weight: 600;
     font-size: 0.825rem;
     padding: 0.4rem 0.85rem;
-    border-radius: 8px;
+    border-radius: 6px;
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     transition: all 0.15s ease;
 }
 .btn-surat-tugas:hover {
-    background: #dcfce7;
-    color: #166534;
+    background: #F7F5EF;
+    color: #1F3D2B;
+    border-color: #5C5A50;
+}
+.btn-ghost-secondary {
+    background: #ffffff !important;
+    color: #23241F !important;
+    border: 1px solid #DBD5C6 !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    transition: all 0.15s ease;
+}
+.btn-ghost-secondary:hover {
+    background: #F7F5EF !important;
+    color: #23241F !important;
+    border-color: #5C5A50 !important;
+}
+.btn-submit-gold {
+    background: #B8874B !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    padding: 0.55rem 1.35rem !important;
+    transition: background 0.15s ease;
+    box-shadow: 0 1px 3px rgba(35, 36, 31, 0.12);
+}
+.btn-submit-gold:hover {
+    background: #9c713c !important;
+    color: #ffffff !important;
+}
+.btn-submit-gold:focus {
+    box-shadow: 0 0 0 3px #F3E7D4 !important;
 }
 .batch-item-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #DBD5C6;
     border-radius: 10px;
     padding: 1rem;
     margin-bottom: 1rem;
     position: relative;
-    border-left: 4px solid #3b82f6;
+    border-left: 4px solid #1F3D2B;
 }
 .batch-item-card .btn-remove-item {
     position: absolute;
@@ -146,47 +197,46 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
     bottom: 0;
     z-index: 1020;
     background: #ffffff;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #DBD5C6;
     padding: 0.85rem 1.25rem;
     margin-top: 1.5rem;
     margin-left: -0.75rem;
     margin-right: -0.75rem;
-    border-radius: 0 0 14px 14px;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 -4px 12px rgba(35, 36, 31, 0.06);
 }
 #batchTotalNilai {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: #F7F5EF;
+    border: 1px solid #DBD5C6;
+    border-radius: 6px;
     padding: 0.6rem 0.85rem;
     font-weight: 700;
     font-size: 0.9rem;
-    color: #0f172a;
+    color: #23241F;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 #batchTotalNilai .total-label {
-    color: #64748b;
+    color: #5C5A50;
     font-weight: 600;
     font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
 }
 .cascade-spinner {
     font-size: 0.75rem;
-    color: #3b82f6;
+    color: #1F3D2B;
     margin-left: 0.4rem;
     vertical-align: middle;
 }
 .sisa-pagu-badge.unknown {
-    background: #f1f5f9;
-    color: #475569;
-    border-color: #cbd5e1;
+    background: #F7F5EF;
+    color: #5C5A50;
+    border-color: #DBD5C6;
 }
 .field-highlight {
     border-color: #ef4444 !important;
-    box-shadow: 0 0 0 3px rgba(239,68,68,0.18) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 </style>
@@ -196,13 +246,13 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
         <!-- Header Halaman -->
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
-                <h3 style="font-weight:800;color:#0f172a;letter-spacing:-0.02em;margin-bottom:0.25rem;">
-                    <i class="bi <?= $isEdit ? 'bi-pencil-square' : 'bi-plus-circle' ?> text-primary me-2"></i>
+                <h3 style="font-family:'Source Serif 4',serif;font-weight:700;color:#1F3D2B;letter-spacing:-0.02em;margin-bottom:0.25rem;">
+                    <i class="bi <?= $isEdit ? 'bi-pencil-square' : 'bi-plus-circle' ?> me-2" style="color:#1F3D2B;"></i>
                     <?= $isEdit ? 'Edit Transaksi' : 'Tambah Transaksi Baru' ?>
                 </h3>
-                <p class="text-muted mb-0" style="font-size:0.875rem;">Input rincian transaksi belanja atau kegiatan seksi Anda untuk diajukan ke admin.</p>
+                <p class="text-muted mb-0" style="font-size:0.875rem;color:#5C5A50 !important;">Input rincian transaksi belanja atau kegiatan seksi Anda untuk diajukan ke admin.</p>
             </div>
-            <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-outline-secondary btn-sm" style="border-radius:8px;">
+            <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-ghost-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Kembali
             </a>
         </div>
@@ -226,7 +276,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
             <div class="form-section-card">
                 <div class="form-section-header">
                     <h5 class="form-section-title">
-                        <span class="badge bg-primary text-white" style="font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">1</span>
+                        <span class="step-mark">1</span>
                         Klasifikasi Anggaran
                     </h5>
                 </div>
@@ -234,8 +284,8 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <div class="row g-3">
                         <!-- Program -->
                         <div class="col-12">
-                            <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                Program <span class="text-danger">*</span>
+                            <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                Program <span class="required" style="color:#B8874B;">*</span>
                             </label>
                             <select name="program_id" id="program_id" class="form-select custom-form-select" required>
                                 <option value="">-- 1. Pilih Program --</option>
@@ -249,8 +299,8 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 
                         <!-- Kegiatan -->
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                Kegiatan <span class="text-danger">*</span>
+                            <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                Kegiatan <span class="required" style="color:#B8874B;">*</span>
                                 <span id="spinner-kegiatan" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Memuat...</span>
                             </label>
                             <select name="kegiatan_id" id="kegiatan_id" class="form-select custom-form-select" required disabled>
@@ -260,8 +310,8 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 
                         <!-- Sub Kegiatan -->
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                Sub Kegiatan <span class="text-danger">*</span>
+                            <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                Sub Kegiatan <span class="required" style="color:#B8874B;">*</span>
                                 <span id="spinner-sub_kegiatan" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Memuat...</span>
                             </label>
                             <select name="sub_kegiatan_id" id="sub_kegiatan_id" class="form-select custom-form-select" required disabled>
@@ -271,8 +321,8 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 
                         <!-- Rekening -->
                         <div class="col-12">
-                            <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                Rekening Belanja <span class="text-danger">*</span>
+                            <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                Rekening Belanja <span class="required" style="color:#B8874B;">*</span>
                                 <span id="spinner-rekening" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Memuat...</span>
                             </label>
                             <select name="rekening_id" id="rekening_id" class="form-select custom-form-select" required disabled>
@@ -284,7 +334,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 <div class="sisa-pagu-badge" id="sisaPaguBadge">
                                     <i class="bi bi-wallet2"></i>
                                     <span>Sisa Anggaran: <strong id="sisaPaguText">Rp 0</strong></span>
-                                    <span class="text-muted" style="font-size:0.75rem;">(dari Pagu <span id="totalPaguText">Rp 0</span>)</span>
+                                    <span style="font-size:0.75rem;color:#5C5A50;">(dari Pagu <span id="totalPaguText">Rp 0</span>)</span>
                                     <span id="spinner-sisa-pagu" class="cascade-spinner" style="display:none;"><i class="bi bi-arrow-repeat spin"></i></span>
                                 </div>
                                 <div class="sisa-pagu-badge unknown" id="sisaPaguError" style="display:none;">
@@ -301,12 +351,12 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
             <div class="form-section-card">
                 <div class="form-section-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <h5 class="form-section-title">
-                        <span class="badge bg-primary text-white" style="font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;">2</span>
-                        Detail Transaksi & BKU
+                        <span class="step-mark">2</span>
+                        Detail Transaksi &amp; BKU
                     </h5>
                     <?php if (!$isEdit): ?>
                         <button type="button" class="btn-surat-tugas" id="btnOpenModalST" style="<?= $jenisTransaksi === 'perjalanan_dinas' ? '' : 'display:none;' ?>">
-                            <i class="bi bi-cloud-arrow-down-fill"></i>
+                            <i class="bi bi-cloud-arrow-down-fill me-1"></i>
                             Ambil dari Surat Tugas
                         </button>
                     <?php endif; ?>
@@ -315,16 +365,16 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <!-- Global Tanggal Transaksi -->
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                Tanggal Transaksi <span class="text-danger">*</span>
+                            <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                Tanggal Transaksi <span class="required" style="color:#B8874B;">*</span>
                             </label>
                             <input type="date" name="tanggal" id="tanggal" class="form-control custom-form-input" value="<?= htmlspecialchars($tanggal) ?>" required>
                         </div>
 
                         <!-- Jenis Transaksi -->
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                Jenis Transaksi <span class="text-danger">*</span>
+                            <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                Jenis Transaksi <span class="required" style="color:#B8874B;">*</span>
                             </label>
                             <select name="jenis_transaksi" id="jenis_transaksi" class="form-select custom-form-select" required <?= $isEdit ? 'disabled' : '' ?>>
                                 <option value="" disabled <?= empty($jenisTransaksi) ? 'selected' : '' ?>>-- Pilih Jenis Transaksi --</option>
@@ -342,10 +392,10 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <!-- BATCH ITEMS CONTAINER (Jika memilih beberapa pegawai dari Surat Tugas) -->
                     <div id="batchItemsContainer" style="display:none;">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-dark" style="font-size:0.9rem;">
-                                <i class="bi bi-people-fill text-primary me-1"></i> Rincian Transaksi per Pegawai (<span id="batchCountText">0</span> Orang)
+                            <span class="fw-bold" style="font-size:0.9rem;color:#1F3D2B;">
+                                <i class="bi bi-people-fill me-1" style="color:#1F3D2B;"></i> Rincian Transaksi per Pegawai (<span id="batchCountText">0</span> Orang)
                             </span>
-                            <button type="button" class="btn btn-outline-danger btn-sm" id="btnResetBatch" style="font-size:0.75rem;">
+                            <button type="button" class="btn btn-ghost-secondary btn-sm" id="btnResetBatch" style="font-size:0.75rem;">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i>Kembali ke Mode 1 Transaksi
                             </button>
                         </div>
@@ -357,19 +407,19 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     </div>
 
                     <!-- PERJALANAN DINAS PLACEHOLDER (Muncul saat jenis transaksi = Perjalanan Dinas dan belum memilih Surat Tugas) -->
-                    <div id="perdinPlaceholderContainer" style="display:none;" class="p-4 mb-3 text-center border rounded-3 bg-light">
-                        <div style="width:52px;height:52px;border-radius:50%;background:#e0f2fe;color:#0284c7;display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:0.75rem;">
+                    <div id="perdinPlaceholderContainer" style="display:none;background:#F7F5EF;border:1px solid #DBD5C6;border-radius:10px;" class="p-4 mb-3 text-center">
+                        <div style="width:52px;height:52px;border-radius:50%;background:#E4EBE6;color:#1F3D2B;display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:0.75rem;">
                             <i class="bi bi-file-earmark-person"></i>
                         </div>
-                        <h6 class="fw-bold text-dark mb-1">Perjalanan Dinas Memerlukan Surat Tugas</h6>
-                        <p class="text-muted small mx-auto mb-3" style="max-width:440px;">
+                        <h6 class="fw-bold mb-1" style="color:#1F3D2B;font-family:'Source Serif 4',serif;font-size:1.05rem;">Perjalanan Dinas Memerlukan Surat Tugas</h6>
+                        <p class="small mx-auto mb-3" style="color:#5C5A50;max-width:440px;">
                             Pilih Surat Tugas dan pegawai yang bertugas untuk mengisi data transaksi, nomor bukti, dan rincian biaya SPJ secara otomatis.
                         </p>
                         <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-2">
-                            <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" id="btnPlaceholderOpenST">
-                                <i class="bi bi-cloud-arrow-down-fill me-1"></i> Pilih Surat Tugas & Pegawai
+                            <button type="button" class="btn btn-sm px-3 fw-semibold text-white" id="btnPlaceholderOpenST" style="background:#1F3D2B;border-radius:6px;">
+                                <i class="bi bi-cloud-arrow-down-fill me-1"></i> Pilih Surat Tugas &amp; Pegawai
                             </button>
-                            <button type="button" class="btn btn-link btn-sm text-secondary text-decoration-none" id="btnFallbackManualPerdin" style="font-size:0.8rem;">
+                            <button type="button" class="btn btn-link btn-sm text-decoration-none" id="btnFallbackManualPerdin" style="font-size:0.8rem;color:#5C5A50;">
                                 <i class="bi bi-pencil-square me-1"></i> Isi manual tanpa Surat Tugas
                             </button>
                         </div>
@@ -379,43 +429,43 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <div id="singleItemContainer">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                    Nomor Bukti / Kwitansi <span class="text-danger">*</span>
+                                <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                    Nomor Bukti / Kwitansi <span class="required" style="color:#B8874B;">*</span>
                                 </label>
                                 <input type="text" name="nomor_bukti" id="nomor_bukti" class="form-control custom-form-input" placeholder="Contoh: BKU/2026/001" value="<?= htmlspecialchars($nomorBukti) ?>" required>
                             </div>
 
                             <!-- Nama Penerima -->
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" style="font-size:0.85rem;">
+                                <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
                                     Nama Penerima / Pihak Ketiga
                                 </label>
                                 <input type="text" name="nama_penerima" id="nama_penerima" class="form-control custom-form-input" placeholder="Contoh: Budi Santoso, S.Hut" value="<?= htmlspecialchars($namaPenerima) ?>">
-                                <small class="text-muted" style="font-size:0.75rem;">Nama pelaksana/toko/penerima pembayaran</small>
+                                <small class="text-muted" style="font-size:0.75rem;color:#5C5A50 !important;">Nama pelaksana/toko/penerima pembayaran</small>
                             </div>
 
                             <!-- CONDITIONAL SECTION: SURAT TUGAS (KHUSUS PERJALANAN DINAS) -->
                             <div class="col-12" id="sectionPerjalananDinas" style="<?= $jenisTransaksi === 'perjalanan_dinas' ? '' : 'display:none;' ?>">
-                                <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:1rem;margin-top:0.25rem;">
-                                    <div class="fw-bold text-primary mb-2" style="font-size:0.85rem;">
+                                <div style="background:#F7F5EF;border:1px dashed #DBD5C6;border-radius:10px;padding:1rem;margin-top:0.25rem;">
+                                    <div class="fw-bold mb-2" style="font-size:0.85rem;color:#1F3D2B;">
                                         <i class="bi bi-file-earmark-person me-1"></i> Data Surat Tugas (Perjalanan Dinas)
                                     </div>
                                     <div class="row g-2">
                                         <div class="col-md-4">
-                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;">
-                                                Nomor Surat Tugas <span class="text-danger">*</span>
+                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
+                                                Nomor Surat Tugas <span class="required" style="color:#B8874B;">*</span>
                                             </label>
                                             <input type="text" name="nomor_surat_tugas" id="nomor_surat_tugas" class="form-control custom-form-input form-control-sm" placeholder="094/012/101.4/2026" value="<?= htmlspecialchars($nomorSuratTugas) ?>">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;">
-                                                Tanggal Surat Tugas <span class="text-danger">*</span>
+                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
+                                                Tanggal Surat Tugas <span class="required" style="color:#B8874B;">*</span>
                                             </label>
                                             <input type="date" name="tanggal_surat_tugas" id="tanggal_surat_tugas" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($tanggalSuratTugas) ?>">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;">
-                                                Tanggal Pelaksanaan <span class="text-danger">*</span>
+                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
+                                                Tanggal Pelaksanaan <span class="required" style="color:#B8874B;">*</span>
                                             </label>
                                             <input type="date" name="tanggal_pelaksanaan" id="tanggal_pelaksanaan" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($tanggalPelaksanaan) ?>">
                                         </div>
@@ -426,25 +476,25 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                             <!-- Uraian & Auto Draft Button -->
                             <div class="col-12">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="form-label fw-semibold mb-0" style="font-size:0.85rem;">
-                                        Uraian Transaksi <span class="text-danger">*</span>
+                                    <label class="form-label fw-semibold mb-0" style="font-size:0.85rem;color:#23241F;">
+                                        Uraian Transaksi <span class="required" style="color:#B8874B;">*</span>
                                     </label>
                                     <button type="button" class="btn-auto-draft" id="btnAutoDraft" style="<?= $jenisTransaksi === 'perjalanan_dinas' ? '' : 'display:none;' ?>">
                                         <i class="bi bi-magic me-1"></i>Buat draf uraian otomatis
                                     </button>
                                 </div>
                                 <textarea name="uraian" id="uraian" class="form-control custom-form-textarea" rows="3" placeholder="Uraian lengkap untuk pembukuan BKU..." required><?= htmlspecialchars($uraian) ?></textarea>
-                                <small class="text-muted" style="font-size:0.75rem;">Uraian dapat diedit secara manual kapan saja.</small>
+                                <small class="text-muted" style="font-size:0.75rem;color:#5C5A50 !important;">Uraian dapat diedit secara manual kapan saja.</small>
                             </div>
 
                             <!-- Nilai Transaksi -->
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" style="font-size:0.85rem;">
-                                    Nilai Transaksi (Rp) <span class="text-danger">*</span>
+                                <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
+                                    Nilai Transaksi (Rp) <span class="required" style="color:#B8874B;">*</span>
                                 </label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light fw-bold" style="border-radius:8px 0 0 8px;font-size:0.875rem;">Rp</span>
-                                    <input type="text" name="nilai" id="nilai" class="form-control custom-form-input" style="border-radius:0 8px 8px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required inputmode="numeric">
+                                    <span class="input-group-text fw-bold" style="border-radius:6px 0 0 6px;font-size:0.875rem;background:#F7F5EF;border:1px solid #DBD5C6;border-right:none;color:#5C5A50;">Rp</span>
+                                    <input type="text" name="nilai" id="nilai" class="form-control custom-form-input" style="border-radius:0 6px 6px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required inputmode="numeric">
                                 </div>
                             </div>
                         </div>
@@ -454,10 +504,10 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 
             <!-- Action Buttons (Sticky) -->
             <div class="sticky-action-bar d-flex align-items-center justify-content-end gap-2" id="stickyActionBar">
-                <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-light px-4" style="border-radius:8px;font-weight:600;">
+                <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-ghost-secondary px-4">
                     Batal
                 </a>
-                <button type="submit" class="btn btn-primary px-4 py-2" style="border-radius:8px;font-weight:700;box-shadow:0 2px 6px rgba(37,99,235,0.3);">
+                <button type="submit" class="btn btn-submit-gold px-4 py-2">
                     <i class="bi <?= $isEdit ? 'bi-check-lg' : 'bi-send-fill' ?> me-1"></i>
                     <?= $isEdit ? 'Simpan Perubahan' : 'Ajukan Transaksi' ?>
                 </button>
@@ -471,11 +521,11 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 <!-- MODAL AMBIL DARI SURAT TUGAS -->
 <div class="modal fade" id="modalSuratTugas" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content" style="border-radius:14px;">
-            <div class="modal-header bg-light">
-                <h5 class="modal-title fw-bold" style="font-size:1rem;">
-                    <i class="bi bi-file-earmark-text text-primary me-1"></i>
-                    Pilih Surat Tugas & Pegawai
+        <div class="modal-content" style="border-radius:12px;border:1px solid #DBD5C6;">
+            <div class="modal-header" style="background:#F7F5EF;border-bottom:1px solid #DBD5C6;">
+                <h5 class="modal-title fw-bold" style="font-family:'Source Serif 4',serif;font-size:1.05rem;color:#1F3D2B;">
+                    <i class="bi bi-file-earmark-text me-1" style="color:#1F3D2B;"></i>
+                    Pilih Surat Tugas &amp; Pegawai
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -484,12 +534,12 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 <div class="row g-2 mb-3">
                     <div class="col-md-7">
                         <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" id="inputSearchST" class="form-control" placeholder="Cari nomor surat atau maksud kegiatan...">
+                            <span class="input-group-text bg-white" style="border-color:#DBD5C6;"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="inputSearchST" class="form-control custom-form-input" placeholder="Cari nomor surat atau maksud kegiatan...">
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <select id="filterBulanST" class="form-select">
+                        <select id="filterBulanST" class="form-select custom-form-select">
                             <option value="">-- Semua Bulan --</option>
                             <option value="1">Januari</option>
                             <option value="2">Februari</option>
@@ -506,7 +556,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button class="btn btn-primary w-100 fw-bold" type="button" id="btnSearchST">
+                        <button class="btn w-100 fw-bold text-white" type="button" id="btnSearchST" style="background:#1F3D2B;border-radius:6px;">
                             <i class="bi bi-funnel me-1"></i>Cari
                         </button>
                     </div>
@@ -518,29 +568,29 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 <!-- STEP 1: Hasil Pencarian Surat Tugas -->
                 <div id="step1ST">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="fw-bold text-muted small text-uppercase">1. Pilih Surat Tugas:</span>
+                        <span class="fw-bold text-muted small">1. Pilih surat tugas:</span>
                         <div class="d-flex align-items-center gap-2">
                             <span id="stCountBadge" class="badge bg-light text-secondary border" style="font-size:0.75rem;display:none;"></span>
-                            <span id="stLoadingText" class="text-primary small" style="display:none;"><i class="bi bi-hourglass-split me-1"></i>Mencari...</span>
+                            <span id="stLoadingText" class="small" style="color:#1F3D2B;display:none;"><i class="bi bi-hourglass-split me-1"></i>Mencari...</span>
                         </div>
                     </div>
-                    <div class="list-group" id="stResultList" style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
+                    <div class="list-group" id="stResultList" style="max-height:300px;overflow-y:auto;border:1px solid #DBD5C6;border-radius:8px;">
                         <div class="text-center text-muted py-4 small">Ketik kata kunci atau pilih bulan untuk mencari surat tugas.</div>
                     </div>
                 </div>
 
                 <!-- STEP 2: Pilih Pegawai Ditugaskan -->
-                <div id="step2ST" class="mt-4 pt-3 border-top" style="display:none;">
+                <div id="step2ST" class="mt-4 pt-3 border-top" style="display:none;border-color:#DBD5C6 !important;">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="fw-bold text-muted small text-uppercase">2. Pilih Pegawai (Bisa lebih dari 1 orang):</span>
-                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnCheckAllPegawai">Centang Semua</button>
+                        <span class="fw-bold text-muted small">2. Pilih pegawai (bisa lebih dari 1 orang):</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnCheckAllPegawai" style="color:#1F3D2B;">Centang Semua</button>
                     </div>
-                    <div id="pegawaiListContainer" class="border rounded p-2 bg-light" style="max-height:200px;overflow-y:auto;"></div>
+                    <div id="pegawaiListContainer" class="border rounded p-2 bg-light" style="max-height:200px;overflow-y:auto;border-color:#DBD5C6 !important;"></div>
                 </div>
             </div>
-            <div class="modal-footer bg-light py-2">
-                <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary btn-sm px-4 fw-bold" id="btnApplyST" disabled>
+            <div class="modal-footer py-2" style="background:#F7F5EF;border-top:1px solid #DBD5C6;">
+                <button type="button" class="btn btn-ghost-secondary btn-sm px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-sm px-4 fw-bold text-white" id="btnApplyST" disabled style="background:#1F3D2B;border-radius:6px;">
                     <i class="bi bi-check-circle me-1"></i>Buat Transaksi (<span id="countSelectedPegawai">0</span>)
                 </button>
             </div>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Redesign — Dashboard Anggaran CDK Bojonegoro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest-900:#1F3D2B;
+    --forest-700:#33553F;
+    --moss-500:#6B9080;
+    --moss-100:#E4EBE6;
+    --gold-500:#B8874B;
+    --gold-100:#F3E7D4;
+    --paper-50:#F7F5EF;
+    --paper-100:#EFEAE0;
+    --ink-900:#23241F;
+    --ink-600:#5C5A50;
+    --border:#DBD5C6;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-100);
+    font-family:'IBM Plex Sans',sans-serif;
+    color:var(--ink-900);
+    padding:32px 16px 80px;
+  }
+  h1,h2,h3,.brand-title{font-family:'Source Serif 4',serif;}
+
+  /* --- Tabs --- */
+  .tabs{
+    max-width:1040px;margin:0 auto 24px;display:flex;gap:8px;
+  }
+  .tab-btn{
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:500;
+    padding:9px 18px;border-radius:999px;border:1px solid var(--border);
+    background:#fff;color:var(--ink-600);cursor:pointer;transition:all .15s ease;
+  }
+  .tab-btn.active{background:var(--forest-900);color:#fff;border-color:var(--forest-900);}
+  .view{max-width:1040px;margin:0 auto;display:none;}
+  .view.active{display:block;}
+  .note{max-width:1040px;margin:0 auto 20px;font-size:13px;color:var(--ink-600);line-height:1.6;
+    background:var(--gold-100);border:1px solid #E3CFA8;border-radius:var(--radius);padding:12px 16px;}
+  .note b{color:var(--ink-900);}
+
+  /* ================= LOGIN VIEW ================= */
+  .login-card{
+    display:flex;min-height:460px;background:#fff;border-radius:14px;
+    overflow:hidden;box-shadow:0 1px 3px rgba(35,36,31,.08), 0 12px 32px -12px rgba(35,36,31,.18);
+    border:1px solid var(--border);
+  }
+  .login-left{
+    flex:1.05;position:relative;background:var(--forest-900);color:#fff;
+    padding:44px 40px;display:flex;flex-direction:column;justify-content:space-between;
+    overflow:hidden;
+  }
+  .contour-pattern{position:absolute;inset:0;opacity:.16;pointer-events:none;}
+  .login-left-content{position:relative;z-index:1;}
+  .seal{
+    width:56px;height:56px;background:#fff;border-radius:10px;display:flex;
+    align-items:center;justify-content:center;margin-bottom:28px;
+    box-shadow:0 4px 10px rgba(0,0,0,.15);
+  }
+  .seal svg{width:30px;height:30px;}
+  .eyebrow{font-size:12.5px;letter-spacing:.02em;color:var(--gold-100);opacity:.85;margin-bottom:10px;font-weight:500;}
+  .login-left h1{font-size:27px;line-height:1.28;font-weight:600;margin:0 0 12px;}
+  .login-left p.sub{font-size:14px;color:#D9E2DC;margin:0;line-height:1.5;}
+  .login-left-footer{position:relative;z-index:1;font-size:12px;color:#B9C7BF;line-height:1.6;}
+
+  .login-right{
+    flex:1;padding:52px 48px;display:flex;flex-direction:column;justify-content:center;background:var(--paper-50);
+  }
+  .login-right h2{font-size:22px;margin:0 0 6px;font-weight:600;}
+  .login-right p.desc{font-size:14px;color:var(--ink-600);margin:0 0 28px;}
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:13px;font-weight:500;color:var(--ink-900);margin-bottom:6px;}
+  .field input{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);
+    font-size:14px;font-family:inherit;background:#fff;color:var(--ink-900);
+  }
+  .field input:focus{outline:none;border-color:var(--gold-500);box-shadow:0 0 0 3px var(--gold-100);}
+  .pw-wrap{position:relative;}
+  .pw-wrap button{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;
+    color:var(--ink-600);cursor:pointer;font-size:12px;
+  }
+  .btn-primary{
+    width:100%;padding:11px 0;background:var(--forest-900);color:#fff;border:none;border-radius:var(--radius);
+    font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:6px;transition:background .15s;
+  }
+  .btn-primary:hover{background:var(--forest-700);}
+  .login-foot{margin-top:24px;font-size:12px;color:var(--ink-600);line-height:1.6;}
+
+  /* ================= FORM VIEW ================= */
+  .app-shell{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(35,36,31,.06);}
+  .app-header{background:var(--forest-900);color:#fff;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;}
+  .app-header .org{font-size:14px;font-weight:600;}
+  .app-header .org span{font-weight:400;color:#CBD8D0;font-size:12.5px;margin-left:6px;}
+  .app-nav{display:flex;gap:26px;padding:0 28px;background:var(--forest-700);}
+  .app-nav a{color:#E4ECE7;text-decoration:none;font-size:13.5px;padding:12px 2px;display:inline-block;border-bottom:2px solid transparent;}
+  .app-nav a.active{border-color:var(--gold-500);color:#fff;font-weight:500;}
+
+  .form-body{padding:32px 32px 28px;}
+  .form-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;}
+  .form-title-row h2{font-size:21px;margin:0 0 4px;font-weight:600;}
+  .form-title-row p{font-size:13.5px;color:var(--ink-600);margin:0;}
+  .btn-ghost{padding:8px 16px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;
+    font-size:13px;color:var(--ink-900);cursor:pointer;font-family:inherit;}
+
+  .section{border:1px solid var(--border);border-radius:10px;margin-bottom:20px;overflow:hidden;}
+  .section-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--paper-50);}
+  .section-head h3{font-size:14.5px;margin:0;font-weight:600;display:flex;align-items:center;gap:10px;}
+  .step-mark{width:20px;height:20px;border-radius:5px;background:var(--forest-900);color:#fff;font-size:11.5px;
+    display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0;}
+  .section-body{padding:20px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .field-sm label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-600);margin-bottom:5px;}
+  .field-sm select,.field-sm input{
+    width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);
+    font-size:13.5px;font-family:inherit;color:var(--ink-900);background:#fff;
+  }
+  .required{color:var(--gold-500);}
+  .budget-chip{
+    margin-top:14px;display:inline-flex;gap:8px;align-items:center;background:var(--moss-100);
+    color:var(--forest-900);border:1px solid #C9D9CE;border-radius:var(--radius);padding:8px 14px;font-size:13px;
+  }
+  .budget-chip b{font-weight:600;}
+  .btn-link-outline{border:1px solid var(--moss-500);color:var(--forest-900);background:#fff;padding:7px 14px;
+    border-radius:var(--radius);font-size:12.5px;font-family:inherit;cursor:pointer;}
+  .form-actions{display:flex;justify-content:flex-end;gap:10px;padding:18px 32px;border-top:1px solid var(--border);}
+  .btn-submit{background:var(--gold-500);color:#fff;border:none;padding:9px 20px;border-radius:var(--radius);
+    font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;}
+</style>
+</head>
+<body>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-view="login">Login</button>
+    <button class="tab-btn" data-view="form">Tambah Transaksi</button>
+  </div>
+
+  <div class="note">
+    <b>Arah desain:</b> hijau tua kehutanan solid (bukan gradien ungu), motif garis kontur peta sebagai pengganti gradient dekoratif, label sentence-case (bukan ALL CAPS), satu warna aksen emas dipakai konsisten untuk fokus/aksi utama, sudut & bayangan lebih tegas — bukan kit "kartu SaaS" generik.
+  </div>
+
+  <!-- ===== LOGIN VIEW ===== -->
+  <div class="view active" id="view-login">
+    <div class="login-card">
+      <div class="login-left">
+        <svg class="contour-pattern" viewBox="0 0 400 460" preserveAspectRatio="none">
+          <path d="M-20,80 C60,40 120,120 200,90 C280,60 320,130 420,100" stroke="#fff" stroke-width="1.4" fill="none"/>
+          <path d="M-20,140 C60,100 120,180 200,150 C280,120 320,190 420,160" stroke="#fff" stroke-width="1.4" fill="none"/>
+          <path d="M-20,200 C60,160 120,240 200,210 C280,180 320,250 420,220" stroke="#fff" stroke-width="1.4" fill="none"/>
+          <path d="M-20,260 C60,220 120,300 200,270 C280,240 320,310 420,280" stroke="#fff" stroke-width="1.4" fill="none"/>
+          <path d="M-20,320 C60,280 120,360 200,330 C280,300 320,370 420,340" stroke="#fff" stroke-width="1.4" fill="none"/>
+          <path d="M-20,380 C60,340 120,420 200,390 C280,360 320,430 420,400" stroke="#fff" stroke-width="1.4" fill="none"/>
+        </svg>
+        <div class="login-left-content">
+          <div class="seal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1F3D2B" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4Z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <div class="eyebrow">Dinas Kehutanan Provinsi Jawa Timur</div>
+          <h1>Cabang Dinas Kehutanan<br>Wilayah Bojonegoro</h1>
+          <p class="sub">Dashboard Anggaran — sistem pengelolaan anggaran &amp; transaksi seksi.</p>
+        </div>
+        <div class="login-left-footer">© 2026 Dinas Kehutanan Provinsi Jawa Timur<br>Cabang Dinas Kehutanan Wilayah Bojonegoro</div>
+      </div>
+      <div class="login-right">
+        <h2>Masuk ke akun Anda</h2>
+        <p class="desc">Gunakan akun seksi yang terdaftar untuk melanjutkan.</p>
+        <div class="field">
+          <label>Nama pengguna</label>
+          <input type="text" value="tu">
+        </div>
+        <div class="field">
+          <label>Kata sandi</label>
+          <div class="pw-wrap">
+            <input type="password" value="1234567">
+            <button type="button">tampilkan</button>
+          </div>
+        </div>
+        <button class="btn-primary">Masuk</button>
+        <div class="login-foot">Lupa kata sandi? Hubungi admin Subbagian Tata Usaha.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FORM VIEW ===== -->
+  <div class="view" id="view-form">
+    <div class="app-shell">
+      <div class="app-header">
+        <div class="org">CDK Wilayah Bojonegoro <span>· Subbagian Tata Usaha</span></div>
+        <div style="font-size:13px;">tu ⏻</div>
+      </div>
+      <div class="app-nav">
+        <a href="#">Dashboard</a>
+        <a href="#">Transaksi Saya</a>
+        <a href="#" class="active">Tambah Transaksi</a>
+      </div>
+      <div class="form-body">
+        <div class="form-title-row">
+          <div>
+            <h2>Tambah transaksi baru</h2>
+            <p>Input rincian transaksi belanja atau kegiatan seksi Anda untuk diajukan ke admin.</p>
+          </div>
+          <button class="btn-ghost">← Kembali</button>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <h3><span class="step-mark">1</span>Klasifikasi anggaran</h3>
+          </div>
+          <div class="section-body">
+            <div class="field-sm" style="margin-bottom:16px;">
+              <label>Program <span class="required">*</span></label>
+              <select><option>3.28.01 — Program Penunjang Urusan Pemerintahan Daerah Provinsi</option></select>
+            </div>
+            <div class="grid2" style="margin-bottom:16px;">
+              <div class="field-sm">
+                <label>Kegiatan <span class="required">*</span></label>
+                <select><option>3.28.01.1.06 — Administrasi Umum Perangkat Daerah</option></select>
+              </div>
+              <div class="field-sm">
+                <label>Sub kegiatan <span class="required">*</span></label>
+                <select><option>3.28.01.1.06.09 — Penyelenggaraan Rapat Koordinasi dan Konsultasi SKPD</option></select>
+              </div>
+            </div>
+            <div class="field-sm">
+              <label>Rekening belanja <span class="required">*</span></label>
+              <select><option>5.1.02.04.01.0001 — Belanja Perjalanan Dinas Biasa</option></select>
+            </div>
+            <div class="budget-chip">Sisa anggaran: <b>Rp 32.874.400</b> &nbsp;dari pagu Rp 122.137.000</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <h3><span class="step-mark">2</span>Detail transaksi &amp; BKU</h3>
+            <button class="btn-link-outline">Ambil dari Surat Tugas</button>
+          </div>
+          <div class="section-body" style="color:var(--ink-600);font-size:13px;">…detail kuitansi, tanggal, dan uraian ditampilkan di sini.</div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-ghost">Batal</button>
+        <button class="btn-submit">Ajukan transaksi</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
