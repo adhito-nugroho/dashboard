@@ -78,6 +78,40 @@
                             </a>
                         </li>
                         <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin']): ?>
+                            <?php
+                                // Get pending count for badge (cached per request)
+                                $sidebarPendingCount = 0;
+                                try {
+                                    if (isset($pendingCount)) {
+                                        $sidebarPendingCount = $pendingCount;
+                                    } else {
+                                        $db = \Database::getConnection();
+                                        $stmt = $db->query("SELECT COUNT(*) FROM transaksi WHERE status = 'diajukan'");
+                                        $sidebarPendingCount = (int) $stmt->fetchColumn();
+                                    }
+                                } catch (\Exception $e) {}
+                            ?>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'transaksi') ? 'active' : '' ?>"
+                                    href="<?= base_url('transaksi') ?>">
+                                    <i class="bi bi-receipt"></i>
+                                    <span>Transaksi</span>
+                                    <?php if ($sidebarPendingCount > 0): ?>
+                                        <span class="badge badge-pulse ms-auto"><?= $sidebarPendingCount ?></span>
+                                    <?php endif; ?>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="<?= base_url() ?>?view=public" title="Monitoring Anggaran (Dashboard Publik)" onclick="window.open(this.href,'_blank');return false;">
+                                    <i class="bi bi-graph-up"></i>
+                                    <span>Monitoring Anggaran</span>
+                                    <i class="bi bi-box-arrow-up-right ms-auto" style="font-size:0.7rem;opacity:0.5;"></i>
+                                </a>
+                            </li>
+
+                            <li class="nav-divider"></li>
+                            <li class="nav-group-label">Master Data</li>
+
                             <li class="nav-item">
                                 <a class="nav-link <?= (isset($activePage) && $activePage === 'seksi') ? 'active' : '' ?>"
                                     href="<?= base_url('seksi') ?>">
@@ -113,6 +147,10 @@
                                     <span>Rekening</span>
                                 </a>
                             </li>
+
+                            <li class="nav-divider"></li>
+                            <li class="nav-group-label">Anggaran</li>
+
                             <li class="nav-item">
                                 <a class="nav-link <?= (isset($activePage) && $activePage === 'pagu') ? 'active' : '' ?>"
                                     href="<?= base_url('pagu') ?>">
@@ -132,13 +170,6 @@
                                     href="<?= base_url('rak/rekap') ?>">
                                     <i class="bi bi-calendar2-check"></i>
                                     <span>Rekap RAK</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link <?= (isset($activePage) && $activePage === 'transaksi') ? 'active' : '' ?>"
-                                    href="<?= base_url('transaksi') ?>">
-                                    <i class="bi bi-receipt"></i>
-                                    <span>Transaksi</span>
                                 </a>
                             </li>
                         <?php endif; ?>

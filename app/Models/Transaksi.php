@@ -725,5 +725,171 @@ class Transaksi
             return 0;
         }
     }
+
+    // ================================================================
+    // Admin Dashboard Methods
+    // ================================================================
+
+    /**
+     * Count transactions grouped by status for a given year, including totals.
+     *
+     * @return array ['diajukan'=>['count'=>n,'total'=>f], 'diverifikasi'=>..., 'ditolak'=>..., 'all'=>...]
+     */
+    public function getCountByStatus(int $tahun): array
+    {
+        $out = [
+            'diajukan'     => ['count' => 0, 'total' => 0.0],
+            'diverifikasi' => ['count' => 0, 'total' => 0.0],
+            'ditolak'      => ['count' => 0, 'total' => 0.0],
+            'all'          => ['count' => 0, 'total' => 0.0],
+        ];
+        try {
+            $stmt = $this->db->prepare("
+                SELECT status, COUNT(*) AS cnt, COALESCE(SUM(nilai), 0) AS total
+                FROM transaksi
+                WHERE YEAR(tanggal) = :tahun
+                GROUP BY status
+            ");
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $s = $row['status'] ?? 'diverifikasi';
+                if (isset($out[$s])) {
+                    $out[$s]['count'] = (int) $row['cnt'];
+                    $out[$s]['total'] = (float) $row['total'];
+                }
+                $out['all']['count'] += (int) $row['cnt'];
+                $out['all']['total'] += (float) $row['total'];
+            }
+        } catch (PDOException $e) {
+            error_log('getCountByStatus error: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Get most recent pending (diajukan) transactions, joined with seksi & rekening.
+     */
+    public function getRecentPending(int $limit = 10): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT t.*, 
+                       s.kode_seksi, s.nama_seksi,
+                       r.kode_rekening, r.nama_rekening
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                INNER JOIN rekening r ON t.rekening_id = r.id
+                WHERE t.status = 'diajukan'
+                ORDER BY t.tanggal DESC, t.id DESC
+                LIMIT :lim
+            ");
+            $stmt->bindParam(':lim', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('getRecentPending error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get recently processed (verified/rejected) transactions for the activity timeline.
+     */
+    public function getRecentActivity(int $limit = 10): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT t.id, t.uraian, t.nilai, t.status, t.tanggal,
+                       t.diverifikasi_at, t.catatan_verifikasi,
+                       s.kode_seksi, s.nama_seksi
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                WHERE t.status IN ('diverifikasi', 'ditolak')
+                  AND t.diverifikasi_at IS NOT NULL
+                ORDER BY t.diverifikasi_at DESC
+                LIMIT :lim
+            ");
+            $stmt->bindParam(':lim', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('getRecentActivity error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Count pending transactions per seksi for the current year.
+     */
+    public function getPendingCountBySeksi(int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT s.kode_seksi, s.nama_seksi,
+                       COUNT(*) AS cnt,
+                       COALESCE(SUM(t.nilai), 0) AS total_nilai
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                WHERE t.status = 'diajukan'
+                  AND YEAR(t.tanggal) = :tahun
+                GROUP BY s.id, s.kode_seksi, s.nama_seksi
+                ORDER BY cnt DESC
+            ");
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('getPendingCountBySeksi error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Monthly trend: count of submitted transactions per month for a year.
+     * Returns array keyed 1-12 with sub-keys 'diajukan', 'diverifikasi', 'ditolak'.
+     */
+    public function getMonthlySubmissionTrend(int $tahun): array
+    {
+        $out = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $out[$m] = ['diajukan' => 0, 'diverifikasi' => 0, 'ditolak' => 0];
+        }
+        try {
+            $stmt = $this->db->prepare("
+                SELECT MONTH(tanggal) AS bln, status, COUNT(*) AS cnt
+                FROM transaksi
+                WHERE YEAR(tanggal) = :tahun
+                GROUP BY MONTH(tanggal), status
+                ORDER BY bln
+            ");
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $m = (int) $row['bln'];
+                $s = $row['status'] ?? 'diverifikasi';
+                if (isset($out[$m][$s])) {
+                    $out[$m][$s] = (int) $row['cnt'];
+                }
+            }
+        } catch (PDOException $e) {
+            error_log('getMonthlySubmissionTrend error: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Count all pending transactions (for sidebar badge).
+     */
+    public function countPending(): int
+    {
+        try {
+            $stmt = $this->db->query("SELECT COUNT(*) FROM transaksi WHERE status = 'diajukan'");
+            return (int) $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            error_log('countPending error: ' . $e->getMessage());
+            return 0;
+        }
+    }
 }
 

@@ -50,7 +50,25 @@ class DashboardController {
      */
     public function index(): void {
         $tahun = isset($_GET['tahun']) ? (int) $_GET['tahun'] : (int) date('Y');
-        
+
+        // ── Admin Dashboard (separate view) ──
+        if (!empty($_SESSION['is_admin']) && (!isset($_GET['view']) || $_GET['view'] !== 'public')) {
+            $statusCounts      = $this->transaksiModel->getCountByStatus($tahun);
+            $recentPending     = $this->transaksiModel->getRecentPending(10);
+            $recentActivity    = $this->transaksiModel->getRecentActivity(5);
+            $pendingBySeksi    = $this->transaksiModel->getPendingCountBySeksi($tahun);
+            $monthlyTrend      = $this->transaksiModel->getMonthlySubmissionTrend($tahun);
+            $pendingCount      = $this->transaksiModel->countPending();
+
+            $pageTitle  = 'Dashboard Admin';
+            $activePage = 'dashboard';
+            $viewFile   = __DIR__ . '/../../views/dashboard/admin.php';
+
+            include __DIR__ . '/../../views/layout.php';
+            return;
+        }
+
+        // ── Public Dashboard (unchanged) ──
         // Get filter parameters
         $filters = [
             'seksi_id' => isset($_GET['seksi_id']) && $_GET['seksi_id'] !== '' ? (int) $_GET['seksi_id'] : null,
