@@ -58,7 +58,7 @@ class AuthController {
                 break;
             case 'admin':
             default:
-                header('Location: ' . base_url('seksi'));
+                header('Location: ' . base_url());
                 break;
         }
     }

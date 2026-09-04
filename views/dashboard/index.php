@@ -13,23 +13,39 @@ for ($i = 1; $i <= $bulanBerjalan; $i++) {
 }
 $capaianRakBulanBerjalan = $targetRakBulanBerjalan > 0 ? ($serapanBulanBerjalan / $targetRakBulanBerjalan) * 100 : 0;
 $deviasiRakBulanBerjalan = $serapanBulanBerjalan - $targetRakBulanBerjalan;
-$komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBulanBerjalan > 100 ? 'danger' : ($capaianRakBulanBerjalan >= 80 ? 'success' : 'warning'));
+$komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBulanBerjalan > 110 ? 'primary' : ($capaianRakBulanBerjalan >= 90 ? 'success' : ($capaianRakBulanBerjalan >= 50 ? 'warning' : 'danger')));
 ?>
 
-<!-- Sticky Section Navigation -->
+<!-- Sticky Section Navigation (3 Logical Groups) -->
 <nav id="stickySecNav" class="sticky-sec-nav" aria-label="Navigasi seksi halaman">
     <div class="sticky-sec-nav__inner">
-        <a href="#section-ringkasan" class="sticky-sec-nav__link active">Ringkasan</a>
-        <a href="#section-grafik" class="sticky-sec-nav__link">Grafik Bulanan</a>
-        <a href="#section-komposisi" class="sticky-sec-nav__link">Komposisi</a>
+        <!-- Grup 1: Ringkasan -->
+        <div class="sticky-sec-nav__group">
+            <span class="sticky-sec-nav__group-tag">Ringkasan</span>
+            <a href="#section-ringkasan" class="sticky-sec-nav__link active"><i class="bi bi-speedometer2"></i> Ringkasan</a>
+            <a href="#section-grafik" class="sticky-sec-nav__link"><i class="bi bi-graph-up"></i> Grafik Bulanan</a>
+            <a href="#section-komposisi" class="sticky-sec-nav__link"><i class="bi bi-pie-chart"></i> Komposisi</a>
+        </div>
+
         <span class="sticky-sec-nav__divider" aria-hidden="true"></span>
-        <a href="#section-detail-bulan" class="sticky-sec-nav__link">Detail per Bulan</a>
-        <a href="#section-serapan-rekening" class="sticky-sec-nav__link">Serapan Rekening</a>
-        <a href="#section-sisa-semester" class="sticky-sec-nav__link">Sisa Semester</a>
-        <a href="#section-struktur" class="sticky-sec-nav__link">Struktur Anggaran</a>
-        <a href="#section-deviasi" class="sticky-sec-nav__link">Deviasi RAK</a>
+
+        <!-- Grup 2: Analisis -->
+        <div class="sticky-sec-nav__group">
+            <span class="sticky-sec-nav__group-tag">Analisis</span>
+            <a href="#section-detail-bulan" class="sticky-sec-nav__link"><i class="bi bi-calendar3"></i> Detail per Bulan</a>
+            <a href="#section-serapan-rekening" class="sticky-sec-nav__link"><i class="bi bi-grid-3x3-gap"></i> Serapan Bulanan</a>
+            <a href="#section-sisa-semester" class="sticky-sec-nav__link"><i class="bi bi-wallet2"></i> Sisa Semester</a>
+            <a href="#section-breakdown" class="sticky-sec-nav__link"><i class="bi bi-bar-chart-steps"></i> Breakdown Seksi</a>
+        </div>
+
         <span class="sticky-sec-nav__divider" aria-hidden="true"></span>
-        <a href="#section-breakdown" class="sticky-sec-nav__link">Breakdown Seksi</a>
+
+        <!-- Grup 3: Perencanaan -->
+        <div class="sticky-sec-nav__group">
+            <span class="sticky-sec-nav__group-tag">Perencanaan</span>
+            <a href="#section-struktur" class="sticky-sec-nav__link"><i class="bi bi-diagram-3"></i> Struktur Anggaran</a>
+            <a href="#section-deviasi" class="sticky-sec-nav__link"><i class="bi bi-exclamation-triangle"></i> Deviasi RAK</a>
+        </div>
     </div>
 </nav>
 
@@ -253,11 +269,14 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             </div>
                             <div class="kpi-sublabel mt-1">
                                 <?php if ($deviasiRakBulanBerjalan > 0): ?>
-                                <i class="bi bi-arrow-up-circle" style="color:var(--danger);"></i>
-                                <span style="color:var(--danger);font-weight:600;">+Rp <?= number_format(abs($deviasiRakBulanBerjalan),0,',','.') ?> dari target</span>
+                                <i class="bi bi-arrow-up-circle" style="color:#2563eb;"></i>
+                                <span style="color:#2563eb;font-weight:600;">+Rp <?= number_format(abs($deviasiRakBulanBerjalan),0,',','.') ?> (Over RAK)</span>
+                                <?php elseif ($deviasiRakBulanBerjalan < 0): ?>
+                                <i class="bi bi-arrow-down-circle" style="color:#dc2626;"></i>
+                                <span style="color:#dc2626;font-weight:600;">-Rp <?= number_format(abs($deviasiRakBulanBerjalan),0,',','.') ?> (Under RAK)</span>
                                 <?php else: ?>
-                                <i class="bi bi-arrow-down-circle" style="color:var(--success);"></i>
-                                <span style="color:var(--success);font-weight:600;">-Rp <?= number_format(abs($deviasiRakBulanBerjalan),0,',','.') ?> dari target</span>
+                                <i class="bi bi-dash-circle" style="color:var(--gray-500);"></i>
+                                <span style="color:var(--gray-500);font-weight:600;">Sesuai Target RAK</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -429,6 +448,37 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <button type="button" class="btn btn-sm monthly-toggle-btn" data-range="h2">Jul–Des</button>
                     </div>
                     <div class="chart-wrapper monthly-chart-wrapper"><canvas id="monthlyChart"></canvas></div>
+                    <?php
+                        // Deteksi anomali (<20% RAK) untuk bulan yang sudah berjalan
+                        $anomaliBulan = [];
+                        for ($m = 1; $m <= $bulanBerjalan; $m++) {
+                            $mRak = (float)($monthlyData['rak'][$m] ?? 0);
+                            $mReal = (float)($monthlyData['realisasi'][$m] ?? 0);
+                            if ($mRak > 0) {
+                                $capPct = ($mReal / $mRak) * 100;
+                                if ($capPct < 20) {
+                                    $anomaliBulan[] = [
+                                        'bulan' => $bulanNames[$m],
+                                        'rak' => $mRak,
+                                        'realisasi' => $mReal,
+                                        'capaian' => $capPct
+                                    ];
+                                }
+                            }
+                        }
+                    ?>
+                    <?php if (!empty($anomaliBulan)): ?>
+                    <div class="chart-anomaly-alert mt-2">
+                        <i class="bi bi-exclamation-triangle-fill" style="font-size:1.1rem;flex-shrink:0;"></i>
+                        <div style="flex:1;">
+                            <strong>Perhatian Anomali Capaian:</strong>
+                            <?php foreach ($anomaliBulan as $ab): ?>
+                            <span>Bulan <strong><?= $ab['bulan'] ?></strong> realisasi hanya Rp <?= number_format($ab['realisasi'], 0, ',', '.') ?> (<strong><?= number_format($ab['capaian'], 1) ?>%</strong> dari target RAK Rp <?= number_format($ab['rak'], 0, ',', '.') ?> &mdash; realisasi jauh di bawah target RAK).</span>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <?php if (!empty($monthlyData['alerts'])): ?>
                     <?php
                         $cntOver2  = count(array_filter($monthlyData['alerts'], fn($a) => $a['type']==='over'));
@@ -437,10 +487,10 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div style="margin-top:0.75rem;padding:0.625rem 0.875rem;background:#f8fafc;border-radius:var(--radius-sm);border:1px solid var(--gray-200);font-size:var(--fs-sm);color:var(--gray-600);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                         <i class="bi bi-info-circle-fill" style="color:var(--primary);flex-shrink:0;"></i>
                         <?php if ($cntOver2 > 0): ?>
-                        <span><strong style="color:var(--danger);"><?= $cntOver2 ?> bulan</strong> realisasi melebihi RAK <span style="display:inline-block;width:10px;height:10px;background:#dc2626;border-radius:2px;margin-left:2px;"></span></span>
+                        <span><strong style="color:#2563eb;"><?= $cntOver2 ?> bulan</strong> realisasi melebihi RAK <span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;margin-left:2px;"></span></span>
                         <?php endif; ?>
                         <?php if ($cntUnder2 > 0): ?>
-                        <span style="margin-left:0.5rem;"><strong style="color:#b45309;"><?= $cntUnder2 ?> bulan</strong> realisasi kurang dari RAK <span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;margin-left:2px;"></span></span>
+                        <span style="margin-left:0.5rem;"><strong style="color:#dc2626;"><?= $cntUnder2 ?> bulan</strong> realisasi kurang dari RAK <span style="display:inline-block;width:10px;height:10px;background:#dc2626;border-radius:2px;margin-left:2px;"></span></span>
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
@@ -493,11 +543,15 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
             <div class="card rounded-4 overflow-hidden">
                 <div class="section-header" style="padding-bottom:0.75rem;">
                     <div><h5 class="section-title"><i class="bi bi-calendar2-month me-2" style="color:var(--primary);"></i>Detail Penyerapan per Bulan</h5><p class="section-subtitle">Tabel rincian RAK (Target) vs Realisasi tiap bulan</p></div>
-                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" data-bs-toggle="tooltip" data-bs-placement="top" title="Export data tabel penyerapan bulanan ini saja ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn-export-section" onclick="exportTableToExcel('table-detail-bulan', 'detail-bulan-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export tabel detail penyerapan bulanan ke Excel">
+                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export XLSX
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover table-dashboard align-middle mb-0">
+                        <table class="table table-hover table-dashboard align-middle mb-0" id="table-detail-bulan">
                             <thead><tr>
                                 <th class="ps-4">Bulan</th>
                                 <th class="text-end">RAK (Target)</th>
@@ -534,7 +588,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="text-end" style="color:#94a3b8;">&mdash;</td>
                                     <td class="text-end" style="color:#94a3b8;">&mdash;</td>
                                     <td class="text-end pe-4">
-                                        <span style="font-size:var(--fs-xs);font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:#f1f5f9;color:#94a3b8;">Proyeksi</span>
+                                        <span class="badge-capaian badge-capaian-neutral">Proyeksi</span>
                                     </td>
                                 </tr>
                                 <?php else: ?>
@@ -542,18 +596,24 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="ps-4" style="font-weight:600;color:var(--gray-700);"><?= $bulanNames[(int)$i] ?></td>
                                     <td class="text-end" style="color:var(--gray-500);">Rp <?= number_format($mRak,0,',','.') ?></td>
                                     <td class="text-end" style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($mRealisasi,0,',','.') ?></td>
-                                    <td class="text-end" style="font-weight:600;color:<?= $selisih<0?'var(--status-danger, #dc2626)':($selisih>0?'#2563EB':'var(--status-neutral, #94a3b8)') ?>;">
-                                        <?= $selisih<0?'↓':'↑' ?> <?= $selisih>0?'+':'' ?>Rp <?= number_format($selisih,0,',','.') ?>
+                                    <td class="text-end" style="font-weight:600;">
+                                        <?php if ($selisih < 0): ?>
+                                            <span class="text-selisih-under"><i class="bi bi-arrow-down-short"></i> -Rp <?= number_format(abs($selisih),0,',','.') ?></span>
+                                        <?php elseif ($selisih > 0): ?>
+                                            <span class="text-selisih-over"><i class="bi bi-arrow-up-short"></i> +Rp <?= number_format(abs($selisih),0,',','.') ?></span>
+                                        <?php else: ?>
+                                            <span class="text-selisih-neutral">&mdash; Rp 0</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-end pe-4">
                                         <?php
-                                            if ($pct > 110) { $pctBg='#eff6ff'; $pctColor='#2563EB'; }
-                                            elseif ($pct >= 90) { $pctBg='var(--status-success-bg, #ecfdf5)'; $pctColor='var(--status-success, #059669)'; }
-                                            elseif ($pct >= 50) { $pctBg='var(--status-warning-bg, #fffbeb)'; $pctColor='var(--status-warning, #d97706)'; }
-                                            else { $pctBg='var(--status-danger-bg, #fef2f2)'; $pctColor='var(--status-danger, #dc2626)'; }
+                                            if ($pct > 110) { $badgeCls = 'badge-capaian-info'; $badgeIcon = 'bi-arrow-up-circle-fill'; }
+                                            elseif ($pct >= 90) { $badgeCls = 'badge-capaian-success'; $badgeIcon = 'bi-check-circle-fill'; }
+                                            elseif ($pct >= 50) { $badgeCls = 'badge-capaian-warning'; $badgeIcon = 'bi-exclamation-circle-fill'; }
+                                            else { $badgeCls = 'badge-capaian-danger'; $badgeIcon = 'bi-arrow-down-circle-fill'; }
                                         ?>
-                                        <span style="font-size:var(--fs-xs);font-weight:600;padding:0.2rem 0.625rem;border-radius:var(--radius-full);background:<?= $pctBg ?>;color:<?= $pctColor ?>;">
-                                            <?= number_format($pct,2) ?>%
+                                        <span class="badge-capaian <?= $badgeCls ?>">
+                                            <i class="bi <?= $badgeIcon ?>"></i> <?= number_format($pct,2) ?>%
                                         </span>
                                     </td>
                                 </tr>
@@ -574,12 +634,26 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <td class="ps-4">Kumulatif s/d <?= $bulanNames[$bulanBerjalanDetail] ?></td>
                                     <td class="text-end">Rp <?= number_format($rakKumBerjalan,0,',','.') ?></td>
                                     <td class="text-end">Rp <?= number_format($realKumBerjalan,0,',','.') ?></td>
-                                    <?php $selisihKumColor = $selisihKum<0?'var(--status-danger, #dc2626)':($selisihKum>0?'#2563EB':'var(--status-neutral, #94a3b8)'); ?>
-                                    <td class="text-end" style="color:<?= $selisihKumColor ?>;">
-                                        <?= $selisihKum<0?'↓':'↑' ?> <?= $selisihKum>0?'+':'' ?>Rp <?= number_format($selisihKum,0,',','.') ?>
+                                    <td class="text-end" style="font-weight:700;">
+                                        <?php if ($selisihKum < 0): ?>
+                                            <span class="text-selisih-under"><i class="bi bi-arrow-down-short"></i> -Rp <?= number_format(abs($selisihKum),0,',','.') ?></span>
+                                        <?php elseif ($selisihKum > 0): ?>
+                                            <span class="text-selisih-over"><i class="bi bi-arrow-up-short"></i> +Rp <?= number_format(abs($selisihKum),0,',','.') ?></span>
+                                        <?php else: ?>
+                                            <span class="text-selisih-neutral">&mdash; Rp 0</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-end pe-4">
-                                        <?= number_format($rakKumBerjalan>0?($realKumBerjalan/$rakKumBerjalan)*100:0,2) ?>%
+                                        <?php
+                                            $kumPct = $rakKumBerjalan > 0 ? ($realKumBerjalan / $rakKumBerjalan) * 100 : 0;
+                                            if ($kumPct > 110) { $badgeKumCls = 'badge-capaian-info'; }
+                                            elseif ($kumPct >= 90) { $badgeKumCls = 'badge-capaian-success'; }
+                                            elseif ($kumPct >= 50) { $badgeKumCls = 'badge-capaian-warning'; }
+                                            else { $badgeKumCls = 'badge-capaian-danger'; }
+                                        ?>
+                                        <span class="badge-capaian <?= $badgeKumCls ?>">
+                                            <?= number_format($kumPct, 2) ?>%
+                                        </span>
                                     </td>
                                 </tr>
                                 <?php if ($bulanBerjalanDetail < 12): ?>
@@ -1541,9 +1615,14 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <h5 class="section-title"><i class="bi bi-exclamation-triangle-fill me-2" style="color:#d97706;"></i>Rincian Deviasi dari RAK</h5>
                         <p class="section-subtitle">Sub kegiatan &amp; rekening yang realisasinya tidak sesuai rencana RAK</p>
                     </div>
-                    <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;">
-                        <i class="bi bi-diagram-3 me-1"></i><?= $totalSubKegiatanDeviasi ?> Sub Kegiatan
-                    </span>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;">
+                            <i class="bi bi-diagram-3 me-1"></i><?= $totalSubKegiatanDeviasi ?> Sub Kegiatan
+                        </span>
+                        <button type="button" class="btn-export-section" onclick="exportDeviasiToExcel('deviasi-rak-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export seluruh daftar deviasi RAK ke Excel">
+                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export XLSX
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Summary Cards -->
@@ -1703,17 +1782,20 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             <div style="display:flex;align-items:flex-start;gap:.5rem;flex:1;">
                                 <div class="d-toggle"><i class="bi bi-chevron-down"></i></div>
                                 <div class="d-dot-sk" style="margin-top:.35rem;"></div>
-                                <div style="flex:1;">
+                                <div style="flex:1;min-width:0;">
                                     <div class="d-title">
                                         <span class="d-badge-sk">Sub Kegiatan</span><?= htmlspecialchars($sk['nama']) ?>
-                                        <span style="font-size:var(--fs-xs);font-weight:700;padding:.15rem .5rem;border-radius:var(--radius-full);background:<?= $skRiskBg ?>;border:1px solid <?= $skRiskBorder ?>;color:<?= $skRiskColor ?>;margin-left:.4rem;vertical-align:middle;"><?= $skRiskLabel ?></span>
+                                        <span class="badge-risk badge-risk-<?= $skRiskLevel ?>" style="margin-left:.4rem;vertical-align:middle;"><?= $skRiskLabel ?></span>
                                     </div>
                                     <div class="d-sub">Kode: <?= htmlspecialchars($sk['kode']) ?> &bull; <?= count($sk['rekening']) ?> rekening berdeviasi &bull; Deviasi <?= number_format($skDevPct,2) ?>% dari RAK</div>
                                 </div>
                             </div>
-                            <div style="display:flex;gap:.4rem;flex-shrink:0;margin-left:1rem;">
-                                <?php if ($skOver  > 0): ?><span class="d-pill-over" ><i class="bi bi-arrow-up-circle-fill me-1"></i><?= $skOver  ?> Over</span><?php endif; ?>
-                                <?php if ($skUnder > 0): ?><span class="d-pill-under"><i class="bi bi-arrow-down-circle-fill me-1"></i><?= $skUnder ?> Under</span><?php endif; ?>
+                            <div class="d-none d-md-flex align-items-center me-2" onclick="event.stopPropagation();" style="max-width:240px;flex-shrink:0;">
+                                <input type="text" class="deviasi-catatan-input" data-sk-id="<?= $skid ?>" placeholder="Tulis catatan tindak lanjut..." maxlength="100" onchange="saveDeviasiNote(this)" onclick="event.stopPropagation()" title="Catatan tindak lanjut deviasi (tersimpan otomatis)">
+                            </div>
+                            <div style="display:flex;gap:.4rem;flex-shrink:0;margin-left:0.5rem;">
+                                <?php if ($skOver  > 0): ?><span class="d-pill-over" style="background:#eff6ff;border-color:#bfdbfe;color:#2563eb;"><i class="bi bi-arrow-up-circle-fill me-1"></i><?= $skOver  ?> Over</span><?php endif; ?>
+                                <?php if ($skUnder > 0): ?><span class="d-pill-under" style="background:#fef2f2;border-color:#fecaca;color:#dc2626;"><i class="bi bi-arrow-down-circle-fill me-1"></i><?= $skUnder ?> Under</span><?php endif; ?>
                             </div>
                         </div>
 
@@ -1736,8 +1818,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                         </div>
                                     </div>
                                     <div style="display:flex;gap:.4rem;flex-shrink:0;margin-left:1rem;">
-                                        <?php if ($rOver  > 0): ?><span class="d-pill-over" ><i class="bi bi-arrow-up-circle-fill me-1"></i><?= $rOver  ?> bln</span><?php endif; ?>
-                                        <?php if ($rUnder > 0): ?><span class="d-pill-under"><i class="bi bi-arrow-down-circle-fill me-1"></i><?= $rUnder ?> bln</span><?php endif; ?>
+                                        <?php if ($rOver  > 0): ?><span class="d-pill-over" style="background:#eff6ff;border-color:#bfdbfe;color:#2563eb;"><i class="bi bi-arrow-up-circle-fill me-1"></i><?= $rOver  ?> bln</span><?php endif; ?>
+                                        <?php if ($rUnder > 0): ?><span class="d-pill-under" style="background:#fef2f2;border-color:#fecaca;color:#dc2626;"><i class="bi bi-arrow-down-circle-fill me-1"></i><?= $rUnder ?> bln</span><?php endif; ?>
                                     </div>
                                 </div>
 
@@ -1758,11 +1840,11 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                             <?php foreach ($rek['deviations'] as $dev):
                                                 $isOver     = $dev['type'] === 'over';
                                                 $selAbs     = abs($dev['selisih']);
-                                                $selColor   = $isOver ? 'var(--danger)' : '#b45309';
-                                                $rowBg      = $isOver ? 'rgba(254,242,242,.45)' : 'rgba(255,251,235,.45)';
-                                                $sBg        = $isOver ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)';
-                                                $sBorder    = $isOver ? 'var(--status-danger-border)' : 'var(--status-warning-border)';
-                                                $sColor     = $isOver ? 'var(--status-danger)' : 'var(--status-warning)';
+                                                $selColor   = $isOver ? '#2563eb' : '#dc2626';
+                                                $rowBg      = $isOver ? 'rgba(239,246,255,.45)' : 'rgba(254,242,242,.45)';
+                                                $sBg        = $isOver ? '#eff6ff' : '#fef2f2';
+                                                $sBorder    = $isOver ? '#bfdbfe' : '#fecaca';
+                                                $sColor     = $isOver ? '#2563eb' : '#dc2626';
                                                 $sIcon      = $isOver ? 'bi-arrow-up-circle-fill' : 'bi-arrow-down-circle-fill';
                                                 $sLabel     = $isOver ? 'Over RAK' : 'Under RAK';
                                             ?>
@@ -1822,7 +1904,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
                         <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
-                    <a href="<?= base_url('export/laporan') ?>?tahun=<?= $stats['tahun'] ?>&bulan=<?= (int)date('n') ?>" class="btn-export-section" data-bs-toggle="tooltip" data-bs-placement="top" title="Export ringkasan per unit ini saja ke Excel"><i class="bi bi-file-earmark-arrow-down-fill"></i> xlsx</a>
+                    <button type="button" class="btn-export-section" onclick="exportBreakdownToExcel('breakdown-seksi-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export ringkasan per unit ke Excel">
+                        <i class="bi bi-file-earmark-excel-fill text-success"></i> Export XLSX
+                    </button>
                 </div>
                 <div class="card-body" style="padding:0 1.5rem 1.5rem;">
                     <div class="row g-2">
@@ -2034,12 +2118,115 @@ document.addEventListener('DOMContentLoaded', function () {
     <p style="margin:0;">&copy; <?= date('Y') ?> Sistem Informasi Monitoring Anggaran Cabang Dinas Kehutanan Wilayah Bojonegoro</p>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
 function resetFilters() { window.location.href = '<?= base_url() ?>?tahun=<?= $stats['tahun'] ?>'; }
 
+// Helper: Export HTML Table to Excel using SheetJS
+function exportTableToExcel(tableId, filename) {
+    var tbl = document.getElementById(tableId);
+    if (!tbl) {
+        alert('Tabel data tidak ditemukan.');
+        return;
+    }
+    if (typeof XLSX !== 'undefined') {
+        var wb = XLSX.utils.table_to_book(tbl, { sheet: "Data" });
+        XLSX.writeFile(wb, filename || 'export.xlsx');
+    } else {
+        alert('Library Excel sedang dimuat, silakan coba lagi.');
+    }
+}
+
+// Helper: Export Breakdown Cards to Excel
+function exportBreakdownToExcel(filename) {
+    var data = [
+        ["Nama Unit / Seksi", "Pagu (Rp)", "Realisasi (Rp)", "Sisa (Rp)", "% Capaian"]
+    ];
+    <?php if (!empty($breakdownData)): ?>
+    <?php foreach($breakdownData as $name => $data): ?>
+    data.push([
+        <?= json_encode($name) ?>,
+        <?= (float)$data['pagu'] ?>,
+        <?= (float)$data['realisasi'] ?>,
+        <?= (float)($data['pagu'] - $data['realisasi']) ?>,
+        <?= $data['pagu'] > 0 ? round(($data['realisasi'] / $data['pagu']) * 100, 2) : 0 ?>
+    ]);
+    <?php endforeach; ?>
+    <?php endif; ?>
+    if (typeof XLSX !== 'undefined') {
+        var ws = XLSX.utils.aoa_to_sheet(data);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Breakdown");
+        XLSX.writeFile(wb, filename || 'breakdown-seksi.xlsx');
+    }
+}
+
+// Helper: Export Deviasi RAK Tree to Excel
+function exportDeviasiToExcel(filename) {
+    var data = [
+        ["Sub Kegiatan", "Rekening", "Kode Rekening", "Bulan", "RAK Target (Rp)", "Realisasi (Rp)", "Selisih (Rp)", "Status", "Tingkat Risiko", "Catatan"]
+    ];
+    var tahun = "<?= $stats['tahun'] ?>";
+    <?php if (!empty($deviationDetails)): ?>
+    <?php foreach ($deviationDetails as $skid => $sk): ?>
+        var note = localStorage.getItem("cdk_deviasi_note_" + tahun + "_<?= $skid ?>") || "";
+        <?php foreach ($sk['rekening'] as $rek): ?>
+            <?php foreach ($rek['deviations'] as $dev): ?>
+            data.push([
+                <?= json_encode($sk['nama']) ?>,
+                <?= json_encode($rek['nama']) ?>,
+                <?= json_encode($rek['kode']) ?>,
+                <?= json_encode($bulanNamesLongDev[$dev['bulan']] ?? $dev['bulan']) ?>,
+                <?= (float)$dev['rak'] ?>,
+                <?= (float)$dev['realisasi'] ?>,
+                <?= (float)$dev['selisih'] ?>,
+                <?= json_encode($dev['type'] === 'over' ? 'Over RAK' : 'Under RAK') ?>,
+                <?= json_encode($skRiskLabel ?? 'Sedang') ?>,
+                note
+            ]);
+            <?php endforeach; ?>
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+    <?php endif; ?>
+    if (typeof XLSX !== 'undefined') {
+        var ws = XLSX.utils.aoa_to_sheet(data);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Deviasi_RAK");
+        XLSX.writeFile(wb, filename || 'deviasi-rak.xlsx');
+    }
+}
+
+// Helper: Save & Load Deviasi Notes
+function saveDeviasiNote(input) {
+    var skId = input.dataset.skId;
+    var val = input.value.trim();
+    var tahun = "<?= $stats['tahun'] ?>";
+    var key = "cdk_deviasi_note_" + tahun + "_" + skId;
+    if (val) {
+        localStorage.setItem(key, val);
+    } else {
+        localStorage.removeItem(key);
+    }
+}
+
+function loadDeviasiNotes() {
+    var tahun = "<?= $stats['tahun'] ?>";
+    document.querySelectorAll('.deviasi-catatan-input').forEach(function(input) {
+        var skId = input.dataset.skId;
+        var key = "cdk_deviasi_note_" + tahun + "_" + skId;
+        var saved = localStorage.getItem(key);
+        if (saved) {
+            input.value = saved;
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Load notes
+    loadDeviasiNotes();
+
     // Tooltips
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 
@@ -2048,7 +2235,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ================================================================
     Chart.defaults.font.family = "'Inter', 'Segoe UI', sans-serif";
     Chart.defaults.font.size   = 12;
-    Chart.defaults.color       = '#475569';  // jauh lebih gelap dari #94a3b8
+    Chart.defaults.color       = '#475569';
 
     // ================================================================
     // Monthly Chart (Line + Area — interactive)
@@ -2074,24 +2261,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const rakAktual    = mData.rak.map((v, i) => (i < bulanBerjalan || !isTahunIni) ? v : null);
     const rakProyeksi  = mData.rak.map((v, i) => (i >= bulanBerjalan - 1 && isTahunIni) ? v : null);
 
-    // Determine point colors for Realisasi based on alert status
+    // Determine point colors for Realisasi based on alert status & anomaly
     const realisasiPointBg = mData.realisasi.map((v, i) => {
         const bulan = i + 1;
-        if (alertTypes[bulan] === 'over') return '#dc2626';
-        if (alertTypes[bulan] === 'under') return '#d97706';
+        const rak = mData.rak[i] || 0;
+        const pct = rak > 0 ? (v / rak) * 100 : 100;
+        if (pct < 20 && rak > 0 && (i < bulanBerjalan || !isTahunIni)) return '#dc2626'; // Anomali ekstrem
+        if (alertTypes[bulan] === 'over') return '#2563eb';
+        if (alertTypes[bulan] === 'under') return '#dc2626';
         return '#059669';
     });
     const realisasiPointRadius = mData.realisasi.map((v, i) => {
         const rak = mData.rak[i] || 0;
         const pct = rak > 0 ? (v / rak) * 100 : 100;
-        if (pct < 20 && rak > 0) return 9; // Extreme anomaly — very large point
+        if (pct < 20 && rak > 0 && (i < bulanBerjalan || !isTahunIni)) return 9; // Extreme anomaly
         return alertM.includes(i + 1) ? 7 : 4;
     });
     const realisasiPointBorder = mData.realisasi.map((v, i) => {
         const bulan = i + 1;
-        if (alertTypes[bulan] === 'over') return '#dc2626';
-        if (alertTypes[bulan] === 'under') return '#d97706';
-        return '#059669';
+        const rak = mData.rak[i] || 0;
+        const pct = rak > 0 ? (v / rak) * 100 : 100;
+        if (pct < 20 && rak > 0 && (i < bulanBerjalan || !isTahunIni)) return '#fecaca';
+        if (alertTypes[bulan] === 'over') return '#bfdbfe';
+        if (alertTypes[bulan] === 'under') return '#fecaca';
+        return '#bbf7d0';
     });
 
     // Format rupiah helper
@@ -2208,14 +2401,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             const sign = selisih >= 0 ? '+' : '';
                             const lines = [
                                 '',
-                                '  Selisih: ' + sign + 'Rp ' + Math.abs(selisih).toLocaleString('id-ID'),
-                                '  Capaian: ' + pct + '%'
+                                '  RAK Target : Rp ' + Number(rak).toLocaleString('id-ID'),
+                                '  Realisasi  : Rp ' + Number(real).toLocaleString('id-ID'),
+                                '  Selisih    : ' + sign + 'Rp ' + Math.abs(selisih).toLocaleString('id-ID'),
+                                '  Capaian    : ' + pct + '%'
                             ];
-                            if (alertTypes[bulan] === 'over') lines.push('  ⚠ Over RAK');
-                            else if (alertTypes[bulan] === 'under') lines.push('  ⚠ Under RAK');
-                            // Extreme anomaly detection
                             if (rak > 0 && parseFloat(pct) < 20) {
-                                lines.push('  🚨 Realisasi jauh di bawah target RAK');
+                                lines.push('  🚨 ⚠️ Realisasi jauh di bawah target RAK');
+                            } else if (alertTypes[bulan] === 'over') {
+                                lines.push('  ℹ️ Over RAK');
+                            } else if (alertTypes[bulan] === 'under') {
+                                lines.push('  ⚠️ Under RAK');
                             }
                             return lines;
                         }

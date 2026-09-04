@@ -101,13 +101,6 @@
                                     <?php endif; ?>
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="<?= base_url() ?>?view=public" title="Monitoring Anggaran (Dashboard Publik)" onclick="window.open(this.href,'_blank');return false;">
-                                    <i class="bi bi-graph-up"></i>
-                                    <span>Monitoring Anggaran</span>
-                                    <i class="bi bi-box-arrow-up-right ms-auto" style="font-size:0.7rem;opacity:0.5;"></i>
-                                </a>
-                            </li>
 
                             <li class="nav-divider"></li>
                             <li class="nav-group-label">Master Data</li>

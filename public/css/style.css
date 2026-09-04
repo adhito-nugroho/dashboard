@@ -656,6 +656,7 @@ body {
 .uraian-truncate {
     display: -webkit-box;
     -webkit-line-clamp: 1;
+    line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1979,3 +1980,225 @@ body {
 .table-light {
     background-color: var(--gray-50);
 }
+
+/* ============================================
+   Dashboard UI/UX Enhancements (CDK Bojonegoro)
+   ============================================ */
+
+/* Selisih RAK Utilities */
+.text-selisih-under {
+    color: #dc2626 !important;
+    font-weight: 600;
+}
+.text-selisih-over {
+    color: #2563eb !important;
+    font-weight: 600;
+}
+.text-selisih-neutral {
+    color: var(--gray-400) !important;
+    font-weight: 500;
+}
+
+/* Badge Capaian THD RAK */
+.badge-capaian {
+    font-size: var(--fs-xs, 0.68rem);
+    font-weight: 700;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--radius-full, 9999px);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+.badge-capaian-danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+.badge-capaian-warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #d97706;
+}
+.badge-capaian-success {
+    background: #ecfdf5;
+    border-color: #bbf7d0;
+    color: #059669;
+}
+.badge-capaian-info {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+}
+.badge-capaian-neutral {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+}
+
+/* Sticky Grouped Navigation */
+.sticky-sec-nav {
+    position: sticky;
+    top: var(--topbar-height, 60px);
+    z-index: 90;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0.5rem 1.5rem;
+    margin: -1.75rem -1.5rem 1.5rem -1.5rem;
+    box-shadow: 0 4px 12px -2px rgba(0,0,0,0.04);
+    transition: all 0.25s ease;
+}
+
+.sticky-sec-nav__inner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    max-width: 100%;
+    padding: 0.15rem 0;
+}
+.sticky-sec-nav__inner::-webkit-scrollbar {
+    display: none;
+}
+
+.sticky-sec-nav__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--gray-50);
+    padding: 0.25rem 0.4rem;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--gray-200);
+}
+
+.sticky-sec-nav__group-tag {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-500);
+    padding: 0.2rem 0.55rem;
+    background: #fff;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--gray-200);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.sticky-sec-nav__link {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-decoration: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full, 9999px);
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.sticky-sec-nav__link:hover {
+    color: var(--primary, #059669);
+    background: rgba(5, 150, 105, 0.08);
+}
+.sticky-sec-nav__link.active {
+    background: var(--primary, #059669);
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+
+.sticky-sec-nav__divider {
+    width: 1px;
+    height: 20px;
+    background: var(--gray-300);
+    margin: 0 0.15rem;
+    flex-shrink: 0;
+}
+
+/* Export Section Button */
+.btn-export-section {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--gray-300);
+    background: #fff;
+    color: var(--gray-700);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.15s ease;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+}
+.btn-export-section:hover {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #86efac;
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.15);
+}
+
+/* Deviasi RAK Risk Badges & Inline Note */
+.badge-risk {
+    font-size: var(--fs-xs, 0.68rem);
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full, 9999px);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid transparent;
+}
+.badge-risk-kritis {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+.badge-risk-sedang {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #d97706;
+}
+.badge-risk-rendah {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #16a34a;
+}
+
+.deviasi-catatan-input {
+    width: 100%;
+    max-width: 280px;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm, 6px);
+    background: #fff;
+    color: var(--gray-800);
+    transition: all 0.15s ease;
+}
+.deviasi-catatan-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    background: #f8fafc;
+}
+
+/* Chart Anomaly Box */
+.chart-anomaly-alert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-md, 10px);
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: #991b1b;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
