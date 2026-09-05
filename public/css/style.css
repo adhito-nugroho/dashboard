@@ -1790,12 +1790,89 @@ body {
     gap: 0.375rem;
     padding: 0.25rem 0.75rem;
     border-radius: var(--radius-full);
-    font-size: 0.75rem;
+    font-size: var(--fs-sm);
     font-weight: 500;
     background: var(--primary-50);
     color: var(--primary);
     border: 1px solid var(--primary-100);
 }
+
+/* --- Tahap 2: Transaksi filter hierarchy (Bootstrap basis, tanpa Tailwind arbitrary) --- */
+.trx-filter-head {
+    background: #fff;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0.65rem 1rem;
+}
+.trx-filter-title {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-700);
+}
+.trx-filter-count {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    background: var(--primary-50);
+    color: var(--primary);
+    border: 1px solid var(--primary-100);
+    border-radius: var(--radius-full);
+    padding: 0.2rem 0.65rem;
+    white-space: nowrap;
+}
+.trx-filter-toggle {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--gray-500);
+    text-decoration: none;
+    border: 0;
+    background: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+.trx-filter-toggle:hover { color: var(--primary); background: var(--primary-50); }
+.trx-filter-label {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.trx-filter-label i { color: var(--gray-400); }
+.trx-filter-foot {
+    border-top: 1px solid var(--gray-100);
+    padding-top: 0.85rem;
+    margin-top: 0.85rem;
+}
+.trx-active-hint { font-size: var(--fs-sm); color: var(--gray-500); }
+.trx-active-chip {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    background: var(--gray-50);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-full);
+    padding: 0.2rem 0.65rem;
+}
+/* Hierarki tombol: primary > secondary > tertiary */
+.btn-reset-tertiary {
+    border: 0;
+    background: none;
+    color: var(--gray-500);
+    font-weight: 500;
+    font-size: var(--fs-base);
+    padding: 0.375rem 0.6rem;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.btn-reset-tertiary:hover { color: var(--gray-800); background: var(--gray-100); }
 
 /* ============================================
    Dashboard – KPI Cards

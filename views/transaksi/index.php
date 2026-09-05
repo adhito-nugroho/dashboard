@@ -286,24 +286,27 @@ $isFiltered = !empty($activeFilterLabels);
 
     <!-- Filter Card (Structured 2-row layout) -->
     <div class="card filter-card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
+        <div class="card-header trx-filter-head d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
                 <span class="text-primary"><i class="bi bi-funnel-fill"></i></span>
-                <span class="fw-bold text-dark small text-uppercase tracking-wider">Filter Data Transaksi</span>
+                <span class="trx-filter-title">Filter Data Transaksi</span>
+                <?php if ($isFiltered): ?>
+                    <span class="trx-filter-count">
+                        <i class="bi bi-funnel me-1"></i><?= count($activeFilterLabels) ?> Filter Aktif
+                    </span>
+                <?php endif; ?>
             </div>
-            <?php if ($isFiltered): ?>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 text-xs fw-semibold">
-                    <i class="bi bi-funnel me-1"></i><?= count($activeFilterLabels) ?> Filter Aktif
-                </span>
-            <?php endif; ?>
+            <button class="trx-filter-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#filterBody" aria-expanded="true" aria-controls="filterBody" title="Tampilkan / sembunyikan panel filter">
+                <i class="bi bi-chevron-down me-1"></i>Filter
+            </button>
         </div>
-        <div class="card-body p-3">
+        <div class="card-body p-3 collapse show" id="filterBody">
             <form method="GET" action="<?= base_url('transaksi') ?>" id="filterForm">
                 <!-- Baris 1: Kontrol Filter Sejajar -->
-                <div class="row g-2.5 g-lg-3 align-items-end">
+                <div class="row g-2 g-lg-3 align-items-end">
                     <!-- Bulan -->
                     <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-bulan" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                        <label for="filter-bulan" class="form-label trx-filter-label">
                             <i class="bi bi-calendar-month text-muted"></i> Bulan
                         </label>
                         <select name="bulan" id="filter-bulan" class="form-select form-select-sm">
@@ -318,7 +321,7 @@ $isFiltered = !empty($activeFilterLabels);
 
                     <!-- Tahun -->
                     <div class="col-12 col-sm-6 col-lg-auto" style="min-width: 110px;">
-                        <label for="filter-tahun" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                        <label for="filter-tahun" class="form-label trx-filter-label">
                             <i class="bi bi-calendar3 text-muted"></i> Tahun
                         </label>
                         <select name="tahun" id="filter-tahun" class="form-select form-select-sm">
@@ -330,7 +333,7 @@ $isFiltered = !empty($activeFilterLabels);
 
                     <!-- Kegiatan -->
                     <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-kegiatan" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                        <label for="filter-kegiatan" class="form-label trx-filter-label">
                             <i class="bi bi-layers text-muted"></i> Kegiatan
                         </label>
                         <select name="kegiatan_id" id="filter-kegiatan" class="form-select form-select-sm">
@@ -345,7 +348,7 @@ $isFiltered = !empty($activeFilterLabels);
 
                     <!-- Sub Kegiatan -->
                     <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-sub-kegiatan" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                        <label for="filter-sub-kegiatan" class="form-label trx-filter-label">
                             <i class="bi bi-diagram-3 text-muted"></i> Sub Kegiatan
                         </label>
                         <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select form-select-sm">
@@ -362,7 +365,7 @@ $isFiltered = !empty($activeFilterLabels);
 
                     <!-- Status (Sejajar rapi bersama filter lainnya) -->
                     <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-status" class="form-label text-xs fw-bold text-secondary text-uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1">
+                        <label for="filter-status" class="form-label trx-filter-label">
                             <i class="bi bi-shield-check text-muted"></i> Status
                         </label>
                         <select name="status" id="filter-status" class="form-select form-select-sm">
@@ -375,34 +378,34 @@ $isFiltered = !empty($activeFilterLabels);
                 </div>
 
                 <!-- Baris 2: Informasi Filter Aktif & Tombol Aksi -->
-                <div class="pt-3 mt-3 border-top d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                <div class="trx-filter-foot d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
                     <!-- Status Filter Aktif -->
-                    <div class="d-flex flex-wrap align-items-center gap-1.5">
+                    <div class="d-flex flex-wrap align-items-center gap-1">
                         <?php if ($isFiltered): ?>
-                            <span class="text-xs text-secondary fw-semibold me-1"><i class="bi bi-funnel me-1"></i>Filter aktif:</span>
+                            <span class="trx-active-hint fw-semibold me-1"><i class="bi bi-funnel me-1"></i>Filter aktif:</span>
                             <?php foreach ($activeFilterLabels as $flabel): ?>
-                                <span class="badge bg-light text-dark border px-2 py-1 small rounded-pill fw-normal">
+                                <span class="trx-active-chip">
                                     <?= htmlspecialchars($flabel) ?>
                                 </span>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <span class="text-xs text-muted">
+                            <span class="trx-active-hint">
                                 <i class="bi bi-info-circle me-1"></i>Menampilkan seluruh riwayat transaksi tanpa filter khusus
                             </span>
                         <?php endif; ?>
                     </div>
 
-                    <!-- Tombol Aksi di Ujung Kanan Konsisten -->
+                    <!-- Tombol Aksi: hierarki primary > secondary > tertiary -->
                     <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto justify-content-md-end">
-                        <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter Bulan &amp; Tahun aktif">
-                            <i class="bi bi-file-earmark-excel"></i>
-                            <span>Unduh BKU</span>
-                        </button>
-                        <a href="<?= base_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-3" id="btn-reset">
+                        <a href="<?= base_url('transaksi') ?>" class="btn-reset-tertiary" id="btn-reset">
                             <i class="bi bi-arrow-counterclockwise"></i>
                             <span>Reset</span>
                         </a>
-                        <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 px-3.5 fw-semibold shadow-sm" id="btn-filter">
+                        <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter Bulan &amp; Tahun aktif">
+                            <i class="bi bi-file-earmark-excel"></i>
+                            <span>Unduh BKU</span>
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 px-3 fw-semibold shadow-sm" id="btn-filter">
                             <i class="bi bi-funnel-fill"></i>
                             <span>Terapkan Filter</span>
                         </button>
