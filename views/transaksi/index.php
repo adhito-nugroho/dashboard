@@ -296,11 +296,8 @@ $isFiltered = !empty($activeFilterLabels);
                     </span>
                 <?php endif; ?>
             </div>
-            <button class="trx-filter-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#filterBody" aria-expanded="true" aria-controls="filterBody" title="Tampilkan / sembunyikan panel filter">
-                <i class="bi bi-chevron-down me-1"></i>Filter
-            </button>
         </div>
-        <div class="card-body p-3 collapse show" id="filterBody">
+        <div class="card-body p-3" id="filterBody">
             <form method="GET" action="<?= base_url('transaksi') ?>" id="filterForm">
                 <!-- Baris 1: Kontrol Filter Sejajar -->
                 <div class="row g-2 g-lg-3 align-items-end">

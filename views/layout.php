@@ -58,7 +58,7 @@
             <aside id="sidebar" class="sidebar">
                 <div class="sidebar-header">
                     <h4 class="mb-0">
-                        <i class="bi bi-tree-fill"></i>
+                        <span class="sidebar-brand-seal"><img src="<?= base_url('images/logo_jatim.png') ?>" alt="Logo Jawa Timur"></span>
                         <span class="ms-2" style="font-size:1.1rem; line-height: 1.2;">CDK Wilayah Bojonegoro<br><small
                                 style="font-size:0.7rem; opacity:0.65; font-weight:500; letter-spacing:0.04em;">DISHUT PROV. JATIM · MONITORING ANGGARAN</small></span>
                     </h4>
