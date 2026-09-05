@@ -58,9 +58,9 @@
             <aside id="sidebar" class="sidebar">
                 <div class="sidebar-header">
                     <h4 class="mb-0">
-                        <i class="bi bi-calculator"></i>
+                        <i class="bi bi-tree-fill"></i>
                         <span class="ms-2" style="font-size:1.1rem; line-height: 1.2;">CDK Wilayah Bojonegoro<br><small
-                                style="font-size:0.75rem; opacity:0.8;">Monitoring Anggaran</small></span>
+                                style="font-size:0.7rem; opacity:0.65; font-weight:500; letter-spacing:0.04em;">DISHUT PROV. JATIM · MONITORING ANGGARAN</small></span>
                     </h4>
                     <button class="btn btn-link d-md-none text-white p-0" id="sidebarClose" type="button"
                         aria-label="Tutup menu" style="font-size:1.25rem;opacity:0.7;">
