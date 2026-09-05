@@ -2297,4 +2297,109 @@ body {
     display: flex;
     align-items: center;
     gap: 0.6rem;
+}
+
+/* ============================================
+   Tahap 3 — Tabel Transaksi: baris ringkas,
+   detail expand, drawer aksi, sticky mobile
+   ============================================ */
+/* Tombol expand info anggaran (di sel Uraian) */
+.trx-expand {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    color: var(--gray-500);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-top: 2px;
+}
+.trx-expand:hover { border-color: var(--primary); color: var(--primary); }
+.trx-expand i { transition: transform var(--transition-fast); }
+tr.trx-open .trx-expand {
+    background: var(--primary-50);
+    border-color: var(--primary-100);
+    color: var(--primary);
+}
+tr.trx-open .trx-expand i { transform: rotate(180deg); }
+
+/* Strip detail (info sekunder, hidden sampai expand) */
+tr.trx-extra { display: none; }
+tr.trx-open + tr.trx-extra { display: table-row; }
+tr.trx-extra td {
+    background: var(--gray-50) !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    padding: 0.65rem 0.75rem 0.65rem 2.5rem !important;
+}
+.trx-extra-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.4rem 1.25rem;
+}
+.trx-extra-item > span {
+    display: block;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-400);
+}
+.trx-extra-item > strong {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--gray-700);
+}
+.trx-extra-item > strong code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--fs-sm);
+    color: var(--gray-800);
+}
+
+/* Drawer aksi inline (tanpa overlay → anti-clip di tabel scroll) */
+.btn-action-more {
+    background-color: var(--gray-50);
+    color: var(--gray-500);
+    border: 1px solid var(--gray-200);
+}
+.btn-action-more:hover { background-color: var(--gray-200); color: var(--gray-800); }
+.trx-actions.trx-more-open .btn-action-more {
+    background: var(--primary-50);
+    border-color: var(--primary-100);
+    color: var(--primary);
+}
+.trx-more-pane { display: none; }
+.trx-actions.trx-more-open .trx-more-pane {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+/* Info pagination pakai token */
+.trx-page-info { font-size: var(--fs-sm); color: var(--gray-500); }
+.trx-page-info strong { color: var(--gray-800); }
+
+/* Mobile: scroll horizontal + kolom pertama sticky */
+@media (max-width: 767.98px) {
+    .trx-table-wrap table { min-width: 900px; }
+    .trx-table-wrap .table-trx thead th:first-child,
+    .trx-table-wrap .table-trx tbody tr.trx-row-main td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #fff;
+        box-shadow: 1px 0 0 var(--gray-200);
+    }
+    .trx-table-wrap .table-trx thead th:first-child {
+        background: #f8fafc;
+        z-index: 3;
+    }
+    .trx-table-wrap .table-trx tbody tr.trx-row-main:hover td:first-child {
+        background-color: #f8fafc !important;
+    }
 }

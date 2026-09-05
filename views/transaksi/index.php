@@ -484,7 +484,7 @@ $isFiltered = !empty($activeFilterLabels);
                     <?php endif; ?>
                 </div>
             <?php else: ?>
-                <div class="table-responsive">
+                <div class="table-responsive trx-table-wrap">
                     <table class="table table-trx align-middle mb-0">
                         <thead>
                             <tr>
@@ -509,7 +509,7 @@ $isFiltered = !empty($activeFilterLabels);
                                 $totalNilai += (float) $transaksi['nilai'];
                                 $st = $transaksi['status'] ?? 'diverifikasi';
                             ?>
-                                <tr>
+                                <tr class="trx-row-main">
                                     <!-- Checkbox -->
                                     <td class="text-center align-middle">
                                         <input type="checkbox" class="form-check-input trx-checkbox row-trx-checkbox" value="<?= $transaksi['id'] ?>">
@@ -523,29 +523,25 @@ $isFiltered = !empty($activeFilterLabels);
                                         <span class="fw-medium text-dark"><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></span>
                                     </td>
 
-                                    <!-- Seksi (Dedicated neutral slate badge) -->
+                                    <!-- Seksi (badge kode saja; nama lengkap di strip detail) -->
                                     <td>
                                         <span class="badge-seksi"><?= htmlspecialchars($transaksi['kode_seksi']) ?></span>
-                                        <div class="text-xs text-secondary mt-1 text-truncate" style="max-width: 140px;" title="<?= htmlspecialchars($transaksi['nama_seksi']) ?>">
-                                            <?= htmlspecialchars($transaksi['nama_seksi']) ?>
-                                        </div>
                                     </td>
 
-                                    <!-- Rekening (Monospace accounting code + structured Prog/Keg) -->
+                                    <!-- Rekening (kode saja; hierarki anggaran di strip detail) -->
                                     <td>
                                         <span class="code-rekening"><?= htmlspecialchars($transaksi['kode_rekening']) ?></span>
-                                        <div class="text-xs text-muted mt-1 d-flex align-items-center gap-1 font-monospace">
-                                            <span class="opacity-75">Prog/Keg:</span>
-                                            <span class="text-dark fw-medium text-truncate" style="max-width: 170px;" title="<?= htmlspecialchars($transaksi['kode_program'] . ' / ' . $transaksi['kode_kegiatan']) ?>">
-                                                <?= htmlspecialchars($transaksi['kode_program'] . ' / ' . $transaksi['kode_kegiatan']) ?>
-                                            </span>
-                                        </div>
                                     </td>
 
-                                    <!-- Uraian (Clamped to 2 lines for clean vertical rhythm) -->
+                                    <!-- Uraian + tombol expand info anggaran -->
                                     <td>
-                                        <div class="uraian-clamp" title="<?= htmlspecialchars($transaksi['uraian']) ?>">
-                                            <?= htmlspecialchars($transaksi['uraian']) ?>
+                                        <div class="d-flex align-items-start gap-1">
+                                            <button type="button" class="trx-expand" aria-expanded="false" aria-label="Tampilkan info anggaran" data-bs-toggle="tooltip" title="Info Seksi / Program / Kegiatan">
+                                                <i class="bi bi-chevron-down"></i>
+                                            </button>
+                                            <div class="uraian-clamp" title="<?= htmlspecialchars($transaksi['uraian']) ?>">
+                                                <?= htmlspecialchars($transaksi['uraian']) ?>
+                                            </div>
                                         </div>
                                     </td>
 
@@ -591,9 +587,9 @@ $isFiltered = !empty($activeFilterLabels);
                                         <?php endif; ?>
                                     </td>
 
-                                    <!-- Aksi (Uniform 32px action buttons with tooltips) -->
+                                    <!-- Aksi (primer terlihat; sekunder di drawer titik-tiga) -->
                                     <td class="text-center">
-                                        <div class="d-flex align-items-center justify-content-center gap-1.5">
+                                        <div class="trx-actions d-flex align-items-center justify-content-center gap-1">
                                             <?php if (($transaksi['status'] ?? 'diverifikasi') === 'diajukan'): ?>
                                                 <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" 
                                                    class="btn-action btn-action-detail" 
@@ -608,13 +604,23 @@ $isFiltered = !empty($activeFilterLabels);
                                                         title="Verifikasi Transaksi">
                                                     <i class="bi bi-check-lg"></i>
                                                 </button>
-                                                <button type="button" 
-                                                        class="btn-action btn-action-reject btn-tolak" 
-                                                        data-id="<?= $transaksi['id'] ?>"
+                                                <button type="button"
+                                                        class="btn-action btn-action-more trx-more-btn"
+                                                        aria-expanded="false"
+                                                        aria-label="Aksi lainnya"
                                                         data-bs-toggle="tooltip"
-                                                        title="Tolak Transaksi">
-                                                    <i class="bi bi-x-lg"></i>
+                                                        title="Aksi lainnya">
+                                                    <i class="bi bi-three-dots"></i>
                                                 </button>
+                                                <span class="trx-more-pane">
+                                                    <button type="button" 
+                                                            class="btn-action btn-action-reject btn-tolak" 
+                                                            data-id="<?= $transaksi['id'] ?>"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Tolak Transaksi">
+                                                        <i class="bi bi-x-lg"></i>
+                                                    </button>
+                                                </span>
                                             <?php else: ?>
                                                 <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" 
                                                    class="btn-action btn-action-detail" 
@@ -628,14 +634,51 @@ $isFiltered = !empty($activeFilterLabels);
                                                    title="Edit Transaksi">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
-                                                <a href="<?= base_url('transaksi/delete/' . $transaksi['id']) ?>"
-                                                   class="btn-action btn-action-delete"
-                                                   data-bs-toggle="tooltip"
-                                                   title="Hapus Transaksi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                                    <i class="bi bi-trash"></i>
-                                                </a>
+                                                <button type="button"
+                                                        class="btn-action btn-action-more trx-more-btn"
+                                                        aria-expanded="false"
+                                                        aria-label="Aksi lainnya"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Aksi lainnya">
+                                                    <i class="bi bi-three-dots"></i>
+                                                </button>
+                                                <span class="trx-more-pane">
+                                                    <a href="<?= base_url('transaksi/delete/' . $transaksi['id']) ?>"
+                                                       class="btn-action btn-action-delete"
+                                                       data-bs-toggle="tooltip"
+                                                       title="Hapus Transaksi"
+                                                       onclick="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </a>
+                                                </span>
                                             <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Strip detail info anggaran (expand-on-click) -->
+                                <tr class="trx-extra">
+                                    <td colspan="10">
+                                        <div class="trx-extra-grid">
+                                            <div class="trx-extra-item">
+                                                <span>Seksi</span>
+                                                <strong><?= htmlspecialchars(($transaksi['kode_seksi'] ?? '-') . ' — ' . ($transaksi['nama_seksi'] ?? '-')) ?></strong>
+                                            </div>
+                                            <div class="trx-extra-item">
+                                                <span>Program</span>
+                                                <strong><code><?= htmlspecialchars($transaksi['kode_program'] ?? '-') ?></code> <?= htmlspecialchars($transaksi['nama_program'] ?? '') ?></strong>
+                                            </div>
+                                            <div class="trx-extra-item">
+                                                <span>Kegiatan</span>
+                                                <strong><code><?= htmlspecialchars($transaksi['kode_kegiatan'] ?? '-') ?></code> <?= htmlspecialchars($transaksi['nama_kegiatan'] ?? '') ?></strong>
+                                            </div>
+                                            <div class="trx-extra-item">
+                                                <span>Sub Kegiatan</span>
+                                                <strong><code><?= htmlspecialchars($transaksi['kode_sub_kegiatan'] ?? '-') ?></code> <?= htmlspecialchars($transaksi['nama_sub_kegiatan'] ?? '') ?></strong>
+                                            </div>
+                                            <div class="trx-extra-item">
+                                                <span>Rekening</span>
+                                                <strong><code><?= htmlspecialchars($transaksi['kode_rekening'] ?? '-') ?></code> <?= htmlspecialchars($transaksi['nama_rekening'] ?? '') ?></strong>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -658,7 +701,7 @@ $isFiltered = !empty($activeFilterLabels);
                 <!-- Pagination -->
                 <?php if (!empty($pagination) && $pagination['totalPages'] > 1): ?>
                     <div class="card-footer bg-white border-top py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                        <div class="text-xs text-muted">
+                        <div class="trx-page-info">
                             Menampilkan halaman <strong class="text-dark"><?= $pagination['page'] ?></strong> dari <strong class="text-dark"><?= $pagination['totalPages'] ?></strong> (Total <strong class="text-dark"><?= $pagination['total'] ?></strong> transaksi)
                         </div>
                         <nav>
@@ -887,5 +930,27 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
         });
     }
+});
+</script>
+
+<script>
+// Tahap 3 — toggle strip detail & drawer aksi (class-based, tanpa ID; logic lama tak disentuh)
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.trx-expand').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const row = btn.closest('tr');
+            if (!row) return;
+            const open = row.classList.toggle('trx-open');
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    });
+    document.querySelectorAll('.trx-more-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const box = btn.closest('.trx-actions');
+            if (!box) return;
+            const open = box.classList.toggle('trx-more-open');
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    });
 });
 </script>
