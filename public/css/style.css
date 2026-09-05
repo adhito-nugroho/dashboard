@@ -2402,4 +2402,96 @@ tr.trx-extra td {
     .trx-table-wrap .table-trx tbody tr.trx-row-main:hover td:first-child {
         background-color: #f8fafc !important;
     }
+}
+
+/* ============================================
+   Tahap 4 — Header halaman, bulk toolbar, modal
+   ============================================ */
+.trx-page-title {
+    font-size: var(--fs-xl);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--gray-900);
+    margin: 0;
+    line-height: 1.25;
+}
+.trx-page-sub {
+    font-size: var(--fs-base);
+    color: var(--gray-500);
+    margin: 0;
+}
+.trx-title-chip {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--primary-50);
+    color: var(--primary);
+    border: 1px solid var(--primary-100);
+    font-size: 1.1rem;
+}
+
+/* Bulk toolbar: putih + aksen kiri merah, sticky di bawah header */
+.trx-bulkbar {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--danger);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.85rem;
+    position: sticky;
+    top: calc(var(--header-height) + 10px);
+    z-index: 50;
+}
+.trx-bulkbar:not(.d-none) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.trx-bulkbar-count {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--status-danger-bg);
+    border: 1px solid var(--status-danger-border);
+    color: var(--danger);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+}
+.trx-bulkbar-text { font-size: var(--fs-base); font-weight: 600; color: var(--gray-800); }
+.trx-bulkbar-text strong { color: var(--danger); }
+
+/* Modal transaksi: header & footer konsisten */
+.trx-modal-head {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+.trx-modal-head-danger-soft {
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
+}
+.trx-modal-head-danger-soft .modal-title { font-size: var(--fs-md); font-weight: 700; }
+.trx-modal-head-danger {
+    background: var(--danger);
+    color: #fff;
+}
+.trx-modal-head-danger .modal-title { font-size: var(--fs-md); font-weight: 700; }
+.trx-modal-foot {
+    background: var(--gray-50);
+    padding: 0.6rem 1rem;
+    border-top: 1px solid var(--gray-100);
+}
+.trx-modal-label {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 0.35rem;
 }

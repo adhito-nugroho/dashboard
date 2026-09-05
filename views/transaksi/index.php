@@ -263,22 +263,22 @@ $isFiltered = !empty($activeFilterLabels);
         </div>
     <?php endif; ?>
 
-    <!-- Page Header (Simplified & Balanced) -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+    <!-- Page Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3 border-bottom">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-2" style="width: 34px; height: 34px;">
-                    <i class="bi bi-receipt-cutoff fs-5"></i>
+                <span class="trx-title-chip">
+                    <i class="bi bi-receipt-cutoff"></i>
                 </span>
-                <h1 class="h4 mb-0 fw-bold text-dark tracking-tight">Data Transaksi</h1>
+                <h1 class="trx-page-title">Data Transaksi</h1>
             </div>
-            <p class="text-muted small mb-0 ms-1">
+            <p class="trx-page-sub ms-1">
                 Monitoring riwayat realisasi anggaran, verifikasi pengajuan transaksi seksi, dan pembukuan BKU
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="<?= base_url('transaksi/create') ?>" class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-medium shadow-sm" style="border-radius: 8px;">
-                <i class="bi bi-plus-lg fs-6"></i>
+            <a href="<?= base_url('transaksi/create') ?>" class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-medium shadow-sm">
+                <i class="bi bi-plus-lg"></i>
                 <span>Input Transaksi (Batch)</span>
             </a>
         </div>
@@ -434,12 +434,12 @@ $isFiltered = !empty($activeFilterLabels);
     </script>
 
     <!-- Bulk Action Toolbar -->
-    <div id="bulk-action-bar" class="d-none alert alert-light border border-danger-subtle bg-danger-subtle bg-opacity-10 d-flex align-items-center justify-content-between p-2.5 mb-3 shadow-sm rounded-3">
+    <div id="bulk-action-bar" class="d-none trx-bulkbar">
         <div class="d-flex align-items-center gap-2">
-            <span class="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded p-1" style="width: 26px; height: 26px;">
-                <i class="bi bi-check2-square fs-6"></i>
+            <span class="trx-bulkbar-count">
+                <i class="bi bi-check2-square"></i>
             </span>
-            <span class="fw-semibold text-dark small"><span id="selected-count" class="text-danger fw-bold">0</span> transaksi terpilih</span>
+            <span class="trx-bulkbar-text"><span id="selected-count" class="text-danger fw-bold">0</span> transaksi terpilih</span>
         </div>
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary btn-sm px-3" id="btn-uncheck-all">
@@ -734,19 +734,19 @@ $isFiltered = !empty($activeFilterLabels);
 <div class="modal fade" id="modalTolak" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content border-0 shadow" id="formTolak" method="POST">
-            <div class="modal-header bg-danger-subtle text-danger py-2.5">
-                <h6 class="modal-title fw-bold"><i class="bi bi-x-circle me-2"></i>Tolak Transaksi</h6>
+            <div class="modal-header trx-modal-head trx-modal-head-danger-soft">
+                <h6 class="modal-title"><i class="bi bi-x-circle me-2"></i>Tolak Transaksi</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-3">
                 <div class="mb-2">
-                    <label for="catatanVerifikasi" class="form-label small fw-semibold text-secondary">
+                    <label for="catatanVerifikasi" class="form-label trx-modal-label">
                         Catatan Penolakan <span class="text-danger">*</span>
                     </label>
                     <textarea name="catatan_verifikasi" id="catatanVerifikasi" class="form-control" rows="3" placeholder="Sebutkan alasan penolakan untuk diperbaiki oleh seksi pengaju..." required></textarea>
                 </div>
             </div>
-            <div class="modal-footer bg-light py-2">
+            <div class="modal-footer trx-modal-foot">
                 <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
                 <button type="submit" class="btn btn-sm btn-danger px-3 fw-medium">Tolak Transaksi</button>
             </div>
@@ -759,8 +759,8 @@ $isFiltered = !empty($activeFilterLabels);
     <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content border-0 shadow" id="formBulkDelete" method="POST" action="<?= base_url('transaksi/delete-batch') ?>">
             <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? base_url('transaksi')) ?>">
-            <div class="modal-header bg-danger text-white py-2.5">
-                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Banyak Transaksi</h6>
+            <div class="modal-header trx-modal-head trx-modal-head-danger">
+                <h6 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Banyak Transaksi</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-3">
@@ -771,7 +771,7 @@ $isFiltered = !empty($activeFilterLabels);
                 </div>
                 <div id="bulk-delete-inputs"></div>
             </div>
-            <div class="modal-footer bg-light py-2">
+            <div class="modal-footer trx-modal-foot">
                 <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
                 <button type="submit" class="btn btn-sm btn-danger px-3 fw-medium">
                     <i class="bi bi-trash me-1"></i> Ya, Hapus Sekarang
