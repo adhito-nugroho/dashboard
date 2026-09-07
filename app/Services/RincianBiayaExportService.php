@@ -215,14 +215,7 @@ class RincianBiayaExportService
         $sheet->getStyle('C' . $rowTerbilang)->getFont()->setItalic(true);
         $sheet->getStyle('C' . $rowTerbilang)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $sheet->getRowDimension($rowTerbilang)->setRowHeight(20);
-
-        $sheet->getStyle('A' . $rowTerbilang . ':F' . $rowTerbilang)->applyFromArray([
-            'borders' => [
-                'bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-            ]
-        ]);
-        $sheet->getStyle('A' . $rowTerbilang)->applyFromArray(['borders' => ['left' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
-        $sheet->getStyle('F' . $rowTerbilang)->applyFromArray(['borders' => ['right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
+        // Tanpa border (kiri/kanan/bawah) mengikuti form resmi.
 
         // ── 7. TANDA TANGAN TENGAH (Bendahara & Yang Menerima) ───────────────
         $bendaharaNama = $_ENV['BENDAHARA_NAMA'] ?? 'ADHITO NUGROHO, S.Kom.';
@@ -288,16 +281,10 @@ class RincianBiayaExportService
         $sheet->setCellValue('D' . $r, 'NIP. ' . $nipPenerimaFmt);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Garis pemisah horizontal penuh antara bagian tengah dan SPPD Rampung
+        // Spasi antar bagian (tanpa garis mengikuti form resmi)
         $r++;
         $sheet->getRowDimension($r)->setRowHeight(8);
-        $sheet->getStyle('A' . $r . ':F' . $r)->applyFromArray([
-            'borders' => [
-                'bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-            ]
-        ]);
-        $sheet->getStyle('A' . $r)->applyFromArray(['borders' => ['left' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
-        $sheet->getStyle('F' . $r)->applyFromArray(['borders' => ['right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
+        $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // ── 8. PERHITUNGAN SPPD RAMPUNG ─────────────────────────────────────
         $ditetapkan = (float) ($header['ditetapkan_sejumlah'] ?? $totalBiaya);
@@ -404,16 +391,10 @@ class RincianBiayaExportService
         $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Garis penutup bawah kotak
+        // Baris akhir (tanpa garis penutup mengikuti form resmi)
         $r++;
         $sheet->getRowDimension($r)->setRowHeight(6);
-        $sheet->getStyle('A' . $r . ':F' . $r)->applyFromArray([
-            'borders' => [
-                'bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-            ]
-        ]);
-        $sheet->getStyle('A' . $r)->applyFromArray(['borders' => ['left' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
-        $sheet->getStyle('F' . $r)->applyFromArray(['borders' => ['right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
+        $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         return $spreadsheet;
     }
@@ -441,16 +422,14 @@ class RincianBiayaExportService
     }
 
     /**
-     * Berikan border samping (kiri A dan kanan F) pada baris section berbingkai.
+     * Dulu: border samping (kiri A dan kanan F) pembingkai section bawah.
+     * Kini no-op: form resmi tanpa border kiri/kanan/bawah (lihat gambar acuan).
+     * Dibiarkan sebagai pemanggil agar diff kecil; suatu saat boleh dihapus
+     * beserta seluruh pemanggilnya.
      */
     private function applyOuterBoxVerticalBorders(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row): void
     {
-        $sheet->getStyle('A' . $row)->applyFromArray([
-            'borders' => ['left' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
-        ]);
-        $sheet->getStyle('F' . $row)->applyFromArray([
-            'borders' => ['right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
-        ]);
+        unset($sheet, $row);
     }
 
     /**
