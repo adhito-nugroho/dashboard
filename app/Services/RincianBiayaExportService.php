@@ -471,12 +471,14 @@ class RincianBiayaExportService
     }
 
     /**
-     * Nomor SPT lengkap untuk "Lampiran SPT Nomor".
-     * Sumber otoritatif: db_surat_tugas.surat_tugas.nomor_surat (format lengkap
-     * "800.1.11.1/ 2774 /123.6.6/2026"); cache lokal (header/transaksi) kadang
-     * hanya berisi nomor pendek ("2636"). Dipilih kandidat non-kosong TERPANJANG
-     * agar tidak pernah downgrade lengkap -> pendek. Read-only + null-safe:
-     * jika db_surat_tugas tidak terjangkau, pakai cache lokal apa adanya.
+     * Nomor SPT lengkap untuk "Lampiran SPT Nomor" (format "800.1.11.1/ 2636 /123.6.6/2026").
+     * 1. Kumpulkan kandidat: master db_surat_tugas.surat_tugas.nomor_surat,
+     *    cache header, cache transaksi — pilih yang TERPANJANG (tidak pernah
+     *    downgrade lengkap -> pendek).
+     * 2. Jika pemenang masih nomor pendek ("2636", tanpa '/'), SUSUN nomor
+     *    lengkap: {PREFIX}/ {pendek} /{SUFFIX}/{tahun surat}. Prefix/suffix
+     *    bisa dioverride via ENV (SPT_NOMOR_PREFIX, SPT_NOMOR_SUFFIX).
+     * Read-only + null-safe: jika db_surat_tugas tak terjangkau, pakai cache lokal.
      */
     private function resolveNomorSurat(array $header, array $transaksi): string
     {
@@ -515,7 +517,19 @@ class RincianBiayaExportService
                 $best = $c;
             }
         }
-        return $best !== '' ? $best : '-';
+        if ($best === '') {
+            return '-';
+        }
+        // Sudah lengkap (mengandung '/') -> pakai apa adanya.
+        if (strpos($best, '/') !== false) {
+            return $best;
+        }
+        // Nomor pendek -> susun format lengkap.
+        $prefix = trim((string) ($_ENV['SPT_NOMOR_PREFIX'] ?? getenv('SPT_NOMOR_PREFIX') ?: '800.1.11.1'));
+        $suffix = trim((string) ($_ENV['SPT_NOMOR_SUFFIX'] ?? getenv('SPT_NOMOR_SUFFIX') ?: '123.6.6'));
+        $tglRaw = $transaksi['tanggal_surat_tugas'] ?? ($header['tanggal_surat'] ?? ($transaksi['tanggal'] ?? ''));
+        $tahun = ($t = strtotime((string) $tglRaw)) !== false ? date('Y', $t) : date('Y');
+        return $prefix . '/ ' . $best . ' /' . $suffix . '/' . $tahun;
     }
 
     /**
