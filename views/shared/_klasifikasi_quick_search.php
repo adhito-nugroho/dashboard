@@ -58,7 +58,11 @@ $qsTitle    = $qsTitle ?? 'Cari Sub Kegiatan / Rekening';
 </div>
 <script>
 (function () {
-    const root = document.currentScript.previousElementSibling;
+    // Tangkap script tag saat parsing (dropdown di bawah belum ada di DOM),
+    // inisialisasi aktual ditunda sampai DOMContentLoaded.
+    const thisScript = document.currentScript;
+    function init() {
+    const root = thisScript ? thisScript.previousElementSibling : null;
     if (!root || !root.classList.contains('qs-klasifikasi')) return;
     const endpoint = root.dataset.endpoint;
     const sel = {
@@ -231,5 +235,11 @@ $qsTitle    = $qsTitle ?? 'Cari Sub Kegiatan / Rekening';
         sel.program.dispatchEvent(new Event('change'));
         sel.program.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
+    } // end init
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
 </script>
