@@ -282,6 +282,16 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 </div>
                 <div class="form-section-body">
                     <div class="row g-3">
+                        <div class="col-12">
+                            <?php
+                            $qsEndpoint = base_url('seksi/transaksi/cari-klasifikasi');
+                            $qsProgram = 'program_id';
+                            $qsKegiatan = 'kegiatan_id';
+                            $qsSub = 'sub_kegiatan_id';
+                            $qsRekening = 'rekening_id';
+                            include __DIR__ . '/../shared/_klasifikasi_quick_search.php';
+                            ?>
+                        </div>
                         <!-- Program -->
                         <div class="col-12">
                             <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">

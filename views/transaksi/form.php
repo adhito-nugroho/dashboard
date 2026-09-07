@@ -58,6 +58,10 @@ $batchData = $batchData ?? null;
 
                         <!-- Program -->
                         <div class="mb-3">
+                            <?php
+                            $qsEndpoint = base_url('transaksi/cari-klasifikasi');
+                            include __DIR__ . '/../shared/_klasifikasi_quick_search.php';
+                            ?>
                             <label for="program_id" class="form-label">
                                 Program <span class="text-danger">*</span>
                             </label>
@@ -240,6 +244,14 @@ $batchData = $batchData ?? null;
                                         <?php endif; ?>
                                     </div>
                                     <div class="col-12">
+                                        <?php
+                                        $qsEndpoint = base_url('transaksi/cari-klasifikasi');
+                                        $qsProgram = 'batch_program_id';
+                                        $qsKegiatan = 'batch_kegiatan_id';
+                                        $qsSub = 'batch_sub_kegiatan_id';
+                                        $qsRekening = 'batch_rekening_id';
+                                        include __DIR__ . '/../shared/_klasifikasi_quick_search.php';
+                                        ?>
                                         <label for="batch_program_id" class="form-label batch-field-label">Program <span class="text-danger">*</span></label>
                                         <div class="batch-select-wrap">
                                             <select class="form-select" id="batch_program_id" name="program_id" required>

@@ -807,6 +807,27 @@ class SeksiTransaksiController
     }
 
     /**
+     * AJAX: Pencarian cepat hierarki klasifikasi milik seksi user (shortcut form).
+     * GET ?q=...&mode=sub|rekening — hasil dibatasi seksi_id user.
+     */
+    public function cariKlasifikasi(): void
+    {
+        $this->requireSeksi();
+        header('Content-Type: application/json');
+        try {
+            require_once __DIR__ . '/../Models/SubKegiatan.php';
+            $model = new \App\Models\SubKegiatan(\Database::getConnection());
+            $q = trim((string) ($_GET['q'] ?? ''));
+            $mode = ($_GET['mode'] ?? 'sub') === 'rekening' ? 'rekening' : 'sub';
+            echo json_encode($model->searchHierarchy($this->userSeksiId(), $q, $mode));
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
      * AJAX: Generate nomor bukti otomatis dengan format 123.6.6/GU/nomor_urut/BULAN_ROMAWI/TAHUN
      */
     public function generateNomorBukti(): void

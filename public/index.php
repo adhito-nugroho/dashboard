@@ -479,6 +479,8 @@ try {
         $transaksiController->generateNomorBukti();
     } elseif ($path === '/transaksi/get-rekenings-with-budget' && $requestMethod === 'GET') {
         $transaksiController->getRekeningsWithBudget();
+    } elseif ($path === '/transaksi/cari-klasifikasi' && $requestMethod === 'GET') {
+        $transaksiController->cariKlasifikasi();
     } elseif ($path === '/transaksi/bku-cdk' && $requestMethod === 'GET') {
         $transaksiController->downloadBkuCdk();
     }
@@ -544,6 +546,8 @@ try {
         $seksiTransaksiController->generateNomorBukti();
     } elseif ($path === '/seksi/transaksi/search-st' && $requestMethod === 'GET') {
         $seksiTransaksiController->searchSuratTugas();
+    } elseif ($path === '/seksi/transaksi/cari-klasifikasi' && $requestMethod === 'GET') {
+        $seksiTransaksiController->cariKlasifikasi();
     } elseif ($path === '/seksi/transaksi/pegawai-st' && $requestMethod === 'GET') {
         $seksiTransaksiController->getPegawaiSuratTugas();
     } elseif ($path === '/seksi/transaksi/bku' && $requestMethod === 'GET') {

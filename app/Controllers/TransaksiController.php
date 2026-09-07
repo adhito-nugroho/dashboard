@@ -767,6 +767,24 @@ class TransaksiController
     }
 
     /**
+     * AJAX: Pencarian cepat hierarki klasifikasi (shortcut form transaksi).
+     * GET ?q=...&mode=sub|rekening — global (admin). Prepared statement di model.
+     */
+    public function cariKlasifikasi(): void
+    {
+        header('Content-Type: application/json');
+        try {
+            $q = trim((string) ($_GET['q'] ?? ''));
+            $mode = ($_GET['mode'] ?? 'sub') === 'rekening' ? 'rekening' : 'sub';
+            echo json_encode($this->subKegiatanModel->searchHierarchy(null, $q, $mode));
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
      * Validate form data
      * 
      * @param array $data

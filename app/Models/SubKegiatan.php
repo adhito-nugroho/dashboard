@@ -116,13 +116,79 @@ class SubKegiatan {
     }
     
     /**
-     * Update sub-activity
+     * Pencarian cepat hierarki klasifikasi untuk shortcut form transaksi.
+     * $mode 'sub': match nama/kode sub_kegiatan (satu baris per sub).
+     * $mode 'rekening': match nama/kode rekening (satu baris per rekening).
+     * $seksiId null = global (admin); diisi = hanya milik seksi itu.
+     * Selalu prepared statement; wildcard LIKE di-escape.
+     *
+     * @return array Baris berisi id + kode & nama program/kegiatan/sub (+rekening bila mode rekening)
+     */
+    public function searchHierarchy(?int $seksiId, string $q, string $mode = 'sub', int $limit = 20): array {
+        try {
+            $q = trim(mb_substr($q, 0, 100));
+            if (mb_strlen($q) < 3) {
+                return [];
+            }
+            $mode = $mode === 'rekening' ? 'rekening' : 'sub';
+            $limit = max(1, min(50, $limit));
+            // Escape wildcard LIKE agar keyword cari literal
+            $like = '%' . addcslashes($q, '\\%_') . '%';
+
+            $seksiFilter = $seksiId !== null ? 'AND sk.seksi_id = :seksi_id' : '';
+
+            if ($mode === 'rekening') {
+                $stmt = $this->db->prepare("
+                    SELECT r.id AS rekening_id, r.kode_rekening, r.nama_rekening,
+                           sk.id AS sub_kegiatan_id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                           k.id AS kegiatan_id, k.kode_kegiatan, k.nama_kegiatan,
+                           p.id AS program_id, p.kode_program, p.nama_program
+                    FROM rekening r
+                    INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                    INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                    INNER JOIN program p ON k.program_id = p.id
+                    WHERE (r.nama_rekening LIKE :kw_nama ESCAPE '\\\\'
+                        OR r.kode_rekening LIKE :kw_kode ESCAPE '\\\\')
+                        {$seksiFilter}
+                    ORDER BY r.kode_rekening ASC
+                    LIMIT {$limit}
+                ");
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT sk.id AS sub_kegiatan_id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                           k.id AS kegiatan_id, k.kode_kegiatan, k.nama_kegiatan,
+                           p.id AS program_id, p.kode_program, p.nama_program
+                    FROM sub_kegiatan sk
+                    INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                    INNER JOIN program p ON k.program_id = p.id
+                    WHERE (sk.nama_sub_kegiatan LIKE :kw_nama ESCAPE '\\\\'
+                        OR sk.kode_sub_kegiatan LIKE :kw_kode ESCAPE '\\\\')
+                        {$seksiFilter}
+                    ORDER BY sk.kode_sub_kegiatan ASC
+                    LIMIT {$limit}
+                ");
+            }
+            $stmt->bindParam(':kw_nama', $like, PDO::PARAM_STR);
+            $stmt->bindParam(':kw_kode', $like, PDO::PARAM_STR);
+            if ($seksiId !== null) {
+                $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error searching hierarchy: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to search hierarchy');
+        }
+    }
+
+    /**
+     * Create new sub-activity
      * 
-     * @param int $id
      * @param int $kegiatanId
+     * @param int $seksiId
      * @param string $kodeSubKegiatan
      * @param string $namaSubKegiatan
-     * @return bool
+     * @return int Inserted ID
      */
     public function update(int $id, int $kegiatanId, int $seksiId, string $kodeSubKegiatan, string $namaSubKegiatan): bool {
         try {
