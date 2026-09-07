@@ -27,38 +27,38 @@ return [
     // Diukur dari scan NCR asli (215x165mm).
     'no_bku' => [
         'x_mm' => 161, 'y_mm' => 14, 'w_mm' => 45, 'h_mm' => 6,
-        'font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'L',
         'label' => 'No. BKU/HAL',
     ],
     'no_program' => [
         'x_mm' => 161, 'y_mm' => 22, 'w_mm' => 27, 'h_mm' => 6,
-        'font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'L',
         'label' => 'No. Program/Kegiatan',
     ],
     'no_kegiatan' => [
         'x_mm' => 190, 'y_mm' => 22, 'w_mm' => 14, 'h_mm' => 6,
-        'font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'L',
         'label' => 'No. Kegiatan',
     ],
 
     // "Terima dari" (pre-printed "KEPALA DINAS..."; value default kosong)
     'terima_dari' => [
         'x_mm' => 47, 'y_mm' => 43, 'w_mm' => 158, 'h_mm' => 6,
-        'font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'L',
         'label' => 'Terima dari',
     ],
 
     // "Jumlah: <terbilang> Rupiah" — di dalam box miring pertama
     'jumlah_terbilang' => [
         'x_mm' => 48, 'y_mm' => 49, 'w_mm' => 155, 'h_mm' => 6,
-        'font' => 'Times', 'style' => 'I', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => 'I', 'size' => 10, 'align' => 'L',
         'label' => 'Jumlah (terbilang)',
     ],
 
     // "Untuk Pembayaran:" — area kosong di bawah label sampai garis pemisah
     'uraian' => [
         'x_mm' => 37, 'y_mm' => 72, 'w_mm' => 170, 'h_mm' => 6,
-        'font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'L',
         'line_h_mm' => 6,
         'label' => 'Untuk Pembayaran (uraian)',
     ],
@@ -66,14 +66,14 @@ return [
     // Box angka "Terbilang Rp." — di KIRI bawah (bukan kanan)
     'terbilang_rp' => [
         'x_mm' => 45, 'y_mm' => 96, 'w_mm' => 65, 'h_mm' => 7,
-        'font' => 'Times', 'style' => 'B', 'size' => 12, 'align' => 'R',
+        'font' => 'Times', 'style' => 'B', 'size' => 11, 'align' => 'R',
         'label' => 'Terbilang Rp (angka)',
     ],
 
     // "Bojonegoro, ..." — di atas garis titik-titik kanan
     'tempat_tanggal' => [
         'x_mm' => 125, 'y_mm' => 114, 'w_mm' => 78, 'h_mm' => 6,
-        'font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L',
+        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'L',
         'label' => 'Tempat & tanggal',
     ],
 
@@ -81,19 +81,19 @@ return [
     // nama tepat di garis titik-titik y=150, NIP di bawahnya y=156.
     'ttd1' => [ // Setuju dibayar / Kuasa Pengguna Anggaran
         'x_mm' => 47, 'y_mm' => 122, 'w_mm' => 60,
-        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'C',
+        'font' => 'Times', 'style' => '', 'size' => 9, 'align' => 'C',
         'jabatan' => "Setuju dibayar\nKuasa Pengguna Anggaran",
         'label' => 'TTD 1 (KPA)',
     ],
     'ttd2' => [ // Lunas dibayar / Bendahara Pengeluaran Pembantu
         'x_mm' => 107, 'y_mm' => 122, 'w_mm' => 60,
-        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'C',
+        'font' => 'Times', 'style' => '', 'size' => 9, 'align' => 'C',
         'jabatan' => "Lunas dibayar, Tgl. .....\nBendahara Pengeluaran Pembantu",
         'label' => 'TTD 2 (Bendahara)',
     ],
     'ttd3' => [ // Yang menerima
         'x_mm' => 168, 'y_mm' => 122, 'w_mm' => 40,
-        'font' => 'Times', 'style' => '', 'size' => 10, 'align' => 'C',
+        'font' => 'Times', 'style' => '', 'size' => 9, 'align' => 'C',
         'jabatan' => "Yang menerima",
         'label' => 'TTD 3 (Penerima)',
     ],

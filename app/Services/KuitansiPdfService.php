@@ -91,7 +91,11 @@ class KuitansiPdfService
     {
         $w = (float) ($this->koordinat['page']['width_mm'] ?? 215);
         $h = (float) ($this->koordinat['page']['height_mm'] ?? 165);
-        $pdf = new \FPDF('L', 'mm', [$w, $h]);
+        // PERHATIAN: FPDF menukar size[0]/size[1] untuk orientasi 'L'
+        // (w = size[1], h = size[0]), jadi oper [h, w] agar MediaBox = 215x165.
+        // Pernah terbalik ([w, h] -> box 165x215 + isi meluber) sehingga
+        // printer me-scale/rotate sendiri: huruf jadi raksasa & posisi kacau.
+        $pdf = new \FPDF('L', 'mm', [$h, $w]);
         $pdf->SetMargins(0, 0, 0);
         $pdf->SetAutoPageBreak(false, 0);
         $pdf->AddPage();
@@ -130,7 +134,7 @@ class KuitansiPdfService
     {
         $p = $this->pos[$key] ?? ['x_mm' => 0, 'y_mm' => 0];
         $w = $this->widthOf($key);
-        $pdf->SetFont('Times', $style, 10);
+        $pdf->SetFont('Times', $style, 9);
         $pdf->SetXY((float) $p['x_mm'], (float) $p['y_mm']);
         if ($style === '' && str_contains($text, "\n")) {
             $pdf->MultiCell($w, 5, kuitansi_pdf_text($text), 0, 'C');
