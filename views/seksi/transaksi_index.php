@@ -357,9 +357,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             $noBukti = $t['nomor_bukti'] ?? '-';
                             $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
 
-                            // Teks copy uraian transaksi
-                            $copyText = trim((string)$uraianFull);
-
                             // Cek apakah transaksi ini berbagi Nomor ST yang sama (>= 2 transaksi)
                             $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
                             $isNewStGroup = ($isSharedSt && $noST !== $prevSt);
@@ -419,20 +416,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             </td>
                             <td class="text-center pe-3">
                                 <div class="d-inline-flex align-items-center justify-content-center gap-1">
-                                    <button type="button"
-                                            x-data="{ copied: false }"
-                                            class="btn btn-outline-secondary btn-action-icon"
-                                            :class="{ 'border-success text-success bg-success-subtle': copied }"
-                                            @click="
-                                                copyTextToClipboard(<?= htmlspecialchars(json_encode($copyText), ENT_QUOTES, 'UTF-8') ?>).then(() => {
-                                                    copied = true;
-                                                    setTimeout(() => { copied = false; }, 1500);
-                                                })
-                                            "
-                                            :title="copied ? 'Uraian tersalin!' : 'Salin uraian'">
-                                        <i :class="copied ? 'bi bi-check-lg text-success' : 'bi bi-clipboard'"></i>
-                                    </button>
-
                                     <?php if ($bolehEdit): ?>
                                         <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
                                            class="btn btn-outline-primary btn-action-icon"
@@ -468,7 +451,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                        target="_blank" rel="noopener"
                                        class="btn btn-outline-success btn-action-icon"
                                        title="Cetak Kuitansi (PDF 215x165mm)">
-                                        <i class="bi bi-download"></i>
+                                        <i class="bi bi-printer"></i>
                                     </a>
                                 </div>
                             </td>
@@ -495,9 +478,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         $jenisInfo2 = $jenisMap2[$jv] ?? null;
                         $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
                         $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
-
-                        // Teks copy uraian transaksi (mobile)
-                        $mCopyText = trim((string)($t['uraian'] ?? ''));
                     ?>
                     <div class="mobile-tx-card" style="<?= $isSharedSt ? 'border-left: 4px solid #6366f1;' : '' ?>">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -528,19 +508,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <?php if($status==='ditolak' && !empty($t['catatan_verifikasi'])): ?>
                         <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>"><i class="bi bi-info-circle me-1"></i>Alasan Ditolak</button>
                         <?php endif; ?>
-                        <div class="d-flex gap-2 mt-3 align-items-center" x-data="{ copied: false }">
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-secondary flex-shrink-0"
-                                    :class="{ 'border-success text-success bg-success-subtle': copied }"
-                                    @click="
-                                        copyTextToClipboard(<?= htmlspecialchars(json_encode($mCopyText), ENT_QUOTES, 'UTF-8') ?>).then(() => {
-                                            copied = true;
-                                            setTimeout(() => { copied = false; }, 1500);
-                                        })
-                                    "
-                                    :title="copied ? 'Uraian tersalin!' : 'Salin uraian'">
-                                <i :class="copied ? 'bi bi-check-lg text-success me-1' : 'bi bi-clipboard me-1'"></i><span x-text="copied ? 'Tersalin' : 'Salin'">Salin</span>
-                            </button>
+                        <div class="d-flex gap-2 mt-3 align-items-center">
                             <?php if($bolehEdit): ?>
                                 <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill"><i class="bi bi-pencil me-1"></i>Edit</a>
                                 <form method="POST" action="<?= base_url('seksi/transaksi/delete/'.$t['id']) ?>" class="flex-fill" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
@@ -560,7 +528,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                target="_blank" rel="noopener"
                                class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
                                title="Cetak Kuitansi (PDF 215x165mm)">
-                                <i class="bi bi-download me-1"></i>Kuitansi
+                                <i class="bi bi-printer me-1"></i>Kuitansi
                             </a>
                         </div>
                     </div>
@@ -627,36 +595,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
 <?php endif; endforeach; ?>
 
 <script>
-function copyTextToClipboard(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-        return navigator.clipboard.writeText(text);
-    } else {
-        return new Promise(function(resolve, reject) {
-            var textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-9999px';
-            textArea.style.top = '-9999px';
-            textArea.style.opacity = '0';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                var successful = document.execCommand('copy');
-                document.body.removeChild(textArea);
-                if (successful) {
-                    resolve();
-                } else {
-                    reject(new Error('Copy failed'));
-                }
-            } catch (err) {
-                document.body.removeChild(textArea);
-                reject(err);
-            }
-        });
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function(){
     // Search UX - Enter, clear x, debounce 350ms
     const form = document.getElementById('filterForm');

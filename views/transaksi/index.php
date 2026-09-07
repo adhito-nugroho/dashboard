@@ -223,12 +223,12 @@ $isFiltered = !empty($activeFilterLabels);
     color: #ffffff;
     border-color: #dc2626;
 }
-.btn-action-download {
+.btn-action-print {
     background-color: #ecfdf5;
     color: #047857;
     border: 1px solid #a7f3d0;
 }
-.btn-action-download:hover {
+.btn-action-print:hover {
     background-color: #059669;
     color: #ffffff;
     border-color: #059669;
@@ -632,10 +632,10 @@ $isFiltered = !empty($activeFilterLabels);
                                                     </button>
                                                     <a href="<?= base_url('kuitansi/cetak/' . $transaksi['id']) ?>"
                                                        target="_blank" rel="noopener"
-                                                       class="btn-action btn-action-download"
+                                                       class="btn-action btn-action-print"
                                                        data-bs-toggle="tooltip"
                                                        title="Cetak Kuitansi (PDF 215x165mm)">
-                                                        <i class="bi bi-download"></i>
+                                                        <i class="bi bi-printer"></i>
                                                     </a>
                                                 </span>
                                             <?php else: ?>
@@ -653,10 +653,10 @@ $isFiltered = !empty($activeFilterLabels);
                                                 </a>
                                                 <a href="<?= base_url('kuitansi/cetak/' . $transaksi['id']) ?>"
                                                    target="_blank" rel="noopener"
-                                                   class="btn-action btn-action-download"
+                                                   class="btn-action btn-action-print"
                                                    data-bs-toggle="tooltip"
                                                    title="Cetak Kuitansi (PDF 215x165mm)">
-                                                    <i class="bi bi-download"></i>
+                                                    <i class="bi bi-printer"></i>
                                                 </a>
                                                 <button type="button"
                                                         class="btn-action btn-action-more trx-more-btn"
