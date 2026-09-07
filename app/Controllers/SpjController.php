@@ -547,7 +547,7 @@ class SpjController
             ['nama_komponen' => 'Uang Harian',  'harga_satuan' => 0, 'jumlah_hari' => 1, 'jumlah' => 0, 'keterangan' => ''],
             ['nama_komponen' => 'BBM',           'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
             ['nama_komponen' => 'Tol',           'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-            ['nama_komponen' => 'Hotel',         'harga_satuan' => 0, 'jumlah_hari' => 1, 'jumlah' => 0, 'keterangan' => ''],
+            ['nama_komponen' => 'Hotel',         'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
         ];
     }
 

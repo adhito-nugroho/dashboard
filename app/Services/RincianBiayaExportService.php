@@ -203,11 +203,12 @@ class RincianBiayaExportService
         $terbilangText = $this->terbilang($totalBiaya) . ' Rupiah';
 
         $sheet->setCellValue('A' . $rowTerbilang, 'Terbilang');
-        $sheet->mergeCells('B' . $rowTerbilang . ':F' . $rowTerbilang);
-        $sheet->setCellValue('B' . $rowTerbilang, $terbilangText);
+        $sheet->mergeCells('A' . $rowTerbilang . ':B' . $rowTerbilang);
+        $sheet->mergeCells('C' . $rowTerbilang . ':F' . $rowTerbilang);
+        $sheet->setCellValue('C' . $rowTerbilang, $terbilangText);
 
-        $sheet->getStyle('B' . $rowTerbilang)->getFont()->setItalic(true);
-        $sheet->getStyle('B' . $rowTerbilang)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle('C' . $rowTerbilang)->getFont()->setItalic(true);
+        $sheet->getStyle('C' . $rowTerbilang)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $sheet->getRowDimension($rowTerbilang)->setRowHeight(20);
 
         $sheet->getStyle('A' . $rowTerbilang . ':F' . $rowTerbilang)->applyFromArray([
@@ -249,9 +250,9 @@ class RincianBiayaExportService
         $sheet->getStyle('B' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
         $sheet->setCellValue('D' . $r, 'Rp');
-        $sheet->setCellValue('F' . $r, $totalBiaya);
-        $sheet->getStyle('F' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('F' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->setCellValue('E' . $r, $totalBiaya);
+        $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // Jabatan Penandatangan

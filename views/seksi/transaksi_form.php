@@ -1491,7 +1491,7 @@ const DEFAULT_KOMPONEN = [
     { nama: 'Uang Harian', hari: '1' },
     { nama: 'BBM',         hari: '' },
     { nama: 'Tol',         hari: '' },
-    { nama: 'Hotel',       hari: '1' },
+    { nama: 'Hotel',       hari: '' },
 ];
 
 function buildDefaultKomponenRows(itemIdx) {
