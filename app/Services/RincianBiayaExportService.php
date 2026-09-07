@@ -267,25 +267,30 @@ class RincianBiayaExportService
         $sheet->getRowDimension($r)->setRowHeight(18);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Nama Penandatangan — garis penuh selebar kolom (seperti form resmi),
-        // bukan underline teks. Sel digabung karena kolom A sempit.
+        // Nama Penandatangan (Underline)
         $r++;
-        $sheet->mergeCells('A' . $r . ':C' . $r);
         $sheet->setCellValue('A' . $r, $bendaharaNama);
-        $sheet->mergeCells('D' . $r . ':F' . $r);
+        $sheet->getStyle('A' . $r)->getFont()->setUnderline(true);
         $sheet->setCellValue('D' . $r, $pegawaiNama);
-        $sheet->getStyle('A' . $r . ':C' . $r)->applyFromArray([
-            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
-        ]);
-        $sheet->getStyle('D' . $r . ':F' . $r)->applyFromArray([
-            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
-        ]);
+        $sheet->getStyle('D' . $r)->getFont()->setUnderline(true);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // NIP
         $r++;
         $sheet->setCellValue('A' . $r, 'NIP. ' . $this->formatNip($bendaharaNip));
         $sheet->setCellValue('D' . $r, 'NIP. ' . $nipPenerimaFmt);
+        $this->applyOuterBoxVerticalBorders($sheet, $r);
+
+        // Baris garis tangan di bawah NIP (satu baris kosong bergaris penuh)
+        $r++;
+        $sheet->mergeCells('A' . $r . ':C' . $r);
+        $sheet->mergeCells('D' . $r . ':F' . $r);
+        $sheet->getStyle('A' . $r . ':C' . $r)->applyFromArray([
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+        ]);
+        $sheet->getStyle('D' . $r . ':F' . $r)->applyFromArray([
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+        ]);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // Spasi antar bagian (tanpa garis mengikuti form resmi)
