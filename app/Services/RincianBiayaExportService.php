@@ -267,12 +267,19 @@ class RincianBiayaExportService
         $sheet->getRowDimension($r)->setRowHeight(18);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Nama Penandatangan (Underline)
+        // Nama Penandatangan — garis penuh selebar kolom (seperti form resmi),
+        // bukan underline teks. Sel digabung karena kolom A sempit.
         $r++;
+        $sheet->mergeCells('A' . $r . ':C' . $r);
         $sheet->setCellValue('A' . $r, $bendaharaNama);
-        $sheet->getStyle('A' . $r)->getFont()->setUnderline(true);
+        $sheet->mergeCells('D' . $r . ':F' . $r);
         $sheet->setCellValue('D' . $r, $pegawaiNama);
-        $sheet->getStyle('D' . $r)->getFont()->setUnderline(true);
+        $sheet->getStyle('A' . $r . ':C' . $r)->applyFromArray([
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+        ]);
+        $sheet->getStyle('D' . $r . ':F' . $r)->applyFromArray([
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+        ]);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // NIP
