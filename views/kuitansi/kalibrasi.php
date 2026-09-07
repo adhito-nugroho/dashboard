@@ -8,6 +8,7 @@ $positions = $data['positions'] ?? [];
 $labels = $data['labels'] ?? [];
 $widths = $data['widths'] ?? [];
 $refUrl = $data['refUrl'] ?? null;
+$refKind = $data['refKind'] ?? null;
 $flash = $data['flash'] ?? null;
 $flashType = $data['flashType'] ?? 'info';
 $printers = $data['printers'] ?? [];
@@ -38,6 +39,7 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
 .kal-canvas-scroll { overflow:auto; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; max-width:100%; }
 .kal-canvas { position:relative; width:860px; height:660px; background:#fff; flex:0 0 auto; }
 .kal-canvas .kal-bg { position:absolute; inset:0; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
+.kal-canvas canvas.kal-pdfbg { position:absolute; inset:0; width:860px; height:660px; opacity:.5; pointer-events:none; }
 .kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; font-family:Arial,Helvetica,sans-serif; }
 .kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
 .kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
@@ -140,8 +142,12 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
         <label class="btn btn-sm btn-outline-secondary mb-0" for="kalUpload">
             <i class="bi bi-image me-1"></i>Upload Contoh Kuitansi
         </label>
-        <input type="file" id="kalUpload" accept=".jpg,.jpeg,.png" class="d-none">
-        <span class="text-muted" style="font-size:.8rem;"><?= $refUrl ? 'Background referensi terpasang.' : 'Belum ada gambar referensi.' ?> (JPG/PNG, maks 5MB)</span>
+        <input type="file" id="kalUpload" accept=".jpg,.jpeg,.png,.pdf" class="d-none">
+        <span class="text-muted" style="font-size:.8rem;" id="kalRefStatus"><?= $refUrl ? 'Background referensi terpasang.' : 'Belum ada gambar referensi.' ?> (JPG/PNG/PDF-scan, maks 10MB)</span>
+        <label class="text-muted mb-0" style="font-size:.8rem;" for="kalOpacity">Transparansi
+            <input type="range" id="kalOpacity" min="10" max="100" value="50" style="width:90px;vertical-align:middle;">
+        </label>
+        <div id="kalAspectWarn"></div>
         <div class="ms-auto d-flex gap-2">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="kalUji">
                 <i class="bi bi-crosshair me-1"></i>Cetak Uji
@@ -156,12 +162,14 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
         <div class="col-xl-9 col-lg-8">
             <div class="kal-canvas-scroll">
                 <div class="kal-canvas" id="kalCanvas">
-                    <?php if ($refUrl): ?>
-                        <div class="kal-bg" id="kalBg" style="background-image:url('<?= htmlspecialchars($refUrl) ?>');"></div>
-                    <?php else: ?>
-                        <div class="kal-bg" id="kalBg"></div>
-                    <?php endif; ?>
+                    <div class="kal-bg" id="kalBg"<?= ($refUrl && $refKind !== 'pdf') ? " style=\"background-image:url('" . htmlspecialchars($refUrl) . "');\"" : '' ?>></div>
+                    <canvas class="kal-pdfbg d-none" id="kalPdfBg" width="860" height="660"></canvas>
                 </div>
+            </div>
+            <div class="form-text mt-1" style="font-size:.78rem;">
+                Agar snap ke gambar <strong>persis sama</strong> dengan hasil print: pangkas file tepat di tepi kertas
+                (tanpa meja/latar, tanpa miring — foto miring tidak akan pernah akurat).
+                Proporsi kertas 215:165. Peringatan muncul otomatis bila proporsi file menyimpang.
             </div>
         </div>
         <div class="col-xl-3 col-lg-4">
@@ -205,6 +213,9 @@ const canvas = document.getElementById('kalCanvas');
 const dirtyBadge = document.getElementById('kalDirty');
 const alertBox = document.getElementById('kalAlert');
 const BASE = '<?= rtrim(base_url(), '/') ?>/';
+const REF_URL = <?= json_encode($refUrl) ?>;
+const REF_KIND = <?= json_encode($refKind) ?>;
+const PAPER_W = 215, PAPER_H = 165; // mm
 
 function showAlert(msg, type) {
     alertBox.innerHTML = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">'
@@ -355,6 +366,79 @@ function renderList() {
     });
 }
 
+// --- background: opacity, cek proporsi, render PDF ---
+const bgDiv = document.getElementById('kalBg');
+const pdfCanvas = document.getElementById('kalPdfBg');
+document.getElementById('kalOpacity').addEventListener('input', function() {
+    const op = (parseInt(this.value, 10) || 50) / 100;
+    bgDiv.style.opacity = op;
+    pdfCanvas.style.opacity = op;
+});
+function checkAspect(w, h, label) {
+    if (!w || !h) return;
+    const fileRatio = w / h, paperRatio = PAPER_W / PAPER_H;
+    const dev = Math.abs(fileRatio - paperRatio) / paperRatio;
+    const box = document.getElementById('kalAspectWarn');
+    if (dev > 0.015) {
+        box.innerHTML = '<div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:.8rem;">'
+            + '<i class="bi bi-exclamation-triangle me-1"></i>Proporsi ' + label + ' (' + fileRatio.toFixed(3) + ') '
+            + 'menyimpang ' + (dev * 100).toFixed(1) + '% dari kertas 215:165 (' + paperRatio.toFixed(3) + '). '
+            + 'Snap ke gambar TIDAK akan sama dengan hasil print. Pangkas file tepat di tepi kertas lalu unggah ulang.</div>';
+    } else {
+        box.innerHTML = '';
+    }
+}
+function showImageBackground(url) {
+    pdfCanvas.classList.add('d-none');
+    bgDiv.style.backgroundImage = "url('" + url + "')";
+    document.getElementById('kalRefStatus').textContent = 'Background referensi terpasang. (gambar)';
+    const img = new Image();
+    img.onload = () => checkAspect(img.naturalWidth, img.naturalHeight, 'gambar');
+    img.src = url;
+}
+function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            resolve(window.pdfjsLib);
+        };
+        s.onerror = () => reject(new Error('gagal memuat PDF.js (perlu internet)'));
+        document.head.appendChild(s);
+    });
+}
+function renderPdfBackground(url) {
+    // Halaman 1 PDF digambar pas 860x660 (mapping mm tetap 1mm=4px).
+    // Akurat hanya bila halaman PDF memang seproporsi kertas 215:165.
+    loadPdfJs().then(pdfjsLib => pdfjsLib.getDocument(url).promise).then(pdf => pdf.getPage(1)).then(page => {
+        const vp0 = page.getViewport({ scale: 1 });
+        checkAspect(vp0.width, vp0.height, 'halaman 1 PDF');
+        // Render tajam lalu petakan pas 860x660 (sama seperti gambar: 1mm=4px).
+        // Tepat hanya bila halaman PDF seproporsi kertas — lihat peringatan proporsi.
+        const vp = page.getViewport({ scale: 2 });
+        const off = document.createElement('canvas');
+        off.width = vp.width; off.height = vp.height;
+        return page.render({ canvasContext: off.getContext('2d'), viewport: vp }).promise.then(() => {
+            const ctx = pdfCanvas.getContext('2d');
+            ctx.clearRect(0, 0, 860, 660);
+            ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, 860, 660);
+            bgDiv.style.backgroundImage = 'none';
+            pdfCanvas.classList.remove('d-none');
+            document.getElementById('kalRefStatus').textContent = 'Background referensi terpasang. (PDF, hal. 1)';
+        });
+    }).catch(err => showAlert('Gagal menampilkan PDF: ' + err.message, 'danger'));
+}
+if (REF_KIND === 'pdf' && REF_URL) {
+    renderPdfBackground(REF_URL);
+} else if (REF_KIND === 'image' && REF_URL) {
+    const img = new Image();
+    img.onload = () => checkAspect(img.naturalWidth, img.naturalHeight, 'gambar');
+    img.src = REF_URL;
+}
+
 // --- upload ---
 document.getElementById('kalUpload').addEventListener('change', function() {
     if (!this.files.length) return;
@@ -364,8 +448,12 @@ document.getElementById('kalUpload').addEventListener('change', function() {
         .then(r => r.json().then(j => ({ status: r.status, body: j })))
         .then(({ status, body }) => {
             if (!body.ok) throw new Error(body.message || ('HTTP ' + status));
-            document.getElementById('kalBg').style.backgroundImage = "url('" + body.url + "')";
-            showAlert('Gambar referensi terpasang sebagai background kanvas.', 'success');
+            if (body.kind === 'pdf') {
+                renderPdfBackground(body.url);
+            } else {
+                showImageBackground(body.url);
+            }
+            showAlert('Referensi terpasang sebagai background kanvas.', 'success');
         })
         .catch(err => showAlert('Upload gagal: ' + err.message, 'danger'))
         .finally(() => { document.getElementById('kalUpload').value = ''; });

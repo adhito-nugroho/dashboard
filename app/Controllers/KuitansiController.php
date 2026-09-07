@@ -75,15 +75,41 @@ class KuitansiController
         return $this->printer->getDefaultId();
     }
 
-    public static function referenceUrl(): ?string
+    /**
+     * File referensi aktif: gambar (jpg/jpeg/png) atau PDF scan.
+     * Bila keduanya ada, yang terbaru (mtime) yang dipakai.
+     * Return ['url'=>..., 'kind'=>'image'|'pdf'] atau null.
+     */
+    public static function referenceInfo(): ?array
     {
+        $best = null;
         foreach (['jpg', 'jpeg', 'png'] as $ext) {
             $file = self::REF_DIR . '/' . self::REF_BASE . '.' . $ext;
             if (is_file($file)) {
-                return base_url('uploads/kalibrasi/' . self::REF_BASE . '.' . $ext) . '?v=' . filemtime($file);
+                $mt = filemtime($file);
+                if ($best === null || $mt > $best['mtime']) {
+                    $best = ['url' => base_url('uploads/kalibrasi/' . self::REF_BASE . '.' . $ext) . '?v=' . $mt, 'kind' => 'image', 'mtime' => $mt];
+                }
             }
         }
-        return null;
+        $pdf = self::REF_DIR . '/' . self::REF_BASE . '.pdf';
+        if (is_file($pdf)) {
+            $mt = filemtime($pdf);
+            if ($best === null || $mt > $best['mtime']) {
+                $best = ['url' => base_url('uploads/kalibrasi/' . self::REF_BASE . '.pdf') . '?v=' . $mt, 'kind' => 'pdf', 'mtime' => $mt];
+            }
+        }
+        if ($best === null) {
+            return null;
+        }
+        unset($best['mtime']);
+        return $best;
+    }
+
+    public static function referenceUrl(): ?string
+    {
+        $info = self::referenceInfo();
+        return $info['url'] ?? null;
     }
 
     /**
@@ -149,11 +175,13 @@ class KuitansiController
         $pageTitle = 'Kalibrasi Cetak Kuitansi';
         $activePage = 'kalibrasi_kuitansi';
         $viewFile = __DIR__ . '/../../views/kuitansi/kalibrasi.php';
+        $refInfo = self::referenceInfo();
         $kalibrasiData = [
             'positions' => $positions,
             'labels' => $labels,
             'widths' => $widths,
-            'refUrl' => self::referenceUrl(),
+            'refUrl' => $refInfo['url'] ?? null,
+            'refKind' => $refInfo['kind'] ?? null,
             'flash' => $flash,
             'flashType' => $flashType,
             'printers' => $printers,
@@ -220,8 +248,12 @@ class KuitansiController
     }
 
     /**
-     * Upload foto/scan kertas NCR kosong (JPG/PNG, maks 5MB) sebagai
-     * background kanvas. Overwrite tiap upload baru.
+     * Upload contoh kertas NCR kosong sebagai background kanvas.
+     * - Gambar (JPG/PNG, maks 5MB): langsung jadi background.
+     * - PDF scan (maks 10MB): disimpan, halaman 1 di-render di browser via PDF.js.
+     *   Scan flatbed tanpa perspektif + dipangkas tepat di tepi kertas memberi
+     *   hasil paling akurat. Tiap jenis overwrite file sejenisnya; gambar dan
+     *   PDF boleh berdampingan — yang terbaru yang ditampilkan.
      */
     public function uploadReferensi(): void
     {
@@ -231,38 +263,68 @@ class KuitansiController
         $f = $_FILES['referensi'] ?? null;
         if (!is_array($f) || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             http_response_code(422);
-            echo json_encode(['ok' => false, 'message' => 'Pilih file JPG/PNG terlebih dahulu.']);
+            echo json_encode(['ok' => false, 'message' => 'Pilih file JPG/PNG/PDF terlebih dahulu.']);
             return;
         }
+
+        // Deteksi jenis via isi file (bukan ekstensi).
+        $tmp = (string) $f['tmp_name'];
+        $isPdf = str_starts_with((string) @file_get_contents($tmp, false, null, 0, 5), '%PDF');
+        $mime = @getimagesize($tmp)['mime'] ?? '';
+        if ($mime === '') {
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mime = (string) $finfo->file($tmp);
+        }
+
+        if ($isPdf || $mime === 'application/pdf') {
+            if ((int) $f['size'] > 10 * 1024 * 1024) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'PDF maksimal 10MB.']);
+                return;
+            }
+            if (!is_dir(self::REF_DIR)) {
+                mkdir(self::REF_DIR, 0755, true);
+            }
+            @unlink(self::REF_DIR . '/' . self::REF_BASE . '.pdf');
+            if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.pdf')) {
+                http_response_code(500);
+                echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
+                return;
+            }
+            $info = self::referenceInfo();
+            echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'pdf']);
+            return;
+        }
+
         if ((int) $f['size'] > 5 * 1024 * 1024) {
             http_response_code(422);
             echo json_encode(['ok' => false, 'message' => 'Ukuran maksimal 5MB.']);
             return;
         }
-        $info = @getimagesize((string) $f['tmp_name']);
-        $mime = $info['mime'] ?? '';
         if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
             http_response_code(422);
-            echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG. Untuk scan PDF, ekspor halaman 1 sebagai JPG lalu unggah ulang.']);
+            echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG/PDF.']);
             return;
         }
 
         if (!is_dir(self::REF_DIR)) {
             mkdir(self::REF_DIR, 0755, true);
         }
-        // Hapus referensi lama (semua ekstensi) agar selalu 1 file aktif.
-        foreach (glob(self::REF_DIR . '/' . self::REF_BASE . '.*') ?: [] as $old) {
+        // Hapus gambar lama (semua ekstensi gambar) agar selalu 1 gambar aktif.
+        // File PDF dibiarkan — yang terbaru (gambar/pdf) yang ditampilkan.
+        foreach (glob(self::REF_DIR . '/' . self::REF_BASE . '.{jpg,jpeg,png}', GLOB_BRACE) ?: [] as $old) {
             @unlink($old);
         }
         $ext = $mime === 'image/png' ? 'png' : 'jpg';
         $dest = self::REF_DIR . '/' . self::REF_BASE . '.' . $ext;
-        if (!move_uploaded_file((string) $f['tmp_name'], $dest)) {
+        if (!move_uploaded_file($tmp, $dest)) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
             return;
         }
 
-        echo json_encode(['ok' => true, 'url' => self::referenceUrl()]);
+        $info = self::referenceInfo();
+        echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'image']);
     }
 
     /**
