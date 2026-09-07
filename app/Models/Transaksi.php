@@ -479,6 +479,35 @@ class Transaksi
     }
 
     /**
+     * Daftar ringkas transaksi terbaru untuk pemilih contoh di kalibrasi kuitansi.
+     * $seksiId null = semua seksi (admin pusat).
+     */
+    public function listRecentForPicker(?int $seksiId, int $limit = 50): array
+    {
+        try {
+            $limit = max(1, min(200, $limit));
+            $sql = "
+                    SELECT t.id, t.tanggal, t.nomor_bukti, t.uraian, t.nilai,
+                           t.nama_penerima, t.seksi_id, s.nama_seksi
+                    FROM transaksi t
+                    INNER JOIN seksi s ON t.seksi_id = s.id
+                    " . ($seksiId !== null ? "WHERE t.seksi_id = :seksi_id" : "") . "
+                    ORDER BY t.tanggal DESC, t.id DESC
+                    LIMIT {$limit}
+                ";
+            $stmt = $this->db->prepare($sql);
+            if ($seksiId !== null) {
+                $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error listing recent transactions: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Update transaction oleh seksi (hanya jika status masih 'diajukan' atau 'ditolak') dengan field BKU
      */
     public function updateSeksi(

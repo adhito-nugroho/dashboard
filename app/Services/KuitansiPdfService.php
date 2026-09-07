@@ -172,6 +172,30 @@ class KuitansiPdfService
     }
 
     /**
+     * Teks contoh per elemen_key dari satu transaksi asli — untuk pratinjau
+     * kanvas kalibrasi (bukan dummy). Key tidak dikenal diabaikan pemanggil.
+     */
+    public function sampleTexts(array $trx): array
+    {
+        $d = $this->buildData($trx);
+        return [
+            'no_bku' => $d['no_bku'],
+            'no_program' => $d['no_program'],
+            'no_kegiatan' => $d['no_kegiatan'],
+            'terima_dari' => $d['terima_dari'],
+            'jumlah_terbilang' => $d['jumlah_terbilang'],
+            'uraian' => $d['uraian'],
+            'terbilang_rp' => $d['terbilang_rp'],
+            'tempat_tanggal' => $d['tempat_tanggal'],
+            'ttd_kpa_nama' => $d['kpa_nama'],
+            'ttd_kpa_nip' => $d['kpa_nip'] !== '' ? ('NIP. ' . $d['kpa_nip']) : '',
+            'ttd_bendahara_nama' => $d['bendahara_nama'],
+            'ttd_bendahara_nip' => $d['bendahara_nip'] !== '' ? ('NIP. ' . $d['bendahara_nip']) : '',
+            'ttd_penerima_nama' => $d['penerima_nama'],
+        ];
+    }
+
+    /**
      * Generate PDF kuitansi untuk satu transaksi. Stream langsung ke browser (print).
      * Koordinat dari kalibrasi_kuitansi_elemen (di-inject via setPositions).
      */

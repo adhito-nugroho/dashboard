@@ -97,6 +97,26 @@ class KuitansiController
         $reqPid = isset($_GET['printer']) ? (int) $_GET['printer'] : null;
         $printerId = $this->resolvePrinterId($reqPid);
 
+        // Contoh data asli: transaksi pilihan (?transaksi=) atau terbaru dalam lingkup.
+        // Seksi hanya boleh memakai transaksi seksinya sendiri.
+        $isAdmin = !empty($_SESSION['is_admin']);
+        $scopeSeksi = $isAdmin ? null : (int) ($_SESSION['seksi_id'] ?? 0);
+        $trxList = $this->transaksi->listRecentForPicker($scopeSeksi, 50);
+        $listIds = array_map(fn($t) => (int) $t['id'], $trxList);
+        $reqTrx = isset($_GET['transaksi']) ? (int) $_GET['transaksi'] : 0;
+        $sampleId = in_array($reqTrx, $listIds, true) ? $reqTrx : (int) ($listIds[0] ?? 0);
+        $sampleTexts = [];
+        $sampleLabel = null;
+        if ($sampleId > 0) {
+            $full = $this->transaksi->getById($sampleId);
+            if (is_array($full) && ($isAdmin || (int) ($full['seksi_id'] ?? 0) === $scopeSeksi)) {
+                $sampleTexts = $this->pdf->sampleTexts($full);
+                $sampleLabel = '#' . $sampleId . ' — ' . ($full['nomor_bukti'] ?? '');
+            } else {
+                $sampleId = 0;
+            }
+        }
+
         $positions = $this->activePositions($printerId);
         $labels = [];
         try {
@@ -138,6 +158,10 @@ class KuitansiController
             'flashType' => $flashType,
             'printers' => $printers,
             'printerId' => $printerId,
+            'trxList' => $trxList,
+            'sampleId' => $sampleId,
+            'sampleTexts' => $sampleTexts,
+            'sampleLabel' => $sampleLabel,
         ];
         // Admin pusat pakai layout admin, admin seksi pakai layout seksi.
         $layout = !empty($_SESSION['is_admin'])

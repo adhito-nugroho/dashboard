@@ -12,6 +12,10 @@ $flash = $data['flash'] ?? null;
 $flashType = $data['flashType'] ?? 'info';
 $printers = $data['printers'] ?? [];
 $printerId = (int) ($data['printerId'] ?? 0);
+$trxList = $data['trxList'] ?? [];
+$sampleId = (int) ($data['sampleId'] ?? 0);
+$sampleTexts = $data['sampleTexts'] ?? [];
+$sampleLabel = $data['sampleLabel'] ?? null;
 $activePrinter = null;
 foreach ($printers as $p) {
     if ((int) ($p['id'] ?? 0) === $printerId) { $activePrinter = $p; break; }
@@ -37,6 +41,8 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
 .kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; }
 .kal-box .kal-tag { display:block; font-size:10px; font-weight:700; color:#1d4ed8; line-height:1.2; }
 .kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
+.kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
+.kal-box { max-height:240px; overflow:hidden; }
 .kal-box .kal-badge { position:absolute; top:-20px; left:0; font-size:10px; background:#0f172a; color:#fff; border-radius:4px; padding:1px 6px; white-space:nowrap; display:none; z-index:5; }
 .kal-box.selected { border-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); }
 .kal-box.selected .kal-badge { display:block; }
@@ -113,6 +119,22 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
     <div id="kalAlert"></div>
 
     <div class="d-flex gap-2 flex-wrap mb-3 align-items-center">
+        <form method="GET" action="<?= base_url('kuitansi/kalibrasi') ?>" class="d-flex gap-2 align-items-end m-0">
+            <input type="hidden" name="printer" value="<?= $printerId ?>">
+            <div>
+                <label class="form-label mb-1 fw-semibold" style="font-size:.8rem;" for="kalTrx">Data contoh <?= $sampleLabel ? '<span class="badge bg-primary">' . htmlspecialchars($sampleLabel) . '</span>' : '' ?></label>
+                <select class="form-select form-select-sm" id="kalTrx" name="transaksi" onchange="this.form.submit()" style="min-width:260px;max-width:420px;">
+                    <?php if (empty($trxList)): ?>
+                        <option value="0">— belum ada transaksi —</option>
+                    <?php endif; ?>
+                    <?php foreach ($trxList as $t): ?>
+                        <option value="<?= (int) $t['id'] ?>" <?= (int) $t['id'] === $sampleId ? 'selected' : '' ?>>
+                            #<?= (int) $t['id'] ?> · <?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?> · Rp <?= number_format((float) ($t['nilai'] ?? 0), 0, ',', '.') ?> · <?= htmlspecialchars(mb_substr((string) ($t['uraian'] ?? ''), 0, 45)) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </form>
         <div class="form-check form-switch me-2">
             <input class="form-check-input" type="checkbox" id="kalSnap" checked>
             <label class="form-check-label" for="kalSnap" style="font-size:.85rem;">Snap 1mm</label>
@@ -175,6 +197,7 @@ const state = <?= json_encode($positions, JSON_UNESCAPED_UNICODE) ?>;
 const labels = <?= json_encode($labels, JSON_UNESCAPED_UNICODE) ?>;
 const widths = <?= json_encode($widths, JSON_UNESCAPED_UNICODE) ?>;
 const dummy = <?= json_encode($dummy, JSON_UNESCAPED_UNICODE) ?>;
+const sample = <?= json_encode($sampleTexts, JSON_UNESCAPED_UNICODE) ?>;
 const order = <?= json_encode($order) ?>;
 const PRINTER_ID = <?= (int) $printerId ?>;
 let initial = JSON.stringify(state);
@@ -219,7 +242,19 @@ function layout() {
         el.style.top = (s.y_mm * SCALE) + 'px';
         el.style.width = (widthOf(key) * SCALE) + 'px';
         el.querySelector('.kal-tag').textContent = labels[key] || key;
-        el.querySelector('.kal-txt').textContent = dummy[key] || '';
+        // Isi kotak: data transaksi asli bila ada; dummy bila belum ada transaksi;
+        // placeholder bila nilainya memang kosong (tidak dicetak).
+        const txt = (sample[key] !== undefined && sample[key] !== null && sample[key] !== '')
+            ? sample[key]
+            : (Object.keys(sample).length > 0 ? '' : (dummy[key] || ''));
+        const txtEl = el.querySelector('.kal-txt');
+        if (txt === '') {
+            txtEl.textContent = '(kosong — tidak dicetak)';
+            txtEl.classList.add('kal-txt-empty');
+        } else {
+            txtEl.textContent = txt;
+            txtEl.classList.remove('kal-txt-empty');
+        }
         el.querySelector('.kal-badge').textContent = 'x: ' + Number(s.x_mm).toFixed(1) + 'mm, y: ' + Number(s.y_mm).toFixed(1) + 'mm';
         el.classList.toggle('selected', selected === key);
     });
