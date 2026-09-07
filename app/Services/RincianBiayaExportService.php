@@ -317,38 +317,50 @@ class RincianBiayaExportService
         $sheet->getRowDimension($r)->setRowHeight(8);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Ditetapkan sejumlah
+        // Ditetapkan sejumlah (label digabung A:B agar tidak kepotong)
         $r++;
+        $sheet->mergeCells('A' . $r . ':B' . $r);
         $sheet->setCellValue('A' . $r, 'Ditetapkan sejumlah');
-        $sheet->setCellValue('B' . $r, ':');
-        $sheet->setCellValue('C' . $r, 'Rp');
-        $sheet->setCellValue('D' . $r, $ditetapkan);
-        $sheet->getStyle('D' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->setCellValue('C' . $r, ':');
+        $sheet->getStyle('C' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('D' . $r, 'Rp');
+        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('E' . $r, $ditetapkan);
+        $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // Yang telah dibayar semula
         $r++;
+        $sheet->mergeCells('A' . $r . ':B' . $r);
         $sheet->setCellValue('A' . $r, 'Yang telah dibayar semula');
-        $sheet->setCellValue('B' . $r, ':');
-        $sheet->setCellValue('C' . $r, 'Rp');
-        $sheet->setCellValue('D' . $r, $dibayar);
-        $sheet->getStyle('D' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->setCellValue('C' . $r, ':');
+        $sheet->getStyle('C' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('D' . $r, 'Rp');
+        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('E' . $r, $dibayar);
+        $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // Sisa kurang/lebih
         $r++;
+        $sheet->mergeCells('A' . $r . ':B' . $r);
         $sheet->setCellValue('A' . $r, 'Sisa kurang/lebih');
-        $sheet->setCellValue('B' . $r, ':');
-        $sheet->setCellValue('C' . $r, 'Rp');
+        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->setCellValue('C' . $r, ':');
+        $sheet->getStyle('C' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->setCellValue('D' . $r, 'Rp');
+        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         if ($sisa == 0) {
-            $sheet->setCellValue('D' . $r, '-');
-            $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->setCellValue('E' . $r, '-');
+            $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         } else {
-            $sheet->setCellValue('D' . $r, $sisa);
-            $sheet->getStyle('D' . $r)->getNumberFormat()->setFormatCode('#,##0');
-            $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->setCellValue('E' . $r, $sisa);
+            $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         }
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
@@ -371,19 +383,19 @@ class RincianBiayaExportService
         $sheet->getRowDimension($r)->setRowHeight(18);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Nama KPA (Underline)
+        // Nama KPA (Underline, rata kiri)
         $r++;
         $sheet->mergeCells('D' . $r . ':F' . $r);
         $sheet->setCellValue('D' . $r, $kpaNama);
         $sheet->getStyle('D' . $r)->getFont()->setUnderline(true);
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // NIP KPA
+        // NIP KPA (rata kiri)
         $r++;
         $sheet->mergeCells('D' . $r . ':F' . $r);
         $sheet->setCellValue('D' . $r, 'NIP. ' . $this->formatNip($kpaNip));
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // Garis penutup bawah kotak
