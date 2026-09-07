@@ -34,10 +34,17 @@ class KuitansiController
         }
     }
 
-    private function requireAdmin(): void
+    /**
+     * Kalibrasi boleh diakses admin pusat maupun admin seksi (rlpm/tkuk/tu/seksi).
+     * Catatan: tabel kalibrasi satu untuk semua (1 printer), jadi perubahan
+     * oleh satu seksi berlaku untuk semua.
+     */
+    private function requireKalibrasiAccess(): void
     {
         $this->requireLogin();
-        if (empty($_SESSION['is_admin'])) {
+        $isAdmin = !empty($_SESSION['is_admin']);
+        $isSeksi = in_array($_SESSION['role'] ?? '', ['rlpm', 'tkuk', 'tu', 'seksi'], true);
+        if (!($isAdmin || $isSeksi)) {
             http_response_code(403);
             echo 'Akses ditolak: halaman kalibrasi hanya untuk admin.';
             exit;
@@ -68,11 +75,11 @@ class KuitansiController
     }
 
     /**
-     * Editor visual kalibrasi per-elemen (admin saja).
+     * Editor visual kalibrasi per-elemen (admin pusat + admin seksi).
      */
     public function kalibrasi(): void
     {
-        $this->requireAdmin();
+        $this->requireKalibrasiAccess();
 
         $positions = $this->activePositions();
         $labels = [];
@@ -114,7 +121,11 @@ class KuitansiController
             'flash' => $flash,
             'flashType' => $flashType,
         ];
-        include __DIR__ . '/../../views/layout.php';
+        // Admin pusat pakai layout admin, admin seksi pakai layout seksi.
+        $layout = !empty($_SESSION['is_admin'])
+            ? __DIR__ . '/../../views/layout.php'
+            : __DIR__ . '/../../views/layout_seksi.php';
+        include $layout;
     }
 
     /**
@@ -123,7 +134,7 @@ class KuitansiController
      */
     public function simpanElemen(): void
     {
-        $this->requireAdmin();
+        $this->requireKalibrasiAccess();
         header('Content-Type: application/json; charset=utf-8');
 
         $body = json_decode((string) file_get_contents('php://input'), true);
@@ -153,7 +164,7 @@ class KuitansiController
      */
     public function cetakUji(): void
     {
-        $this->requireAdmin();
+        $this->requireKalibrasiAccess();
         $body = json_decode((string) file_get_contents('php://input'), true);
         $positions = is_array($body['positions'] ?? null) ? $body['positions'] : [];
         $this->pdf->streamTestPage($positions);
@@ -166,7 +177,7 @@ class KuitansiController
      */
     public function uploadReferensi(): void
     {
-        $this->requireAdmin();
+        $this->requireKalibrasiAccess();
         header('Content-Type: application/json; charset=utf-8');
 
         $f = $_FILES['referensi'] ?? null;

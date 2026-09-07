@@ -202,6 +202,7 @@ try {
             || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
             || preg_match('#^/seksi/transaksi#', $path)
             || preg_match('#^/kuitansi/cetak/\d+$#', $path)
+            || preg_match('#^/kuitansi/kalibrasi#', $path)
             || preg_match('#^/spj#', $path);
         if (!$seksiAllowed) {
             header('Location: ' . base_url('seksi/transaksi'));

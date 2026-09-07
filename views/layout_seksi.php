@@ -157,6 +157,7 @@ $urlDashboard = base_url('dashboard/' . strtolower($_SESSION['role']));
             <a href="<?= $urlDashboard ?>" class="<?= $activePage === 'dashboardseksi' ? 'active' : '' ?>"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
             <a href="<?= base_url('seksi/transaksi') ?>" class="<?= $activePage === 'transaksi' ? 'active' : '' ?>"><i class="bi bi-receipt me-1"></i>Transaksi Saya</a>
             <a href="<?= base_url('seksi/transaksi/create') ?>" class="<?= $activePage === 'transaksicreate' ? 'active' : '' ?>"><i class="bi bi-plus-circle me-1"></i>Tambah Transaksi</a>
+            <a href="<?= base_url('kuitansi/kalibrasi') ?>" class="<?= $activePage === 'kalibrasi_kuitansi' ? 'active' : '' ?>"><i class="bi bi-printer me-1"></i>Kalibrasi Kuitansi</a>
         </nav>
     </header>
     <script>const BASE_URL = '<?= rtrim(base_url(), '/') ?>/';</script>
