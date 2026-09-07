@@ -165,6 +165,13 @@
                                     <span>Rekap RAK</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'kalibrasi_kuitansi') ? 'active' : '' ?>"
+                                    href="<?= base_url('kuitansi/kalibrasi') ?>">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Kalibrasi Kuitansi</span>
+                                </a>
+                            </li>
                         <?php endif; ?>
                     </ul>
                 </nav>

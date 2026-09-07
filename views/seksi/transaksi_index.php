@@ -464,6 +464,12 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                         <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
                                         <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
                                     <?php endif; ?>
+                                    <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-outline-success btn-action-icon"
+                                       title="Cetak Kuitansi (PDF 215x165mm)">
+                                        <i class="bi bi-download"></i>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
@@ -550,6 +556,12 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <i class="bi bi-file-earmark-excel me-1"></i>Excel
                                 </a>
                             <?php endif; ?>
+                            <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
+                               target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                               title="Cetak Kuitansi (PDF 215x165mm)">
+                                <i class="bi bi-download me-1"></i>Kuitansi
+                            </a>
                         </div>
                     </div>
                 <?php endforeach; ?>

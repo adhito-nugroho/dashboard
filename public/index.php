@@ -31,6 +31,7 @@ require_once __DIR__ . '/../config/load_env.php';
 
 // Load helper functions
 require_once __DIR__ . '/../config/helpers.php';
+require_once __DIR__ . '/../config/terbilang.php';
 
 // Load database connection
 require_once __DIR__ . '/../config/database.php';
@@ -64,6 +65,9 @@ require_once __DIR__ . '/../app/Controllers/SeksiTransaksiController.php';
 require_once __DIR__ . '/../app/Controllers/ExcelController.php';
 require_once __DIR__ . '/../app/Models/RincianBiaya.php';
 require_once __DIR__ . '/../app/Controllers/SpjController.php';
+require_once __DIR__ . '/../app/Models/KalibrasiKuitansi.php';
+require_once __DIR__ . '/../app/Services/KuitansiPdfService.php';
+require_once __DIR__ . '/../app/Controllers/KuitansiController.php';
 
 use App\Models\Program;
 use App\Models\Kegiatan;
@@ -88,6 +92,7 @@ use App\Controllers\SeksiTransaksiController;
 use App\Controllers\ExcelController;
 use App\Models\RincianBiaya;
 use App\Controllers\SpjController;
+use App\Controllers\KuitansiController;
 
 try {
     // Get database connection
@@ -117,6 +122,7 @@ try {
     $excelController = new ExcelController($paguModel, $rakModel, $transaksiModel, $seksiModel);
     $rincianBiayaModel = new RincianBiaya($db);
     $spjController = new SpjController($rincianBiayaModel);
+    $kuitansiController = new KuitansiController($db);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -195,6 +201,7 @@ try {
         $seksiAllowed = in_array($path, ['/logout', '/logout/'], true)
             || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
             || preg_match('#^/seksi/transaksi#', $path)
+            || preg_match('#^/kuitansi/cetak/\d+$#', $path)
             || preg_match('#^/spj#', $path);
         if (!$seksiAllowed) {
             header('Location: ' . base_url('seksi/transaksi'));
@@ -491,6 +498,16 @@ try {
         $spjController->delete((int) $matches[1]);
     } elseif (preg_match('#^/spj/unduh/(\d+)$#', $path, $matches)) {
         $spjController->download((int) $matches[1]);
+    }
+    // Route matching - Kuitansi NCR 215x165mm (kalibrasi admin only, cetak admin+seksi)
+    elseif ($path === '/kuitansi/kalibrasi' || $path === '/kuitansi/kalibrasi/') {
+        $kuitansiController->kalibrasi();
+    } elseif ($path === '/kuitansi/kalibrasi/simpan' && $requestMethod === 'POST') {
+        $kuitansiController->simpanKalibrasi();
+    } elseif ($path === '/kuitansi/kalibrasi/uji' && $requestMethod === 'GET') {
+        $kuitansiController->cetakUji();
+    } elseif (preg_match('#^/kuitansi/cetak/(\d+)$#', $path, $matches)) {
+        $kuitansiController->cetak((int) $matches[1]);
     }
     // Route matching - Input Transaksi Seksi (role seksi)
     elseif ($path === '/seksi/transaksi' || $path === '/seksi/transaksi/') {
