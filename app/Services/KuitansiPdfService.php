@@ -117,9 +117,9 @@ class KuitansiPdfService
 
     private function field(\FPDF $pdf, string $key, string $text, bool $multi = false): void
     {
-        $c = $this->koordinat[$key] ?? ['font' => 'Times', 'style' => '', 'size' => 11, 'align' => 'L', 'h_mm' => 6];
+        $c = $this->koordinat[$key] ?? ['font' => 'Helvetica', 'style' => '', 'size' => 10, 'align' => 'L', 'h_mm' => 6];
         $p = $this->pos[$key] ?? ['x_mm' => 0, 'y_mm' => 0];
-        $pdf->SetFont($c['font'] ?? 'Times', $c['style'] ?? '', (int) ($c['size'] ?? 11));
+        $pdf->SetFont($c['font'] ?? 'Helvetica', $c['style'] ?? '', (int) ($c['size'] ?? 10));
         $pdf->SetXY((float) $p['x_mm'], (float) $p['y_mm']);
         $text = kuitansi_pdf_text($text);
         if ($multi) {
@@ -134,7 +134,7 @@ class KuitansiPdfService
     {
         $p = $this->pos[$key] ?? ['x_mm' => 0, 'y_mm' => 0];
         $w = $this->widthOf($key);
-        $pdf->SetFont('Times', $style, 9);
+        $pdf->SetFont('Helvetica', $style, 9);
         $pdf->SetXY((float) $p['x_mm'], (float) $p['y_mm']);
         if ($style === '' && str_contains($text, "\n")) {
             $pdf->MultiCell($w, 5, kuitansi_pdf_text($text), 0, 'C');

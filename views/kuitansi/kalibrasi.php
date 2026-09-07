@@ -38,7 +38,7 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
 .kal-canvas-scroll { overflow:auto; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; max-width:100%; }
 .kal-canvas { position:relative; width:860px; height:660px; background:#fff; flex:0 0 auto; }
 .kal-canvas .kal-bg { position:absolute; inset:0; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
-.kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; }
+.kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; font-family:Arial,Helvetica,sans-serif; }
 .kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
 .kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
 .kal-box { max-height:240px; overflow:hidden; }

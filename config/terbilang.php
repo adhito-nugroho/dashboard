@@ -77,7 +77,7 @@ if (!function_exists('kuitansi_tanggal_id')) {
 
 if (!function_exists('kuitansi_pdf_text')) {
     /**
-     * FPDF core font (Times) hanya mendukung Latin-1 — transliterasi dari UTF-8.
+     * FPDF core font (Helvetica/Arial) hanya mendukung Latin-1 — transliterasi dari UTF-8.
      */
     function kuitansi_pdf_text(string $s): string
     {
