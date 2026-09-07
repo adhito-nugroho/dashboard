@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\KalibrasiKuitansiElemen;
+use App\Models\PrinterKuitansi;
 use App\Models\Transaksi;
 use App\Services\KuitansiPdfService;
 use PDO;
@@ -10,6 +11,7 @@ use PDO;
 class KuitansiController
 {
     private KalibrasiKuitansiElemen $elemen;
+    private PrinterKuitansi $printer;
     private Transaksi $transaksi;
     private KuitansiPdfService $pdf;
 
@@ -19,6 +21,7 @@ class KuitansiController
     public function __construct(PDO $db)
     {
         $this->elemen = new KalibrasiKuitansiElemen($db);
+        $this->printer = new PrinterKuitansi($db);
         $this->transaksi = new Transaksi($db);
         $this->pdf = new KuitansiPdfService();
     }
@@ -36,8 +39,8 @@ class KuitansiController
 
     /**
      * Kalibrasi boleh diakses admin pusat maupun admin seksi (rlpm/tkuk/tu/seksi).
-     * Catatan: tabel kalibrasi satu untuk semua (1 printer), jadi perubahan
-     * oleh satu seksi berlaku untuk semua.
+     * Kalibrasi tersimpan PER PRINTER (tabel printer_kuitansi) karena tiap
+     * printer punya offset mekanis berbeda.
      */
     private function requireKalibrasiAccess(): void
     {
@@ -56,11 +59,20 @@ class KuitansiController
         return (string) ($_SESSION['username'] ?? ('user#' . ($_SESSION['user_id'] ?? '?')));
     }
 
-    /** Posisi aktif: default config di-merge dengan DB (DB menang). */
-    private function activePositions(): array
+    /** Posisi aktif satu printer: default config di-merge dengan DB (DB menang). */
+    private function activePositions(int $printerId): array
     {
-        $this->pdf->setPositions($this->elemen->getAll());
+        $this->pdf->setPositions($this->elemen->getAll($printerId));
         return $this->pdf->getPositions();
+    }
+
+    /** Printer yang diminta bila ada, selain itu printer default. */
+    private function resolvePrinterId(?int $requested): int
+    {
+        if ($requested !== null && $requested > 0 && $this->printer->get($requested) !== null) {
+            return $requested;
+        }
+        return $this->printer->getDefaultId();
     }
 
     public static function referenceUrl(): ?string
@@ -81,10 +93,14 @@ class KuitansiController
     {
         $this->requireKalibrasiAccess();
 
-        $positions = $this->activePositions();
+        $printers = $this->printer->getAll();
+        $reqPid = isset($_GET['printer']) ? (int) $_GET['printer'] : null;
+        $printerId = $this->resolvePrinterId($reqPid);
+
+        $positions = $this->activePositions($printerId);
         $labels = [];
         try {
-            foreach ($this->elemen->getAll() as $k => $v) {
+            foreach ($this->elemen->getAll($printerId) as $k => $v) {
                 $labels[$k] = $v['label'] ?? $k;
             }
         } catch (\Throwable $e) {
@@ -120,6 +136,8 @@ class KuitansiController
             'refUrl' => self::referenceUrl(),
             'flash' => $flash,
             'flashType' => $flashType,
+            'printers' => $printers,
+            'printerId' => $printerId,
         ];
         // Admin pusat pakai layout admin, admin seksi pakai layout seksi.
         $layout = !empty($_SESSION['is_admin'])
@@ -129,8 +147,8 @@ class KuitansiController
     }
 
     /**
-     * Simpan posisi semua elemen (fetch JSON dari kanvas).
-     * Body: {"items":[{"elemen_key","x_mm","y_mm","max_width_mm"|null,"label"}, ...]}
+     * Simpan posisi semua elemen SATU printer (fetch JSON dari kanvas).
+     * Body: {"printer_id":1,"items":[{"elemen_key","x_mm","y_mm","max_width_mm"|null,"label"}, ...]}
      */
     public function simpanElemen(): void
     {
@@ -138,6 +156,12 @@ class KuitansiController
         header('Content-Type: application/json; charset=utf-8');
 
         $body = json_decode((string) file_get_contents('php://input'), true);
+        $printerId = $this->resolvePrinterId(isset($body['printer_id']) ? (int) $body['printer_id'] : null);
+        if ($printerId <= 0) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Printer tidak dikenal. Tambahkan printer dulu.']);
+            return;
+        }
         $items = is_array($body['items'] ?? null) ? $body['items'] : null;
         if (!is_array($items) || $items === []) {
             http_response_code(422);
@@ -153,8 +177,8 @@ class KuitansiController
             return;
         }
 
-        $count = $this->elemen->saveAll($items, $this->actor());
-        echo json_encode(['ok' => true, 'saved' => $count]);
+        $count = $this->elemen->saveAll($printerId, $items, $this->actor());
+        echo json_encode(['ok' => true, 'saved' => $count, 'printer_id' => $printerId]);
     }
 
     /**
@@ -218,9 +242,73 @@ class KuitansiController
     }
 
     /**
+     * Tambah printer (form POST: nama, keterangan). Posisi awal disalin dari
+     * printer default agar tidak mulai dari nol. Redirect kembali ke kanvas
+     * printer baru.
+     */
+    public function tambahPrinter(): void
+    {
+        $this->requireKalibrasiAccess();
+        $nama = trim((string) ($_POST['nama'] ?? ''));
+        $ket = trim((string) ($_POST['keterangan'] ?? ''));
+        if ($nama === '') {
+            $_SESSION['flash_message'] = 'Nama printer wajib diisi.';
+            $_SESSION['flash_type'] = 'error';
+            header('Location: ' . base_url('kuitansi/kalibrasi'));
+            exit;
+        }
+        $sourceId = $this->printer->getDefaultId();
+        $source = $sourceId > 0 ? $this->elemen->getAll($sourceId) : [];
+        $newId = $this->printer->create($nama, $ket !== '' ? $ket : null, $source);
+        if ($newId <= 0) {
+            $_SESSION['flash_message'] = 'Gagal menambah printer (nama duplikat?).';
+            $_SESSION['flash_type'] = 'error';
+            header('Location: ' . base_url('kuitansi/kalibrasi'));
+            exit;
+        }
+        $_SESSION['flash_message'] = 'Printer "' . $nama . '" ditambahkan; posisi awal disalin dari printer default. Silakan Cetak Uji dan sesuaikan.';
+        $_SESSION['flash_type'] = 'success';
+        header('Location: ' . base_url('kuitansi/kalibrasi?printer=' . $newId));
+        exit;
+    }
+
+    /** Jadikan printer default untuk tombol Download (form POST: id). */
+    public function setDefaultPrinter(): void
+    {
+        $this->requireKalibrasiAccess();
+        $id = (int) ($_POST['id'] ?? 0);
+        if (!$this->printer->setDefault($id)) {
+            $_SESSION['flash_message'] = 'Printer tidak ditemukan.';
+            $_SESSION['flash_type'] = 'error';
+        } else {
+            $_SESSION['flash_message'] = 'Printer default diubah. Tombol Download kini memakai kalibrasi printer ini.';
+            $_SESSION['flash_type'] = 'success';
+        }
+        header('Location: ' . base_url('kuitansi/kalibrasi?printer=' . $id));
+        exit;
+    }
+
+    /** Hapus printer non-default beserta kalibrasinya (form POST: id). */
+    public function hapusPrinter(): void
+    {
+        $this->requireKalibrasiAccess();
+        $id = (int) ($_POST['id'] ?? 0);
+        if (!$this->printer->delete($id)) {
+            $_SESSION['flash_message'] = 'Gagal menghapus (printer default tidak boleh dihapus).';
+            $_SESSION['flash_type'] = 'error';
+            header('Location: ' . base_url('kuitansi/kalibrasi?printer=' . $id));
+            exit;
+        }
+        $_SESSION['flash_message'] = 'Printer dihapus.';
+        $_SESSION['flash_type'] = 'success';
+        header('Location: ' . base_url('kuitansi/kalibrasi'));
+        exit;
+    }
+
+    /**
      * Cetak kuitansi satu transaksi (tombol download hijau di kolom Aksi — tidak diubah).
-     * ISI teks sama seperti sebelumnya; hanya SUMBER KOORDINAT yang berubah
-     * (kalibrasi_kuitansi_elemen per elemen_key). Alur verifikasi tidak disentuh.
+     * Memakai kalibrasi PRINTER DEFAULT; override via ?printer_id= bila perlu.
+     * ISI teks sama; alur verifikasi tidak disentuh.
      */
     public function cetak(int $id): void
     {
@@ -250,7 +338,8 @@ class KuitansiController
             }
         }
 
-        $this->pdf->setPositions($this->elemen->getAll());
+        $printerId = $this->resolvePrinterId(isset($_GET['printer_id']) ? (int) $_GET['printer_id'] : null);
+        $this->pdf->setPositions($printerId > 0 ? $this->elemen->getAll($printerId) : []);
         $this->pdf->streamKuitansi($trx);
         exit;
     }

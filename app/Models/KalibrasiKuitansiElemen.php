@@ -14,13 +14,15 @@ class KalibrasiKuitansiElemen
     }
 
     /**
-     * Semua posisi keyed by elemen_key: ['key' => ['x_mm'=>..,'y_mm'=>..,'max_width_mm'=>..|null,'label'=>..], ...]
-     * Fallback [] jika tabel belum ada (migrasi belum jalan) — pemanggil pakai default config.
+     * Semua posisi satu printer, keyed by elemen_key.
+     * Fallback [] jika tabel/kolom belum ada — pemanggil pakai default config.
      */
-    public function getAll(): array
+    public function getAll(int $printerId): array
     {
         try {
-            $rows = $this->db->query('SELECT `elemen_key`, `label`, `x_mm`, `y_mm`, `max_width_mm` FROM `kalibrasi_kuitansi_elemen`')->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $this->db->prepare('SELECT `elemen_key`, `label`, `x_mm`, `y_mm`, `max_width_mm` FROM `kalibrasi_kuitansi_elemen` WHERE `printer_id` = :pid');
+            $stmt->execute([':pid' => $printerId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $out = [];
             foreach ($rows as $r) {
                 $out[$r['elemen_key']] = [
@@ -38,14 +40,14 @@ class KalibrasiKuitansiElemen
     }
 
     /**
-     * Update per elemen_key (upsert agar tahan jika ada key baru).
+     * Update per elemen_key untuk satu printer (upsert agar tahan jika ada key baru).
      * $items: [['elemen_key'=>..,'x_mm'=>..,'y_mm'=>..,'max_width_mm'=>..|null], ...]
      */
-    public function saveAll(array $items, ?string $updatedBy): int
+    public function saveAll(int $printerId, array $items, ?string $updatedBy): int
     {
         $stmt = $this->db->prepare("
-            INSERT INTO `kalibrasi_kuitansi_elemen` (`elemen_key`, `label`, `x_mm`, `y_mm`, `max_width_mm`, `updated_by`)
-            VALUES (:k, :label, :x, :y, :w, :ub)
+            INSERT INTO `kalibrasi_kuitansi_elemen` (`printer_id`, `elemen_key`, `label`, `x_mm`, `y_mm`, `max_width_mm`, `updated_by`)
+            VALUES (:pid, :k, :label, :x, :y, :w, :ub)
             ON DUPLICATE KEY UPDATE
                 `x_mm` = VALUES(`x_mm`),
                 `y_mm` = VALUES(`y_mm`),
@@ -67,6 +69,7 @@ class KalibrasiKuitansiElemen
                 $w = max(10, min(215, $w));
             }
             $stmt->execute([
+                ':pid' => $printerId,
                 ':k' => $key,
                 ':label' => substr((string) ($it['label'] ?? $key), 0, 100),
                 ':x' => number_format($x, 2, '.', ''),

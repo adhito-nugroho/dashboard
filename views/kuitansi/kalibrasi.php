@@ -10,6 +10,13 @@ $widths = $data['widths'] ?? [];
 $refUrl = $data['refUrl'] ?? null;
 $flash = $data['flash'] ?? null;
 $flashType = $data['flashType'] ?? 'info';
+$printers = $data['printers'] ?? [];
+$printerId = (int) ($data['printerId'] ?? 0);
+$activePrinter = null;
+foreach ($printers as $p) {
+    if ((int) ($p['id'] ?? 0) === $printerId) { $activePrinter = $p; break; }
+}
+if ($activePrinter === null && !empty($printers)) { $activePrinter = $printers[0]; $printerId = (int) $activePrinter['id']; }
 
 $dummy = [
     'no_bku' => 'BKU/001', 'no_program' => 'PRG.01', 'no_kegiatan' => 'KEG.02',
@@ -52,8 +59,50 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
     </div>
     <p class="text-muted mb-3" style="font-size:.875rem;">
         Kertas 215&thinsp;mm &times; 165&thinsp;mm landscape (skala 1mm = 4px).
-        Geser tiap kotak ke posisinya. Tabel lama <code>kalibrasi_kuitansi</code> tidak dihapus, hanya tidak dipakai lagi.
+        Geser tiap kotak ke posisinya. Kalibrasi tersimpan <strong>per printer</strong> —
+        tiap printer punya offset mekanis berbeda.
     </p>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3 d-flex gap-2 flex-wrap align-items-end">
+            <div>
+                <label class="form-label mb-1 fw-semibold" style="font-size:.8rem;" for="kalPrinter">Printer</label>
+                <select class="form-select form-select-sm" id="kalPrinter" style="min-width:200px;">
+                    <?php foreach ($printers as $p): ?>
+                        <option value="<?= (int) $p['id'] ?>" <?= (int) $p['id'] === $printerId ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($p['nama']) ?><?= !empty($p['is_default']) ? ' ★ default' : '' ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <form method="POST" action="<?= base_url('kuitansi/kalibrasi/printer/default') ?>" class="m-0">
+                <input type="hidden" name="id" value="<?= $printerId ?>">
+                <button type="submit" class="btn btn-sm btn-outline-primary" <?= !empty($activePrinter['is_default']) ? 'disabled' : '' ?> title="Tombol Download memakai printer default">
+                    <i class="bi bi-star me-1"></i>Jadikan Default
+                </button>
+            </form>
+            <form method="POST" action="<?= base_url('kuitansi/kalibrasi/printer/hapus') ?>" class="m-0"
+                  onsubmit="return confirm('Hapus printer <?= htmlspecialchars($activePrinter['nama'] ?? '', ENT_QUOTES) ?> beserta kalibrasinya?')">
+                <input type="hidden" name="id" value="<?= $printerId ?>">
+                <button type="submit" class="btn btn-sm btn-outline-danger" <?= !empty($activePrinter['is_default']) || empty($printers) ? 'disabled' : '' ?>>
+                    <i class="bi bi-trash me-1"></i>Hapus
+                </button>
+            </form>
+            <form method="POST" action="<?= base_url('kuitansi/kalibrasi/printer/tambah') ?>" class="m-0 d-flex gap-2 align-items-end ms-auto">
+                <div>
+                    <label class="form-label mb-1" style="font-size:.8rem;" for="kalNewNama">Printer baru</label>
+                    <input type="text" class="form-control form-control-sm" id="kalNewNama" name="nama" maxlength="100" placeholder="cth: Epson LQ-310 (TU)" required>
+                </div>
+                <div>
+                    <label class="form-label mb-1" style="font-size:.8rem;" for="kalNewKet">Keterangan</label>
+                    <input type="text" class="form-control form-control-sm" id="kalNewKet" name="keterangan" maxlength="255" placeholder="opsional">
+                </div>
+                <button type="submit" class="btn btn-sm btn-outline-success" title="Posisi awal disalin dari printer default">
+                    <i class="bi bi-plus-lg me-1"></i>Tambah
+                </button>
+            </form>
+        </div>
+    </div>
 
     <?php if ($flash): ?>
         <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'success' ? 'success' : 'info') ?> alert-dismissible fade show" role="alert">
@@ -127,6 +176,7 @@ const labels = <?= json_encode($labels, JSON_UNESCAPED_UNICODE) ?>;
 const widths = <?= json_encode($widths, JSON_UNESCAPED_UNICODE) ?>;
 const dummy = <?= json_encode($dummy, JSON_UNESCAPED_UNICODE) ?>;
 const order = <?= json_encode($order) ?>;
+const PRINTER_ID = <?= (int) $printerId ?>;
 let initial = JSON.stringify(state);
 let selected = null;
 
@@ -290,6 +340,11 @@ document.getElementById('kalUpload').addEventListener('change', function() {
         .finally(() => { document.getElementById('kalUpload').value = ''; });
 });
 
+// --- pilih printer: muat ulang kanvas untuk printer tersebut ---
+document.getElementById('kalPrinter').addEventListener('change', function() {
+    window.location.href = BASE + 'kuitansi/kalibrasi?printer=' + encodeURIComponent(this.value);
+});
+
 // --- simpan ---
 document.getElementById('kalSimpan').addEventListener('click', () => {
     const items = order.map(key => ({
@@ -302,7 +357,7 @@ document.getElementById('kalSimpan').addEventListener('click', () => {
     fetch(BASE + 'kuitansi/kalibrasi/simpan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items })
+        body: JSON.stringify({ printer_id: PRINTER_ID, items })
     })
         .then(r => r.json().then(j => ({ status: r.status, body: j })))
         .then(({ status, body }) => {

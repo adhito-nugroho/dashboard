@@ -66,6 +66,7 @@ require_once __DIR__ . '/../app/Controllers/ExcelController.php';
 require_once __DIR__ . '/../app/Models/RincianBiaya.php';
 require_once __DIR__ . '/../app/Controllers/SpjController.php';
 require_once __DIR__ . '/../app/Models/KalibrasiKuitansiElemen.php';
+require_once __DIR__ . '/../app/Models/PrinterKuitansi.php';
 require_once __DIR__ . '/../app/Services/KuitansiPdfService.php';
 require_once __DIR__ . '/../app/Controllers/KuitansiController.php';
 
@@ -509,6 +510,12 @@ try {
         $kuitansiController->cetakUji();
     } elseif ($path === '/kuitansi/kalibrasi/upload' && $requestMethod === 'POST') {
         $kuitansiController->uploadReferensi();
+    } elseif ($path === '/kuitansi/kalibrasi/printer/tambah' && $requestMethod === 'POST') {
+        $kuitansiController->tambahPrinter();
+    } elseif ($path === '/kuitansi/kalibrasi/printer/default' && $requestMethod === 'POST') {
+        $kuitansiController->setDefaultPrinter();
+    } elseif ($path === '/kuitansi/kalibrasi/printer/hapus' && $requestMethod === 'POST') {
+        $kuitansiController->hapusPrinter();
     } elseif (preg_match('#^/kuitansi/cetak/(\d+)$#', $path, $matches)) {
         $kuitansiController->cetak((int) $matches[1]);
     }
