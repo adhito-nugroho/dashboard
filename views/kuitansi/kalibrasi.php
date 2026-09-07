@@ -39,14 +39,12 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
 .kal-canvas { position:relative; width:860px; height:660px; background:#fff; flex:0 0 auto; }
 .kal-canvas .kal-bg { position:absolute; inset:0; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
 .kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; }
-.kal-box .kal-tag { display:block; font-size:10px; font-weight:700; color:#1d4ed8; line-height:1.2; }
 .kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
 .kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
 .kal-box { max-height:240px; overflow:hidden; }
 .kal-box .kal-badge { position:absolute; top:-20px; left:0; font-size:10px; background:#0f172a; color:#fff; border-radius:4px; padding:1px 6px; white-space:nowrap; display:none; z-index:5; }
 .kal-box.selected { border-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); }
 .kal-box.selected .kal-badge { display:block; }
-.kal-box.selected .kal-tag { color:#b91c1c; }
 .kal-resize { position:absolute; right:-5px; top:0; bottom:0; width:10px; cursor:ew-resize; z-index:6; }
 .kal-resize::after { content:''; position:absolute; right:2px; top:15%; bottom:15%; width:3px; border-radius:2px; background:#2563eb; }
 </style>
@@ -228,7 +226,6 @@ order.forEach(key => {
     el.className = 'kal-box';
     el.dataset.key = key;
     el.innerHTML = '<span class="kal-badge"></span>'
-        + '<span class="kal-tag"></span>'
         + '<span class="kal-txt"></span>'
         + (key === 'uraian' ? '<span class="kal-resize" title="Geser untuk atur lebar"></span>' : '');
     canvas.appendChild(el);
@@ -241,7 +238,6 @@ function layout() {
         el.style.left = (s.x_mm * SCALE) + 'px';
         el.style.top = (s.y_mm * SCALE) + 'px';
         el.style.width = (widthOf(key) * SCALE) + 'px';
-        el.querySelector('.kal-tag').textContent = labels[key] || key;
         // Isi kotak: data transaksi asli bila ada; dummy bila belum ada transaksi;
         // placeholder bila nilainya memang kosong (tidak dicetak).
         const txt = (sample[key] !== undefined && sample[key] !== null && sample[key] !== '')
