@@ -368,11 +368,11 @@ class RincianBiayaExportService
         $r++;
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
-        // Kuasa Pengguna Anggaran
+        // Kuasa Pengguna Anggaran (rata kiri, sejajar nama & NIP di bawahnya)
         $r++;
         $sheet->mergeCells('D' . $r . ':F' . $r);
         $sheet->setCellValue('D' . $r, 'Kuasa Pengguna Anggaran');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $this->applyOuterBoxVerticalBorders($sheet, $r);
 
         // Ruang tanda tangan KPA
