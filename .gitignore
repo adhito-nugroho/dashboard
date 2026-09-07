@@ -25,3 +25,7 @@ logs/
 cache/
 tmp/
 
+# Uploads kalibrasi (file referensi NCR lokal, jangan commit — kecuali .gitkeep)
+public/uploads/kalibrasi/referensi_kuitansi.*
+!public/uploads/kalibrasi/.gitkeep
+

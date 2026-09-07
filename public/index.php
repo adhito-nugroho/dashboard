@@ -65,7 +65,7 @@ require_once __DIR__ . '/../app/Controllers/SeksiTransaksiController.php';
 require_once __DIR__ . '/../app/Controllers/ExcelController.php';
 require_once __DIR__ . '/../app/Models/RincianBiaya.php';
 require_once __DIR__ . '/../app/Controllers/SpjController.php';
-require_once __DIR__ . '/../app/Models/KalibrasiKuitansi.php';
+require_once __DIR__ . '/../app/Models/KalibrasiKuitansiElemen.php';
 require_once __DIR__ . '/../app/Services/KuitansiPdfService.php';
 require_once __DIR__ . '/../app/Controllers/KuitansiController.php';
 
@@ -503,9 +503,11 @@ try {
     elseif ($path === '/kuitansi/kalibrasi' || $path === '/kuitansi/kalibrasi/') {
         $kuitansiController->kalibrasi();
     } elseif ($path === '/kuitansi/kalibrasi/simpan' && $requestMethod === 'POST') {
-        $kuitansiController->simpanKalibrasi();
-    } elseif ($path === '/kuitansi/kalibrasi/uji' && $requestMethod === 'GET') {
+        $kuitansiController->simpanElemen();
+    } elseif ($path === '/kuitansi/kalibrasi/uji' && $requestMethod === 'POST') {
         $kuitansiController->cetakUji();
+    } elseif ($path === '/kuitansi/kalibrasi/upload' && $requestMethod === 'POST') {
+        $kuitansiController->uploadReferensi();
     } elseif (preg_match('#^/kuitansi/cetak/(\d+)$#', $path, $matches)) {
         $kuitansiController->cetak((int) $matches[1]);
     }
