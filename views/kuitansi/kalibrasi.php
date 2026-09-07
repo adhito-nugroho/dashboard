@@ -23,7 +23,7 @@ $dummy = [
     'terima_dari' => '(kosong — contoh: Bendahara Pengeluaran)',
     'jumlah_terbilang' => 'Tiga Ratus Ribu Rupiah',
     'uraian' => 'Perjalanan Dinas dalam rangka koordinasi kehutanan ... (contoh, wrap otomatis)',
-    'terbilang_rp' => '300.000', 'tempat_tanggal' => 'Bojonegoro, 27 Agustus 2026',
+    'terbilang_rp' => '300.000', 'tempat_tanggal' => '27 Agustus 2026',
     'ttd_kpa_nama' => 'ENDANG HANDAYANI, S.P., M.Si.', 'ttd_kpa_nip' => 'NIP. 19760328 200003 2 003',
     'ttd_bendahara_nama' => 'ADHITO NUGROHO, S.Kom.', 'ttd_bendahara_nip' => 'NIP. 19840214 201001 1 011',
     'ttd_penerima_nama' => 'Budi Santoso',

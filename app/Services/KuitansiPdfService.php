@@ -161,7 +161,7 @@ class KuitansiPdfService
             'jumlah_terbilang' => kuitansi_terbilang($nilai) . ' Rupiah',
             'uraian' => (string) ($trx['uraian'] ?? ''),
             'terbilang_rp' => number_format($nilai, 0, ',', '.'),
-            'tempat_tanggal' => 'Bojonegoro, ' . kuitansi_tanggal_id($tanggal),
+            'tempat_tanggal' => kuitansi_tanggal_id($tanggal),
             'kpa_nama' => (string) ($_ENV['KPA_NAMA'] ?? getenv('KPA_NAMA') ?: 'ENDANG HANDAYANI, S.P., M.Si.'),
             'kpa_nip' => (string) ($_ENV['KPA_NIP'] ?? getenv('KPA_NIP') ?: '19760328 200003 2 003'),
             'bendahara_nama' => (string) ($_ENV['BENDAHARA_NAMA'] ?? getenv('BENDAHARA_NAMA') ?: 'ADHITO NUGROHO, S.Kom.'),

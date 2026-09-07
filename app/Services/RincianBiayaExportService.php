@@ -113,6 +113,11 @@ class RincianBiayaExportService
             $namaKomponen = trim((string) ($d['nama_komponen'] ?? ''));
             $hargaSatuan  = (float) ($d['harga_satuan'] ?? 0);
             $jumlahHari   = $d['jumlah_hari'] !== null && $d['jumlah_hari'] !== '' ? (float) $d['jumlah_hari'] : null;
+            // Hotel bukan komponen harian — kolom Hari selalu dikosongkan di output
+            // (berlaku juga untuk data lama yang terlanjur tersimpan hari=1).
+            if ($jumlahHari !== null && stripos($namaKomponen, 'hotel') !== false) {
+                $jumlahHari = null;
+            }
             $jumlah       = (float) ($d['jumlah'] ?? 0);
             $keterangan   = trim((string) ($d['keterangan'] ?? ''));
 
