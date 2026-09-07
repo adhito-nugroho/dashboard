@@ -77,32 +77,29 @@ return [
         'label' => 'Tempat & tanggal',
     ],
 
-    // 3 kolom tanda tangan (diukur dari scan): jabatan y=122,
-    // nama tepat di garis titik-titik y=150, NIP di bawahnya y=156.
-    'ttd1' => [ // Setuju dibayar / Kuasa Pengguna Anggaran
+    // Jangkar kolom TTD (x kolom; y dipakai untuk turunan nama/NIP).
+    // Teks jabatan ("Setuju dibayar" dll) TIDAK digambar — sudah pre-printed di NCR.
+    'ttd1' => [ // Kolom KPA
         'x_mm' => 47, 'y_mm' => 122, 'w_mm' => 60,
         'font' => 'Times', 'style' => '', 'size' => 9, 'align' => 'C',
-        'jabatan' => "Setuju dibayar\nKuasa Pengguna Anggaran",
         'label' => 'TTD 1 (KPA)',
     ],
-    'ttd2' => [ // Lunas dibayar / Bendahara Pengeluaran Pembantu
+    'ttd2' => [ // Kolom Bendahara
         'x_mm' => 107, 'y_mm' => 122, 'w_mm' => 60,
         'font' => 'Times', 'style' => '', 'size' => 9, 'align' => 'C',
-        'jabatan' => "Lunas dibayar, Tgl. .....\nBendahara Pengeluaran Pembantu",
         'label' => 'TTD 2 (Bendahara)',
     ],
-    'ttd3' => [ // Yang menerima
+    'ttd3' => [ // Kolom penerima
         'x_mm' => 168, 'y_mm' => 122, 'w_mm' => 40,
         'font' => 'Times', 'style' => '', 'size' => 9, 'align' => 'C',
-        'jabatan' => "Yang menerima",
         'label' => 'TTD 3 (Penerima)',
     ],
 
     // Lebar tiap baris TTD (dipakai service + kanvas; nama di atas garis titik-titik)
     'ttd_widths' => [
-        'ttd_kpa_jabatan' => 60, 'ttd_kpa_nama' => 47, 'ttd_kpa_nip' => 47,
-        'ttd_bendahara_jabatan' => 60, 'ttd_bendahara_nama' => 46, 'ttd_bendahara_nip' => 46,
-        'ttd_penerima_jabatan' => 40, 'ttd_penerima_nama' => 28,
+        'ttd_kpa_nama' => 47, 'ttd_kpa_nip' => 47,
+        'ttd_bendahara_nama' => 46, 'ttd_bendahara_nip' => 46,
+        'ttd_penerima_nama' => 28,
     ],
 
     // Tinggi ruang tanda tangan (jarak jabatan -> nama) dan jarak nama -> NIP

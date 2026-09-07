@@ -17,13 +17,11 @@ $dummy = [
     'jumlah_terbilang' => 'Tiga Ratus Ribu Rupiah',
     'uraian' => 'Perjalanan Dinas dalam rangka koordinasi kehutanan ... (contoh, wrap otomatis)',
     'terbilang_rp' => '300.000', 'tempat_tanggal' => 'Bojonegoro, 27 Agustus 2026',
-    'ttd_kpa_jabatan' => 'Setuju dibayar / Kuasa Pengguna Anggaran',
     'ttd_kpa_nama' => 'ENDANG HANDAYANI, S.P., M.Si.', 'ttd_kpa_nip' => 'NIP. 19760328 200003 2 003',
-    'ttd_bendahara_jabatan' => 'Lunas dibayar / Bendahara Pengeluaran Pembantu',
     'ttd_bendahara_nama' => 'ADHITO NUGROHO, S.Kom.', 'ttd_bendahara_nip' => 'NIP. 19840214 201001 1 011',
-    'ttd_penerima_jabatan' => 'Yang menerima', 'ttd_penerima_nama' => 'Budi Santoso',
+    'ttd_penerima_nama' => 'Budi Santoso',
 ];
-$order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','uraian','terbilang_rp','tempat_tanggal','ttd_kpa_jabatan','ttd_kpa_nama','ttd_kpa_nip','ttd_bendahara_jabatan','ttd_bendahara_nama','ttd_bendahara_nip','ttd_penerima_jabatan','ttd_penerima_nama'];
+$order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','uraian','terbilang_rp','tempat_tanggal','ttd_kpa_nama','ttd_kpa_nip','ttd_bendahara_nama','ttd_bendahara_nip','ttd_penerima_nama'];
 ?>
 <style>
 .kal-canvas-scroll { overflow:auto; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; max-width:100%; }

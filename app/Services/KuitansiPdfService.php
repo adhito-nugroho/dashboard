@@ -7,16 +7,18 @@ require_once __DIR__ . '/../../lib/fpdf.php';
 class KuitansiPdfService
 {
     /**
-     * 16 elemen_key — HARUS match persis dengan seed tabel kalibrasi_kuitansi_elemen
-     * (migrasi 20260908) dan dengan daftar kanvas di views/kuitansi/kalibrasi.php.
+     * 13 elemen_key — HARUS match persis dengan seed tabel kalibrasi_kuitansi_elemen
+     * dan dengan daftar kanvas di views/kuitansi/kalibrasi.php.
+     * Teks jabatan TTD ("Setuju dibayar" dll) SENGAJA tidak ada: sudah pre-printed
+     * di kertas NCR, jadi tidak digambar ulang. Yang dicetak hanya nama + NIP.
      */
     public const ELEMEN_KEYS = [
         'no_bku', 'no_program', 'no_kegiatan',
         'terima_dari', 'jumlah_terbilang', 'uraian',
         'terbilang_rp', 'tempat_tanggal',
-        'ttd_kpa_jabatan', 'ttd_kpa_nama', 'ttd_kpa_nip',
-        'ttd_bendahara_jabatan', 'ttd_bendahara_nama', 'ttd_bendahara_nip',
-        'ttd_penerima_jabatan', 'ttd_penerima_nama',
+        'ttd_kpa_nama', 'ttd_kpa_nip',
+        'ttd_bendahara_nama', 'ttd_bendahara_nip',
+        'ttd_penerima_nama',
     ];
 
     private array $koordinat;
@@ -53,14 +55,12 @@ class KuitansiPdfService
         }
         $p['uraian']['max_width_mm'] = (float) ($koordinat['uraian']['w_mm'] ?? 170);
 
-        // Nama/NIP di garis titik-titik (x diukur dari segmen garis putus-putus).
-        $p['ttd_kpa_jabatan'] = $g($t1);
+        // Nama/NIP di garis titik-titik. ttd1/2/3 hanya jangkar x (teks jabatan
+        // tidak digambar — sudah pre-printed di NCR).
         $p['ttd_kpa_nama'] = ['x_mm' => (float) $t1['x_mm'] + 19, 'y_mm' => 150];
         $p['ttd_kpa_nip'] = ['x_mm' => (float) $t1['x_mm'] + 19, 'y_mm' => 156];
-        $p['ttd_bendahara_jabatan'] = $g($t2);
         $p['ttd_bendahara_nama'] = ['x_mm' => (float) $t2['x_mm'] + 19, 'y_mm' => 150];
         $p['ttd_bendahara_nip'] = ['x_mm' => (float) $t2['x_mm'] + 19, 'y_mm' => 156];
-        $p['ttd_penerima_jabatan'] = $g($t3);
         $p['ttd_penerima_nama'] = ['x_mm' => (float) $t3['x_mm'] + 16, 'y_mm' => 150];
         return $p;
     }
@@ -162,13 +162,10 @@ class KuitansiPdfService
             'uraian' => (string) ($trx['uraian'] ?? ''),
             'terbilang_rp' => number_format($nilai, 0, ',', '.'),
             'tempat_tanggal' => 'Bojonegoro, ' . kuitansi_tanggal_id($tanggal),
-            'ttd_kpa_jabatan' => "Setuju dibayar\nKuasa Pengguna Anggaran",
             'kpa_nama' => (string) ($_ENV['KPA_NAMA'] ?? getenv('KPA_NAMA') ?: 'ENDANG HANDAYANI, S.P., M.Si.'),
             'kpa_nip' => (string) ($_ENV['KPA_NIP'] ?? getenv('KPA_NIP') ?: '19760328 200003 2 003'),
-            'ttd_bendahara_jabatan' => "Lunas dibayar, Tgl. .....\nBendahara Pengeluaran Pembantu",
             'bendahara_nama' => (string) ($_ENV['BENDAHARA_NAMA'] ?? getenv('BENDAHARA_NAMA') ?: 'ADHITO NUGROHO, S.Kom.'),
             'bendahara_nip' => (string) ($_ENV['BENDAHARA_NIP'] ?? getenv('BENDAHARA_NIP') ?: '19840214 201001 1 011'),
-            'ttd_penerima_jabatan' => 'Yang menerima',
             'penerima_nama' => (string) ($trx['nama_penerima'] ?? ''),
             'nilai' => $nilai,
         ];
@@ -192,13 +189,10 @@ class KuitansiPdfService
         $this->field($pdf, 'terbilang_rp', $d['terbilang_rp']);
         $this->field($pdf, 'tempat_tanggal', $d['tempat_tanggal']);
 
-        $this->ttdLine($pdf, 'ttd_kpa_jabatan', $d['ttd_kpa_jabatan']);
         $this->ttdLine($pdf, 'ttd_kpa_nama', $d['kpa_nama'] !== '' ? $d['kpa_nama'] : '........................', 'U');
         $this->ttdLine($pdf, 'ttd_kpa_nip', $d['kpa_nip'] !== '' ? ('NIP. ' . $d['kpa_nip']) : '');
-        $this->ttdLine($pdf, 'ttd_bendahara_jabatan', $d['ttd_bendahara_jabatan']);
         $this->ttdLine($pdf, 'ttd_bendahara_nama', $d['bendahara_nama'] !== '' ? $d['bendahara_nama'] : '........................', 'U');
         $this->ttdLine($pdf, 'ttd_bendahara_nip', $d['bendahara_nip'] !== '' ? ('NIP. ' . $d['bendahara_nip']) : '');
-        $this->ttdLine($pdf, 'ttd_penerima_jabatan', $d['ttd_penerima_jabatan']);
         $this->ttdLine($pdf, 'ttd_penerima_nama', $d['penerima_nama'] !== '' ? $d['penerima_nama'] : '........................', 'U');
 
         $fname = 'kuitansi_' . preg_replace('/[^A-Za-z0-9-_]+/', '_', (string) ($trx['nomor_bukti'] ?? $trx['id'] ?? 'transaksi')) . '.pdf';
@@ -230,10 +224,10 @@ class KuitansiPdfService
             'no_kegiatan' => 'No. Kegiatan', 'terima_dari' => 'Terima dari',
             'jumlah_terbilang' => 'Jumlah (terbilang)', 'uraian' => 'Untuk Pembayaran (uraian)',
             'terbilang_rp' => 'Terbilang Rp (angka)', 'tempat_tanggal' => 'Tempat & tanggal',
-            'ttd_kpa_jabatan' => 'TTD KPA - Jabatan', 'ttd_kpa_nama' => 'TTD KPA - Nama',
-            'ttd_kpa_nip' => 'TTD KPA - NIP', 'ttd_bendahara_jabatan' => 'TTD Bendahara - Jabatan',
+            'ttd_kpa_nama' => 'TTD KPA - Nama',
+            'ttd_kpa_nip' => 'TTD KPA - NIP',
             'ttd_bendahara_nama' => 'TTD Bendahara - Nama', 'ttd_bendahara_nip' => 'TTD Bendahara - NIP',
-            'ttd_penerima_jabatan' => 'TTD Penerima - Jabatan', 'ttd_penerima_nama' => 'TTD Penerima - Nama',
+            'ttd_penerima_nama' => 'TTD Penerima - Nama',
         ];
 
         foreach (self::ELEMEN_KEYS as $key) {
