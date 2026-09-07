@@ -52,8 +52,8 @@ class RincianBiayaExportService
         $sheet->getColumnDimension('E')->setWidth(19);
         $sheet->getColumnDimension('F')->setWidth(24);
 
-        // Siapkan data tanggal & nomor surat
-        $nomorSurat = $header['nomor_surat'] ?: ($transaksi['nomor_surat_tugas'] ?? '-');
+        // Siapkan data tanggal & nomor surat (nomor SPT lengkap, lihat resolveNomorSurat)
+        $nomorSurat = $this->resolveNomorSurat($header, $transaksi);
         $tglRaw = $transaksi['tanggal_surat_tugas'] ?? ($header['tanggal_surat'] ?? ($transaksi['tanggal'] ?? date('Y-m-d')));
         $tglFormatted = $this->formatTanggalIndo($tglRaw);
 
@@ -118,8 +118,8 @@ class RincianBiayaExportService
 
             $totalBiaya += $jumlah;
 
-            // Kolom A: Nomor hanya di baris pertama paket perjalanan dinas (1)
-            $sheet->setCellValue('A' . $row, $idx === 0 ? 1 : '');
+            // Kolom A: nomor urut SEMUA baris komponen (1, 2, 3, ...)
+            $sheet->setCellValue('A' . $row, $idx + 1);
             $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             // Kolom B: Nama komponen
@@ -468,6 +468,54 @@ class RincianBiayaExportService
         $y = date('Y', $t);
 
         return $d . ' ' . ($bulan[$m] ?? date('F', $t)) . ' ' . $y;
+    }
+
+    /**
+     * Nomor SPT lengkap untuk "Lampiran SPT Nomor".
+     * Sumber otoritatif: db_surat_tugas.surat_tugas.nomor_surat (format lengkap
+     * "800.1.11.1/ 2774 /123.6.6/2026"); cache lokal (header/transaksi) kadang
+     * hanya berisi nomor pendek ("2636"). Dipilih kandidat non-kosong TERPANJANG
+     * agar tidak pernah downgrade lengkap -> pendek. Read-only + null-safe:
+     * jika db_surat_tugas tidak terjangkau, pakai cache lokal apa adanya.
+     */
+    private function resolveNomorSurat(array $header, array $transaksi): string
+    {
+        $candidates = [];
+
+        $stId = (int) ($header['surat_tugas_id'] ?? 0);
+        if ($stId <= 0) {
+            $stId = (int) ($transaksi['surat_tugas_ref_id'] ?? 0);
+        }
+        if ($stId > 0) {
+            try {
+                $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
+                if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
+                    require_once $cfg;
+                }
+                if (class_exists('DatabaseSuratTugas')) {
+                    $stDb = \DatabaseSuratTugas::getConnection();
+                    if ($stDb !== null) {
+                        $stmt = $stDb->prepare('SELECT nomor_surat FROM surat_tugas WHERE id = ? LIMIT 1');
+                        $stmt->execute([$stId]);
+                        $candidates[] = (string) $stmt->fetchColumn();
+                    }
+                }
+            } catch (\Throwable $e) {
+                // abaikan — pakai cache lokal
+            }
+        }
+
+        $candidates[] = (string) ($header['nomor_surat'] ?? '');
+        $candidates[] = (string) ($transaksi['nomor_surat_tugas'] ?? '');
+
+        $best = '';
+        foreach ($candidates as $c) {
+            $c = trim($c);
+            if ($c !== '' && strlen($c) > strlen($best)) {
+                $best = $c;
+            }
+        }
+        return $best !== '' ? $best : '-';
     }
 
     /**
