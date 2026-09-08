@@ -53,38 +53,67 @@ foreach ($pendingBySeksi as $ps) {
 
     <!-- Widget Saldo Kas/Bank (UP/GU) -->
     <?php if (!empty($kasRingkasan)): ?>
-    <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 animate-fade-in-up" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); color: #fff;">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-            <div>
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size:0.7rem;">
-                        <i class="bi bi-bank me-1"></i>KAS & BANK (UP/GU)
-                    </span>
-                    <span class="text-light opacity-75 small">Periode <?= date('F Y') ?></span>
+    <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 bg-white animate-fade-in-up" style="border: 1px solid #e2e8f0 !important;">
+        <div class="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center gap-3">
+            <!-- Saldo Utama -->
+            <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="bi bi-bank2 fs-4"></i>
                 </div>
-                <div class="d-flex align-items-baseline gap-3">
-                    <div class="h2 fw-bold mb-0 font-monospace text-white">
-                        Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-0.5">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold" style="font-size:0.7rem;">
+                            KAS & BANK (UP/GU)
+                        </span>
+                        <span class="text-muted small">Periode <?= date('F Y') ?></span>
                     </div>
-                    <span class="small text-light opacity-75">Saldo Kas Riil Tersedia</span>
+                    <div class="d-flex align-items-baseline gap-2">
+                        <div class="h3 fw-bold mb-0 font-monospace text-dark">
+                            Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
+                        </div>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style="font-size:0.7rem;">
+                            <i class="bi bi-check-circle me-1"></i>Saldo Kas Riil
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div class="d-flex align-items-center gap-3 flex-wrap">
-                <div class="text-md-end border-start border-white border-opacity-25 ps-3 ps-md-0 border-md-0 pe-md-3">
-                    <div class="text-xs text-warning">⏳ GU Menunggu Cair:</div>
-                    <div class="fw-bold font-monospace text-warning">Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?></div>
+            <!-- Mini Metrik Berwarna Jelas & Kontras Tinggi -->
+            <div class="d-flex align-items-center gap-2 flex-wrap ms-auto ms-xl-0">
+                <!-- GU Menunggu Cair -->
+                <div class="px-3 py-2 rounded-3 border" style="background: #fffbeb; border-color: #fde68a !important;">
+                    <div class="text-xs fw-semibold text-warning-emphasis" style="font-size:0.72rem;">
+                        <i class="bi bi-hourglass-split me-1"></i>GU Menunggu Cair (SPJ Lalu):
+                    </div>
+                    <div class="fw-bold font-monospace text-warning-emphasis fs-6 mb-0">
+                        Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?>
+                    </div>
                 </div>
-                <div class="text-md-end border-start border-white border-opacity-25 ps-3">
-                    <div class="text-xs text-light opacity-75">Belanja Siap GU:</div>
-                    <div class="fw-bold font-monospace text-danger-emphasis text-light">Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?></div>
+
+                <!-- Belanja Siap GU -->
+                <div class="px-3 py-2 rounded-3 border" style="background: #fff1f2; border-color: #fecdd3 !important;">
+                    <div class="text-xs fw-semibold" style="color: #9f1239; font-size:0.72rem;">
+                        <i class="bi bi-receipt me-1"></i>Belanja Bulan Ini (Siap GU):
+                    </div>
+                    <div class="fw-bold font-monospace fs-6 mb-0" style="color: #e11d48;">
+                        Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?>
+                    </div>
                 </div>
-                <div class="text-md-end border-start border-white border-opacity-25 ps-3">
-                    <div class="text-xs text-success">Proyeksi Setelah Cair:</div>
-                    <div class="fw-bold font-monospace text-success">Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?></div>
+
+                <!-- Proyeksi Kas Setelah Cair -->
+                <div class="px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;">
+                    <div class="text-xs fw-semibold text-success" style="font-size:0.72rem;">
+                        <i class="bi bi-graph-up-arrow me-1"></i>Proyeksi Setelah GU Cair:
+                    </div>
+                    <div class="fw-bold font-monospace text-success fs-6 mb-0">
+                        Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?>
+                    </div>
                 </div>
-                <a href="<?= base_url('kas-bank') ?>" class="btn btn-sm btn-light text-primary fw-semibold px-3 py-2 rounded-3 shadow-sm ms-md-2">
-                    <i class="bi bi-arrow-right-circle me-1"></i>Kelola Kas & Catat GU
+
+                <!-- Tombol Kelola -->
+                <a href="<?= base_url('kas-bank') ?>" class="btn btn-primary btn-sm fw-semibold px-3 py-2 rounded-3 shadow-sm ms-xl-2 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-arrow-right-circle"></i>
+                    <span>Kelola Kas & GU</span>
                 </a>
             </div>
         </div>
