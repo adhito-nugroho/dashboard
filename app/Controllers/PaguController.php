@@ -36,6 +36,12 @@ class PaguController {
     public function index(): void {
         try {
             $pagus = $this->paguModel->getAll();
+
+            // Total keseluruhan (dari SEMUA data, bukan hanya halaman aktif)
+            $totalPaguKeseluruhan = array_sum(array_map(
+                fn($p) => (float) ($p['nilai_pagu'] ?? 0),
+                $pagus
+            ));
             
             $perPage = 10;
             $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
