@@ -72,12 +72,16 @@ foreach ($pendingBySeksi as $ps) {
 
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div class="text-md-end border-start border-white border-opacity-25 ps-3 ps-md-0 border-md-0 pe-md-3">
-                    <div class="text-xs text-light opacity-75">Plafond UP Kantor:</div>
-                    <div class="fw-bold font-monospace text-white">Rp <?= number_format($kasRingkasan['plafond_up'], 0, ',', '.') ?></div>
+                    <div class="text-xs text-warning">⏳ GU Menunggu Cair:</div>
+                    <div class="fw-bold font-monospace text-warning">Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?></div>
                 </div>
                 <div class="text-md-end border-start border-white border-opacity-25 ps-3">
-                    <div class="text-xs text-warning">Estimasi GU Belum Cair:</div>
-                    <div class="fw-bold font-monospace text-warning">Rp <?= number_format($kasRingkasan['estimasi_gu_cair'], 0, ',', '.') ?></div>
+                    <div class="text-xs text-light opacity-75">Belanja Siap GU:</div>
+                    <div class="fw-bold font-monospace text-danger-emphasis text-light">Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?></div>
+                </div>
+                <div class="text-md-end border-start border-white border-opacity-25 ps-3">
+                    <div class="text-xs text-success">Proyeksi Setelah Cair:</div>
+                    <div class="fw-bold font-monospace text-success">Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?></div>
                 </div>
                 <a href="<?= base_url('kas-bank') ?>" class="btn btn-sm btn-light text-primary fw-semibold px-3 py-2 rounded-3 shadow-sm ms-md-2">
                     <i class="bi bi-arrow-right-circle me-1"></i>Kelola Kas & Catat GU

@@ -51,7 +51,7 @@ class KasBankController
         $ringkasan = $this->kasBankModel->getRingkasan($bulan, $tahun);
         $mutasiList = $this->kasBankModel->getByPeriode($bulan, $tahun);
 
-        // Ambil juga daftar transaksi belanja diverifikasi di bulan ini untuk rincian mutasi kas keluar
+        // Ambil daftar transaksi belanja diverifikasi di bulan ini untuk rincian mutasi kas keluar
         $db = \Database::getConnection();
         $stmtTrx = $db->prepare("
             SELECT t.id, t.tanggal, t.tanggal_lunas_dibayar, t.nomor_bukti, t.uraian, t.nama_penerima, t.nilai, s.nama_seksi
@@ -79,13 +79,15 @@ class KasBankController
     {
         $this->requireAdmin();
 
-        $tanggal    = trim($_POST['tanggal'] ?? '');
-        $jenis      = trim($_POST['jenis'] ?? 'gu');
-        $nomorBukti = trim($_POST['nomor_bukti'] ?? '');
-        $keterangan = trim($_POST['keterangan'] ?? '');
-        $nominalRaw = str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? '0');
-        $nominal    = (float) $nominalRaw;
-        $userId     = (int) ($_SESSION['user_id'] ?? 1);
+        $tanggal     = trim($_POST['tanggal'] ?? '');
+        $jenis       = trim($_POST['jenis'] ?? 'gu');
+        $status      = in_array($_POST['status'] ?? '', ['menunggu_cair', 'cair'], true) ? $_POST['status'] : ($jenis === 'gu' ? 'menunggu_cair' : 'cair');
+        $nomorBukti  = trim($_POST['nomor_bukti'] ?? '');
+        $keterangan  = trim($_POST['keterangan'] ?? '');
+        $nominalRaw  = str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? '0');
+        $nominal     = (float) $nominalRaw;
+        $tanggalCair = !empty($_POST['tanggal_cair']) ? trim($_POST['tanggal_cair']) : ($status === 'cair' ? $tanggal : null);
+        $userId      = (int) ($_SESSION['user_id'] ?? 1);
 
         if (empty($tanggal) || !strtotime($tanggal)) {
             $this->redirectWithMessage(base_url('kas-bank'), 'error', 'Tanggal mutasi tidak valid');
@@ -103,11 +105,36 @@ class KasBankController
         }
 
         try {
-            $this->kasBankModel->create($tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $userId);
+            $this->kasBankModel->create($tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $userId, $status, $tanggalCair);
             $this->redirectWithMessage(base_url('kas-bank?bulan=' . date('n', strtotime($tanggal)) . '&tahun=' . date('Y', strtotime($tanggal))), 'success', 'Mutasi kas berhasil disimpan');
         } catch (\Throwable $e) {
             $this->redirectWithMessage(base_url('kas-bank'), 'error', 'Gagal menyimpan mutasi kas: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Tandai mutasi GU sebagai sudah cair
+     */
+    public function cairkan(int $id): void
+    {
+        $this->requireAdmin();
+
+        $record = $this->kasBankModel->getById($id);
+        if (!$record) {
+            $this->redirectWithMessage(base_url('kas-bank'), 'error', 'Data mutasi tidak ditemukan');
+            return;
+        }
+
+        $tanggalCair = !empty($_POST['tanggal_cair']) ? trim($_POST['tanggal_cair']) : date('Y-m-d');
+        $ok = $this->kasBankModel->tandaiCair($id, $tanggalCair);
+
+        $bulan = $record['bulan'];
+        $tahun = $record['tahun'];
+        $this->redirectWithMessage(
+            base_url("kas-bank?bulan={$bulan}&tahun={$tahun}"),
+            $ok ? 'success' : 'error',
+            $ok ? 'Dana GU berhasil ditandai cair dan saldo kas telah diperbarui' : 'Gagal mengubah status pencairan'
+        );
     }
 
     /**
@@ -117,19 +144,21 @@ class KasBankController
     {
         $this->requireAdmin();
 
-        $tanggal    = trim($_POST['tanggal'] ?? '');
-        $jenis      = trim($_POST['jenis'] ?? 'gu');
-        $nomorBukti = trim($_POST['nomor_bukti'] ?? '');
-        $keterangan = trim($_POST['keterangan'] ?? '');
-        $nominalRaw = str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? '0');
-        $nominal    = (float) $nominalRaw;
+        $tanggal     = trim($_POST['tanggal'] ?? '');
+        $jenis       = trim($_POST['jenis'] ?? 'gu');
+        $status      = in_array($_POST['status'] ?? '', ['menunggu_cair', 'cair'], true) ? $_POST['status'] : 'cair';
+        $nomorBukti  = trim($_POST['nomor_bukti'] ?? '');
+        $keterangan  = trim($_POST['keterangan'] ?? '');
+        $nominalRaw  = str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? '0');
+        $nominal     = (float) $nominalRaw;
+        $tanggalCair = !empty($_POST['tanggal_cair']) ? trim($_POST['tanggal_cair']) : ($status === 'cair' ? $tanggal : null);
 
         if (empty($tanggal) || empty($keterangan) || $nominal <= 0) {
             $this->redirectWithMessage(base_url('kas-bank'), 'error', 'Data mutasi tidak lengkap');
             return;
         }
 
-        $ok = $this->kasBankModel->update($id, $tanggal, $jenis, $nomorBukti, $keterangan, $nominal);
+        $ok = $this->kasBankModel->update($id, $tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $status, $tanggalCair);
         $this->redirectWithMessage(
             base_url('kas-bank?bulan=' . date('n', strtotime($tanggal)) . '&tahun=' . date('Y', strtotime($tanggal))),
             $ok ? 'success' : 'error',

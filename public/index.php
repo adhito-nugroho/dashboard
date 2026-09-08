@@ -570,6 +570,8 @@ try {
         $kasBankController->index();
     } elseif ($path === '/kas-bank/store' && $requestMethod === 'POST') {
         $kasBankController->store();
+    } elseif (preg_match('#^/kas-bank/cairkan/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $kasBankController->cairkan((int) $matches[1]);
     } elseif (preg_match('#^/kas-bank/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $kasBankController->update((int) $matches[1]);
     } elseif (preg_match('#^/kas-bank/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {

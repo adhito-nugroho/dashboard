@@ -68,26 +68,34 @@ class KasBank
         ?string $nomorBukti,
         string $keterangan,
         float $nominal,
-        int $createdBy
+        int $createdBy,
+        string $status = 'cair',
+        ?string $tanggalCair = null
     ): int {
         try {
             $time = strtotime($tanggal) ?: time();
             $bulan = (int) date('m', $time);
             $tahun = (int) date('Y', $time);
 
+            if ($status === 'cair' && empty($tanggalCair)) {
+                $tanggalCair = $tanggal;
+            }
+
             $stmt = $this->db->prepare("
-                INSERT INTO kas_bank (tanggal, tahun, bulan, jenis, nomor_bukti, keterangan, nominal, created_by)
-                VALUES (:tanggal, :tahun, :bulan, :jenis, :nomor_bukti, :keterangan, :nominal, :created_by)
+                INSERT INTO kas_bank (tanggal, tanggal_cair, tahun, bulan, jenis, status, nomor_bukti, keterangan, nominal, created_by)
+                VALUES (:tanggal, :tanggal_cair, :tahun, :bulan, :jenis, :status, :nomor_bukti, :keterangan, :nominal, :created_by)
             ");
             $stmt->execute([
-                ':tanggal'     => $tanggal,
-                ':tahun'       => $tahun,
-                ':bulan'       => $bulan,
-                ':jenis'       => $jenis,
-                ':nomor_bukti' => !empty($nomorBukti) ? trim($nomorBukti) : null,
-                ':keterangan'  => trim($keterangan),
-                ':nominal'     => $nominal,
-                ':created_by'  => $createdBy,
+                ':tanggal'      => $tanggal,
+                ':tanggal_cair' => $tanggalCair,
+                ':tahun'        => $tahun,
+                ':bulan'        => $bulan,
+                ':jenis'        => $jenis,
+                ':status'       => $status,
+                ':nomor_bukti'  => !empty($nomorBukti) ? trim($nomorBukti) : null,
+                ':keterangan'   => trim($keterangan),
+                ':nominal'      => $nominal,
+                ':created_by'   => $createdBy,
             ]);
             return (int) $this->db->lastInsertId();
         } catch (PDOException $e) {
@@ -105,36 +113,69 @@ class KasBank
         string $jenis,
         ?string $nomorBukti,
         string $keterangan,
-        float $nominal
+        float $nominal,
+        string $status = 'cair',
+        ?string $tanggalCair = null
     ): bool {
         try {
             $time = strtotime($tanggal) ?: time();
             $bulan = (int) date('m', $time);
             $tahun = (int) date('Y', $time);
 
+            if ($status === 'cair' && empty($tanggalCair)) {
+                $tanggalCair = $tanggal;
+            }
+
             $stmt = $this->db->prepare("
                 UPDATE kas_bank
                 SET tanggal = :tanggal,
+                    tanggal_cair = :tanggal_cair,
                     tahun = :tahun,
                     bulan = :bulan,
                     jenis = :jenis,
+                    status = :status,
                     nomor_bukti = :nomor_bukti,
                     keterangan = :keterangan,
                     nominal = :nominal
                 WHERE id = :id
             ");
             return $stmt->execute([
-                ':tanggal'     => $tanggal,
-                ':tahun'       => $tahun,
-                ':bulan'       => $bulan,
-                ':jenis'       => $jenis,
-                ':nomor_bukti' => !empty($nomorBukti) ? trim($nomorBukti) : null,
-                ':keterangan'  => trim($keterangan),
-                ':nominal'     => $nominal,
-                ':id'          => $id,
+                ':tanggal'      => $tanggal,
+                ':tanggal_cair' => $tanggalCair,
+                ':tahun'        => $tahun,
+                ':bulan'        => $bulan,
+                ':jenis'        => $jenis,
+                ':status'       => $status,
+                ':nomor_bukti'  => !empty($nomorBukti) ? trim($nomorBukti) : null,
+                ':keterangan'   => trim($keterangan),
+                ':nominal'      => $nominal,
+                ':id'           => $id,
             ]);
         } catch (PDOException $e) {
             error_log('Error updating kas_bank: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Tandai mutasi kas (GU) sebagai sudah cair
+     */
+    public function tandaiCair(int $id, ?string $tanggalCair = null): bool
+    {
+        try {
+            $tgl = !empty($tanggalCair) ? $tanggalCair : date('Y-m-d');
+            $stmt = $this->db->prepare("
+                UPDATE kas_bank
+                SET status = 'cair',
+                    tanggal_cair = :tanggal_cair
+                WHERE id = :id
+            ");
+            return $stmt->execute([
+                ':tanggal_cair' => $tgl,
+                ':id'           => $id,
+            ]);
+        } catch (PDOException $e) {
+            error_log('Error marking kas_bank as cair: ' . $e->getMessage());
             return false;
         }
     }
@@ -154,28 +195,41 @@ class KasBank
     }
 
     /**
-     * Hitung ringkasan kas & bank, saldo berjalan, pengeluaran diverifikasi, dan estimasi GU
+     * Hitung ringkasan kas & bank:
+     * - Saldo kas riil saat ini (hanya dari mutasi yang sudah CAIR dikurangi pengeluaran diverifikasi)
+     * - Total GU yang sedang MENUNGGU CAIR (SPJ bulan lalu / periode sebelumnya)
+     * - Total Belanja terverifikasi bulan berjalan (siap di-SPJ-kan untuk GU berikutnya)
+     * - Proyeksi Saldo Kas setelah GU cair
      */
     public function getRingkasan(int $bulan, int $tahun, float $plafondUp = self::DEFAULT_PLAFOND_UP): array
     {
         try {
-            // 1. Ambil data penerimaan kas_bank
-            $stmtKas = $this->db->prepare("
+            // 1. Ambil data penerimaan kas_bank yang SUDAH CAIR
+            $stmtCair = $this->db->prepare("
                 SELECT jenis, SUM(nominal) as total
                 FROM kas_bank
-                WHERE bulan = :bulan AND tahun = :tahun
+                WHERE bulan = :bulan AND tahun = :tahun AND status = 'cair'
                 GROUP BY jenis
             ");
-            $stmtKas->execute([':bulan' => $bulan, ':tahun' => $tahun]);
-            $kasRows = $stmtKas->fetchAll(PDO::FETCH_KEY_PAIR);
+            $stmtCair->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+            $cairRows = $stmtCair->fetchAll(PDO::FETCH_KEY_PAIR);
 
-            $saldoAwal     = (float) ($kasRows['saldo_awal'] ?? 0);
-            $pencairanUp   = (float) ($kasRows['up'] ?? 0);
-            $pencairanGu   = (float) ($kasRows['gu'] ?? 0);
-            $penerimaanLain = (float) (($kasRows['setoran'] ?? 0) + ($kasRows['lainnya'] ?? 0));
-            $totalPenerimaan = $saldoAwal + $pencairanUp + $pencairanGu + $penerimaanLain;
+            $saldoAwal      = (float) ($cairRows['saldo_awal'] ?? 0);
+            $pencairanUp    = (float) ($cairRows['up'] ?? 0);
+            $pencairanGu    = (float) ($cairRows['gu'] ?? 0);
+            $penerimaanLain = (float) (($cairRows['setoran'] ?? 0) + ($cairRows['lainnya'] ?? 0));
+            $totalPenerimaanCair = $saldoAwal + $pencairanUp + $pencairanGu + $penerimaanLain;
 
-            // 2. Ambil total pengeluaran transaksi diverifikasi di bulan & tahun ini
+            // 2. Ambil data penerimaan kas_bank yang MENUNGGU CAIR
+            $stmtPending = $this->db->prepare("
+                SELECT COALESCE(SUM(nominal), 0)
+                FROM kas_bank
+                WHERE bulan = :bulan AND tahun = :tahun AND status = 'menunggu_cair'
+            ");
+            $stmtPending->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+            $guMenungguCair = (float) $stmtPending->fetchColumn();
+
+            // 3. Ambil total pengeluaran transaksi diverifikasi di bulan & tahun ini
             $stmtTrx = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0)
                 FROM transaksi
@@ -186,58 +240,46 @@ class KasBank
             $stmtTrx->execute([':bulan' => $bulan, ':tahun' => $tahun]);
             $totalPengeluaranDiverifikasi = (float) $stmtTrx->fetchColumn();
 
-            // 3. Ambil total pengeluaran transaksi yang masih diajukan (pending)
-            $stmtPending = $this->db->prepare("
-                SELECT COALESCE(SUM(nilai), 0)
-                FROM transaksi
-                WHERE status = 'diajukan'
-                  AND MONTH(tanggal) = :bulan
-                  AND YEAR(tanggal) = :tahun
-            ");
-            $stmtPending->execute([':bulan' => $bulan, ':tahun' => $tahun]);
-            $totalPengeluaranPending = (float) $stmtPending->fetchColumn();
+            // 4. Saldo Kas Riil saat ini
+            $saldoKasSaatIni = $totalPenerimaanCair - $totalPengeluaranDiverifikasi;
 
-            // 4. Hitung Saldo Kas / Bank saat ini
-            $saldoKasSaatIni = $totalPenerimaan - $totalPengeluaranDiverifikasi;
+            // 5. Proyeksi Saldo Kas setelah GU yang menunggu cair masuk
+            $proyeksiKasSetelahCair = $saldoKasSaatIni + $guMenungguCair;
 
-            // 5. Estimasi GU yang dapat dimintakan / belum cair
-            // Formula: Plafond UP - Saldo Kas saat ini (atau total pengeluaran diverifikasi yang belum di-GU)
-            $estimasiGu = max(0, $plafondUp - $saldoKasSaatIni);
-
-            // Persentase ketersediaan kas likuid terhadap Plafond UP
-            $persenKasTersedia = $plafondUp > 0 ? max(0, min(100, ($saldoKasSaatIni / $plafondUp) * 100)) : 0;
+            // 6. Belanja bulan ini yang siap di-SPJ-kan untuk pengajuan GU berikutnya
+            $belanjaSiapGu = $totalPengeluaranDiverifikasi;
 
             return [
-                'bulan'                         => $bulan,
-                'tahun'                         => $tahun,
-                'plafond_up'                    => $plafondUp,
-                'saldo_awal'                    => $saldoAwal,
-                'pencairan_up'                  => $pencairanUp,
-                'pencairan_gu'                  => $pencairanGu,
-                'penerimaan_lain'               => $penerimaanLain,
-                'total_penerimaan'              => $totalPenerimaan,
+                'bulan'                          => $bulan,
+                'tahun'                          => $tahun,
+                'plafond_up'                     => $plafondUp,
+                'saldo_awal'                     => $saldoAwal,
+                'pencairan_up'                   => $pencairanUp,
+                'pencairan_gu'                   => $pencairanGu,
+                'penerimaan_lain'                => $penerimaanLain,
+                'total_penerimaan_cair'          => $totalPenerimaanCair,
                 'total_pengeluaran_diverifikasi' => $totalPengeluaranDiverifikasi,
-                'total_pengeluaran_pending'     => $totalPengeluaranPending,
-                'saldo_kas_saat_ini'            => $saldoKasSaatIni,
-                'estimasi_gu_cair'              => $estimasiGu,
-                'persen_kas_tersedia'           => $persenKasTersedia,
+                'saldo_kas_saat_ini'             => $saldoKasSaatIni,
+                'gu_menunggu_cair'               => $guMenungguCair,
+                'belanja_siap_gu'                => $belanjaSiapGu,
+                'proyeksi_kas_setelah_cair'      => $proyeksiKasSetelahCair,
             ];
         } catch (PDOException $e) {
             error_log('Error calculating ringkasan kas: ' . $e->getMessage());
             return [
-                'bulan'                         => $bulan,
-                'tahun'                         => $tahun,
-                'plafond_up'                    => $plafondUp,
-                'saldo_awal'                    => 0,
-                'pencairan_up'                  => 0,
-                'pencairan_gu'                  => 0,
-                'penerimaan_lain'               => 0,
-                'total_penerimaan'              => 0,
+                'bulan'                          => $bulan,
+                'tahun'                          => $tahun,
+                'plafond_up'                     => $plafondUp,
+                'saldo_awal'                     => 0,
+                'pencairan_up'                   => 0,
+                'pencairan_gu'                   => 0,
+                'penerimaan_lain'                => 0,
+                'total_penerimaan_cair'          => 0,
                 'total_pengeluaran_diverifikasi' => 0,
-                'total_pengeluaran_pending'     => 0,
-                'saldo_kas_saat_ini'            => 0,
-                'estimasi_gu_cair'              => 0,
-                'persen_kas_tersedia'           => 0,
+                'saldo_kas_saat_ini'             => 0,
+                'gu_menunggu_cair'               => 0,
+                'belanja_siap_gu'                => 0,
+                'proyeksi_kas_setelah_cair'      => 0,
             ];
         }
     }
