@@ -132,7 +132,7 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
             <span>Plafond Uang Persediaan (UP) Kantor: <strong class="font-monospace text-dark">Rp <?= number_format($ringkasan['plafond_up'], 0, ',', '.') ?></strong></span>
         </div>
         <div class="text-muted small">
-            Mekanisme: Belanja terverifikasi di-SPJ-kan $\rightarrow$ dimintakan Ganti Uang (GU) $\rightarrow$ Kas kembali utuh.
+            Mekanisme: Belanja terverifikasi di-SPJ-kan <i class="bi bi-arrow-right text-primary mx-1"></i> dimintakan Ganti Uang (GU) <i class="bi bi-arrow-right text-primary mx-1"></i> Kas kembali utuh.
         </div>
     </div>
 
