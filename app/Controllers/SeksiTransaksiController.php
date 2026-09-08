@@ -828,51 +828,30 @@ class SeksiTransaksiController
     }
 
     /**
-     * AJAX: Generate nomor bukti otomatis dengan format 123.6.6/GU/nomor_urut/BULAN_ROMAWI/TAHUN
+     * AJAX: Generate nomor bukti sementara (draft) otomatis dengan format 123.6.6/GU/DRAFT-nomor_urut/BULAN_ROMAWI/TAHUN
      */
     public function generateNomorBukti(): void
     {
         $this->requireSeksi();
         header('Content-Type: application/json');
-        $db = \Database::getConnection();
+        try {
+            $tanggal = $_GET['tanggal'] ?? date('Y-m-d');
+            $time = strtotime($tanggal) ?: time();
+            $bulan = (int) date('m', $time);
+            $tahun = (int) date('Y', $time);
+            $countRequested = max(1, (int) ($_GET['count'] ?? 1));
 
-        $tanggal = $_GET['tanggal'] ?? date('Y-m-d');
-        $time = strtotime($tanggal);
-        if (!$time) {
-            $time = time();
+            $generated = $this->transaksiModel->getNextNomorBuktiDraft($bulan, $tahun, $countRequested);
+
+            echo json_encode([
+                'success' => true,
+                'nomor_bukti' => $generated[0],
+                'list' => $generated
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
-
-        $bulan = (int) date('m', $time);
-        $tahun = (int) date('Y', $time);
-        $countRequested = max(1, (int) ($_GET['count'] ?? 1));
-
-        $romawiMap = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
-            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
-        ];
-        $bulanRomawi = $romawiMap[$bulan] ?? 'I';
-
-        // Hitung transaksi yang sudah ada di bulan dan tahun tersebut
-        $stmt = $db->prepare("
-            SELECT COUNT(*) 
-            FROM transaksi 
-            WHERE MONTH(tanggal) = ? AND YEAR(tanggal) = ?
-        ");
-        $stmt->execute([$bulan, $tahun]);
-        $currentCount = (int) $stmt->fetchColumn();
-
-        $generated = [];
-        for ($i = 1; $i <= $countRequested; $i++) {
-            $nomorUrut = $currentCount + $i;
-            $generated[] = sprintf('123.6.6/GU/%d/%s/%d', $nomorUrut, $bulanRomawi, $tahun);
-        }
-
-        echo json_encode([
-            'success' => true,
-            'nomor_bukti' => $generated[0],
-            'list' => $generated
-        ]);
         exit;
     }
 

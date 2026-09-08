@@ -72,7 +72,7 @@ class Transaksi
             }
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             error_log('Error fetching transactions with filters: ' . $e->getMessage());
             throw new \RuntimeException('Failed to fetch transactions');
         }
@@ -259,30 +259,148 @@ class Transaksi
         }
     }
 
+    public static function getBulanRomawi(int $bulan): string
+    {
+        $map = [
+            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
+            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
+            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+        ];
+        return $map[$bulan] ?? 'I';
+    }
+
+    /**
+     * Hitung nomor bukti resmi berikutnya untuk transaksi yang diverifikasi pada bulan & tahun tersebut.
+     * Format: 123.6.6/GU/{nomor_urut}/{BULAN_ROMAWI}/{TAHUN}
+     * nomor_urut berurutan dari 1, 2, 3... berdasarkan transaksi yang berstatus diverifikasi.
+     */
+    public function getNextNomorBuktiResmi(int $bulan, int $tahun): string
+    {
+        $bulanRomawi = self::getBulanRomawi($bulan);
+        $stmt = $this->db->prepare("
+            SELECT nomor_bukti 
+            FROM transaksi 
+            WHERE status = 'diverifikasi' 
+              AND MONTH(tanggal) = :bulan 
+              AND YEAR(tanggal) = :tahun
+        ");
+        $stmt->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $maxUrut = 0;
+        foreach ($rows as $r) {
+            $nb = (string) ($r['nomor_bukti'] ?? '');
+            if (preg_match('#^123\.6\.6/GU/(\d+)/#i', $nb, $m)) {
+                $urut = (int) $m[1];
+                if ($urut > $maxUrut) {
+                    $maxUrut = $urut;
+                }
+            }
+        }
+
+        $nextUrut = $maxUrut + 1;
+        return sprintf('123.6.6/GU/%d/%s/%d', $nextUrut, $bulanRomawi, $tahun);
+    }
+
+    /**
+     * Generate list nomor bukti sementara (draft) untuk transaksi baru yang diajukan
+     * Format: 123.6.6/GU/DRAFT-{urut}/{BULAN_ROMAWI}/{TAHUN}
+     */
+    public function getNextNomorBuktiDraft(int $bulan, int $tahun, int $countRequested = 1): array
+    {
+        $bulanRomawi = self::getBulanRomawi($bulan);
+        $stmt = $this->db->prepare("
+            SELECT nomor_bukti 
+            FROM transaksi 
+            WHERE MONTH(tanggal) = :bulan 
+              AND YEAR(tanggal) = :tahun
+        ");
+        $stmt->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $maxDraft = 0;
+        $totalCount = count($rows);
+        foreach ($rows as $r) {
+            $nb = (string) ($r['nomor_bukti'] ?? '');
+            if (preg_match('#^123\.6\.6/GU/DRAFT-(\d+)#i', $nb, $m)) {
+                $draftNum = (int) $m[1];
+                if ($draftNum > $maxDraft) {
+                    $maxDraft = $draftNum;
+                }
+            }
+        }
+
+        $startUrut = max($maxDraft, $totalCount);
+        $list = [];
+        for ($i = 1; $i <= $countRequested; $i++) {
+            $list[] = sprintf('123.6.6/GU/DRAFT-%d/%s/%d', $startUrut + $i, $bulanRomawi, $tahun);
+        }
+        return $list;
+    }
+
     /**
      * Verifikasi atau tolak transaksi oleh admin/bendahara.
-     * Status 'diverifikasi' => tanggal_lunas_dibayar = hari ini (tanggal SPJ dibayar).
+     * Status 'diverifikasi' => diberikan nomor bukti resmi sesuai urutan verifikasi, tanggal_lunas_dibayar = hari ini (tanggal SPJ dibayar).
      * Status lain (ditolak) => tanggal lunas dikosongkan lagi.
      */
     public function verifikasi(int $id, string $status, int $verifBy, string $catatan): bool
     {
         try {
-            $stmt = $this->db->prepare("
-                UPDATE transaksi
-                SET status = :status,
-                    diverifikasi_by = :verif_by,
-                    diverifikasi_at = NOW(),
-                    tanggal_lunas_dibayar = CASE WHEN :status2 = 'diverifikasi' THEN CURDATE() ELSE NULL END,
-                    catatan_verifikasi = :catatan
-                WHERE id = :id
-            ");
-            $stmt->bindParam(':status', $status, PDO::PARAM_STR);
-            $stmt->bindParam(':status2', $status, PDO::PARAM_STR);
-            $stmt->bindParam(':verif_by', $verifBy, PDO::PARAM_INT);
-            $stmt->bindParam(':catatan', $catatan, PDO::PARAM_STR);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            return true;
+            $trx = $this->getById($id);
+            if (!$trx) {
+                return false;
+            }
+
+            if ($status === 'diverifikasi') {
+                $currentNomor = trim((string) ($trx['nomor_bukti'] ?? ''));
+                $isDraft = (
+                    $trx['status'] !== 'diverifikasi' ||
+                    $currentNomor === '' ||
+                    stripos($currentNomor, 'DRAFT') !== false ||
+                    stripos($currentNomor, 'TEMP') !== false
+                );
+
+                $nomorBuktiResmi = $currentNomor;
+                if ($isDraft) {
+                    $time = strtotime($trx['tanggal']) ?: time();
+                    $bulan = (int) date('m', $time);
+                    $tahun = (int) date('Y', $time);
+                    $nomorBuktiResmi = $this->getNextNomorBuktiResmi($bulan, $tahun);
+                }
+
+                $stmt = $this->db->prepare("
+                    UPDATE transaksi
+                    SET status = 'diverifikasi',
+                        nomor_bukti = :nomor_bukti,
+                        diverifikasi_by = :verif_by,
+                        diverifikasi_at = NOW(),
+                        tanggal_lunas_dibayar = CURDATE(),
+                        catatan_verifikasi = :catatan
+                    WHERE id = :id
+                ");
+                $stmt->bindParam(':nomor_bukti', $nomorBuktiResmi, PDO::PARAM_STR);
+                $stmt->bindParam(':verif_by', $verifBy, PDO::PARAM_INT);
+                $stmt->bindParam(':catatan', $catatan, PDO::PARAM_STR);
+                $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+                $stmt->execute();
+                return true;
+            } else {
+                $stmt = $this->db->prepare("
+                    UPDATE transaksi
+                    SET status = :status,
+                        diverifikasi_by = :verif_by,
+                        diverifikasi_at = NOW(),
+                        tanggal_lunas_dibayar = NULL,
+                        catatan_verifikasi = :catatan
+                    WHERE id = :id
+                ");
+                $stmt->bindParam(':status', $status, PDO::PARAM_STR);
+                $stmt->bindParam(':verif_by', $verifBy, PDO::PARAM_INT);
+                $stmt->bindParam(':catatan', $catatan, PDO::PARAM_STR);
+                $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+                $stmt->execute();
+                return true;
+            }
         } catch (PDOException $e) {
             error_log('Error verifying transaction: ' . $e->getMessage());
             return false;
@@ -291,21 +409,34 @@ class Transaksi
 
     /**
      * Batalkan verifikasi (unverifikasi) oleh admin/bendahara.
-     * Hanya untuk status 'diverifikasi' -> kembali 'diajukan', tanggal lunas
-     * dan info verifikator dikosongkan. Return false bila status bukan diverifikasi.
+     * Hanya untuk status 'diverifikasi' -> kembali 'diajukan', nomor bukti dikembalikan ke draft,
+     * tanggal lunas dan info verifikator dikosongkan. Return false bila status bukan diverifikasi.
      */
     public function batalVerifikasi(int $id): bool
     {
         try {
+            $trx = $this->getById($id);
+            if (!$trx || $trx['status'] !== 'diverifikasi') {
+                return false;
+            }
+
+            $time = strtotime($trx['tanggal']) ?: time();
+            $bulan = (int) date('m', $time);
+            $tahun = (int) date('Y', $time);
+            $bulanRomawi = self::getBulanRomawi($bulan);
+            $draftNomor = sprintf('123.6.6/GU/DRAFT-%d/%s/%d', $id, $bulanRomawi, $tahun);
+
             $stmt = $this->db->prepare("
                 UPDATE transaksi
                 SET status = 'diajukan',
+                    nomor_bukti = :draft_nomor,
                     diverifikasi_by = NULL,
                     diverifikasi_at = NULL,
                     tanggal_lunas_dibayar = NULL,
                     catatan_verifikasi = NULL
                 WHERE id = :id AND status = 'diverifikasi'
             ");
+            $stmt->bindParam(':draft_nomor', $draftNomor, PDO::PARAM_STR);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->rowCount() > 0;

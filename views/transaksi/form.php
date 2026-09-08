@@ -170,13 +170,21 @@ $batchData = $batchData ?? null;
 
                         <!-- Nomor Bukti -->
                         <div class="mb-3">
-                            <label for="nomor_bukti" class="form-label">
-                                Nomor Bukti <span class="text-danger">*</span>
-                            </label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="nomor_bukti" class="form-label mb-0">
+                                    Nomor Bukti <span class="text-danger">*</span>
+                                </label>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnAutoNoBukti" style="font-size:0.75rem;">
+                                    <i class="bi bi-magic me-1"></i>Generate No. Draft
+                                </button>
+                            </div>
                             <input type="text"
                                 class="form-control <?= isset($errors['nomor_bukti']) ? 'is-invalid' : '' ?>"
                                 id="nomor_bukti" name="nomor_bukti" value="<?= htmlspecialchars($nomorBukti) ?>"
-                                placeholder="Contoh: BUK/001/2024" maxlength="100" required>
+                                placeholder="Contoh: 123.6.6/GU/DRAFT-1/IX/2026" maxlength="100" required>
+                            <div class="form-text text-muted" style="font-size:0.75rem;">
+                                Nomor resmi berurutan akan diterbitkan otomatis saat transaksi diverifikasi.
+                            </div>
                             <?php if (isset($errors['nomor_bukti'])): ?>
                                 <div class="invalid-feedback">
                                     <?= htmlspecialchars($errors['nomor_bukti']) ?>
@@ -517,6 +525,19 @@ $batchData = $batchData ?? null;
 
             rekeningSelect?.addEventListener('change', checkRemainingPagu);
             tanggalInput?.addEventListener('change', checkRemainingPagu);
+
+            const btnAutoNoBukti = document.getElementById('btnAutoNoBukti');
+            const noBuktiInput = document.getElementById('nomor_bukti');
+            btnAutoNoBukti?.addEventListener('click', function () {
+                const tgl = tanggalInput?.value || new Date().toISOString().slice(0, 10);
+                fetch(`${BASE_URL}transaksi/generate-no-bukti?tanggal=${encodeURIComponent(tgl)}&count=1`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success && res.nomor_bukti && noBuktiInput) {
+                            noBuktiInput.value = res.nomor_bukti;
+                        }
+                    });
+            });
 
             // Initial check for pagu info (works for edit mode)
             setTimeout(function () {

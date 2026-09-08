@@ -66,7 +66,11 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-<?= $stInfo[1] ?> px-2.5 py-1.5 fs-7"><?= $stInfo[0] ?></span>
-                    <span class="text-muted" style="font-size:.8rem;">No. Bukti: <strong class="text-dark font-monospace"><?= htmlspecialchars($transaksi['nomor_bukti'] ?? '-') ?></strong></span>
+                    <span class="text-muted" style="font-size:.8rem;">No. Bukti: <strong class="text-dark font-monospace"><?= htmlspecialchars($transaksi['nomor_bukti'] ?? '-') ?></strong>
+                        <?php if ($st === 'diajukan' || stripos((string)($transaksi['nomor_bukti'] ?? ''), 'DRAFT') !== false): ?>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" style="font-size:0.7rem;">Sementara (Draft)</span>
+                        <?php endif; ?>
+                    </span>
                 </div>
                 <div class="text-end">
                     <span class="text-muted small">Nilai Transaksi:</span>

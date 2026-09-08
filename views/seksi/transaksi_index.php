@@ -365,7 +365,12 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <tr class="<?= $isSharedSt ? 'st-group-row' : '' ?>" style="<?= $isNewStGroup ? 'border-top: 2px solid #cbd5e1;' : '' ?>">
                             <td class="ps-3" style="<?= $isSharedSt ? 'border-left: 3px solid #6366f1;' : '' ?>">
                                 <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
-                                <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($noBukti) ?></small>
+                                <small class="font-monospace <?= $status === 'diajukan' ? 'text-warning-emphasis' : 'text-muted' ?>" style="font-size:0.75rem;">
+                                    <?= htmlspecialchars($noBukti) ?>
+                                    <?php if ($status === 'diajukan' || stripos($noBukti, 'DRAFT') !== false): ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.62rem;padding:0 3px;">Draft</span>
+                                    <?php endif; ?>
+                                </small>
                                 <?php if (!empty($t['tanggal_lunas_dibayar'])): ?>
                                     <div class="small text-success" style="font-size:0.72rem;" title="Tanggal lunas dibayar"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div>
                                 <?php endif; ?>

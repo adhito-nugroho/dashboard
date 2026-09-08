@@ -579,9 +579,12 @@ $isFiltered = !empty($activeFilterLabels);
 
                                     <!-- Nomor Bukti -->
                                     <td>
-                                        <div class="d-flex align-items-center gap-1 text-secondary font-monospace text-xs">
+                                        <div class="d-flex align-items-center gap-1 font-monospace text-xs <?= ($st === 'diajukan' || stripos((string)($transaksi['nomor_bukti'] ?? ''), 'DRAFT') !== false) ? 'text-warning-emphasis' : 'text-secondary' ?>">
                                             <i class="bi bi-receipt opacity-50"></i>
                                             <span><?= htmlspecialchars($transaksi['nomor_bukti'] ?: '-') ?></span>
+                                            <?php if ($st === 'diajukan' || stripos((string)($transaksi['nomor_bukti'] ?? ''), 'DRAFT') !== false): ?>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.65rem;padding:1px 4px;">Draft</span>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
 

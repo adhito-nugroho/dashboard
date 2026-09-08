@@ -439,10 +439,12 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <div id="singleItemContainer">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
-                                    Nomor Bukti / Kwitansi <span class="required" style="color:#B8874B;">*</span>
+                                <label class="form-label fw-semibold d-flex justify-content-between align-items-center" style="font-size:0.85rem;color:#23241F;">
+                                    <span>Nomor Bukti / Kwitansi (Sementara) <span class="required" style="color:#B8874B;">*</span></span>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-normal" style="font-size:0.7rem;">Nomor Sementara</span>
                                 </label>
-                                <input type="text" name="nomor_bukti" id="nomor_bukti" class="form-control custom-form-input" placeholder="Contoh: BKU/2026/001" value="<?= htmlspecialchars($nomorBukti) ?>" required>
+                                <input type="text" name="nomor_bukti" id="nomor_bukti" class="form-control custom-form-input" placeholder="Otomatis: 123.6.6/GU/DRAFT-1/IX/2026" value="<?= htmlspecialchars($nomorBukti) ?>" required>
+                                <small class="text-muted" style="font-size:0.72rem;color:#5C5A50 !important;"><i class="bi bi-info-circle me-1"></i>Nomor bukti resmi berurutan akan otomatis diterbitkan saat transaksi diverifikasi oleh admin.</small>
                             </div>
 
                             <!-- Nama Penerima -->
@@ -1298,7 +1300,10 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                         
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Nomor Bukti / Kwitansi <span class="text-danger">*</span></label>
+                                <label class="form-label small fw-semibold d-flex justify-content-between align-items-center">
+                                    <span>Nomor Bukti (Sementara) <span class="text-danger">*</span></span>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-normal" style="font-size:0.65rem;">DRAFT</span>
+                                </label>
                                 <input type="text" name="items[${idx}][nomor_bukti]" class="form-control custom-form-input form-control-sm" value="${noBukti}" required>
                             </div>
                             <div class="col-md-6">
@@ -1747,7 +1752,10 @@ function renderEditBatchItems() {
                 
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <label class="form-label small fw-semibold">Nomor Bukti / Kwitansi <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold d-flex justify-content-between align-items-center">
+                            <span>Nomor Bukti (Sementara) <span class="text-danger">*</span></span>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-normal" style="font-size:0.65rem;">DRAFT</span>
+                        </label>
                         <input type="text" name="items[${idx}][nomor_bukti]" class="form-control custom-form-input form-control-sm" value="${noBukti}" required>
                     </div>
                     <div class="col-md-6">
