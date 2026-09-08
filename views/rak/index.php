@@ -151,35 +151,48 @@ $isFiltered = !empty($activeFilterLabels);
         .rak-scroll table { min-width: 1240px; }
         .rak-scroll th.rak-month, .rak-scroll td.rak-month { min-width: 80px; }
         .rak-scroll th.rak-c-no, .rak-scroll td.rak-c-no {
-            position: sticky; left: 0; z-index: 3; min-width: 46px;
+            position: sticky; left: 0; z-index: 3; width: 46px; min-width: 46px;
             background: #fff;
         }
         .rak-scroll thead th.rak-c-no { background: #f8f9fa; }
         .rak-scroll th.rak-c-rek, .rak-scroll td.rak-c-rek {
-            position: sticky; left: 46px; z-index: 3; min-width: 230px;
+            position: sticky; left: 46px; z-index: 3; width: 230px; min-width: 230px;
             background: #fff;
             box-shadow: 4px 0 6px -4px rgba(0,0,0,.25);
         }
         .rak-scroll thead th.rak-c-rek { background: #f8f9fa; }
         .rak-scroll th.rak-c-total, .rak-scroll td.rak-c-total,
         .rak-scroll tfoot td.rak-c-total {
-            position: sticky; right: 88px; z-index: 3;
+            position: sticky; right: 96px; z-index: 3;
             background: #fff;
             box-shadow: -4px 0 6px -4px rgba(0,0,0,.25);
         }
         .rak-scroll thead th.rak-c-total, .rak-scroll tfoot td.rak-c-total { background: #f8f9fa; }
         .rak-scroll th.rak-c-aksi, .rak-scroll td.rak-c-aksi {
-            position: sticky; right: 0; z-index: 3; min-width: 88px;
+            position: sticky; right: 0; z-index: 3; width: 96px; min-width: 96px;
             background: #fff;
         }
         .rak-scroll thead th.rak-c-aksi { background: #f8f9fa; }
+        .rak-scroll tbody tr:hover td.rak-c-no,
+        .rak-scroll tbody tr:hover td.rak-c-rek,
+        .rak-scroll tbody tr:hover td.rak-c-total,
+        .rak-scroll tbody tr:hover td.rak-c-aksi {
+            background-color: #f8f9fa;
+        }
+        @media (max-width: 576px) {
+            .rak-scroll th.rak-c-rek, .rak-scroll td.rak-c-rek {
+                position: static;
+                width: 160px; min-width: 160px;
+                box-shadow: none;
+            }
+        }
     </style>
     <div class="card">
         <?php if (!empty($groupedRak)): ?>
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="m-0 fw-bold text-primary">Daftar Tabel RAK</h6>
             <span class="badge bg-light text-secondary border d-md-none">
-                <i class="bi bi-arrows-expand me-1"></i>Geser tabel ke kiri untuk melihat Total
+                <i class="bi bi-arrows-expand me-1"></i>Geser tabel untuk melihat rincian per bulan
             </span>
         </div>
         <div class="px-3 pt-3">
