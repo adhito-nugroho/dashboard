@@ -69,6 +69,8 @@ require_once __DIR__ . '/../app/Models/KalibrasiKuitansiElemen.php';
 require_once __DIR__ . '/../app/Models/PrinterKuitansi.php';
 require_once __DIR__ . '/../app/Services/KuitansiPdfService.php';
 require_once __DIR__ . '/../app/Controllers/KuitansiController.php';
+require_once __DIR__ . '/../app/Models/KasBank.php';
+require_once __DIR__ . '/../app/Controllers/KasBankController.php';
 
 use App\Models\Program;
 use App\Models\Kegiatan;
@@ -78,6 +80,7 @@ use App\Models\Rekening;
 use App\Models\Pagu;
 use App\Models\Rak;
 use App\Models\Transaksi;
+use App\Models\KasBank;
 use App\Controllers\ProgramController;
 use App\Controllers\KegiatanController;
 use App\Controllers\SubKegiatanController;
@@ -94,6 +97,7 @@ use App\Controllers\ExcelController;
 use App\Models\RincianBiaya;
 use App\Controllers\SpjController;
 use App\Controllers\KuitansiController;
+use App\Controllers\KasBankController;
 
 try {
     // Get database connection
@@ -108,6 +112,7 @@ try {
     $paguModel = new Pagu($db);
     $rakModel = new Rak($db);
     $transaksiModel = new Transaksi($db);
+    $kasBankModel = new KasBank($db);
     $programController = new ProgramController($programModel);
     $kegiatanController = new KegiatanController($kegiatanModel, $programModel);
     $subKegiatanController = new SubKegiatanController($subKegiatanModel, $kegiatanModel, $seksiModel);
@@ -116,7 +121,7 @@ try {
     $rekeningController = new RekeningController($rekeningModel, $programModel, $kegiatanModel, $subKegiatanModel);
     $rakController = new RakController($rakModel, $paguModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
     $transaksiController = new TransaksiController($transaksiModel, $seksiModel, $paguModel, $rakModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
-    $dashboardController = new DashboardController($paguModel, $rakModel, $transaksiModel, $seksiModel, $programModel, $kegiatanModel, $subKegiatanModel);
+    $dashboardController = new DashboardController($paguModel, $rakModel, $transaksiModel, $seksiModel, $programModel, $kegiatanModel, $subKegiatanModel, $kasBankModel);
     $authController = new AuthController();
     $dashboardSeksiController = new DashboardSeksiController();
     $seksiTransaksiController = new SeksiTransaksiController();
@@ -124,6 +129,7 @@ try {
     $rincianBiayaModel = new RincianBiaya($db);
     $spjController = new SpjController($rincianBiayaModel);
     $kuitansiController = new KuitansiController($db);
+    $kasBankController = new KasBankController($kasBankModel, $transaksiModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -558,6 +564,16 @@ try {
         $seksiTransaksiController->downloadRincianBiaya();
     } elseif (preg_match('#^/transaksi/show/(\d+)$#', $path, $matches)) {
         $transaksiController->show((int) $matches[1]);
+    }
+    // Route matching - Kas & Bank (UP/GU)
+    elseif ($path === '/kas-bank' || $path === '/kas-bank/') {
+        $kasBankController->index();
+    } elseif ($path === '/kas-bank/store' && $requestMethod === 'POST') {
+        $kasBankController->store();
+    } elseif (preg_match('#^/kas-bank/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $kasBankController->update((int) $matches[1]);
+    } elseif (preg_match('#^/kas-bank/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $kasBankController->delete((int) $matches[1]);
     } else {
         // 404 Not Found
         http_response_code(404);

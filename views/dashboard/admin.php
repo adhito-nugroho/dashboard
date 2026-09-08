@@ -51,6 +51,42 @@ foreach ($pendingBySeksi as $ps) {
         </div>
     </div>
 
+    <!-- Widget Saldo Kas/Bank (UP/GU) -->
+    <?php if (!empty($kasRingkasan)): ?>
+    <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 animate-fade-in-up" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); color: #fff;">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size:0.7rem;">
+                        <i class="bi bi-bank me-1"></i>KAS & BANK (UP/GU)
+                    </span>
+                    <span class="text-light opacity-75 small">Periode <?= date('F Y') ?></span>
+                </div>
+                <div class="d-flex align-items-baseline gap-3">
+                    <div class="h2 fw-bold mb-0 font-monospace text-white">
+                        Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
+                    </div>
+                    <span class="small text-light opacity-75">Saldo Kas Riil Tersedia</span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="text-md-end border-start border-white border-opacity-25 ps-3 ps-md-0 border-md-0 pe-md-3">
+                    <div class="text-xs text-light opacity-75">Plafond UP Kantor:</div>
+                    <div class="fw-bold font-monospace text-white">Rp <?= number_format($kasRingkasan['plafond_up'], 0, ',', '.') ?></div>
+                </div>
+                <div class="text-md-end border-start border-white border-opacity-25 ps-3">
+                    <div class="text-xs text-warning">Estimasi GU Belum Cair:</div>
+                    <div class="fw-bold font-monospace text-warning">Rp <?= number_format($kasRingkasan['estimasi_gu_cair'], 0, ',', '.') ?></div>
+                </div>
+                <a href="<?= base_url('kas-bank') ?>" class="btn btn-sm btn-light text-primary fw-semibold px-3 py-2 rounded-3 shadow-sm ms-md-2">
+                    <i class="bi bi-arrow-right-circle me-1"></i>Kelola Kas & Catat GU
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Row 1: Status Summary Cards -->
     <div class="row g-3 mb-4 animate-fade-in-up" style="animation-delay:0.05s;">
         <!-- Menunggu Verifikasi -->

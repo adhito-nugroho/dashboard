@@ -9,6 +9,7 @@ use App\Models\Seksi;
 use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
+use App\Models\KasBank;
 
 class DashboardController {
     private Pagu $paguModel;
@@ -18,6 +19,7 @@ class DashboardController {
     private Program $programModel;
     private Kegiatan $kegiatanModel;
     private SubKegiatan $subKegiatanModel;
+    private ?KasBank $kasBankModel;
 
     // In-memory request caches to eliminate N+1 queries
     private ?array $allPagusCache = null;
@@ -34,7 +36,8 @@ class DashboardController {
         Seksi $seksiModel,
         Program $programModel,
         Kegiatan $kegiatanModel,
-        SubKegiatan $subKegiatanModel
+        SubKegiatan $subKegiatanModel,
+        ?KasBank $kasBankModel = null
     ) {
         $this->paguModel = $paguModel;
         $this->rakModel = $rakModel;
@@ -43,6 +46,7 @@ class DashboardController {
         $this->programModel = $programModel;
         $this->kegiatanModel = $kegiatanModel;
         $this->subKegiatanModel = $subKegiatanModel;
+        $this->kasBankModel = $kasBankModel;
     }
     
     /**
@@ -59,6 +63,9 @@ class DashboardController {
             $pendingBySeksi    = $this->transaksiModel->getPendingCountBySeksi($tahun);
             $monthlyTrend      = $this->transaksiModel->getMonthlySubmissionTrend($tahun);
             $pendingCount      = $this->transaksiModel->countPending();
+
+            $bulanIni          = (int) date('m');
+            $kasRingkasan      = $this->kasBankModel ? $this->kasBankModel->getRingkasan($bulanIni, $tahun) : null;
 
             $pageTitle  = 'Dashboard Admin';
             $activePage = 'dashboard';

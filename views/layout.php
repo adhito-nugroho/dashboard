@@ -101,6 +101,13 @@
                                     <?php endif; ?>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'kas_bank') ? 'active' : '' ?>"
+                                    href="<?= base_url('kas-bank') ?>">
+                                    <i class="bi bi-bank"></i>
+                                    <span>Kas & Bank (UP/GU)</span>
+                                </a>
+                            </li>
 
                             <li class="nav-divider"></li>
                             <li class="nav-group-label">Master Data</li>
