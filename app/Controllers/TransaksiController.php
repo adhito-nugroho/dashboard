@@ -1020,7 +1020,8 @@ class TransaksiController
      *
      * - Semua transaksi lintas seksi, semua status (tidak difilter status kecuali user memilih filter Status).
      * - Filter Bulan & Tahun wajib; filter Kegiatan/SubKegiatan/Status bersifat opsional.
-     * - Urut tanggal ASC → id ASC, running balance tunggal lintas seksi.
+     * - Urut nomor_bukti ASC (natural numeric sort).
+     * - Kolom Tanggal menggunakan tanggal verifikasi (tanggal_lunas_dibayar / diverifikasi_at).
      * - Kolom: No, Tanggal, Seksi, Uraian, No Bukti, Pengeluaran (Rp), Saldo (Rp), Status.
      * - Nama file: BKU_CDK_Bojonegoro_[Bulan]_[Tahun].xlsx
      */
@@ -1074,6 +1075,8 @@ class TransaksiController
         $stmt = $db->prepare("
             SELECT
                 t.tanggal,
+                t.tanggal_lunas_dibayar,
+                t.diverifikasi_at,
                 s.nama_seksi,
                 t.uraian,
                 t.nama_penerima,
@@ -1085,13 +1088,35 @@ class TransaksiController
             INNER JOIN rekening r  ON t.rekening_id = r.id
             INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
             {$where}
-            ORDER BY t.tanggal ASC, t.id ASC
+            ORDER BY t.nomor_bukti ASC, t.id ASC
         ");
         foreach ($params as $k => $v) {
             $stmt->bindValue($k, $v, is_int($v) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
         }
         $stmt->execute();
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Urutkan berdasarkan nomor bukti secara natural / numerik
+        usort($rows, function ($a, $b) {
+            $nbA = (string) ($a['nomor_bukti'] ?? '');
+            $nbB = (string) ($b['nomor_bukti'] ?? '');
+
+            $isResmiA = preg_match('#^123\.6\.6/GU/(\d+)/#i', $nbA, $mA);
+            $isResmiB = preg_match('#^123\.6\.6/GU/(\d+)/#i', $nbB, $mB);
+
+            if ($isResmiA && $isResmiB) {
+                $numA = (int) $mA[1];
+                $numB = (int) $mB[1];
+                if ($numA !== $numB) {
+                    return $numA <=> $numB;
+                }
+                return strnatcasecmp($nbA, $nbB);
+            }
+            if ($isResmiA) return -1;
+            if ($isResmiB) return 1;
+
+            return strnatcasecmp($nbA, $nbB);
+        });
 
         // ── Konstanta ──────────────────────────────────────────────────────
         $namaBulanMap = [
@@ -1177,8 +1202,19 @@ class TransaksiController
                 $uraianTampil .= "\na.n. " . $t['nama_penerima'];
             }
 
+            // Tanggal verifikasi (prioritas: tanggal_lunas_dibayar -> diverifikasi_at -> tanggal input fallback)
+            $rawTgl = null;
+            if (!empty($t['tanggal_lunas_dibayar'])) {
+                $rawTgl = $t['tanggal_lunas_dibayar'];
+            } elseif (!empty($t['diverifikasi_at'])) {
+                $rawTgl = date('Y-m-d', strtotime($t['diverifikasi_at']));
+            } else {
+                $rawTgl = $t['tanggal'] ?? null;
+            }
+            $tglTampil = $rawTgl ? date('d/m/Y', strtotime($rawTgl)) : '-';
+
             $sheet->setCellValue('A' . $dataRow, $no);
-            $sheet->setCellValue('B' . $dataRow, date('d/m/Y', strtotime($t['tanggal'])));
+            $sheet->setCellValue('B' . $dataRow, $tglTampil);
             $sheet->setCellValue('C' . $dataRow, $t['nama_seksi'] ?? '-');
             $sheet->setCellValue('D' . $dataRow, $uraianTampil);
             $sheet->setCellValue('E' . $dataRow, $t['nomor_bukti'] ?? '-');
