@@ -61,60 +61,62 @@ $isFiltered = !empty($activeFilterLabels);
     <!-- Filter Form -->
     <div class="card mb-4 border-0 shadow-sm">
         <div class="card-body py-3">
-            <form method="GET" action="<?= base_url('rak') ?>" id="filterForm" class="row g-2 align-items-end">
-                <!-- Tahun -->
-                <div class="col-auto">
-                    <label for="filter-tahun" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-calendar-year me-1 text-primary"></i>Tahun
-                    </label>
-                    <select name="tahun" id="filter-tahun" class="form-select" style="min-width:110px;">
-                        <option value="">-- Semua --</option>
-                        <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
-                            <option value="<?= $y ?>" <?= $filterTahun == $y ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-                <!-- Kegiatan -->
-                <div class="col-auto">
-                    <label for="filter-kegiatan" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-layers me-1 text-primary"></i>Kegiatan
-                    </label>
-                    <select name="kegiatan_id" id="filter-kegiatan" class="form-select" style="min-width:220px;">
-                        <option value="">-- Semua Kegiatan --</option>
-                        <?php foreach ($filterKegiatanList as $kg): ?>
-                            <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <!-- Sub Kegiatan -->
-                <div class="col-auto">
-                    <label for="filter-sub-kegiatan" class="form-label fw-semibold mb-1">
-                        <i class="bi bi-diagram-3 me-1 text-primary"></i>Sub Kegiatan
-                    </label>
-                    <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select" style="min-width:220px;">
-                        <option value="">-- Semua Sub Kegiatan --</option>
-                        <?php foreach ($filterSubKegiatanList as $sk): ?>
-                            <option value="<?= $sk['id'] ?>"
-                                    data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
-                                    <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <!-- Buttons -->
-                <div class="col-auto d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" id="btn-filter">
-                        <i class="bi bi-funnel me-1"></i>Filter
-                    </button>
-                    <a href="<?= base_url('rak') ?>" class="btn btn-outline-secondary" id="btn-reset">
-                        <i class="bi bi-x-circle me-1"></i>Reset
-                    </a>
+            <form method="GET" action="<?= base_url('rak') ?>" id="filterForm">
+                <div class="row g-3">
+                    <!-- Tahun -->
+                    <div class="col-12 col-md-4">
+                        <label for="filter-tahun" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-calendar-year me-1 text-primary"></i>Tahun
+                        </label>
+                        <select name="tahun" id="filter-tahun" class="form-select w-100">
+                            <option value="">-- Semua --</option>
+                            <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 5; $y--): ?>
+                                <option value="<?= $y ?>" <?= $filterTahun == $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                    <!-- Kegiatan -->
+                    <div class="col-12 col-md-4">
+                        <label for="filter-kegiatan" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-layers me-1 text-primary"></i>Kegiatan
+                        </label>
+                        <select name="kegiatan_id" id="filter-kegiatan" class="form-select w-100">
+                            <option value="">-- Semua Kegiatan --</option>
+                            <?php foreach ($filterKegiatanList as $kg): ?>
+                                <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <!-- Sub Kegiatan -->
+                    <div class="col-12 col-md-4">
+                        <label for="filter-sub-kegiatan" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-diagram-3 me-1 text-primary"></i>Sub Kegiatan
+                        </label>
+                        <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select w-100">
+                            <option value="">-- Semua Sub Kegiatan --</option>
+                            <?php foreach ($filterSubKegiatanList as $sk): ?>
+                                <option value="<?= $sk['id'] ?>"
+                                        data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
+                                        <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <!-- Buttons -->
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="btn-filter">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <a href="<?= base_url('rak') ?>" class="btn btn-outline-secondary" id="btn-reset">
+                            <i class="bi bi-x-circle me-1"></i>Reset
+                        </a>
+                    </div>
                 </div>
                 <?php if ($isFiltered): ?>
-                    <div class="col-12 mt-2">
+                    <div class="mt-2">
                         <span class="badge bg-primary px-3 py-2 fs-6">
                             <i class="bi bi-filter-circle me-1"></i>
                             Filter aktif: <?= htmlspecialchars(implode(' | ', $activeFilterLabels)) ?>
@@ -144,13 +146,48 @@ $isFiltered = !empty($activeFilterLabels);
     </script>
 
     <!-- RAK Table -->
+    <style>
+        .rak-scroll { overflow-x: auto; }
+        .rak-scroll table { min-width: 1240px; }
+        .rak-scroll th.rak-month, .rak-scroll td.rak-month { min-width: 80px; }
+        .rak-scroll th.rak-c-no, .rak-scroll td.rak-c-no {
+            position: sticky; left: 0; z-index: 3; min-width: 46px;
+            background: #fff;
+        }
+        .rak-scroll thead th.rak-c-no { background: #f8f9fa; }
+        .rak-scroll th.rak-c-rek, .rak-scroll td.rak-c-rek {
+            position: sticky; left: 46px; z-index: 3; min-width: 230px;
+            background: #fff;
+            box-shadow: 4px 0 6px -4px rgba(0,0,0,.25);
+        }
+        .rak-scroll thead th.rak-c-rek { background: #f8f9fa; }
+        .rak-scroll th.rak-c-total, .rak-scroll td.rak-c-total,
+        .rak-scroll tfoot td.rak-c-total {
+            position: sticky; right: 88px; z-index: 3;
+            background: #fff;
+            box-shadow: -4px 0 6px -4px rgba(0,0,0,.25);
+        }
+        .rak-scroll thead th.rak-c-total, .rak-scroll tfoot td.rak-c-total { background: #f8f9fa; }
+        .rak-scroll th.rak-c-aksi, .rak-scroll td.rak-c-aksi {
+            position: sticky; right: 0; z-index: 3; min-width: 88px;
+            background: #fff;
+        }
+        .rak-scroll thead th.rak-c-aksi { background: #f8f9fa; }
+    </style>
     <div class="card">
         <?php if (!empty($groupedRak)): ?>
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="m-0 fw-bold text-primary">Daftar Tabel RAK</h6>
-            <div class="text-end">
-                <span class="text-muted small">Total RAK <?= $isFiltered ? '(Sesuai Filter)' : '(Semua Data)' ?>:</span>
-                <h5 class="m-0 fw-bold text-success">Rp <?= number_format($globalTotal ?? 0, 0, ',', '.') ?></h5>
+            <span class="badge bg-light text-secondary border d-md-none">
+                <i class="bi bi-arrows-expand me-1"></i>Geser tabel ke kiri untuk melihat Total
+            </span>
+        </div>
+        <div class="px-3 pt-3">
+            <div class="alert alert-success d-flex justify-content-between align-items-center py-2 px-3 mb-0">
+                <span class="fw-semibold">
+                    <i class="bi bi-calculator me-1"></i>Total RAK <?= $isFiltered ? '(Sesuai Filter)' : '(Semua Data)' ?>
+                </span>
+                <span class="fw-bold fs-5">Rp <?= number_format($globalTotal ?? 0, 0, ',', '.') ?></span>
             </div>
         </div>
         <?php endif; ?>
@@ -176,29 +213,29 @@ $isFiltered = !empty($activeFilterLabels);
                     <?php endif; ?>
                 </div>
             <?php else: ?>
-                <div class="table-responsive">
+                <div class="rak-scroll">
                     <table class="table table-hover align-middle table-bordered">
                         <thead class="table-light">
                             <tr>
-                                <th rowspan="2" class="align-middle">No</th>
-                                <th rowspan="2" class="align-middle">Rekening</th>
+                                <th rowspan="2" class="align-middle rak-c-no">No</th>
+                                <th rowspan="2" class="align-middle rak-c-rek">Rekening</th>
                                 <th colspan="12" class="text-center">Bulan</th>
-                                <th rowspan="2" class="align-middle text-end">Total</th>
-                                <th rowspan="2" class="align-middle text-center">Aksi</th>
+                                <th rowspan="2" class="align-middle text-end rak-c-total">Total</th>
+                                <th rowspan="2" class="align-middle text-center rak-c-aksi">Aksi</th>
                             </tr>
                             <tr>
-                                <th class="text-center">Jan</th>
-                                <th class="text-center">Feb</th>
-                                <th class="text-center">Mar</th>
-                                <th class="text-center">Apr</th>
-                                <th class="text-center">Mei</th>
-                                <th class="text-center">Jun</th>
-                                <th class="text-center">Jul</th>
-                                <th class="text-center">Agu</th>
-                                <th class="text-center">Sep</th>
-                                <th class="text-center">Okt</th>
-                                <th class="text-center">Nov</th>
-                                <th class="text-center">Des</th>
+                                <th class="text-center rak-month">Jan</th>
+                                <th class="text-center rak-month">Feb</th>
+                                <th class="text-center rak-month">Mar</th>
+                                <th class="text-center rak-month">Apr</th>
+                                <th class="text-center rak-month">Mei</th>
+                                <th class="text-center rak-month">Jun</th>
+                                <th class="text-center rak-month">Jul</th>
+                                <th class="text-center rak-month">Agu</th>
+                                <th class="text-center rak-month">Sep</th>
+                                <th class="text-center rak-month">Okt</th>
+                                <th class="text-center rak-month">Nov</th>
+                                <th class="text-center rak-month">Des</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -210,8 +247,8 @@ $isFiltered = !empty($activeFilterLabels);
                                 $grandTotal += $rak['total'];
                             ?>
                                 <tr>
-                                    <td><?= $index ?></td>
-                                    <td>
+                                    <td class="rak-c-no"><?= $index ?></td>
+                                    <td class="rak-c-rek">
                                         <div>
                                             <span class="badge bg-warning text-dark"><?= htmlspecialchars($rak['kode_rekening']) ?></span>
                                             <br>
@@ -223,7 +260,7 @@ $isFiltered = !empty($activeFilterLabels);
                                         </div>
                                     </td>
                                     <?php for ($bulan = 1; $bulan <= 12; $bulan++): ?>
-                                        <td class="text-end">
+                                        <td class="text-end rak-month">
                                             <?php if ($rak['months'][$bulan] > 0): ?>
                                                 <?= number_format($rak['months'][$bulan], 0, ',', '.') ?>
                                             <?php else: ?>
@@ -231,8 +268,8 @@ $isFiltered = !empty($activeFilterLabels);
                                             <?php endif; ?>
                                         </td>
                                     <?php endfor; ?>
-                                    <td class="text-end"><strong>Rp <?= number_format($rak['total'], 0, ',', '.') ?></strong></td>
-                                    <td class="text-center">
+                                    <td class="text-end rak-c-total"><strong>Rp <?= number_format($rak['total'], 0, ',', '.') ?></strong></td>
+                                    <td class="text-center rak-c-aksi">
                                         <div class="btn-group" role="group">
                                             <a href="<?= base_url('rak/edit/' . $rak['rekening_id'] . '/' . $rak['tahun']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
@@ -254,8 +291,8 @@ $isFiltered = !empty($activeFilterLabels);
                                 <td colspan="14" class="text-end">
                                     <strong>Total (Halaman Ini):</strong>
                                 </td>
-                                <td class="text-end"><strong>Rp <?= number_format($grandTotal, 0, ',', '.') ?></strong></td>
-                                <td></td>
+                                <td class="text-end rak-c-total"><strong>Rp <?= number_format($grandTotal, 0, ',', '.') ?></strong></td>
+                                <td class="rak-c-aksi"></td>
                             </tr>
                         </tfoot>
                     </table>
