@@ -260,7 +260,9 @@ class Transaksi
     }
 
     /**
-     * Verifikasi atau tolak transaksi oleh admin/bendahara
+     * Verifikasi atau tolak transaksi oleh admin/bendahara.
+     * Status 'diverifikasi' => tanggal_lunas_dibayar = hari ini (tanggal SPJ dibayar).
+     * Status lain (ditolak) => tanggal lunas dikosongkan lagi.
      */
     public function verifikasi(int $id, string $status, int $verifBy, string $catatan): bool
     {
@@ -270,10 +272,12 @@ class Transaksi
                 SET status = :status,
                     diverifikasi_by = :verif_by,
                     diverifikasi_at = NOW(),
+                    tanggal_lunas_dibayar = CASE WHEN :status2 = 'diverifikasi' THEN CURDATE() ELSE NULL END,
                     catatan_verifikasi = :catatan
                 WHERE id = :id
             ");
             $stmt->bindParam(':status', $status, PDO::PARAM_STR);
+            $stmt->bindParam(':status2', $status, PDO::PARAM_STR);
             $stmt->bindParam(':verif_by', $verifBy, PDO::PARAM_INT);
             $stmt->bindParam(':catatan', $catatan, PDO::PARAM_STR);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);

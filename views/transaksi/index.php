@@ -531,6 +531,11 @@ $isFiltered = !empty($activeFilterLabels);
                                     <!-- Tanggal -->
                                     <td>
                                         <span class="fw-medium text-dark"><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></span>
+                                        <?php if (!empty($transaksi['tanggal_lunas_dibayar'])): ?>
+                                            <div class="small text-success" title="Tanggal lunas dibayar (verifikasi)">
+                                                <i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($transaksi['tanggal_lunas_dibayar'])) ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
 
                                     <!-- Seksi (badge kode saja; nama lengkap di strip detail) -->

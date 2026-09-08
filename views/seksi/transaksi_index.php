@@ -366,6 +366,9 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <td class="ps-3" style="<?= $isSharedSt ? 'border-left: 3px solid #6366f1;' : '' ?>">
                                 <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
                                 <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($noBukti) ?></small>
+                                <?php if (!empty($t['tanggal_lunas_dibayar'])): ?>
+                                    <div class="small text-success" style="font-size:0.72rem;" title="Tanggal lunas dibayar"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <div class="fw-semibold text-dark" style="font-size:0.825rem;"><?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
@@ -484,6 +487,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <div>
                                 <div class="mc-label">Tanggal / No Bukti</div>
                                 <div class="mc-value fw-semibold"><?= date('d/m/Y', strtotime($t['tanggal'])) ?> <small class="text-muted font-monospace"><?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?></small></div>
+                                <?php if (!empty($t['tanggal_lunas_dibayar'])): ?><div class="small text-success" style="font-size:0.72rem;"><i class="bi bi-check-circle me-1"></i>Lunas <?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div><?php endif; ?>
                             </div>
                             <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
                         </div>

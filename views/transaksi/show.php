@@ -90,6 +90,13 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
+                    <div class="text-muted text-uppercase fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">Lunas Dibayar</div>
+                    <div class="fw-semibold mt-1 <?= !empty($transaksi['tanggal_lunas_dibayar']) ? 'text-success' : 'text-muted' ?>">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <?= !empty($transaksi['tanggal_lunas_dibayar']) ? date('d/m/Y', strtotime($transaksi['tanggal_lunas_dibayar'])) : 'Belum lunas' ?>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
                     <div class="text-muted text-uppercase fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">Seksi Pengusul</div>
                     <div class="fw-semibold text-dark mt-1">
                         <i class="bi bi-building me-1 text-muted"></i>
