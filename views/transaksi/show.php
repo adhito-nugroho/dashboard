@@ -49,6 +49,10 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
                 <button type="button" class="btn btn-danger btn-sm btn-tolak-show" data-id="<?= $transaksi['id'] ?>">
                     <i class="bi bi-x-lg me-1"></i>Tolak
                 </button>
+            <?php elseif ($st === 'diverifikasi'): ?>
+                <button type="button" class="btn btn-warning btn-sm btn-batal-show" data-id="<?= $transaksi['id'] ?>">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Batalkan Verifikasi
+                </button>
             <?php endif; ?>
             <a href="<?= base_url('transaksi') ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Kembali
@@ -440,6 +444,20 @@ const modalEl = document.getElementById('modalTolakShow');
 document.querySelector('.btn-tolak-show')?.addEventListener('click', function() {
     document.getElementById('formTolakShow').action = SHOW_BASE + '/transaksi/tolak/' + this.dataset.id;
     new bootstrap.Modal(modalEl).show();
+});
+document.querySelector('.btn-batal-show')?.addEventListener('click', function() {
+    if (confirm('Batalkan verifikasi? Transaksi kembali berstatus diajukan dan tanggal lunas dikosongkan.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = SHOW_BASE + '/transaksi/batal-verifikasi/' + this.dataset.id;
+        const from = document.createElement('input');
+        from.type = 'hidden';
+        from.name = 'from';
+        from.value = 'show';
+        form.appendChild(from);
+        document.body.appendChild(form);
+        form.submit();
+    }
 });
 
 // Copy uraian button handler

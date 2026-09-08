@@ -979,6 +979,33 @@ class TransaksiController
         $this->redirectWithMessage(base_url('transaksi'), $ok ? 'success' : 'error', $ok ? 'Transaksi ditolak' : 'Gagal menolak transaksi');
     }
 
+    /**
+     * Batalkan verifikasi oleh admin (status diverifikasi -> diajukan).
+     * Tanggal lunas + info verifikator dikosongkan; tercatat di audit log.
+     */
+    public function batalVerifikasi(int $id): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (empty($_SESSION['is_admin'])) {
+            $this->redirectWithMessage(base_url('transaksi'), 'error', 'Akses ditolak: hanya admin');
+            return;
+        }
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $ok = $this->transaksiModel->batalVerifikasi($id);
+        $this->logAudit($userId, 'batal_verifikasi_transaksi', 'transaksi', $id, 'Batal verifikasi transaksi id ' . $id);
+        $back = trim($_POST['from'] ?? '');
+        $url = $back === 'show' ? base_url('transaksi/show/' . $id) : base_url('transaksi');
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['flash_message'] = $ok ? 'Verifikasi dibatalkan, transaksi kembali diajukan' : 'Gagal membatalkan (mungkin status sudah berubah)';
+        $_SESSION['flash_type'] = $ok ? 'success' : 'error';
+        header('Location: ' . $url);
+        exit;
+    }
+
     private function logAudit(int $userId, string $aksi, string $tabel, ?int $recordId, string $keterangan): void
     {
         try {

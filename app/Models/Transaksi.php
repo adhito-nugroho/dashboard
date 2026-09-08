@@ -290,6 +290,32 @@ class Transaksi
     }
 
     /**
+     * Batalkan verifikasi (unverifikasi) oleh admin/bendahara.
+     * Hanya untuk status 'diverifikasi' -> kembali 'diajukan', tanggal lunas
+     * dan info verifikator dikosongkan. Return false bila status bukan diverifikasi.
+     */
+    public function batalVerifikasi(int $id): bool
+    {
+        try {
+            $stmt = $this->db->prepare("
+                UPDATE transaksi
+                SET status = 'diajukan',
+                    diverifikasi_by = NULL,
+                    diverifikasi_at = NULL,
+                    tanggal_lunas_dibayar = NULL,
+                    catatan_verifikasi = NULL
+                WHERE id = :id AND status = 'diverifikasi'
+            ");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log('Error membatalkan verifikasi: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Get transaksi milik seksi dengan filter & search & pagination (untuk halaman 'Transaksi Saya')
      * Params null = tidak difilter. $q mencari uraian/nomor_bukti (LIKE).
      */

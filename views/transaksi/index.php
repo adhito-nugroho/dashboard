@@ -233,6 +233,16 @@ $isFiltered = !empty($activeFilterLabels);
     color: #ffffff;
     border-color: #059669;
 }
+.btn-action-undo {
+    background-color: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+.btn-action-undo:hover {
+    background-color: #d97706;
+    color: #ffffff;
+    border-color: #d97706;
+}
 .trx-checkbox {
     width: 1.2rem !important;
     height: 1.2rem !important;
@@ -663,6 +673,15 @@ $isFiltered = !empty($activeFilterLabels);
                                                    title="Cetak Kuitansi (PDF 215x165mm)">
                                                     <i class="bi bi-printer"></i>
                                                 </a>
+                                                <?php if (($transaksi['status'] ?? '') === 'diverifikasi'): ?>
+                                                <button type="button"
+                                                        class="btn-action btn-action-undo btn-batal-verifikasi"
+                                                        data-id="<?= $transaksi['id'] ?>"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Batalkan Verifikasi (kembali diajukan)">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                                <?php endif; ?>
                                                 <button type="button"
                                                         class="btn-action btn-action-more trx-more-btn"
                                                         aria-expanded="false"
@@ -830,6 +849,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = VERIF_BASE + '/transaksi/verifikasi/' + id;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    });
+
+    // Batalkan Verifikasi
+    document.querySelectorAll('.btn-batal-verifikasi').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (confirm('Batalkan verifikasi? Transaksi kembali berstatus diajukan dan tanggal lunas dikosongkan.')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = VERIF_BASE + '/transaksi/batal-verifikasi/' + id;
                 document.body.appendChild(form);
                 form.submit();
             }
