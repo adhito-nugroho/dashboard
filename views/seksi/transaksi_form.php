@@ -939,6 +939,36 @@ function cleanMaksudKegiatan(text) {
     return cleaned.trim();
 }
 
+// Helper format nomor ST lengkap: 800.1.11.1/{nomor}/{kode_skpd}/{tahun}
+function formatNomorSuratTugasLengkap(nomorST, tglST, tglPelaksanaan) {
+    if (!nomorST) return '';
+    let val = nomorST.trim();
+    if (val === '') return '';
+    if (val.includes('/')) {
+        return val;
+    }
+    let tahun = '';
+    if (tglST) {
+        const parts = tglST.split('-');
+        if (parts.length === 3) tahun = parts[0];
+    }
+    if (!tahun && tglPelaksanaan) {
+        const parts = tglPelaksanaan.split('-');
+        if (parts.length === 3) tahun = parts[0];
+    }
+    if (!tahun) {
+        const tglInput = document.getElementById('tanggal') ? document.getElementById('tanggal').value : '';
+        if (tglInput) {
+            const parts = tglInput.split('-');
+            if (parts.length === 3) tahun = parts[0];
+        }
+    }
+    if (!tahun) {
+        tahun = new Date().getFullYear().toString();
+    }
+    return `800.1.11.1/${val}/123.6.6/${tahun}`;
+}
+
 // Helper susun draf uraian
 function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKegiatan) {
     const subKegSelect = document.getElementById('sub_kegiatan_id');
@@ -959,7 +989,7 @@ function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKe
         if (parts.length === 3) tglSTFmt = `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
-    const nomorSTVal = nomorST || '[nomor_surat_tugas]';
+    const nomorSTVal = formatNomorSuratTugasLengkap(nomorST, tglST, tglPelaksanaan) || '[nomor_surat_tugas]';
     const penerimaVal = penerimaNama || '[nama_penerima]';
     
     const maksudCleaned = cleanMaksudKegiatan(maksudKegiatan);
