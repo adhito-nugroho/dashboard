@@ -3,6 +3,7 @@
 namespace App\Services;
 
 require_once __DIR__ . '/../../lib/fpdf.php';
+require_once __DIR__ . '/../../config/terbilang.php';
 
 class KuitansiPdfService
 {
@@ -153,7 +154,8 @@ class KuitansiPdfService
         $tanggal = (string) ($trx['tanggal'] ?? date('Y-m-d'));
 
         return [
-            'no_bku' => (string) ($trx['nomor_bukti'] ?? ''),
+            // Nomor kuitansi / no_bku dikosongkan pada cetakan kuitansi
+            'no_bku' => '',
             'no_program' => trim((string) ($trx['kode_program'] ?? '')),
             'no_kegiatan' => trim((string) ($trx['kode_kegiatan'] ?? '')),
             // "Terima dari" boleh dikosongkan — default kosong.

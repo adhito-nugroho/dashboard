@@ -24,7 +24,7 @@ foreach ($printers as $p) {
 if ($activePrinter === null && !empty($printers)) { $activePrinter = $printers[0]; $printerId = (int) $activePrinter['id']; }
 
 $dummy = [
-    'no_bku' => 'BKU/001', 'no_program' => 'PRG.01', 'no_kegiatan' => 'KEG.02',
+    'no_bku' => '(kosong — nomor kuitansi tidak dicetak)', 'no_program' => 'PRG.01', 'no_kegiatan' => 'KEG.02',
     'terima_dari' => '(kosong — contoh: Bendahara Pengeluaran)',
     'jumlah_terbilang' => 'Tiga Ratus Ribu Rupiah',
     'uraian' => 'Perjalanan Dinas dalam rangka koordinasi kehutanan ... (contoh, wrap otomatis)',

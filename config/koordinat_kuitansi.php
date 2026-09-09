@@ -63,10 +63,10 @@ return [
         'label' => 'Untuk Pembayaran (uraian)',
     ],
 
-    // Box angka "Terbilang Rp." — di KIRI bawah (bukan kanan)
+    // Box angka "Terbilang Rp." — di KIRI bawah (rata kiri)
     'terbilang_rp' => [
         'x_mm' => 45, 'y_mm' => 96, 'w_mm' => 65, 'h_mm' => 7,
-        'font' => 'Helvetica', 'style' => 'B', 'size' => 11, 'align' => 'R',
+        'font' => 'Helvetica', 'style' => 'B', 'size' => 11, 'align' => 'L',
         'label' => 'Terbilang Rp (angka)',
     ],
 
