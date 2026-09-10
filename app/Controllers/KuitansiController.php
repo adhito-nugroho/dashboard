@@ -19,10 +19,30 @@ class KuitansiController
     public const REF_BASE = 'referensi_kuitansi';
     public const DEFAULT_SUMATRA_PATH = 'C:\\Program Files\\SumatraPDF\\SumatraPDF.exe';
 
-    /** Lokasi file executable SumatraPDF (configurable via .env SUMATRAPDF_PATH) */
+    /** Lokasi file executable SumatraPDF (cek .env, bin project, C:\laragon\bin, atau Program Files) */
     public function sumatraPdfPath(): string
     {
-        return (string) ($_ENV['SUMATRAPDF_PATH'] ?? getenv('SUMATRAPDF_PATH') ?: self::DEFAULT_SUMATRA_PATH);
+        $envPath = trim((string) ($_ENV['SUMATRAPDF_PATH'] ?? getenv('SUMATRAPDF_PATH') ?: ''));
+        if ($envPath !== '' && file_exists($envPath)) {
+            return $envPath;
+        }
+
+        $candidates = [
+            $envPath,
+            __DIR__ . '/../../bin/SumatraPDF.exe',
+            'C:\\laragon\\bin\\SumatraPDF.exe',
+            'C:\\Program Files\\SumatraPDF\\SumatraPDF.exe',
+            'C:\\Program Files (x86)\\SumatraPDF\\SumatraPDF.exe',
+            'C:\\SumatraPDF\\SumatraPDF.exe',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && file_exists($candidate)) {
+                return realpath($candidate) ?: $candidate;
+            }
+        }
+
+        return $envPath !== '' ? $envPath : self::DEFAULT_SUMATRA_PATH;
     }
 
     public function __construct(PDO $db)
