@@ -13,11 +13,11 @@ class PrinterKuitansi
         $this->db = $db;
     }
 
-    /** Daftar printer: [['id','nama','keterangan','is_default'], ...] */
+    /** Daftar printer: [['id','nama','keterangan','is_default','windows_printer_name','paper_form_name'], ...] */
     public function getAll(): array
     {
         try {
-            return $this->db->query('SELECT `id`, `nama`, `keterangan`, `is_default` FROM `printer_kuitansi` ORDER BY `id`')->fetchAll(PDO::FETCH_ASSOC);
+            return $this->db->query('SELECT `id`, `nama`, `keterangan`, `is_default`, `windows_printer_name`, `paper_form_name` FROM `printer_kuitansi` ORDER BY `id`')->fetchAll(PDO::FETCH_ASSOC);
         } catch (\Throwable $e) {
             error_log('PrinterKuitansi::getAll fallback: ' . $e->getMessage());
             return [];
@@ -26,7 +26,7 @@ class PrinterKuitansi
 
     public function get(int $id): ?array
     {
-        $stmt = $this->db->prepare('SELECT `id`, `nama`, `keterangan`, `is_default` FROM `printer_kuitansi` WHERE `id` = :id');
+        $stmt = $this->db->prepare('SELECT `id`, `nama`, `keterangan`, `is_default`, `windows_printer_name`, `paper_form_name` FROM `printer_kuitansi` WHERE `id` = :id');
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return is_array($row) ? $row : null;
@@ -51,15 +51,25 @@ class PrinterKuitansi
      * (atau config default bila sumber kosong) agar tidak mulai dari nol.
      * Return id baru, atau 0 bila nama duplikat/kosong.
      */
-    public function create(string $nama, ?string $keterangan, array $sourcePositions = []): int
+    public function create(string $nama, ?string $keterangan, array $sourcePositions = [], ?string $windowsPrinterName = null, ?string $paperFormName = 'Kuitansi'): int
     {
         $nama = trim($nama);
         if ($nama === '' || strlen($nama) > 100) {
             return 0;
         }
         try {
-            $stmt = $this->db->prepare('INSERT INTO `printer_kuitansi` (`nama`, `keterangan`, `is_default`) VALUES (:nama, :ket, 0)');
-            $stmt->execute([':nama' => $nama, ':ket' => $keterangan !== null && $keterangan !== '' ? substr($keterangan, 0, 255) : null]);
+            $stmt = $this->db->prepare('
+                INSERT INTO `printer_kuitansi` 
+                    (`nama`, `keterangan`, `is_default`, `windows_printer_name`, `paper_form_name`) 
+                VALUES 
+                    (:nama, :ket, 0, :win_printer, :paper_form)
+            ');
+            $stmt->execute([
+                ':nama' => $nama,
+                ':ket' => $keterangan !== null && $keterangan !== '' ? substr($keterangan, 0, 255) : null,
+                ':win_printer' => $windowsPrinterName !== null && $windowsPrinterName !== '' ? substr($windowsPrinterName, 0, 150) : null,
+                ':paper_form' => $paperFormName !== null && $paperFormName !== '' ? substr($paperFormName, 0, 50) : 'Kuitansi',
+            ]);
         } catch (\PDOException $e) {
             error_log('PrinterKuitansi::create: ' . $e->getMessage());
             return 0;
@@ -89,6 +99,30 @@ class PrinterKuitansi
             }
         }
         return $newId;
+    }
+
+    /** Update pengaturan Windows printer dan form kertas. */
+    public function updateWindowsSettings(int $id, ?string $windowsPrinterName, ?string $paperFormName): bool
+    {
+        if ($this->get($id) === null) {
+            return false;
+        }
+        try {
+            $stmt = $this->db->prepare('
+                UPDATE `printer_kuitansi` 
+                SET `windows_printer_name` = :win_printer,
+                    `paper_form_name` = :paper_form
+                WHERE `id` = :id
+            ');
+            return $stmt->execute([
+                ':id' => $id,
+                ':win_printer' => $windowsPrinterName !== null && trim($windowsPrinterName) !== '' ? trim(substr($windowsPrinterName, 0, 150)) : null,
+                ':paper_form' => $paperFormName !== null && trim($paperFormName) !== '' ? trim(substr($paperFormName, 0, 50)) : 'Kuitansi',
+            ]);
+        } catch (\PDOException $e) {
+            error_log('PrinterKuitansi::updateWindowsSettings: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /** Jadikan default (tepat satu). Return true bila id ada. */

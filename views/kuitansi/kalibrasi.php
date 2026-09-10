@@ -110,6 +110,38 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
         </div>
     </div>
 
+    <!-- PENGATURAN SILENT PRINT WINDOWS -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                <span class="fw-semibold text-dark" style="font-size:0.85rem;">
+                    <i class="bi bi-gear-wide-connected text-primary me-1"></i>Pengaturan Silent Print Windows — Printer: <strong><?= htmlspecialchars($activePrinter['nama'] ?? '') ?></strong>
+                </span>
+                <span class="text-muted small">Dipakai saat klik tombol "Cetak Langsung" via SumatraPDF</span>
+            </div>
+            <form method="POST" action="<?= base_url('kuitansi/kalibrasi/printer/settings') ?>" class="row g-2 align-items-end">
+                <input type="hidden" name="id" value="<?= $printerId ?>">
+                <div class="col-md-5">
+                    <label class="form-label mb-1 fw-medium" style="font-size:.78rem;">Nama Printer di Windows (Device Name)</label>
+                    <input type="text" class="form-control form-control-sm font-monospace" name="windows_printer_name" 
+                           value="<?= htmlspecialchars($activePrinter['windows_printer_name'] ?? '') ?>" 
+                           placeholder="cth: EPSON L3110 Series">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label mb-1 fw-medium" style="font-size:.78rem;">Nama Form Kertas di Windows (Ukuran 215x165mm)</label>
+                    <input type="text" class="form-control form-control-sm font-monospace" name="paper_form_name" 
+                           value="<?= htmlspecialchars($activePrinter['paper_form_name'] ?? 'Kuitansi') ?>" 
+                           placeholder="Kuitansi">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-check2-circle me-1"></i>Simpan Pengaturan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <?php if ($flash): ?>
         <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'success' ? 'success' : 'info') ?> alert-dismissible fade show" role="alert">
             <?= htmlspecialchars($flash) ?>

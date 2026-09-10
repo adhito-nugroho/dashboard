@@ -526,6 +526,12 @@ try {
         $kuitansiController->setDefaultPrinter();
     } elseif ($path === '/kuitansi/kalibrasi/printer/hapus' && $requestMethod === 'POST') {
         $kuitansiController->hapusPrinter();
+    } elseif ($path === '/kuitansi/kalibrasi/printer/settings' && $requestMethod === 'POST') {
+        $kuitansiController->updatePrinterSettings();
+    } elseif (preg_match('#^/kuitansi/(\d+)/cetak-langsung$#', $path, $matches) && $requestMethod === 'POST') {
+        $kuitansiController->cetakLangsung((int) $matches[1]);
+    } elseif (preg_match('#^/kuitansi/cetak-langsung/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $kuitansiController->cetakLangsung((int) $matches[1]);
     } elseif (preg_match('#^/kuitansi/cetak/(\d+)$#', $path, $matches)) {
         $kuitansiController->cetak((int) $matches[1]);
     }

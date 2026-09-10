@@ -198,10 +198,9 @@ class KuitansiPdfService
     }
 
     /**
-     * Generate PDF kuitansi untuk satu transaksi. Stream langsung ke browser (print).
-     * Koordinat dari kalibrasi_kuitansi_elemen (di-inject via setPositions).
+     * Render dokumen PDF kuitansi (objek FPDF sebelum di-Output).
      */
-    public function streamKuitansi(array $trx): void
+    private function renderKuitansi(array $trx): \FPDF
     {
         $d = $this->buildData($trx);
         $pdf = $this->newPdf();
@@ -221,8 +220,27 @@ class KuitansiPdfService
         $this->ttdLine($pdf, 'ttd_bendahara_nip', $d['bendahara_nip'] !== '' ? ('NIP. ' . $d['bendahara_nip']) : '');
         $this->ttdLine($pdf, 'ttd_penerima_nama', $d['penerima_nama'] !== '' ? $d['penerima_nama'] : '........................', 'U');
 
+        return $pdf;
+    }
+
+    /**
+     * Generate PDF kuitansi untuk satu transaksi. Stream langsung ke browser (print).
+     * Koordinat dari kalibrasi_kuitansi_elemen (di-inject via setPositions).
+     */
+    public function streamKuitansi(array $trx): void
+    {
+        $pdf = $this->renderKuitansi($trx);
         $fname = 'kuitansi_' . preg_replace('/[^A-Za-z0-9-_]+/', '_', (string) ($trx['nomor_bukti'] ?? $trx['id'] ?? 'transaksi')) . '.pdf';
         $pdf->Output('I', $fname);
+    }
+
+    /**
+     * Simpan PDF kuitansi ke file lokal di server (untuk silent print / SumatraPDF).
+     */
+    public function savePdfKuitansi(array $trx, string $path): void
+    {
+        $pdf = $this->renderKuitansi($trx);
+        $pdf->Output('F', $path);
     }
 
     /**

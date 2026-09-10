@@ -17,6 +17,13 @@ class KuitansiController
 
     public const REF_DIR = __DIR__ . '/../../public/uploads/kalibrasi';
     public const REF_BASE = 'referensi_kuitansi';
+    public const DEFAULT_SUMATRA_PATH = 'C:\\Program Files\\SumatraPDF\\SumatraPDF.exe';
+
+    /** Lokasi file executable SumatraPDF (configurable via .env SUMATRAPDF_PATH) */
+    public function sumatraPdfPath(): string
+    {
+        return (string) ($_ENV['SUMATRAPDF_PATH'] ?? getenv('SUMATRAPDF_PATH') ?: self::DEFAULT_SUMATRA_PATH);
+    }
 
     public function __construct(PDO $db)
     {
@@ -337,6 +344,12 @@ class KuitansiController
         $this->requireKalibrasiAccess();
         $nama = trim((string) ($_POST['nama'] ?? ''));
         $ket = trim((string) ($_POST['keterangan'] ?? ''));
+        $winPrinter = trim((string) ($_POST['windows_printer_name'] ?? ''));
+        $paperForm = trim((string) ($_POST['paper_form_name'] ?? ''));
+        if ($paperForm === '') {
+            $paperForm = 'Kuitansi';
+        }
+
         if ($nama === '') {
             $_SESSION['flash_message'] = 'Nama printer wajib diisi.';
             $_SESSION['flash_type'] = 'error';
@@ -345,7 +358,13 @@ class KuitansiController
         }
         $sourceId = $this->printer->getDefaultId();
         $source = $sourceId > 0 ? $this->elemen->getAll($sourceId) : [];
-        $newId = $this->printer->create($nama, $ket !== '' ? $ket : null, $source);
+        $newId = $this->printer->create(
+            $nama,
+            $ket !== '' ? $ket : null,
+            $source,
+            $winPrinter !== '' ? $winPrinter : null,
+            $paperForm
+        );
         if ($newId <= 0) {
             $_SESSION['flash_message'] = 'Gagal menambah printer (nama duplikat?).';
             $_SESSION['flash_type'] = 'error';
@@ -355,6 +374,28 @@ class KuitansiController
         $_SESSION['flash_message'] = 'Printer "' . $nama . '" ditambahkan; posisi awal disalin dari printer default. Silakan Cetak Uji dan sesuaikan.';
         $_SESSION['flash_type'] = 'success';
         header('Location: ' . base_url('kuitansi/kalibrasi?printer=' . $newId));
+        exit;
+    }
+
+    /** Update nama Windows printer & nama paper form (form POST: id, windows_printer_name, paper_form_name). */
+    public function updatePrinterSettings(): void
+    {
+        $this->requireKalibrasiAccess();
+        $id = (int) ($_POST['id'] ?? 0);
+        $winName = trim((string) ($_POST['windows_printer_name'] ?? ''));
+        $paperForm = trim((string) ($_POST['paper_form_name'] ?? ''));
+        if ($paperForm === '') {
+            $paperForm = 'Kuitansi';
+        }
+
+        if ($this->printer->updateWindowsSettings($id, $winName !== '' ? $winName : null, $paperForm)) {
+            $_SESSION['flash_message'] = 'Pengaturan printer Windows berhasil disimpan.';
+            $_SESSION['flash_type'] = 'success';
+        } else {
+            $_SESSION['flash_message'] = 'Gagal menyimpan pengaturan printer Windows.';
+            $_SESSION['flash_type'] = 'error';
+        }
+        header('Location: ' . base_url('kuitansi/kalibrasi?printer=' . $id));
         exit;
     }
 
@@ -427,6 +468,135 @@ class KuitansiController
         $printerId = $this->resolvePrinterId(isset($_GET['printer_id']) ? (int) $_GET['printer_id'] : null);
         $this->pdf->setPositions($printerId > 0 ? $this->elemen->getAll($printerId) : []);
         $this->pdf->streamKuitansi($trx);
+        exit;
+    }
+
+    /**
+     * Cetak langsung kuitansi satu transaksi ke printer fisik via SumatraPDF (silent print).
+     * Endpoint: POST /kuitansi/{id}/cetak-langsung
+     * Otorisasi sama persis dengan cetak().
+     * Return JSON: {ok: bool, message: string}
+     */
+    public function cetakLangsung(int $id): void
+    {
+        $this->requireLogin();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $trx = $this->transaksi->getById($id);
+        if ($trx === null) {
+            http_response_code(404);
+            echo json_encode(['ok' => false, 'message' => 'Transaksi #' . $id . ' tidak ditemukan.']);
+            exit;
+        }
+
+        $isAdmin = !empty($_SESSION['is_admin']);
+        if (!$isAdmin) {
+            $role = $_SESSION['role'] ?? '';
+            $allowedRoles = ['rlpm', 'tkuk', 'tu', 'seksi'];
+            if (!in_array($role, $allowedRoles, true)) {
+                http_response_code(403);
+                echo json_encode(['ok' => false, 'message' => 'Akses ditolak.']);
+                exit;
+            }
+            $mySeksi = (int) ($_SESSION['seksi_id'] ?? 0);
+            if ($mySeksi > 0 && (int) ($trx['seksi_id'] ?? 0) !== $mySeksi) {
+                http_response_code(403);
+                echo json_encode(['ok' => false, 'message' => 'Akses ditolak: bukan transaksi seksi Anda.']);
+                exit;
+            }
+        }
+
+        $printerId = $this->resolvePrinterId(isset($_GET['printer_id']) ? (int) $_GET['printer_id'] : null);
+        $printerData = $this->printer->get($printerId);
+        if ($printerData === null) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Profil printer tidak ditemukan di database.']);
+            exit;
+        }
+
+        $winPrinter = trim((string) ($printerData['windows_printer_name'] ?? ''));
+        if ($winPrinter === '') {
+            http_response_code(422);
+            echo json_encode([
+                'ok' => false,
+                'message' => 'Printer "' . ($printerData['nama'] ?? 'Default') . '" belum memiliki nama Windows printer (windows_printer_name). Silakan atur di menu Kalibrasi Kuitansi terlebih dahulu.'
+            ]);
+            exit;
+        }
+
+        $paperForm = trim((string) ($printerData['paper_form_name'] ?? ''));
+        if ($paperForm === '') {
+            $paperForm = 'Kuitansi';
+        }
+
+        $sumatraBin = $this->sumatraPdfPath();
+        if (!file_exists($sumatraBin)) {
+            http_response_code(500);
+            echo json_encode([
+                'ok' => false,
+                'message' => 'Executable SumatraPDF tidak ditemukan di "' . $sumatraBin . '". Pastikan SumatraPDF terpasang atau atur SUMATRAPDF_PATH di file config/.env.'
+            ]);
+            exit;
+        }
+
+        // Simpan PDF kuitansi ke file sementara di sys_get_temp_dir()
+        $tempDir = rtrim(sys_get_temp_dir(), '\\/');
+        $tempPdf = $tempDir . DIRECTORY_SEPARATOR . 'kuitansi_direct_' . $id . '_' . uniqid() . '.pdf';
+
+        try {
+            $this->pdf->setPositions($printerId > 0 ? $this->elemen->getAll($printerId) : []);
+            $this->pdf->savePdfKuitansi($trx, $tempPdf);
+        } catch (\Throwable $e) {
+            error_log('cetakLangsung savePdf error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => 'Gagal membuat file PDF kuitansi: ' . $e->getMessage()]);
+            exit;
+        }
+
+        if (!file_exists($tempPdf)) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => 'Gagal membuat file PDF kuitansi sementara.']);
+            exit;
+        }
+
+        // Hapus file sementara saat proses request PHP selesai (dengan jeda 500ms agar spooler selesai membaca)
+        register_shutdown_function(function () use ($tempPdf) {
+            if (file_exists($tempPdf)) {
+                usleep(500000);
+                @unlink($tempPdf);
+            }
+        });
+
+        // Eksekusi SumatraPDF
+        // Format perintah: "C:\path\SumatraPDF.exe" -print-to "Printer Name" -print-settings "landscape,paper=Kuitansi,noscale" -silent "C:\temp\file.pdf"
+        $printSettings = "landscape,paper={$paperForm},noscale";
+        $cmd = sprintf(
+            '"%s" -print-to "%s" -print-settings "%s" -silent "%s"',
+            $sumatraBin,
+            $winPrinter,
+            $printSettings,
+            $tempPdf
+        );
+
+        $output = [];
+        $returnCode = 0;
+        exec($cmd, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            error_log('SumatraPDF exec failed: cmd=' . $cmd . ' code=' . $returnCode . ' output=' . implode("\n", $output));
+            http_response_code(500);
+            echo json_encode([
+                'ok' => false,
+                'message' => 'Perintah cetak gagal dieksekusi oleh SumatraPDF (kode: ' . $returnCode . '). Pastikan nama printer "' . $winPrinter . '" terpasang di Windows dan printer dalam kondisi aktif.'
+            ]);
+            exit;
+        }
+
+        $noBukti = !empty($trx['nomor_bukti']) ? ' (' . $trx['nomor_bukti'] . ')' : '';
+        echo json_encode([
+            'ok' => true,
+            'message' => 'Kuitansi transaksi #' . $id . $noBukti . ' berhasil dikirim ke printer "' . $winPrinter . '" [Form: ' . $paperForm . '].'
+        ]);
         exit;
     }
 }

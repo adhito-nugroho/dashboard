@@ -455,10 +455,17 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                         <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
                                         <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
                                     <?php endif; ?>
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-action-icon btn-cetak-langsung"
+                                            data-id="<?= $t['id'] ?>"
+                                            data-bukti="<?= htmlspecialchars($t['nomor_bukti'] ?? '') ?>"
+                                            title="Cetak Langsung Kuitansi ke Printer NCR (Silent Print)">
+                                        <i class="bi bi-printer-fill"></i>
+                                    </button>
                                     <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
                                        target="_blank" rel="noopener"
                                        class="btn btn-outline-success btn-action-icon"
-                                       title="Cetak Kuitansi (PDF 215x165mm)">
+                                       title="Unduh / Pratinjau PDF Kuitansi (215x165mm)">
                                         <i class="bi bi-printer"></i>
                                     </a>
                                 </div>
@@ -533,11 +540,18 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <i class="bi bi-file-earmark-excel me-1"></i>Excel
                                 </a>
                             <?php endif; ?>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary btn-cetak-langsung <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                    data-id="<?= $t['id'] ?>"
+                                    data-bukti="<?= htmlspecialchars($t['nomor_bukti'] ?? '') ?>"
+                                    title="Cetak Langsung Kuitansi ke Printer NCR (Silent Print)">
+                                <i class="bi bi-printer-fill me-1"></i>Print
+                            </button>
                             <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
                                target="_blank" rel="noopener"
                                class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                               title="Cetak Kuitansi (PDF 215x165mm)">
-                                <i class="bi bi-printer me-1"></i>Kuitansi
+                               title="Unduh / Pratinjau PDF Kuitansi (215x165mm)">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>PDF
                             </a>
                         </div>
                     </div>
@@ -711,5 +725,90 @@ document.addEventListener('DOMContentLoaded', function(){
             window.location.href = url;
         });
     }
+
+    // Notifikasi Toast Cetak Langsung
+    function showPrintToast(message, type) {
+        type = type || 'success';
+        var toastEl = document.getElementById('printToast');
+        if (toastEl && typeof bootstrap !== 'undefined') {
+            var iconEl = document.getElementById('printToastIcon');
+            var msgEl = document.getElementById('printToastMessage');
+
+            toastEl.className = 'toast align-items-center border-0 shadow-lg text-white ' +
+                (type === 'success' ? 'bg-success' : (type === 'danger' ? 'bg-danger' : 'bg-primary'));
+
+            if (iconEl) {
+                iconEl.className = 'bi fs-5 ' + (type === 'success' ? 'bi-check-circle-fill' : (type === 'danger' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill'));
+            }
+            if (msgEl) {
+                msgEl.textContent = message;
+            }
+
+            var toast = bootstrap.Toast.getInstance(toastEl) || new bootstrap.Toast(toastEl, { delay: 6000 });
+            toast.show();
+        } else {
+            alert(message);
+        }
+    }
+
+    // Handler Tombol Cetak Langsung via AJAX
+    document.querySelectorAll('.btn-cetak-langsung').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var trxId = this.dataset.id;
+            var noBukti = this.dataset.bukti ? (' (' + this.dataset.bukti + ')') : (' #' + trxId);
+            if (!trxId) return;
+
+            if (!confirm('Kirim cetak kuitansi transaksi' + noBukti + ' langsung ke printer fisik NCR?')) {
+                return;
+            }
+
+            var self = this;
+            var origHtml = self.innerHTML;
+            self.disabled = true;
+            self.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            var baseUrlStr = (typeof BASE_URL !== 'undefined' ? BASE_URL : '<?= rtrim(base_url(), "/") ?>/');
+            var url = baseUrlStr + 'kuitansi/' + trxId + '/cetak-langsung';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(async function(res) {
+                var data = await res.json().catch(function() { return { ok: false, message: 'Respon server tidak valid' }; });
+                if (!res.ok || !data.ok) {
+                    throw new Error(data.message || ('Gagal mencetak (HTTP ' + res.status + ')'));
+                }
+                return data;
+            })
+            .then(function(data) {
+                showPrintToast(data.message || 'Perintah cetak kuitansi berhasil dikirim ke printer.', 'success');
+            })
+            .catch(function(err) {
+                showPrintToast('Gagal mencetak kuitansi: ' + err.message, 'danger');
+            })
+            .finally(function() {
+                self.disabled = false;
+                self.innerHTML = origHtml;
+            });
+        });
+    });
 });
 </script>
+
+<!-- Toast Container untuk Notifikasi Ajax Cetak Langsung -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090;">
+    <div id="printToast" class="toast align-items-center border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2">
+                <i id="printToastIcon" class="bi fs-5"></i>
+                <span id="printToastMessage"></span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
