@@ -209,9 +209,16 @@ try {
             || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
             || preg_match('#^/seksi/transaksi#', $path)
             || preg_match('#^/kuitansi/cetak/\d+$#', $path)
+            || preg_match('#^/kuitansi/(\d+/cetak-langsung|cetak-langsung/\d+)$#', $path)
             || preg_match('#^/kuitansi/kalibrasi#', $path)
             || preg_match('#^/spj#', $path);
         if (!$seksiAllowed) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+                http_response_code(403);
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['ok' => false, 'message' => 'Akses ditolak untuk route ini.']);
+                exit;
+            }
             header('Location: ' . base_url('seksi/transaksi'));
             exit;
         }

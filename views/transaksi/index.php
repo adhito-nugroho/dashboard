@@ -1088,7 +1088,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             })
             .then(async function(res) {
-                var data = await res.json().catch(function() { return { ok: false, message: 'Respon server tidak valid' }; });
+                var text = await res.text();
+                var data;
+                try {
+                    data = JSON.parse(text);
+                } catch (err) {
+                    throw new Error('Server mengembalikan format non-JSON (HTTP ' + res.status + '). Periksa session login atau konfigurasi server.');
+                }
                 if (!res.ok || !data.ok) {
                     throw new Error(data.message || ('Gagal mencetak (HTTP ' + res.status + ')'));
                 }
