@@ -3,9 +3,9 @@
 ## Deskripsi
 Script ini membuat tabel `users` dan menambahkan 4 user default:
 - **admin** (role: admin) - Akses penuh ke semua fitur
-- **tu** (role: tu) - Dashboard khusus Seksi TU
-- **rlpm** (role: rlpm) - Dashboard khusus Seksi RLPM
-- **tkuk** (role: tkuk) - Dashboard khusus Seksi TKUK
+- **tu** (role: tu) - Dashboard khusus Subbagian TU
+- **rlpm** (role: rlpm) - Dashboard khusus Seksi RLPM (Seksi Rehabilitasi Lahan dan Pemberdayaan Masyarakat)
+- **tkuk** (role: tkuk) - Dashboard khusus Seksi TKUK (Seksi Tata Kelola dan Usaha Kehutanan)
 
 Password default untuk semua user: **admin123**
 

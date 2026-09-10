@@ -8,17 +8,17 @@ class DashboardSeksiController {
     
     public function showTU(): void {
         $this->checkRole('tu');
-        $this->renderDashboard('TU', 'Tata Usaha');
+        $this->renderDashboard('TU', 'Subbagian Tata Usaha');
     }
 
     public function showRLPM(): void {
         $this->checkRole('rlpm');
-        $this->renderDashboard('RLPM', 'Rencana, Laporan dan Pemanfaatan Hutan');
+        $this->renderDashboard('RLPM', 'Seksi Rehabilitasi Lahan dan Pemberdayaan Masyarakat');
     }
 
     public function showTKUK(): void {
         $this->checkRole('tkuk');
-        $this->renderDashboard('TKUK', 'Teknik Konservasi dan Usaha Kehutanan');
+        $this->renderDashboard('TKUK', 'Seksi Tata Kelola dan Usaha Kehutanan');
     }
 
     private function checkRole(string $requiredRole): void {

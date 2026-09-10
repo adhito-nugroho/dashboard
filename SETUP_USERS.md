@@ -14,9 +14,9 @@
 3. **Password Default**: `admin123` (untuk semua user)
 
 4. **3 Dashboard Seksi**:
-   - `/dashboard/tu` → Dashboard Tata Usaha
-   - `/dashboard/rlpm` → Dashboard Rencana, Laporan dan Pemanfaatan Hutan
-   - `/dashboard/tkuk` → Dashboard Teknik Konservasi dan Usaha Kehutanan
+   - `/dashboard/tu` → Dashboard Subbagian Tata Usaha (TU)
+   - `/dashboard/rlpm` → Dashboard Seksi Rehabilitasi Lahan dan Pemberdayaan Masyarakat (RLPM)
+   - `/dashboard/tkuk` → Dashboard Seksi Tata Kelola dan Usaha Kehutanan (TKUK)
 
 ## Cara Install
 
