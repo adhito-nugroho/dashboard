@@ -44,24 +44,15 @@ class ExcelController {
         $namaBulan = $bulanNamesLong[$bulan];
 
         // -------------------------------------------------------
-        // 1. Build hierarchical data: Seksi -> Program -> Kegiatan
+        // 1. Build hierarchical data: Program -> Kegiatan
         //    -> Sub Kegiatan -> Rekening
         // -------------------------------------------------------
-        $seksis = $this->seksiModel->getAll();
-        $seksiMap = [];
-        $seksiKodeMap = [];
-        foreach ($seksis as $s) {
-            $seksiMap[$s['id']] = $s['nama_seksi'];
-            $seksiKodeMap[$s['id']] = $s['kode_seksi'] ?? '';
-        }
-
         $pagus = $this->paguModel->getAll();
         $hierarchy = [];
 
         foreach ($pagus as $pagu) {
             if ($pagu['tahun'] != $tahun) continue;
 
-            $sid  = $pagu['sub_kegiatan_seksi_id'] ?? 0;
             $pid  = $pagu['program_id'];
             $kid  = $pagu['kegiatan_id'];
             $skid = $pagu['sub_kegiatan_id'];
@@ -110,44 +101,37 @@ class ExcelController {
                 'type'                 => 'rekening',
             ];
 
-            // Build tree
-            if (!isset($hierarchy[$sid])) {
-                $hierarchy[$sid] = $this->initNode('seksi', $seksiKodeMap[$sid] ?? '', $seksiMap[$sid] ?? 'Tanpa Seksi');
+            // Build tree: Program -> Kegiatan -> Sub Kegiatan -> Rekening
+            if (!isset($hierarchy[$pid])) {
+                $hierarchy[$pid] = $this->initNode('program', $pagu['kode_program'] ?? '', $pagu['nama_program'] ?? '');
             }
-            if (!isset($hierarchy[$sid]['children'][$pid])) {
-                $hierarchy[$sid]['children'][$pid] = $this->initNode('program', $pagu['kode_program'] ?? '', $pagu['nama_program'] ?? '');
+            if (!isset($hierarchy[$pid]['children'][$kid])) {
+                $hierarchy[$pid]['children'][$kid] = $this->initNode('kegiatan', $pagu['kode_kegiatan'] ?? '', $pagu['nama_kegiatan'] ?? '');
             }
-            if (!isset($hierarchy[$sid]['children'][$pid]['children'][$kid])) {
-                $hierarchy[$sid]['children'][$pid]['children'][$kid] = $this->initNode('kegiatan', $pagu['kode_kegiatan'] ?? '', $pagu['nama_kegiatan'] ?? '');
-            }
-            if (!isset($hierarchy[$sid]['children'][$pid]['children'][$kid]['children'][$skid])) {
-                $hierarchy[$sid]['children'][$pid]['children'][$kid]['children'][$skid] = $this->initNode('sub_kegiatan', $pagu['kode_sub_kegiatan'] ?? '', $pagu['nama_sub_kegiatan'] ?? '');
+            if (!isset($hierarchy[$pid]['children'][$kid]['children'][$skid])) {
+                $hierarchy[$pid]['children'][$kid]['children'][$skid] = $this->initNode('sub_kegiatan', $pagu['kode_sub_kegiatan'] ?? '', $pagu['nama_sub_kegiatan'] ?? '');
             }
 
-            $hierarchy[$sid]['children'][$pid]['children'][$kid]['children'][$skid]['children'][$rid] = $rekRow;
+            $hierarchy[$pid]['children'][$kid]['children'][$skid]['children'][$rid] = $rekRow;
 
             // Accumulate upwards
-            $this->accum($hierarchy[$sid]['children'][$pid]['children'][$kid]['children'][$skid], $rekRow);
-            $this->accum($hierarchy[$sid]['children'][$pid]['children'][$kid], $rekRow);
-            $this->accum($hierarchy[$sid]['children'][$pid], $rekRow);
-            $this->accum($hierarchy[$sid], $rekRow);
+            $this->accum($hierarchy[$pid]['children'][$kid]['children'][$skid], $rekRow);
+            $this->accum($hierarchy[$pid]['children'][$kid], $rekRow);
+            $this->accum($hierarchy[$pid], $rekRow);
         }
 
         // Sort
         uasort($hierarchy, fn($a,$b) => strcmp($a['kode'],$b['kode']));
-        foreach ($hierarchy as &$s) {
-            uasort($s['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
-            foreach ($s['children'] as &$p) {
-                uasort($p['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
-                foreach ($p['children'] as &$k) {
-                    uasort($k['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
-                    foreach ($k['children'] as &$sk) {
-                        uasort($sk['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
-                    }
+        foreach ($hierarchy as &$p) {
+            uasort($p['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
+            foreach ($p['children'] as &$k) {
+                uasort($k['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
+                foreach ($k['children'] as &$sk) {
+                    uasort($sk['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
                 }
             }
         }
-        unset($s, $p, $k, $sk);
+        unset($p, $k, $sk);
 
         // -------------------------------------------------------
         // 2. Build Spreadsheet
@@ -232,8 +216,8 @@ class ExcelController {
 
         // ---- Calculate totals for Grand Total row ----
         $grandTotal = $this->initNode('total', '', 'TOTAL KESELURUHAN');
-        foreach ($hierarchy as $secNode) {
-            $this->accum($grandTotal, $secNode);
+        foreach ($hierarchy as $progNode) {
+            $this->accum($grandTotal, $progNode);
         }
 
         // ---- Write grand total row (CDK header row) ----
@@ -258,41 +242,36 @@ class ExcelController {
         $this->applyNumberFormat($sheet, $currentRow);
         $currentRow++;
 
-        // ---- Write hierarchy rows ---- track seksi row numbers ----
-        $seksiRows = []; // Row numbers of seksi-level rows (for correct grand total)
+        // ---- Write hierarchy rows ---- track program row numbers ----
+        $progRows = []; // Row numbers of program-level rows (for correct grand total)
 
-        foreach ($hierarchy as $seksiNode) {
-            $seksiRows[] = $currentRow;          // remember this seksi's row
-            $this->writeRow($sheet, $currentRow, $seksiNode, 'seksi');
+        foreach ($hierarchy as $progNode) {
+            $progRows[] = $currentRow;          // remember this program's row
+            $this->writeRow($sheet, $currentRow, $progNode, 'program');
             $currentRow++;
 
-            foreach ($seksiNode['children'] as $progNode) {
-                $this->writeRow($sheet, $currentRow, $progNode, 'program');
+            foreach ($progNode['children'] as $kegNode) {
+                $this->writeRow($sheet, $currentRow, $kegNode, 'kegiatan');
                 $currentRow++;
 
-                foreach ($progNode['children'] as $kegNode) {
-                    $this->writeRow($sheet, $currentRow, $kegNode, 'kegiatan');
+                foreach ($kegNode['children'] as $skNode) {
+                    $this->writeRow($sheet, $currentRow, $skNode, 'sub_kegiatan');
                     $currentRow++;
 
-                    foreach ($kegNode['children'] as $skNode) {
-                        $this->writeRow($sheet, $currentRow, $skNode, 'sub_kegiatan');
+                    foreach ($skNode['children'] as $rekNode) {
+                        $this->writeRow($sheet, $currentRow, $rekNode, 'rekening');
                         $currentRow++;
-
-                        foreach ($skNode['children'] as $rekNode) {
-                            $this->writeRow($sheet, $currentRow, $rekNode, 'rekening');
-                            $currentRow++;
-                        }
                     }
                 }
             }
         }
 
-        // ---- Grand Total Row (bottom) — sum only seksi rows ----
+        // ---- Grand Total Row (bottom) — sum only program rows ----
         $sheet->setCellValue("A{$currentRow}", 'JUMLAH TOTAL');
 
-        // Build SUM referencing only seksi-level rows, e.g. =B5+B20+B40
+        // Build SUM referencing only program-level rows, e.g. =B8+B25
         foreach (['B','C','D','E','F','H'] as $col) {
-            $refs = array_map(fn($r) => "{$col}{$r}", $seksiRows);
+            $refs = array_map(fn($r) => "{$col}{$r}", $progRows);
             $sheet->setCellValue("{$col}{$currentRow}", '=' . implode('+', $refs));
         }
         // % Keuangan: total realisasi sd / total pagu
@@ -375,11 +354,10 @@ class ExcelController {
     // -------------------------------------------------------
     private function writeRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row, array $node, string $type): void {
         $indent = match($type) {
-            'seksi'       => '',
-            'program'     => '  ',
-            'kegiatan'    => '    ',
-            'sub_kegiatan'=> '      ',
-            'rekening'    => '        ',
+            'program'     => '',
+            'kegiatan'    => '  ',
+            'sub_kegiatan'=> '    ',
+            'rekening'    => '      ',
             default       => '',
         };
 
@@ -396,19 +374,18 @@ class ExcelController {
 
         // Base style
         $bgColor = match($type) {
-            'seksi'        => 'D6E4F0',  // Light blue - Seksi header
-            'program'      => 'E8F5E9',  // Light green - Program
-            'kegiatan'     => 'FFF9E6',  // Light yellow - Kegiatan
-            'sub_kegiatan' => 'F3F3F3',  // Light gray - Sub Kegiatan
+            'program'      => 'D6E4F0',  // Light blue - Program
+            'kegiatan'     => 'E8F5E9',  // Light green - Kegiatan
+            'sub_kegiatan' => 'FFF9E6',  // Light yellow - Sub Kegiatan
             'rekening'     => 'FFFFFF',  // White - Rekening
             default        => 'FFFFFF',
         };
 
-        $bold = in_array($type, ['seksi', 'program', 'kegiatan']);
+        $bold = in_array($type, ['program', 'kegiatan']);
         $fontSize = match($type) {
-            'seksi'   => 10,
-            'program' => 9,
-            default   => 9,
+            'program'  => 10,
+            'kegiatan' => 9,
+            default    => 9,
         };
 
         $style = [
