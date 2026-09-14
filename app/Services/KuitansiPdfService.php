@@ -235,15 +235,6 @@ class KuitansiPdfService
     }
 
     /**
-     * Simpan PDF kuitansi ke file lokal di server (untuk silent print / SumatraPDF).
-     */
-    public function savePdfKuitansi(array $trx, string $path): void
-    {
-        $pdf = $this->renderKuitansi($trx);
-        $pdf->Output('F', $path);
-    }
-
-    /**
      * "Cetak Uji": crosshair/garis tipis di posisi tiap elemen dari STATE KANVAS
      * client (belum tentu tersimpan). Dummy — bukan data transaksi asli.
      */

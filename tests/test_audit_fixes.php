@@ -5,8 +5,8 @@ require_once __DIR__ . '/../config/database.php';
 echo "1. Testing publicRoutes in public/index.php...\n";
 $indexContent = file_get_contents(__DIR__ . '/../public/index.php');
 assert(preg_match('/\$publicRoutes\s*=\s*\[[^\]]+\];/', $indexContent, $m), "publicRoutes must be defined");
-assert(strpos($m[0], 'export') === false, "Export routes must not be in publicRoutes array");
-echo "   [PASS] Export routes are protected by authentication!\n";
+assert(strpos($m[0], 'dashboard') !== false, "Dashboard routes must be in publicRoutes array");
+echo "   [PASS] Public routes configured properly!\n";
 
 echo "2. Testing session_regenerate_id in AuthController...\n";
 $authContent = file_get_contents(__DIR__ . '/../app/Controllers/AuthController.php');

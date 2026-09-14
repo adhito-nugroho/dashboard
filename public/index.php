@@ -212,7 +212,6 @@ try {
             || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
             || preg_match('#^/seksi/transaksi#', $path)
             || preg_match('#^/kuitansi/cetak/\d+$#', $path)
-            || preg_match('#^/kuitansi/(\d+/cetak-langsung|cetak-langsung/\d+)$#', $path)
             || preg_match('#^/kuitansi/kalibrasi#', $path)
             || preg_match('#^/spj#', $path);
         if (!$seksiAllowed) {
@@ -536,12 +535,6 @@ try {
         $kuitansiController->setDefaultPrinter();
     } elseif ($path === '/kuitansi/kalibrasi/printer/hapus' && $requestMethod === 'POST') {
         $kuitansiController->hapusPrinter();
-    } elseif ($path === '/kuitansi/kalibrasi/printer/settings' && $requestMethod === 'POST') {
-        $kuitansiController->updatePrinterSettings();
-    } elseif (preg_match('#^/kuitansi/(\d+)/cetak-langsung$#', $path, $matches) && $requestMethod === 'POST') {
-        $kuitansiController->cetakLangsung((int) $matches[1]);
-    } elseif (preg_match('#^/kuitansi/cetak-langsung/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $kuitansiController->cetakLangsung((int) $matches[1]);
     } elseif (preg_match('#^/kuitansi/cetak/(\d+)$#', $path, $matches)) {
         $kuitansiController->cetak((int) $matches[1]);
     }
