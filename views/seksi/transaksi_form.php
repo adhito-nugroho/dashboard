@@ -463,23 +463,29 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                         <i class="bi bi-file-earmark-person me-1"></i> Data Surat Tugas (Perjalanan Dinas)
                                     </div>
                                     <div class="row g-2">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
                                                 Nomor Surat Tugas <span class="required" style="color:#B8874B;">*</span>
                                             </label>
                                             <input type="text" name="nomor_surat_tugas" id="nomor_surat_tugas" class="form-control custom-form-input form-control-sm" placeholder="094/012/101.4/2026" value="<?= htmlspecialchars($nomorSuratTugas) ?>">
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
                                                 Tanggal Surat Tugas <span class="required" style="color:#B8874B;">*</span>
                                             </label>
                                             <input type="date" name="tanggal_surat_tugas" id="tanggal_surat_tugas" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($tanggalSuratTugas) ?>">
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
-                                                Tanggal Pelaksanaan <span class="required" style="color:#B8874B;">*</span>
+                                                Tgl Pelaksanaan <span class="required" style="color:#B8874B;">*</span>
                                             </label>
                                             <input type="date" name="tanggal_pelaksanaan" id="tanggal_pelaksanaan" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($tanggalPelaksanaan) ?>">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label" style="font-size:0.8rem;font-weight:600;color:#5C5A50;">
+                                                s/d Tanggal <span class="text-muted fw-normal" style="font-size:0.7rem;">(opsional &gt;1 hari)</span>
+                                            </label>
+                                            <input type="date" id="tanggal_pelaksanaan_selesai" class="form-control custom-form-input form-control-sm" value="<?= htmlspecialchars($stMetadata['tanggal_selesai'] ?? '') ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -619,7 +625,7 @@ const editBatchItems = <?= json_encode($batchItemsData ?? []) ?>;
 const editSTMetadata = <?= json_encode($stMetadata ?? null) ?>;
 const seksiBase = BASE_URL.replace(/\/$/, '');
 
-let selectedSTData = null;
+let selectedSTData = editSTMetadata || null;
 let currentSTPegawais = [];
 window.currentSisaPagu = null;
 let jenisTransaksiAutoSet = false;
@@ -969,8 +975,34 @@ function formatNomorSuratTugasLengkap(nomorST, tglST, tglPelaksanaan) {
     return `800.1.11.1/${val}/123.6.6/${tahun}`;
 }
 
-// Helper susun draf uraian
-function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKegiatan) {
+// Helper format tanggal YYYY-MM-DD ke DD/MM/YYYY
+function formatTglToDDMMYYYY(dateStr) {
+    if (!dateStr) return '';
+    dateStr = String(dateStr).trim();
+    const parts = dateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    return dateStr;
+}
+
+// Helper hitung jumlah hari antara dua tanggal (inklusif)
+function hitungJumlahHari(tglMulai, tglSelesai) {
+    if (!tglMulai) return 1;
+    if (!tglSelesai || tglMulai === tglSelesai) return 1;
+    try {
+        const d1 = new Date(tglMulai);
+        const d2 = new Date(tglSelesai);
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 3600 * 24)) + 1;
+        return diffDays > 0 ? diffDays : 1;
+    } catch (e) {
+        return 1;
+    }
+}
+
+// Helper susun draf uraian (mendukung rentang tanggal multi-hari: DD/MM/YYYY sd DD/MM/YYYY)
+function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKegiatan, tglSelesai = null) {
     const subKegSelect = document.getElementById('sub_kegiatan_id');
     let subKegNama = '';
     if (subKegSelect && subKegSelect.selectedIndex > 0) {
@@ -978,15 +1010,28 @@ function buildDraftUraian(penerimaNama, tglPelaksanaan, tglST, nomorST, maksudKe
     }
 
     let tglPelaksanaFmt = '[tanggal_pelaksanaan]';
-    if (tglPelaksanaan) {
-        const parts = tglPelaksanaan.split('-');
-        if (parts.length === 3) tglPelaksanaFmt = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    if (tglPelaksanaan && (tglPelaksanaan.includes(' sd ') || tglPelaksanaan.includes(' s.d. '))) {
+        const splitRange = tglPelaksanaan.split(/\s+s\.?d\.?\s+/i);
+        if (splitRange.length === 2) {
+            const startFmt = formatTglToDDMMYYYY(splitRange[0]);
+            const endFmt   = formatTglToDDMMYYYY(splitRange[1]);
+            tglPelaksanaFmt = (startFmt !== endFmt && endFmt) ? `${startFmt} sd ${endFmt}` : startFmt;
+        } else {
+            tglPelaksanaFmt = tglPelaksanaan;
+        }
+    } else if (tglPelaksanaan) {
+        const startFmt = formatTglToDDMMYYYY(tglPelaksanaan);
+        const endFmt   = tglSelesai ? formatTglToDDMMYYYY(tglSelesai) : '';
+        if (endFmt && endFmt !== startFmt) {
+            tglPelaksanaFmt = `${startFmt} sd ${endFmt}`;
+        } else {
+            tglPelaksanaFmt = startFmt;
+        }
     }
 
     let tglSTFmt = '[tanggal_surat_tugas]';
     if (tglST) {
-        const parts = tglST.split('-');
-        if (parts.length === 3) tglSTFmt = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        tglSTFmt = formatTglToDDMMYYYY(tglST);
     }
 
     const nomorSTVal = formatNomorSuratTugasLengkap(nomorST, tglST, tglPelaksanaan) || '[nomor_surat_tugas]';
@@ -1020,12 +1065,14 @@ function autoFillSingleNomorBukti(force = false) {
 // Buat Draf Uraian Otomatis (Single)
 document.getElementById('btnAutoDraft').addEventListener('click', function() {
     const tglPelaksanaanRaw = document.getElementById('tanggal_pelaksanaan').value;
+    const tglPelaksanaanSelesaiRaw = document.getElementById('tanggal_pelaksanaan_selesai') ? document.getElementById('tanggal_pelaksanaan_selesai').value : '';
     const tglSuratRaw = document.getElementById('tanggal_surat_tugas').value;
     const nomorST = document.getElementById('nomor_surat_tugas').value.trim();
     const penerima = document.getElementById('nama_penerima').value.trim();
 
     const maksud = selectedSTData ? (selectedSTData.untuk || '') : '';
-    const draft = buildDraftUraian(penerima, tglPelaksanaanRaw, tglSuratRaw, nomorST, maksud);
+    const tglSelesai = tglPelaksanaanSelesaiRaw || (selectedSTData ? (selectedSTData.tanggal_selesai || '') : '');
+    const draft = buildDraftUraian(penerima, tglPelaksanaanRaw, tglSuratRaw, nomorST, maksud, tglSelesai);
     const uraianEl = document.getElementById('uraian');
     uraianEl.value = draft;
     uraianEl.focus();
@@ -1171,7 +1218,9 @@ function searchSuratTugas(keyword) {
 
             let html = '';
             res.data.forEach(st => {
-                const tglDisplay = st.tanggal_mulai ? (st.tanggal_selesai && st.tanggal_selesai !== st.tanggal_mulai ? `${st.tanggal_mulai} s.d. ${st.tanggal_selesai}` : st.tanggal_mulai) : (st.tanggal_surat || '-');
+                const tglMulaiFmt = formatTglToDDMMYYYY(st.tanggal_mulai);
+                const tglSelesaiFmt = formatTglToDDMMYYYY(st.tanggal_selesai);
+                const tglDisplay = tglMulaiFmt ? (tglSelesaiFmt && tglSelesaiFmt !== tglMulaiFmt ? `${tglMulaiFmt} sd ${tglSelesaiFmt}` : tglMulaiFmt) : (formatTglToDDMMYYYY(st.tanggal_surat) || '-');
                 const hlNomor = highlightMatch(st.nomor_surat || '-', keyword);
                 const hlUntuk = highlightMatch(st.untuk || '-', keyword);
 
@@ -1214,6 +1263,12 @@ function searchSuratTugas(keyword) {
                     this.classList.add('active');
                     selectedSTData = JSON.parse(this.dataset.st);
                     loadPegawaiST(selectedSTData.id);
+
+                    // Sinkronisasi data ke input single form
+                    if (document.getElementById('nomor_surat_tugas')) document.getElementById('nomor_surat_tugas').value = selectedSTData.nomor_surat || '';
+                    if (document.getElementById('tanggal_surat_tugas')) document.getElementById('tanggal_surat_tugas').value = selectedSTData.tanggal_surat || '';
+                    if (document.getElementById('tanggal_pelaksanaan')) document.getElementById('tanggal_pelaksanaan').value = selectedSTData.tanggal_mulai || '';
+                    if (document.getElementById('tanggal_pelaksanaan_selesai')) document.getElementById('tanggal_pelaksanaan_selesai').value = selectedSTData.tanggal_selesai || '';
                 });
             });
         })
@@ -1312,9 +1367,17 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
         .then(r => r.json())
         .then(res => {
             const nomorList = res.success ? res.list : [];
+            const jmlHari = hitungJumlahHari(selectedSTData.tanggal_mulai, selectedSTData.tanggal_selesai);
             let batchHtml = '';
             selectedPegawais.forEach((p, idx) => {
-                const draft = buildDraftUraian(p.nama, selectedSTData.tanggal_mulai, selectedSTData.tanggal_surat, selectedSTData.nomor_surat, selectedSTData.untuk);
+                const draft = buildDraftUraian(
+                    p.nama,
+                    selectedSTData.tanggal_mulai,
+                    selectedSTData.tanggal_surat,
+                    selectedSTData.nomor_surat,
+                    selectedSTData.untuk,
+                    selectedSTData.tanggal_selesai
+                );
                 const noBukti = nomorList[idx] || '';
                 batchHtml += `
                     <div class="batch-item-card" id="batchCard_${idx}">
@@ -1366,7 +1429,7 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                                     <div style="flex:.4"></div>
                                 </div>
                                 <div class="rb-rows" id="rbRows_${idx}">
-                                    ${buildDefaultKomponenRows(idx)}
+                                    ${buildDefaultKomponenRows(idx, jmlHari > 0 ? String(jmlHari) : '1')}
                                 </div>
                                 <button type="button" class="btn-rb-add mt-2" onclick="addRbRow(${idx})">
                                     <i class="bi bi-plus-circle me-1"></i>Tambah Baris
@@ -1539,8 +1602,8 @@ const DEFAULT_KOMPONEN = [
     { nama: 'Hotel',       hari: '' },
 ];
 
-function buildDefaultKomponenRows(itemIdx) {
-    return DEFAULT_KOMPONEN.map((k, r) => buildRbRow(itemIdx, r, k.nama, k.hari)).join('');
+function buildDefaultKomponenRows(itemIdx, defaultHari = '1') {
+    return DEFAULT_KOMPONEN.map((k, r) => buildRbRow(itemIdx, r, k.nama, k.nama === 'Uang Harian' ? (defaultHari || '1') : k.hari)).join('');
 }
 
 function buildRbRow(itemIdx, rowIdx, namaVal = '', hariVal = '', hargaVal = '', jumlahVal = '', ketVal = '') {

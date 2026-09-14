@@ -444,35 +444,63 @@ class SeksiTransaksiController
             ];
         }
 
+        $stMetadata = null;
+        $stRefId = !empty($transaksi['surat_tugas_ref_id']) ? (int) $transaksi['surat_tugas_ref_id'] : 0;
+        $stNomor = trim($transaksi['nomor_surat_tugas'] ?? '');
+        if (!$stNomor && !empty($transaksi['uraian'])) {
+            if (preg_match('/Surat\s+(?:Perintah\s+)?Tugas\s+No\.?:\s*([^\s,]+)/i', $transaksi['uraian'], $mST)) {
+                $stNomor = trim($mST[1]);
+            }
+        }
+
+        if ($stRefId > 0 || !empty($stNomor)) {
+            $stMetadata = [
+                'id'              => $stRefId,
+                'nomor_surat'     => $stNomor,
+                'tanggal_surat'   => $transaksi['tanggal_surat_tugas'] ?? '',
+                'tanggal_mulai'   => $transaksi['tanggal_pelaksanaan'] ?? '',
+                'tanggal_selesai' => '',
+                'lokasi'          => $transaksi['lokasi_kegiatan'] ?? '',
+                'untuk'           => '',
+            ];
+            try {
+                require_once __DIR__ . '/../../config/database_surat_tugas.php';
+                $dbST = \DatabaseSuratTugas::getConnection();
+                if ($dbST) {
+                    if ($stRefId > 0) {
+                        $stQuery = $dbST->prepare("SELECT id, nomor_surat, untuk, tanggal_mulai, tanggal_selesai FROM surat_tugas WHERE id = ? LIMIT 1");
+                        $stQuery->execute([$stRefId]);
+                    } else {
+                        // Cari nomor_surat langsung atau substring nomor urut (contoh: 2605)
+                        $rawNo = $stNomor;
+                        if (preg_match('/\/([0-9]+)\//', $stNomor, $mRaw)) {
+                            $rawNo = $mRaw[1];
+                        } elseif (preg_match('/([0-9]+)/', $stNomor, $mRaw)) {
+                            $rawNo = $mRaw[1];
+                        }
+                        $stQuery = $dbST->prepare("SELECT id, nomor_surat, untuk, tanggal_mulai, tanggal_selesai FROM surat_tugas WHERE nomor_surat = ? OR nomor_surat LIKE ? LIMIT 1");
+                        $stQuery->execute([$stNomor, "%{$rawNo}%"]);
+                    }
+                    $stRow = $stQuery->fetch(\PDO::FETCH_ASSOC);
+                    if ($stRow) {
+                        $stMetadata['id'] = (int) $stRow['id'];
+                        $stMetadata['untuk'] = $stRow['untuk'] ?? '';
+                        $stMetadata['tanggal_mulai'] = $stRow['tanggal_mulai'] ?? $stMetadata['tanggal_mulai'];
+                        $stMetadata['tanggal_selesai'] = $stRow['tanggal_selesai'] ?? '';
+                        if (empty($stMetadata['nomor_surat'])) {
+                            $stMetadata['nomor_surat'] = $stRow['nomor_surat'] ?? '';
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Fallback aman jika database ST tidak dapat dihubungi
+            }
+        }
+
         // Syarat masuk mode batch saat edit:
         // 1. Jumlah item > 1 ATAU
         // 2. Transaksi memiliki komponen rincian biaya tersimpan ($hasAnyComponents === true)
-        if (count($batchItemsData) > 1 || $hasAnyComponents) {
-            if (!empty($transaksi['surat_tugas_ref_id'])) {
-                $stMetadata = [
-                    'id'            => (int) $transaksi['surat_tugas_ref_id'],
-                    'nomor_surat'   => $transaksi['nomor_surat_tugas'] ?? '',
-                    'tanggal_surat' => $transaksi['tanggal_surat_tugas'] ?? '',
-                    'tanggal_mulai' => $transaksi['tanggal_pelaksanaan'] ?? '',
-                    'lokasi'        => $transaksi['lokasi_kegiatan'] ?? '',
-                    'untuk'         => '',
-                ];
-                try {
-                    require_once __DIR__ . '/../../config/database_surat_tugas.php';
-                    $dbST = \DatabaseSuratTugas::getConnection();
-                    if ($dbST) {
-                        $stQuery = $dbST->prepare("SELECT maksud_tugas FROM surat_tugas WHERE id = ? LIMIT 1");
-                        $stQuery->execute([(int) $transaksi['surat_tugas_ref_id']]);
-                        $maksud = $stQuery->fetchColumn();
-                        if ($maksud) {
-                            $stMetadata['untuk'] = $maksud;
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    // Fallback aman jika database ST tidak dapat dihubungi
-                }
-            }
-        } else {
+        if (count($batchItemsData) <= 1 && !$hasAnyComponents) {
             $batchItemsData = [];
         }
 
