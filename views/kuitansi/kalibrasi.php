@@ -44,6 +44,7 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
 .kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
 .kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
 .kal-box { max-height:240px; overflow:hidden; }
+.kal-box[data-key^="ttd_"] .kal-txt { text-align:center; }
 .kal-box .kal-badge { position:absolute; top:-20px; left:0; font-size:10px; background:#0f172a; color:#fff; border-radius:4px; padding:1px 6px; white-space:nowrap; display:none; z-index:5; }
 .kal-box.selected { border-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); }
 .kal-box.selected .kal-badge { display:block; }
@@ -110,6 +111,21 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
         </div>
     </div>
 
+    <?php if (empty($activePrinter['is_default'])): ?>
+        <div class="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i>
+                Printer ini (<strong><?= htmlspecialchars($activePrinter['nama'] ?? '') ?></strong>) <em>bukan printer default</em>. Cetak kuitansi dari menu Transaksi otomatis menggunakan printer default.
+            </div>
+            <form method="POST" action="<?= base_url('kuitansi/kalibrasi/printer/default') ?>" class="m-0">
+                <input type="hidden" name="id" value="<?= $printerId ?>">
+                <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                    <i class="bi bi-star-fill me-1"></i>Jadikan Printer Default Sekarang
+                </button>
+            </form>
+        </div>
+    <?php endif; ?>
+
     <?php if ($flash): ?>
         <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'success' ? 'success' : 'info') ?> alert-dismissible fade show" role="alert">
             <?= htmlspecialchars($flash) ?>
@@ -119,11 +135,11 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
     <div id="kalAlert"></div>
 
     <div class="d-flex gap-2 flex-wrap mb-3 align-items-center">
-        <form method="GET" action="<?= base_url('kuitansi/kalibrasi') ?>" class="d-flex gap-2 align-items-end m-0">
+        <form method="GET" action="<?= base_url('kuitansi/kalibrasi') ?>" class="d-flex gap-2 align-items-end m-0" id="kalTrxForm">
             <input type="hidden" name="printer" value="<?= $printerId ?>">
             <div>
                 <label class="form-label mb-1 fw-semibold" style="font-size:.8rem;" for="kalTrx">Data contoh <?= $sampleLabel ? '<span class="badge bg-primary">' . htmlspecialchars($sampleLabel) . '</span>' : '' ?></label>
-                <select class="form-select form-select-sm" id="kalTrx" name="transaksi" onchange="this.form.submit()" style="min-width:260px;max-width:420px;">
+                <select class="form-select form-select-sm" id="kalTrx" name="transaksi" style="min-width:260px;max-width:420px;">
                     <?php if (empty($trxList)): ?>
                         <option value="0">— belum ada transaksi —</option>
                     <?php endif; ?>
@@ -149,6 +165,9 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
         </label>
         <div id="kalAspectWarn"></div>
         <div class="ms-auto d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalPetunjukCetak" title="Petunjuk pengaturan dialog cetak">
+                <i class="bi bi-question-circle me-1"></i>Petunjuk Cetak Pas
+            </button>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="kalUji">
                 <i class="bi bi-crosshair me-1"></i>Cetak Uji
             </button>
@@ -330,24 +349,40 @@ function syncPanel() {
     const form = document.getElementById('kalSelForm');
     if (!selected || !state[selected]) { form.classList.add('d-none'); return; }
     form.classList.remove('d-none');
-    document.getElementById('kalInX').value = state[selected].x_mm;
-    document.getElementById('kalInY').value = state[selected].y_mm;
+    if (document.activeElement !== document.getElementById('kalInX')) {
+        document.getElementById('kalInX').value = state[selected].x_mm;
+    }
+    if (document.activeElement !== document.getElementById('kalInY')) {
+        document.getElementById('kalInY').value = state[selected].y_mm;
+    }
     document.getElementById('kalWrapW').style.display = selected === 'uraian' ? '' : 'none';
-    if (selected === 'uraian') document.getElementById('kalInW').value = widthOf('uraian');
+    if (selected === 'uraian' && document.activeElement !== document.getElementById('kalInW')) {
+        document.getElementById('kalInW').value = widthOf('uraian');
+    }
 }
 document.getElementById('kalInX').addEventListener('input', e => {
     if (!selected) return;
-    state[selected].x_mm = parseFloat(e.target.value || '0');
-    layout();
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) {
+        state[selected].x_mm = v;
+        layout();
+    }
 });
 document.getElementById('kalInY').addEventListener('input', e => {
     if (!selected) return;
-    state[selected].y_mm = parseFloat(e.target.value || '0');
-    layout();
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) {
+        state[selected].y_mm = v;
+        layout();
+    }
 });
 document.getElementById('kalInW').addEventListener('input', e => {
-    state.uraian.max_width_mm = Math.min(215, Math.max(10, parseFloat(e.target.value || '185')));
-    layout();
+    if (!selected || selected !== 'uraian') return;
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) {
+        state.uraian.max_width_mm = Math.min(215, Math.max(10, v));
+        layout();
+    }
 });
 function renderList() {
     const list = document.getElementById('kalList');
@@ -459,13 +494,58 @@ document.getElementById('kalUpload').addEventListener('change', function() {
         .finally(() => { document.getElementById('kalUpload').value = ''; });
 });
 
-// --- pilih printer: muat ulang kanvas untuk printer tersebut ---
-document.getElementById('kalPrinter').addEventListener('change', function() {
-    window.location.href = BASE + 'kuitansi/kalibrasi?printer=' + encodeURIComponent(this.value);
+// --- peringatan jika ada perubahan yang belum disimpan ---
+function isDirty() {
+    return JSON.stringify(state) !== initial;
+}
+
+window.addEventListener('beforeunload', function(e) {
+    if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = 'Ada perubahan posisi kalibrasi yang belum disimpan!';
+        return e.returnValue;
+    }
 });
 
+// --- ganti data contoh: cek dirty dulu ---
+const trxSelect = document.getElementById('kalTrx');
+if (trxSelect) {
+    let prevTrx = trxSelect.value;
+    trxSelect.addEventListener('change', function() {
+        if (isDirty()) {
+            if (!confirm('Ada perubahan posisi kalibrasi yang belum disimpan. Yakin ingin mengganti data contoh tanpa menyimpan?')) {
+                this.value = prevTrx;
+                return;
+            }
+        }
+        prevTrx = this.value;
+        document.getElementById('kalTrxForm').submit();
+    });
+}
+
+// --- pilih printer: muat ulang kanvas untuk printer tersebut (cek dirty) ---
+const printerSelect = document.getElementById('kalPrinter');
+if (printerSelect) {
+    let prevPrinter = printerSelect.value;
+    printerSelect.addEventListener('change', function() {
+        if (isDirty()) {
+            if (!confirm('Ada perubahan posisi kalibrasi yang belum disimpan. Yakin ingin mengganti printer tanpa menyimpan?')) {
+                this.value = prevPrinter;
+                return;
+            }
+        }
+        prevPrinter = this.value;
+        window.location.href = BASE + 'kuitansi/kalibrasi?printer=' + encodeURIComponent(this.value);
+    });
+}
+
 // --- simpan ---
-document.getElementById('kalSimpan').addEventListener('click', () => {
+const btnSimpan = document.getElementById('kalSimpan');
+btnSimpan.addEventListener('click', () => {
+    btnSimpan.disabled = true;
+    const oldHtml = btnSimpan.innerHTML;
+    btnSimpan.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Menyimpan...';
+
     const items = order.map(key => ({
         elemen_key: key,
         label: labels[key] || key,
@@ -481,15 +561,36 @@ document.getElementById('kalSimpan').addEventListener('click', () => {
         .then(r => r.json().then(j => ({ status: r.status, body: j })))
         .then(({ status, body }) => {
             if (!body.ok) throw new Error(body.message || ('HTTP ' + status));
-            showAlert('Tersimpan: ' + body.saved + ' elemen.', 'success');
+            btnSimpan.className = 'btn btn-sm btn-success text-white shadow-sm';
+            btnSimpan.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Tersimpan!';
+            showAlert('Posisi kalibrasi berhasil disimpan (' + body.saved + ' elemen) ke printer ini. Setting tidak akan berubah.', 'success');
             initial = JSON.stringify(state);
             markDirty();
+            setTimeout(() => {
+                btnSimpan.className = 'btn btn-sm btn-primary';
+                btnSimpan.innerHTML = oldHtml;
+                btnSimpan.disabled = false;
+            }, 2500);
         })
-        .catch(err => showAlert('Simpan gagal: ' + err.message, 'danger'));
+        .catch(err => {
+            btnSimpan.className = 'btn btn-sm btn-danger';
+            btnSimpan.innerHTML = '<i class="bi bi-x-circle me-1"></i>Gagal Simpan';
+            showAlert('Simpan gagal: ' + err.message, 'danger');
+            setTimeout(() => {
+                btnSimpan.className = 'btn btn-sm btn-primary';
+                btnSimpan.innerHTML = oldHtml;
+                btnSimpan.disabled = false;
+            }, 3000);
+        });
 });
 
 // --- cetak uji (state kanvas saat ini, belum tentu tersimpan) ---
-document.getElementById('kalUji').addEventListener('click', () => {
+const btnUji = document.getElementById('kalUji');
+btnUji.addEventListener('click', () => {
+    btnUji.disabled = true;
+    const oldUjiHtml = btnUji.innerHTML;
+    btnUji.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Memproses...';
+
     const positions = {};
     order.forEach(key => {
         positions[key] = {
@@ -511,9 +612,93 @@ document.getElementById('kalUji').addEventListener('click', () => {
             const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
             window.open(url, '_blank');
         })
-        .catch(err => showAlert('Cetak uji gagal: ' + err.message, 'danger'));
+        .catch(err => showAlert('Cetak uji gagal: ' + err.message, 'danger'))
+        .finally(() => {
+            btnUji.disabled = false;
+            btnUji.innerHTML = oldUjiHtml;
+        });
 });
 
 layout();
 })();
 </script>
+
+<!-- Modal Petunjuk Cetak Pas -->
+<div class="modal fade" id="modalPetunjukCetak" tabindex="-1" aria-labelledby="modalPetunjukCetakLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fs-6 fw-bold" id="modalPetunjukCetakLabel">
+                    <i class="bi bi-printer me-2"></i>Petunjuk Pengaturan Cetak Kuitansi Agar Pas &amp; Presisi
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-warning d-flex align-items-start gap-2 mb-4 border-warning">
+                    <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0 text-warning"></i>
+                    <div style="font-size: 0.88rem;">
+                        <strong class="text-dark">Penyebab Paling Sering Cetakan Melenceng / Bergeser:</strong><br>
+                        Browser otomatis mengaktifkan fitur <em>"Fit to printable area"</em> (Sesuaikan dengan area cetak / Fit to paper). Ini menyebabkan dokumen kuitansi ukuran <strong>215 &times; 165 mm</strong> diperkecil otomatis (skala 91%&ndash;94%), sehingga semua tulisan tergeser mengecil ke tengah kertas!
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-sliders2 me-2 text-primary"></i>Pengaturan Wajib di Jendela Cetak Browser (Chrome / Edge / Acrobat):</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 26%;">Pengaturan</th>
+                                <th style="width: 34%;">Pilihan yang WAJIB Dipilih</th>
+                                <th>Keterangan / Alasan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold text-dark">1. Skala / Scale</td>
+                                <td>
+                                    <span class="badge bg-success fs-6"><i class="bi bi-check-lg me-1"></i>100% / Actual Size</span><br>
+                                    <small class="text-muted">(Ukuran Sebenarnya)</small>
+                                </td>
+                                <td><strong class="text-danger">JANGAN</strong> pilih <em>"Fit to printable area"</em> atau <em>"Fit to page"</em>. Skala harus murni 100% agar ukuran milimeter sama persis dengan fisik formulir kertas kuitansi.</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-dark">2. Ukuran Kertas</td>
+                                <td>
+                                    <span class="badge bg-primary fs-6"><i class="bi bi-file-earmark me-1"></i>215 &times; 165 mm</span><br>
+                                    <small class="text-muted">(Kuitansi / Custom / Half Folio)</small>
+                                </td>
+                                <td>Pilih ukuran kertas kuitansi <strong>215 &times; 165 mm</strong>, orientasi <strong>Landscape</strong> (mendatar).</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-dark">3. Margin</td>
+                                <td>
+                                    <span class="badge bg-dark fs-6">None / Tanpa Margin</span>
+                                </td>
+                                <td>Pilih <strong>None</strong> atau <strong>Minimum</strong> agar browser tidak menambahkan margin tepi putih buatan sendiri.</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-dark">4. Header &amp; Footer</td>
+                                <td>
+                                    <span class="badge bg-secondary fs-6">Nonaktifkan / Uncheck</span>
+                                </td>
+                                <td>Hilangkan tanda centang agar URL web, judul, dan tanggal browser tidak ikut tercetak di pojok kertas.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-check2-circle me-2 text-primary"></i>Langkah Praktis Kalibrasi:</h6>
+                <ol class="mb-0 text-secondary" style="font-size: 0.85rem; line-height: 1.6;">
+                    <li>Pastikan printer yang aktif di menu atas adalah printer yang Anda gunakan, dan berstatus <strong>Default</strong>.</li>
+                    <li>Geser kotak pada kanvas ke posisi yang tepat sesuai blangko kuitansi fisik Anda.</li>
+                    <li>Klik tombol <strong>Simpan</strong> (tombol akan menyala hijau <em>✓ Tersimpan!</em> menandakan posisi tersimpan permanen di database).</li>
+                    <li>Klik <strong>Cetak Uji</strong> untuk menguji hasil cetakan garis uji coba pada kertas kuitansi fisik Anda.</li>
+                    <li>Jika sudah pas, kuitansi dari menu <strong>Transaksi</strong> akan tercetak presisi di titik yang sama.</li>
+                </ol>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-primary px-4 fw-semibold" data-bs-dismiss="modal">Saya Mengerti</button>
+            </div>
+        </div>
+    </div>
+</div>
