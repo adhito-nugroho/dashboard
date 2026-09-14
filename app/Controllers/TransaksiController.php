@@ -1052,8 +1052,8 @@ class TransaksiController
 
         // ── Bangun query dinamis ───────────────────────────────────────────
         $conditions = [
-            'MONTH(t.tanggal) = :bulan',
-            'YEAR(t.tanggal)  = :tahun',
+            'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan',
+            'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal))  = :tahun',
         ];
         $params = [':bulan' => $bulan, ':tahun' => $tahun];
 

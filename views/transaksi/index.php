@@ -323,8 +323,8 @@ $isFiltered = !empty($activeFilterLabels);
                 <div class="row g-2 g-lg-3 align-items-end">
                     <!-- Bulan -->
                     <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-bulan" class="form-label trx-filter-label">
-                            <i class="bi bi-calendar-month text-muted"></i> Bulan
+                        <label for="filter-bulan" class="form-label trx-filter-label" title="Bulan transaksi dibayar / diverifikasi">
+                            <i class="bi bi-calendar-month text-muted"></i> Bulan Dibayar / Verifikasi
                         </label>
                         <select name="bulan" id="filter-bulan" class="form-select form-select-sm">
                             <option value="">-- Semua Bulan --</option>
@@ -542,8 +542,12 @@ $isFiltered = !empty($activeFilterLabels);
                                     <td>
                                         <span class="fw-medium text-dark"><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></span>
                                         <?php if (!empty($transaksi['tanggal_lunas_dibayar'])): ?>
-                                            <div class="small text-success" title="Tanggal lunas dibayar (verifikasi)">
+                                            <div class="small text-success" title="Tanggal lunas dibayar">
                                                 <i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($transaksi['tanggal_lunas_dibayar'])) ?>
+                                            </div>
+                                        <?php elseif (!empty($transaksi['diverifikasi_at'])): ?>
+                                            <div class="small text-success" title="Tanggal diverifikasi">
+                                                <i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($transaksi['diverifikasi_at'])) ?>
                                             </div>
                                         <?php endif; ?>
                                     </td>

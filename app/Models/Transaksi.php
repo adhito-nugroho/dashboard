@@ -30,11 +30,11 @@ class Transaksi
             $params = [];
 
             if ($bulan !== null) {
-                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
                 $params[':bulan'] = $bulan;
             }
             if ($tahun !== null) {
-                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $conditions[] = 'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun';
                 $params[':tahun'] = $tahun;
             }
             if ($status !== null && $status !== '') {
@@ -65,7 +65,7 @@ class Transaksi
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
                 INNER JOIN program p ON k.program_id = p.id
                 {$where}
-                ORDER BY t.tanggal DESC, t.id DESC
+                ORDER BY COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) DESC, t.id DESC
             ");
             foreach ($params as $key => $val) {
                 $stmt->bindValue($key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
@@ -875,8 +875,9 @@ class Transaksi
                 INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
                 INNER JOIN program p ON k.program_id = p.id
-                WHERE MONTH(t.tanggal) = :bulan AND YEAR(t.tanggal) = :tahun
-                ORDER BY t.tanggal DESC, t.id DESC
+                WHERE MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan 
+                  AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun
+                ORDER BY COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) DESC, t.id DESC
             ");
             $stmt->bindParam(':bulan', $bulan, PDO::PARAM_INT);
             $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
