@@ -387,14 +387,19 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <?= htmlspecialchars($t['kode_rekening'] ?? '') ?>
                                 </small>
                             </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-1 mb-1">
-                                    <?php if ($jenisInfo): ?>
+                            <td style="min-width:220px;">
+                                <?php if ($jenisInfo): ?>
+                                    <div class="mb-1">
                                         <span class="jenis-chip <?= $jenisInfo[1] ?>"><?= $jenisInfo[0] ?></span>
-                                    <?php endif; ?>
-                                    <div class="text-truncate text-dark fw-medium" style="max-width:270px;font-size:0.85rem;cursor:default;" title="<?= htmlspecialchars($uraianFull) ?>">
+                                    </div>
+                                <?php endif; ?>
+                                <div class="d-flex align-items-start gap-1">
+                                    <div class="uraian-text text-dark fw-medium flex-grow-1" style="font-size:0.85rem;word-break:break-word;white-space:normal;">
                                         <?= htmlspecialchars($uraianFull) ?>
                                     </div>
+                                    <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" title="Salin uraian">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
                                 </div>
                                 <?php if (!empty($namaPenerima) || !empty($noST)): ?>
                                     <div class="small text-muted text-truncate" style="max-width:270px;font-size:0.75rem;">
@@ -505,8 +510,13 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <small class="font-monospace d-block" style="font-size:0.75rem;color:#94a3b8;"><?= htmlspecialchars($t['kode_rekening'] ?? '') ?></small>
                         </div>
                         <div class="mc-label">Uraian</div>
-                        <div class="text-truncate text-dark fw-medium mb-1" style="font-size:0.875rem;" title="<?= htmlspecialchars($t['uraian']) ?>">
-                            <?= htmlspecialchars($t['uraian']) ?>
+                        <div class="d-flex align-items-start gap-1 mb-1">
+                            <div class="uraian-text text-dark fw-medium flex-grow-1" style="font-size:0.875rem;word-break:break-word;white-space:normal;">
+                                <?= htmlspecialchars($t['uraian']) ?>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" title="Salin uraian">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
                         </div>
                         <?php if(!empty($t['nama_penerima'])): ?><div class="small text-muted"><i class="bi bi-person-fill me-1"></i><?= htmlspecialchars($t['nama_penerima']) ?></div><?php endif; ?>
                         <?php if(!empty($noST)): ?>
@@ -696,9 +706,38 @@ document.addEventListener('DOMContentLoaded', function(){
         });
     }
 
+        // Tombol Salin Uraian (delegasi: tampil penuh + copy)
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-copy-uraian');
+        if (!btn) return;
+        var textEl = btn.parentElement ? btn.parentElement.querySelector('.uraian-text') : null;
+        var text = textEl ? textEl.innerText.trim() : '';
+        if (!text) return;
+        function done(ok) {
+            var icon = btn.querySelector('i');
+            if (ok && icon) {
+                icon.className = 'bi bi-check-lg text-success';
+                setTimeout(function() { icon.className = 'bi bi-clipboard'; }, 1500);
+            }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() { done(true); }, function() { done(false); });
+        } else {
+            // Fallback browser lama / non-HTTPS
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { done(document.execCommand('copy')); }
+            catch (err) { done(false); }
+            document.body.removeChild(ta);
+        }
+    });
+
     // Tombol Unduh Excel BKU
-    var btnBku = document.getElementById('btnUnduhBku');
-    if (btnBku && form) {
+    var btnBku = document.getElementById('btnUnduhBku');    if (btnBku && form) {
         btnBku.addEventListener('click', function() {
             var selBulan = form.querySelector('select[name="bulan"]').value;
             var selTahun = form.querySelector('select[name="tahun"]').value;
