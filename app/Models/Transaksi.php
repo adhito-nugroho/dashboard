@@ -812,6 +812,54 @@ class Transaksi
     }
 
     /**
+     * Verifikasi banyak transaksi sekaligus dalam satu database transaction.
+     * Hanya yang berstatus 'diajukan' yang diproses (mamakai logika yang sama
+     * dengan verifikasi satuan: nomor bukti resmi + tanggal lunas hari ini);
+     * sisanya dilewati agar tidak mengubah data yang sudah final.
+     *
+     * @param int[] $ids
+     * @return array{verified:int, skipped:int}
+     */
+    public function verifikasiBatch(array $ids, int $verifBy): array
+    {
+        $validIds = array_values(array_filter(array_map('intval', $ids), fn($id) => $id > 0));
+        if (empty($validIds)) {
+            return ['verified' => 0, 'skipped' => 0];
+        }
+
+        $verified = 0;
+        $skipped = 0;
+        $ownTransaction = !$this->db->inTransaction();
+        if ($ownTransaction) {
+            $this->db->beginTransaction();
+        }
+        try {
+            foreach ($validIds as $id) {
+                $trx = $this->getById($id);
+                if (!$trx || ($trx['status'] ?? '') !== 'diajukan') {
+                    $skipped++;
+                    continue;
+                }
+                if ($this->verifikasi($id, 'diverifikasi', $verifBy, '')) {
+                    $verified++;
+                } else {
+                    $skipped++;
+                }
+            }
+            if ($ownTransaction) {
+                $this->db->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($ownTransaction) {
+                $this->db->rollBack();
+            }
+            error_log('Error in Transaksi::verifikasiBatch: ' . $e->getMessage());
+            throw new \RuntimeException('Gagal verifikasi batch transaksi: ' . $e->getMessage());
+        }
+        return ['verified' => $verified, 'skipped' => $skipped];
+    }
+
+    /**
      * Delete multiple transactions by IDs in a single database transaction.
      * Also unlinks any associated rincian_biaya_perjalanan_dinas.
      * 

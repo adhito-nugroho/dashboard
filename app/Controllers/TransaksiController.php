@@ -622,6 +622,45 @@ class TransaksiController
     }
 
     /**
+     * Verifikasi banyak transaksi sekaligus (hanya yang berstatus 'diajukan').
+     */
+    public function verifikasiBatch(): void
+    {
+        try {
+            $ids = $_POST['ids'] ?? [];
+            if (!is_array($ids) || empty($ids)) {
+                $this->redirectWithMessage(base_url('transaksi'), 'error', 'Tidak ada transaksi yang dipilih untuk diverifikasi.');
+                return;
+            }
+
+            $validIds = array_values(array_filter(array_map('intval', $ids), fn($id) => $id > 0));
+            if (empty($validIds)) {
+                $this->redirectWithMessage(base_url('transaksi'), 'error', 'ID transaksi yang dipilih tidak valid.');
+                return;
+            }
+
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $result = $this->transaksiModel->verifikasiBatch($validIds, $userId);
+            $this->logAudit($userId, 'verifikasi_batch_transaksi_admin', 'transaksi', null, "Verifikasi massal {$result['verified']} transaksi (lewati {$result['skipped']}): " . implode(',', $validIds));
+
+            $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
+            if ($result['verified'] > 0) {
+                $msg = "Berhasil memverifikasi {$result['verified']} transaksi.";
+                if ($result['skipped'] > 0) {
+                    $msg .= " {$result['skipped']} dilewati (bukan status diajukan).";
+                }
+                $this->redirectWithMessage($redirectUrl, 'success', $msg);
+            } else {
+                $this->redirectWithMessage($redirectUrl, 'error', 'Tidak ada transaksi yang diverifikasi. Pastikan yang dipilih berstatus Menunggu Verifikasi.');
+            }
+        } catch (\Exception $e) {
+            error_log('Error verifikasi batch transaksi: ' . $e->getMessage());
+            $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
+            $this->redirectWithMessage($redirectUrl, 'error', 'Gagal memverifikasi transaksi. Terjadi kesalahan pada sistem.');
+        }
+    }
+
+    /**
      * AJAX: Generate nomor bukti sementara (draft) otomatis format 123.6.6/GU/DRAFT-urut/BULAN_ROMAWI/TAHUN
      */
     public function generateNomorBukti(): void

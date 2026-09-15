@@ -486,6 +486,8 @@ try {
         $transaksiController->deleteBatch();
     } elseif (preg_match('#^/transaksi/verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $transaksiController->verifikasi((int) $matches[1]);
+    } elseif ($path === '/transaksi/verifikasi-batch' && $requestMethod === 'POST') {
+        $transaksiController->verifikasiBatch();
     } elseif (preg_match('#^/transaksi/tolak/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $transaksiController->tolak((int) $matches[1]);
     } elseif (preg_match('#^/transaksi/batal-verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {

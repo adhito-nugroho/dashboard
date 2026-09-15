@@ -465,6 +465,9 @@ $isFiltered = !empty($activeFilterLabels);
             <button type="button" class="btn btn-outline-secondary btn-sm px-3" id="btn-uncheck-all">
                 <i class="bi bi-x me-1"></i>Batal Pilih
             </button>
+            <button type="button" class="btn btn-success btn-sm px-3 fw-medium shadow-sm" id="btn-bulk-verif">
+                <i class="bi bi-check2-circle me-1"></i>Verifikasi Terpilih
+            </button>
             <button type="button" class="btn btn-danger btn-sm px-3 fw-medium shadow-sm" id="btn-bulk-delete">
                 <i class="bi bi-trash me-1"></i>Hapus Terpilih
             </button>
@@ -532,7 +535,7 @@ $isFiltered = !empty($activeFilterLabels);
                                 <tr class="trx-row-main">
                                     <!-- Checkbox -->
                                     <td class="text-center align-middle">
-                                        <input type="checkbox" class="form-check-input trx-checkbox row-trx-checkbox" value="<?= $transaksi['id'] ?>">
+                                        <input type="checkbox" class="form-check-input trx-checkbox row-trx-checkbox" value="<?= $transaksi['id'] ?>" data-status="<?= htmlspecialchars($st) ?>" data-nilai="<?= (float) $transaksi['nilai'] ?>">
                                     </td>
 
                                     <!-- No -->
@@ -809,6 +812,33 @@ $isFiltered = !empty($activeFilterLabels);
     </div>
 </div>
 
+<!-- Modal Konfirmasi Verifikasi Banyak -->
+<div class="modal fade" id="modalBulkVerif" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content border-0 shadow" id="formBulkVerif" method="POST" action="<?= base_url('transaksi/verifikasi-batch') ?>">
+            <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? base_url('transaksi')) ?>">
+            <div class="modal-header trx-modal-head" style="background:#059669;color:#fff;">
+                <h6 class="modal-title"><i class="bi bi-check2-circle me-2"></i>Konfirmasi Verifikasi Banyak Transaksi</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="mb-2">Verifikasi <strong id="modal-verif-count" class="text-success">0</strong> transaksi yang dipilih? Total nilai <strong id="modal-verif-total" class="font-monospace">Rp 0</strong>.</p>
+                <div class="alert alert-info py-2 mb-0 small d-flex align-items-center gap-2">
+                    <i class="bi bi-info-circle text-primary fs-5"></i>
+                    <div>Hanya yang berstatus <strong>Menunggu Verifikasi</strong> yang diproses (diberi nomor bukti resmi + tanggal lunas hari ini). <span id="modal-verif-skip-wrap"><strong id="modal-verif-skip">0</strong> lainnya dilewati.</span></div>
+                </div>
+                <div id="bulk-verif-inputs"></div>
+            </div>
+            <div class="modal-footer trx-modal-foot">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-success px-3 fw-medium">
+                    <i class="bi bi-check-lg me-1"></i> Ya, Verifikasi Sekarang
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Konfirmasi Hapus Banyak -->
 <div class="modal fade" id="modalBulkDelete" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -898,15 +928,43 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalDeleteCountEl = document.getElementById('modal-delete-count');
     const btnUncheck = document.getElementById('btn-uncheck-all');
     const btnBulkDelete = document.getElementById('btn-bulk-delete');
+    const btnBulkVerif = document.getElementById('btn-bulk-verif');
+    const modalBulkVerifEl = document.getElementById('modalBulkVerif');
+    const modalVerifCountEl = document.getElementById('modal-verif-count');
+    const modalVerifSkipEl = document.getElementById('modal-verif-skip');
+    const modalVerifTotalEl = document.getElementById('modal-verif-total');
+    const verifInputsContainer = document.getElementById('bulk-verif-inputs');
+
+    function getCheckedBoxes() {
+        return document.querySelectorAll('.row-trx-checkbox:checked');
+    }
+
+    function getEligibleBoxes() {
+        return Array.from(getCheckedBoxes()).filter(cb => cb.dataset.status === 'diajukan');
+    }
     const modalBulkDeleteEl = document.getElementById('modalBulkDelete');
     const inputsContainer = document.getElementById('bulk-delete-inputs');
 
     function updateSelectionState() {
-        const checkedBoxes = document.querySelectorAll('.row-trx-checkbox:checked');
+        const checkedBoxes = getCheckedBoxes();
         const count = checkedBoxes.length;
+        const eligible = getEligibleBoxes();
 
         if (selectedCountEl) selectedCountEl.textContent = count;
         if (modalDeleteCountEl) modalDeleteCountEl.textContent = count;
+        if (modalVerifCountEl) modalVerifCountEl.textContent = eligible.length;
+        if (modalVerifSkipEl) modalVerifSkipEl.textContent = count - eligible.length;
+        if (modalVerifTotalEl) {
+            const total = eligible.reduce((sum, cb) => sum + (parseFloat(cb.dataset.nilai) || 0), 0);
+            modalVerifTotalEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
+        }
+
+        if (btnBulkVerif) {
+            btnBulkVerif.disabled = eligible.length === 0;
+            btnBulkVerif.title = eligible.length === 0
+                ? 'Pilih transaksi berstatus Menunggu Verifikasi'
+                : 'Verifikasi ' + eligible.length + ' transaksi terpilih';
+        }
 
         if (bulkBar) {
             if (count > 0) {
@@ -969,6 +1027,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (modalBulkDeleteEl && typeof bootstrap !== 'undefined') {
                 const modal = bootstrap.Modal.getInstance(modalBulkDeleteEl) || new bootstrap.Modal(modalBulkDeleteEl);
+                modal.show();
+            }
+        });
+    }
+
+    if (btnBulkVerif) {
+        btnBulkVerif.addEventListener('click', function () {
+            const eligible = getEligibleBoxes();
+            if (eligible.length === 0) {
+                alert('Pilih setidaknya satu transaksi berstatus Menunggu Verifikasi.');
+                return;
+            }
+
+            if (verifInputsContainer) {
+                verifInputsContainer.innerHTML = '';
+                getCheckedBoxes().forEach(cb => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'ids[]';
+                    hiddenInput.value = cb.value;
+                    verifInputsContainer.appendChild(hiddenInput);
+                });
+            }
+
+            if (modalBulkVerifEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalBulkVerifEl) || new bootstrap.Modal(modalBulkVerifEl);
                 modal.show();
             }
         });
