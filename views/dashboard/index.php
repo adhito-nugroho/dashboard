@@ -2584,17 +2584,23 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
 .sticky-sec-nav {
     position: fixed;
-    top: 0;
+    top: var(--header-height, 64px);
     left: 0;
     right: 0;
-    z-index: 1040;
-    background: #fff;
+    z-index: 90;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #e5e7eb;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    transform: translateY(-100%);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .08);
+    transform: translateY(-110%);
     opacity: 0;
     transition: transform .25s ease, opacity .25s ease;
     pointer-events: none;
+}
+/* Sejajar konten saat sidebar tampil (mode admin) */
+.sticky-sec-nav.with-sidebar {
+    left: var(--sidebar-width, 270px);
 }
 .sticky-sec-nav.visible {
     transform: translateY(0);
@@ -2605,7 +2611,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem 1.5rem;
+    padding: 0.45rem 1.25rem;
     overflow-x: auto;
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -2613,33 +2619,67 @@ document.addEventListener('DOMContentLoaded', function() {
 .sticky-sec-nav__inner::-webkit-scrollbar {
     display: none;
 }
+.sticky-sec-nav__group {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+.sticky-sec-nav__group-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 0.2rem 0.45rem;
+    margin-right: 0.15rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    white-space: nowrap;
+}
 .sticky-sec-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     white-space: nowrap;
     font-size: 13px;
     font-weight: 600;
     color: #64748b;
     text-decoration: none;
     padding: 0.35rem 0.75rem;
-    border-radius: 6px;
+    border-radius: 999px;
     transition: color .2s, background .2s;
-    border-bottom: 2px solid transparent;
 }
 .sticky-sec-nav__link:hover {
     color: #1e293b;
     background: #f1f5f9;
 }
 .sticky-sec-nav__link.active {
-    color: #4338ca;
-    border-bottom-color: #4338ca;
-    background: #eef2ff;
+    color: #fff;
+    background: #4338ca;
+    box-shadow: 0 2px 8px rgba(67, 56, 202, .35);
 }
 .sticky-sec-nav__divider {
     width: 1px;
     height: 24px;
-    background: #cbd5e1;
+    background: #e2e8f0;
     align-self: center;
     margin: 0 0.5rem;
     flex-shrink: 0;
+}
+@media (max-width: 767.98px) {
+    .sticky-sec-nav,
+    .sticky-sec-nav.with-sidebar {
+        left: 0;
+        top: 56px;
+    }
+    .sticky-sec-nav__inner {
+        padding: 0.4rem 0.75rem;
+    }
+    .sticky-sec-nav__group-tag {
+        display: none;
+    }
 }
 /* Monthly Chart Toggle Buttons */
 .monthly-toggle-btn {
@@ -3042,6 +3082,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const nav = document.getElementById('stickySecNav');
     if (!nav) return;
 
+    // Sejajarkan dengan konten: hanya geser kanan bila sidebar ada (mode admin)
+    if (document.getElementById('sidebar')) {
+        nav.classList.add('with-sidebar');
+    }
+
     const SCROLL_THRESHOLD = 80;
     const links = nav.querySelectorAll('.sticky-sec-nav__link');
     
@@ -3089,8 +3134,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var target = document.getElementById(targetId) || document.getElementById('section-detail-tabs');
         if (target) {
+            // Offset = header aplikasi + sticky nav + jarak napas
+            var headerEl = document.querySelector('.header');
+            var headerHeight = headerEl ? headerEl.offsetHeight : 64;
             var navHeight = nav.offsetHeight || 48;
-            var top = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 12;
+            var top = target.getBoundingClientRect().top + window.pageYOffset - headerHeight - navHeight - 12;
             window.scrollTo({ top: top, behavior: 'smooth' });
         }
     }
