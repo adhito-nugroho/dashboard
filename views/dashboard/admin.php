@@ -32,6 +32,25 @@ foreach ($pendingBySeksi as $ps) {
 }
 ?>
 
+<style>
+/* Scoped Dashboard Admin: perbaikan stacking agar panel tidak tertimpa header sticky.
+   (Tidak menaikkan z-index header global supaya dropdown Bootstrap z-1000
+   di halaman lain tidak tertutup header.) */
+.admin-dash { position: relative; z-index: 1; }
+.header { background: #ffffff; }
+/* Tombol primer Dashboard Admin = hijau brand sidebar (#1b2f23, hover #101d16) */
+.admin-dash .btn-primary {
+    --bs-btn-bg: #1b2f23;
+    --bs-btn-border-color: #1b2f23;
+    --bs-btn-hover-bg: #101d16;
+    --bs-btn-hover-border-color: #101d16;
+    --bs-btn-active-bg: #101d16;
+    --bs-btn-active-border-color: #101d16;
+    --bs-btn-disabled-bg: #1b2f23;
+    --bs-btn-disabled-border-color: #1b2f23;
+}
+</style>
+
 <div class="admin-dash">
     <!-- Header -->
     <div class="admin-dash-header d-flex flex-wrap justify-content-between align-items-end animate-fade-in-up">
@@ -42,7 +61,7 @@ foreach ($pendingBySeksi as $ps) {
         <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
             <form method="GET" action="<?= base_url() ?>" style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-full);padding:0.35rem 0.5rem 0.35rem 1rem;display:inline-flex;align-items:center;gap:0.5rem;box-shadow:var(--shadow-xs);">
                 <i class="bi bi-calendar3" style="color:var(--primary);font-size:var(--fs-md);"></i>
-                <select class="form-select form-select-sm border-0 bg-transparent fw-bold py-0" name="tahun" onchange="this.form.submit()" style="width:auto;cursor:pointer;box-shadow:none;color:var(--primary);font-size:var(--fs-base);">
+                <select class="form-select form-select-sm border-0 bg-transparent fw-bold py-0" name="tahun" onchange="this.form.submit()" style="width:auto;cursor:pointer;box-shadow:none;color:var(--primary);font-size:var(--fs-base);padding-right:2rem;">
                     <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
                     <option value="<?= $y ?>" <?= $tahun == $y ? 'selected' : '' ?>><?= $y ?></option>
                     <?php endfor; ?>
@@ -91,17 +110,17 @@ foreach ($pendingBySeksi as $ps) {
                 </div>
 
                 <!-- Belanja Siap GU -->
-                <div class="px-3 py-2 rounded-3 border" style="background: #fff1f2; border-color: #fecdd3 !important;">
-                    <div class="text-xs fw-semibold" style="color: #9f1239; font-size:0.72rem;">
+                <div class="px-3 py-2 rounded-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
+                    <div class="text-xs fw-semibold" style="color: #475569; font-size:0.72rem;">
                         <i class="bi bi-receipt me-1"></i>Belanja Bulan Ini (Siap GU):
                     </div>
-                    <div class="fw-bold font-monospace fs-6 mb-0" style="color: #e11d48;">
+                    <div class="fw-bold font-monospace fs-6 mb-0" style="color: #334155;">
                         Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?>
                     </div>
                 </div>
 
                 <!-- Proyeksi Kas Setelah Cair -->
-                <div class="px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;">
+                <div class="px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;" title="Saldo Kas Riil + GU yang menunggu pencairan">
                     <div class="text-xs fw-semibold text-success" style="font-size:0.72rem;">
                         <i class="bi bi-graph-up-arrow me-1"></i>Proyeksi Setelah GU Cair:
                     </div>
@@ -111,7 +130,7 @@ foreach ($pendingBySeksi as $ps) {
                 </div>
 
                 <!-- Tombol Kelola -->
-                <a href="<?= base_url('kas-bank') ?>" class="btn btn-primary btn-sm fw-semibold px-3 py-2 rounded-3 shadow-sm ms-xl-2 d-flex align-items-center gap-1.5">
+                <a href="<?= base_url('kas-bank') ?>" class="btn btn-primary btn-sm fw-semibold px-3 py-2 rounded-3 shadow-sm ms-xl-2 d-inline-flex align-items-center gap-2">
                     <i class="bi bi-arrow-right-circle"></i>
                     <span>Kelola Kas & GU</span>
                 </a>
@@ -123,7 +142,7 @@ foreach ($pendingBySeksi as $ps) {
     <!-- Row 1: Status Summary Cards -->
     <div class="row g-3 mb-4 animate-fade-in-up" style="animation-delay:0.05s;">
         <!-- Menunggu Verifikasi -->
-        <div class="col-6 col-lg-3">
+        <div class="col-6 col-lg-4">
             <a href="<?= base_url('transaksi') ?>?status=diajukan&tahun=<?= $tahun ?>" class="admin-stat-card admin-stat-card--pending">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div class="admin-stat-card__icon">
@@ -137,7 +156,7 @@ foreach ($pendingBySeksi as $ps) {
         </div>
 
         <!-- Terverifikasi -->
-        <div class="col-6 col-lg-3">
+        <div class="col-6 col-lg-4">
             <a href="<?= base_url('transaksi') ?>?status=diverifikasi&tahun=<?= $tahun ?>" class="admin-stat-card admin-stat-card--verified">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div class="admin-stat-card__icon">
@@ -151,7 +170,7 @@ foreach ($pendingBySeksi as $ps) {
         </div>
 
         <!-- Ditolak -->
-        <div class="col-6 col-lg-3">
+        <div class="col-6 col-lg-4">
             <a href="<?= base_url('transaksi') ?>?status=ditolak&tahun=<?= $tahun ?>" class="admin-stat-card admin-stat-card--rejected">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div class="admin-stat-card__icon">
@@ -165,6 +184,8 @@ foreach ($pendingBySeksi as $ps) {
         </div>
 
         <!-- Total -->
+        <!-- disembunyikan sementara: duplikat penuh dari kartu Terverifikasi, grid diset 3 kolom -->
+        <!--
         <div class="col-6 col-lg-3">
             <a href="<?= base_url('transaksi') ?>?tahun=<?= $tahun ?>" class="admin-stat-card admin-stat-card--total">
                 <div class="d-flex align-items-start justify-content-between mb-2">
@@ -177,6 +198,7 @@ foreach ($pendingBySeksi as $ps) {
                 <div class="admin-stat-card__value mt-1"><?= formatRp($statusCounts['all']['total']) ?></div>
             </a>
         </div>
+        -->
     </div>
 
     <!-- Row 2: Queue + Side Panel -->
@@ -198,10 +220,9 @@ foreach ($pendingBySeksi as $ps) {
                 </div>
 
                 <?php if (empty($recentPending)): ?>
-                    <div class="admin-queue__empty">
-                        <i class="bi bi-check-circle"></i>
-                        <div style="font-size:var(--fs-base);font-weight:600;color:var(--gray-600);">Semua Bersih!</div>
-                        <div style="font-size:var(--fs-sm);color:var(--gray-400);margin-top:0.25rem;">Tidak ada transaksi yang menunggu verifikasi saat ini.</div>
+                    <div class="admin-queue__empty" style="padding:0.75rem 1rem;max-height:80px;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                        <i class="bi bi-check-circle" style="font-size:1rem;display:inline;margin:0;opacity:0.5;"></i>
+                        <span style="font-size:var(--fs-sm);font-weight:600;color:var(--gray-500);">Tidak ada transaksi menunggu verifikasi.</span>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
@@ -283,9 +304,9 @@ foreach ($pendingBySeksi as $ps) {
                 </div>
                 <div class="admin-panel__body">
                     <?php if (empty($pendingBySeksi)): ?>
-                        <div class="text-center py-3" style="color:var(--gray-400);font-size:var(--fs-sm);">
-                            <i class="bi bi-check-circle d-block" style="font-size:1.5rem;opacity:0.4;margin-bottom:0.25rem;"></i>
-                            Tidak ada transaksi pending
+                        <div class="text-center d-flex align-items-center justify-content-center gap-2" style="padding:0.75rem 1rem;max-height:80px;color:var(--gray-400);font-size:var(--fs-sm);">
+                            <i class="bi bi-check-circle" style="font-size:1rem;opacity:0.5;"></i>
+                            <span>Tidak ada transaksi pending.</span>
                         </div>
                     <?php else: ?>
                         <?php foreach ($pendingBySeksi as $ps): 
