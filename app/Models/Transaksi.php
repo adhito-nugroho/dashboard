@@ -500,7 +500,7 @@ class Transaksi
                 INNER JOIN program p ON k.program_id = p.id
                 LEFT JOIN users u ON u.id = t.input_by
                 {$where}
-                ORDER BY t.tanggal DESC, t.id DESC{$limitSql}";
+                ORDER BY CASE t.status WHEN 'diajukan' THEN 0 WHEN 'ditolak' THEN 1 ELSE 2 END ASC, t.id DESC{$limitSql}";
             $stmt = $this->db->prepare($sql);
             foreach ($params as $k => $v) {
                 $type = is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR;
