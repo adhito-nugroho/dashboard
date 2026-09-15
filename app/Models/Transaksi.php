@@ -782,9 +782,13 @@ class Transaksi
      * @param string $nomorBukti
      * @return bool
      */
-    public function update(int $id, string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti): bool
+    public function update(int $id, string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti, ?string $sumberDana = null): bool
     {
         try {
+            $setSumber = '';
+            if ($sumberDana !== null) {
+                $setSumber = ', sumber_dana = :sumber_dana';
+            }
             $stmt = $this->db->prepare("
                 UPDATE transaksi 
                 SET tanggal = :tanggal,
@@ -792,7 +796,7 @@ class Transaksi
                     rekening_id = :rekening_id,
                     uraian = :uraian,
                     nilai = :nilai,
-                    nomor_bukti = :nomor_bukti
+                    nomor_bukti = :nomor_bukti{$setSumber}
                 WHERE id = :id
             ");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
@@ -802,6 +806,10 @@ class Transaksi
             $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
             $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
             $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+            if ($sumberDana !== null) {
+                $sumberDana = self::normalizeSumberDana($sumberDana);
+                $stmt->bindParam(':sumber_dana', $sumberDana, PDO::PARAM_STR);
+            }
 
             $result = $stmt->execute();
             $rowCount = $stmt->rowCount();

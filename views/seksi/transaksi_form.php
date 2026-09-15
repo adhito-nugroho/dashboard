@@ -403,6 +403,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                     <!-- Sumber Dana -->
                     <div class="p-3 mb-3" style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
                         <div class="form-check form-switch">
+                            <input type="hidden" name="sumber_dana" value="UP">
                             <input class="form-check-input" type="checkbox" role="switch" id="sumber_ls" name="sumber_dana" value="LS" <?= $sumberDana === 'LS' ? 'checked' : '' ?>>
                             <label class="form-check-label fw-semibold" for="sumber_ls" style="font-size:0.85rem;color:#1E3A8A;">LS — Dibayar langsung Bank Jatim Kas Daerah ke rekanan</label>
                         </div>

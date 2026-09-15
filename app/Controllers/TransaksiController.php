@@ -537,7 +537,8 @@ class TransaksiController
                 (int) $_POST['rekening_id'],
                 trim($_POST['uraian']),
                 (float) str_replace(['.', ','], '', $_POST['nilai']),
-                trim($_POST['nomor_bukti'])
+                trim($_POST['nomor_bukti']),
+                $_POST['sumber_dana'] ?? null
             );
 
             // Debug: Check update result

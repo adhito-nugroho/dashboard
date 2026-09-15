@@ -13,6 +13,7 @@ $rekeningId = $transaksi['rekening_id'] ?? '';
 $uraian = $transaksi['uraian'] ?? '';
 $nilai = $transaksi['nilai'] ?? '';
 $nomorBukti = $transaksi['nomor_bukti'] ?? '';
+$sumberDana = $transaksi['sumber_dana'] ?? 'UP';
 $errors = $validationErrors ?? [];
 
 // For edit mode, get related data
@@ -192,6 +193,16 @@ $batchData = $batchData ?? null;
                             <?php endif; ?>
                         </div>
 
+                        <!-- Sumber Dana -->
+                        <div class="mb-3 p-3 rounded border" style="background:#EFF6FF;border-color:#BFDBFE !important;">
+                            <input type="hidden" name="sumber_dana" value="UP">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="sumber_ls" name="sumber_dana" value="LS" <?= $sumberDana === 'LS' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-semibold" for="sumber_ls" style="font-size:.85rem;">LS — Langsung (Bank Jatim Kas Daerah ke rekanan)</label>
+                            </div>
+                            <small class="text-muted" style="font-size:0.75rem;">Jika dicentang, transaksi ini tidak melalui kas bendahara sehingga <strong>tidak mengurangi saldo kas</strong>.</small>
+                        </div>
+
                         <!-- Remaining Pagu Info -->
                         <div class="mb-3">
                             <label class="form-label">Informasi Sisa Pagu</label>
@@ -298,6 +309,7 @@ $batchData = $batchData ?? null;
                             <i class="bi bi-bank text-primary me-2"></i>Sumber Dana
                         </h6>
                         <div class="form-check form-switch">
+                            <input type="hidden" name="sumber_dana" value="UP">
                             <input class="form-check-input" type="checkbox" role="switch" id="batch_sumber_ls" name="sumber_dana" value="LS" <?= $batchSumberDana === 'LS' ? 'checked' : '' ?>>
                             <label class="form-check-label fw-semibold" for="batch_sumber_ls">LS — Langsung (Bank Jatim Kas Daerah ke rekanan)</label>
                         </div>
