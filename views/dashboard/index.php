@@ -236,7 +236,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         </div>
     </div>
 
-    <!-- KPI Cards -->
+    <!-- KPI Cards: urutan = Pagu > Realisasi (capaian utama) > Sisa > Serapan vs RAK (pendukung) -->
     <div class="row mb-4 g-3" id="section-ringkasan">
         <div class="col-xl-3 col-md-6 animate-fade-in-up delay-1">
             <div class="card kpi-card kpi-border-primary h-100" data-bs-toggle="tooltip" title="Total anggaran yang dialokasikan tahun <?= $stats['tahun'] ?>">
@@ -253,13 +253,48 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
             </div>
         </div>
         <div class="col-xl-3 col-md-6 animate-fade-in-up delay-2">
-            <div class="card kpi-card kpi-border-info h-100" data-bs-toggle="tooltip" title="Komparasi serapan kumulatif dengan target RAK s/d bulan berjalan">
+            <?php $pctColor = $stats['percentage'] > 100 ? 'danger' : ($stats['percentage'] > 80 ? 'warning' : 'success'); ?>
+            <div class="card kpi-card kpi-border-success h-100" data-bs-toggle="tooltip" title="Capaian realisasi terhadap total pagu">
+                <div class="card-body" style="padding:1.25rem;">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="kpi-icon" style="background:#ecfdf5;color:var(--success);"><i class="bi bi-receipt-cutoff"></i></div>
+                        <div style="flex:1;min-width:0;">
+                            <div class="kpi-label">Realisasi <small style="font-size:0.7em;font-weight:600;color:var(--gray-400);">s/d <?= strtoupper($bulanNames[$bulanBerjalan]) ?></small></div>
+                            <div class="kpi-value" style="color:var(--<?= $pctColor ?>);font-size:1.9rem;"><?= number_format($stats['percentage'], 2) ?>%</div>
+                            <div class="fw-bold text-dark mt-1" style="font-size:0.95rem;letter-spacing:-0.01em;">Rp <?= number_format($stats['total_realisasi'], 0, ',', '.') ?></div>
+                            <div class="mt-2">
+                                <div class="progress" style="height:6px;border-radius:3px;background:var(--gray-100);">
+                                    <div class="progress-bar bg-<?= $pctColor ?>" style="width:<?= min($stats['percentage'],100) ?>%;border-radius:3px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 animate-fade-in-up delay-3">
+            <?php $sisaColor = $stats['sisa_anggaran'] < 0 ? 'danger' : 'warning'; ?>
+            <div class="card kpi-card kpi-border-<?= $sisaColor ?> h-100" data-bs-toggle="tooltip" title="Sisa dana tersedia">
+                <div class="card-body" style="padding:1.25rem;">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="kpi-icon" style="background:<?= $stats['sisa_anggaran']<0?'#fef2f2':'#fffbeb' ?>;color:var(--<?= $sisaColor ?>);"><i class="bi bi-wallet2"></i></div>
+                        <div style="flex:1;min-width:0;">
+                            <div class="kpi-label">Sisa Anggaran</div>
+                            <div class="kpi-value" style="color:var(--<?= $sisaColor ?>);">Rp <?= number_format(abs($stats['sisa_anggaran']), 0, ',', '.') ?></div>
+                            <div class="kpi-sublabel mt-1"><?= $stats['sisa_anggaran']<0?'<i class="bi bi-exclamation-triangle me-1" style="color:var(--danger);"></i><span style="color:var(--danger);font-weight:600;">Over Budget</span>':'<i class="bi bi-shield-check me-1" style="color:var(--success);"></i><span style="color:var(--success);font-weight:600;">Tersedia</span>' ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 animate-fade-in-up delay-4">
+            <div class="card kpi-card kpi-border-info h-100" data-bs-toggle="tooltip" title="Komparasi serapan kumulatif dengan target RAK s/d bulan berjalan (indikator disiplin rencana, bukan capaian)">
                 <div class="card-body" style="padding:1.25rem;">
                     <div class="d-flex align-items-start gap-3">
                         <div class="kpi-icon" style="background:#ecfeff;color:var(--info);"><i class="bi bi-calendar-check"></i></div>
                         <div style="flex:1;min-width:0;">
                             <div class="kpi-label">Serapan vs RAK <small style="font-size:0.7em;font-weight:600;color:var(--gray-400);">s/d <?= strtoupper($bulanNames[$bulanBerjalan]) ?></small></div>
-                            <div class="kpi-value" style="color:var(--<?= $komparasiRakColor ?>);"><?= number_format($capaianRakBulanBerjalan, 2) ?>%</div>
+                            <div class="kpi-value" style="font-size:1.05rem;color:var(--gray-700);"><?= number_format($capaianRakBulanBerjalan, 2) ?>% <span style="font-size:0.72rem;font-weight:600;color:var(--gray-400);">dari target RAK</span></div>
                             <div class="mt-2">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="progress flex-grow-1" style="height:5px;border-radius:3px;background:var(--gray-100);">
@@ -279,43 +314,6 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                 <span style="color:var(--gray-500);font-weight:600;">Sesuai Target RAK</span>
                                 <?php endif; ?>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 animate-fade-in-up delay-3">
-            <?php $pctColor = $stats['percentage'] > 100 ? 'danger' : ($stats['percentage'] > 80 ? 'warning' : 'success'); ?>
-            <div class="card kpi-card kpi-border-success h-100" data-bs-toggle="tooltip" title="Total realisasi anggaran">
-                <div class="card-body" style="padding:1.25rem;">
-                    <div class="d-flex align-items-start gap-3">
-                        <div class="kpi-icon" style="background:#ecfdf5;color:var(--success);"><i class="bi bi-receipt-cutoff"></i></div>
-                        <div style="flex:1;min-width:0;">
-                            <div class="kpi-label">Realisasi</div>
-                            <div class="kpi-value">Rp <?= number_format($stats['total_realisasi'], 0, ',', '.') ?></div>
-                            <div class="mt-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="height:5px;border-radius:3px;background:var(--gray-100);">
-                                        <div class="progress-bar bg-<?= $pctColor ?>" style="width:<?= min($stats['percentage'],100) ?>%;border-radius:3px;"></div>
-                                    </div>
-                                    <span style="font-size:var(--fs-xs);font-weight:700;color:var(--<?= $pctColor ?>);"><?= number_format($stats['percentage'], 2) ?>%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 animate-fade-in-up delay-4">
-            <?php $sisaColor = $stats['sisa_anggaran'] < 0 ? 'danger' : 'warning'; ?>
-            <div class="card kpi-card kpi-border-<?= $sisaColor ?> h-100" data-bs-toggle="tooltip" title="Sisa dana tersedia">
-                <div class="card-body" style="padding:1.25rem;">
-                    <div class="d-flex align-items-start gap-3">
-                        <div class="kpi-icon" style="background:<?= $stats['sisa_anggaran']<0?'#fef2f2':'#fffbeb' ?>;color:var(--<?= $sisaColor ?>);"><i class="bi bi-wallet2"></i></div>
-                        <div style="flex:1;min-width:0;">
-                            <div class="kpi-label">Sisa Anggaran</div>
-                            <div class="kpi-value" style="color:var(--<?= $sisaColor ?>);">Rp <?= number_format(abs($stats['sisa_anggaran']), 0, ',', '.') ?></div>
-                            <div class="kpi-sublabel mt-1"><?= $stats['sisa_anggaran']<0?'<i class="bi bi-exclamation-triangle me-1" style="color:var(--danger);"></i><span style="color:var(--danger);font-weight:600;">Over Budget</span>':'<i class="bi bi-shield-check me-1" style="color:var(--success);"></i><span style="color:var(--success);font-weight:600;">Tersedia</span>' ?></div>
                         </div>
                     </div>
                 </div>
