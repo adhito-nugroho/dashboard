@@ -591,6 +591,11 @@ $isFiltered = !empty($activeFilterLabels);
 
                                     <!-- Status (Clear hierarchy, no clash with badges) -->
                                     <td class="text-center">
+                                        <?php if (($transaksi['sumber_dana'] ?? 'UP') === 'LS'): ?>
+                                            <div class="mb-1">
+                                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size:0.68rem;" title="Dibayar langsung Bank Jatim Kas Daerah ke rekanan — tidak mengurangi kas bendahara">LS</span>
+                                            </div>
+                                        <?php endif; ?>
                                         <?php if ($st === 'diajukan'): ?>
                                             <span class="badge-status badge-status-diajukan">
                                                 <i class="bi bi-clock-history"></i>

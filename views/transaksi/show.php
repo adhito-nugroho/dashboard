@@ -137,6 +137,16 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
                         <span class="badge bg-<?= $stInfo[1] ?> px-2 py-1" style="font-size:.75rem;"><?= $stInfo[0] ?></span>
                     </div>
                 </div>
+                <div class="col-md-3 col-6">
+                    <div class="text-muted text-uppercase fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">Sumber Dana</div>
+                    <div class="mt-1">
+                        <?php if (($transaksi['sumber_dana'] ?? 'UP') === 'LS'): ?>
+                            <span class="badge bg-info px-2 py-1" style="font-size:.75rem;" title="Dibayar langsung Bank Jatim Kas Daerah ke rekanan — tidak mengurangi kas bendahara">LS — Langsung (Kasda)</span>
+                        <?php else: ?>
+                            <span class="badge bg-secondary px-2 py-1" style="font-size:.75rem;" title="Via kas bendahara — mengurangi saldo kas">UP — Kas Bendahara</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
 
             <!-- Klasifikasi Anggaran -->

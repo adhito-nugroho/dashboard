@@ -61,6 +61,7 @@ class KasBankController
             FROM transaksi t
             INNER JOIN seksi s ON t.seksi_id = s.id
             WHERE t.status = 'diverifikasi'
+              AND t.sumber_dana = 'UP'
               AND MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan
               AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun
             ORDER BY tanggal_efektif ASC, t.id ASC

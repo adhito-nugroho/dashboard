@@ -171,22 +171,33 @@ class Transaksi
     }
 
     /**
+     * Normalisasi sumber dana: 'LS' (langsung Bank Jatim Kasda ke rekanan,
+     * tidak mengurangi kas bendahara) atau 'UP' (via kas bendahara, default).
+     */
+    public static function normalizeSumberDana(mixed $value): string
+    {
+        return (is_string($value) && strtoupper(trim($value)) === 'LS') ? 'LS' : 'UP';
+    }
+
+    /**
      * Create new transaction
-     * 
+     *
      * @param string $tanggal
      * @param int $seksiId
      * @param int $rekeningId
      * @param string $uraian
      * @param float $nilai
      * @param string $nomorBukti
+     * @param string $sumberDana 'UP' (kas bendahara) atau 'LS' (langsung Kasda)
      * @return int Inserted ID
      */
-    public function create(string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti): int
+    public function create(string $tanggal, int $seksiId, int $rekeningId, string $uraian, float $nilai, string $nomorBukti, string $sumberDana = 'UP'): int
     {
         try {
+            $sumberDana = self::normalizeSumberDana($sumberDana);
             $stmt = $this->db->prepare("
-                INSERT INTO transaksi (tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti) 
-                VALUES (:tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti)
+                INSERT INTO transaksi (tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti, sumber_dana)
+                VALUES (:tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti, :sumber_dana)
             ");
             $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
             $stmt->bindParam(':seksi_id', $seksiId, PDO::PARAM_INT);
@@ -194,6 +205,7 @@ class Transaksi
             $stmt->bindParam(':uraian', $uraian, PDO::PARAM_STR);
             $stmt->bindParam(':nilai', $nilai, PDO::PARAM_STR);
             $stmt->bindParam(':nomor_bukti', $nomorBukti, PDO::PARAM_STR);
+            $stmt->bindParam(':sumber_dana', $sumberDana, PDO::PARAM_STR);
             $stmt->execute();
             return (int) $this->db->lastInsertId();
         } catch (PDOException $e) {
@@ -222,18 +234,20 @@ class Transaksi
         ?string $tanggalPelaksanaan = null,
         ?string $lokasiKegiatan = null,
         ?int $suratTugasRefId = null,
-        ?string $pegawaiNip = null
+        ?string $pegawaiNip = null,
+        string $sumberDana = 'UP'
     ): int {
         try {
+            $sumberDana = self::normalizeSumberDana($sumberDana);
             $stmt = $this->db->prepare("
                 INSERT INTO transaksi (
                     tanggal, seksi_id, rekening_id, uraian, nilai, nomor_bukti, status, input_by,
                     nama_penerima, jenis_transaksi, nomor_surat_tugas, tanggal_surat_tugas,
-                    tanggal_pelaksanaan, lokasi_kegiatan, surat_tugas_ref_id, pegawai_nip
+                    tanggal_pelaksanaan, lokasi_kegiatan, surat_tugas_ref_id, pegawai_nip, sumber_dana
                 ) VALUES (
                     :tanggal, :seksi_id, :rekening_id, :uraian, :nilai, :nomor_bukti, 'diajukan', :input_by,
                     :nama_penerima, :jenis_transaksi, :nomor_surat_tugas, :tanggal_surat_tugas,
-                    :tanggal_pelaksanaan, :lokasi_kegiatan, :surat_tugas_ref_id, :pegawai_nip
+                    :tanggal_pelaksanaan, :lokasi_kegiatan, :surat_tugas_ref_id, :pegawai_nip, :sumber_dana
                 )
             ");
             $stmt->bindParam(':tanggal', $tanggal, PDO::PARAM_STR);
@@ -251,6 +265,7 @@ class Transaksi
             $stmt->bindParam(':lokasi_kegiatan', $lokasiKegiatan, PDO::PARAM_STR);
             $stmt->bindParam(':surat_tugas_ref_id', $suratTugasRefId, PDO::PARAM_INT);
             $stmt->bindParam(':pegawai_nip', $pegawaiNip, PDO::PARAM_STR);
+            $stmt->bindParam(':sumber_dana', $sumberDana, PDO::PARAM_STR);
             $stmt->execute();
             return (int) $this->db->lastInsertId();
         } catch (PDOException $e) {
@@ -686,9 +701,14 @@ class Transaksi
         ?string $tanggalSuratTugas = null,
         ?string $tanggalPelaksanaan = null,
         ?string $lokasiKegiatan = null,
-        ?int $suratTugasRefId = null
+        ?int $suratTugasRefId = null,
+        ?string $sumberDana = null
     ): bool {
         try {
+            $setSumber = '';
+            if ($sumberDana !== null) {
+                $setSumber = ', sumber_dana = :sumber_dana';
+            }
             $stmt = $this->db->prepare("
                 UPDATE transaksi
                 SET tanggal = :tanggal,
@@ -703,7 +723,7 @@ class Transaksi
                     tanggal_surat_tugas = :tanggal_surat_tugas,
                     tanggal_pelaksanaan = :tanggal_pelaksanaan,
                     lokasi_kegiatan = :lokasi_kegiatan,
-                    surat_tugas_ref_id = :surat_tugas_ref_id
+                    surat_tugas_ref_id = :surat_tugas_ref_id{$setSumber}
                 WHERE id = :id AND input_by = :input_by AND status IN ('diajukan','ditolak')
             ");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
@@ -721,6 +741,10 @@ class Transaksi
             $stmt->bindParam(':tanggal_pelaksanaan', $tanggalPelaksanaan, PDO::PARAM_STR);
             $stmt->bindParam(':lokasi_kegiatan', $lokasiKegiatan, PDO::PARAM_STR);
             $stmt->bindParam(':surat_tugas_ref_id', $suratTugasRefId, PDO::PARAM_INT);
+            if ($sumberDana !== null) {
+                $sumberDana = self::normalizeSumberDana($sumberDana);
+                $stmt->bindParam(':sumber_dana', $sumberDana, PDO::PARAM_STR);
+            }
             $stmt->execute();
             return $stmt->rowCount() > 0;
         } catch (PDOException $e) {

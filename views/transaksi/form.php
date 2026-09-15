@@ -224,6 +224,7 @@ $batchData = $batchData ?? null;
                 $batchKegiatanId = $batchData['kegiatan_id'] ?? '';
                 $batchSubKegiatanId = $batchData['sub_kegiatan_id'] ?? '';
                 $batchRekenings = $batchData['rekenings'] ?? [];
+                $batchSumberDana = $batchData['sumber_dana'] ?? 'UP';
                 ?>
                 <style>
                 .batch-step { display: flex; gap: 1rem; }
@@ -286,6 +287,24 @@ $batchData = $batchData ?? null;
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sumber Dana -->
+                <div class="card border-0 shadow-sm mt-3" style="border-radius:16px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-dark mb-2" style="letter-spacing:-.01em;">
+                            <i class="bi bi-bank text-primary me-2"></i>Sumber Dana
+                        </h6>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="batch_sumber_ls" name="sumber_dana" value="LS" <?= $batchSumberDana === 'LS' ? 'checked' : '' ?>>
+                            <label class="form-check-label fw-semibold" for="batch_sumber_ls">LS — Langsung (Bank Jatim Kas Daerah ke rekanan)</label>
+                        </div>
+                        <div class="form-text text-muted">
+                            Jika dicentang, seluruh transaksi batch ini dibayar langsung dari Bank Jatim Kas Daerah ke rekanan
+                            <strong>tanpa melalui kas bendahara</strong>, sehingga <strong>tidak mengurangi saldo kas</strong>
+                            (tetap tercatat sebagai realisasi anggaran). Biarkan mati untuk pembayaran via kas bendahara (UP/GU).
                         </div>
                     </div>
                 </div>

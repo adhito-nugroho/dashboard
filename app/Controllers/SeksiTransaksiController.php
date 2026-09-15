@@ -180,7 +180,9 @@ class SeksiTransaksiController
             !empty($_POST['tanggal_surat_tugas']) ? $_POST['tanggal_surat_tugas'] : null,
             !empty($_POST['tanggal_pelaksanaan']) ? $_POST['tanggal_pelaksanaan'] : null,
             !empty(trim($_POST['lokasi_kegiatan'] ?? '')) ? trim($_POST['lokasi_kegiatan']) : null,
-            !empty($_POST['surat_tugas_ref_id']) ? (int) $_POST['surat_tugas_ref_id'] : null
+            !empty($_POST['surat_tugas_ref_id']) ? (int) $_POST['surat_tugas_ref_id'] : null,
+            null,
+            \App\Models\Transaksi::normalizeSumberDana($_POST['sumber_dana'] ?? 'UP')
         );
 
         $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input transaksi oleh seksi menunggu verifikasi');
@@ -273,7 +275,8 @@ class SeksiTransaksiController
                     !empty($item['tanggal_pelaksanaan']) ? $item['tanggal_pelaksanaan'] : null,
                     !empty(trim($item['lokasi_kegiatan'] ?? '')) ? trim($item['lokasi_kegiatan']) : null,
                     !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : null,
-                    $pegawaiNip ?: null
+                    $pegawaiNip ?: null,
+                    \App\Models\Transaksi::normalizeSumberDana($post['sumber_dana'] ?? 'UP')
                 );
                 $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input batch transaksi Surat Tugas an. ' . $namaPenerima);
                 $createdCount++;
@@ -565,7 +568,8 @@ class SeksiTransaksiController
             !empty($_POST['tanggal_surat_tugas']) ? $_POST['tanggal_surat_tugas'] : null,
             !empty($_POST['tanggal_pelaksanaan']) ? $_POST['tanggal_pelaksanaan'] : null,
             !empty(trim($_POST['lokasi_kegiatan'] ?? '')) ? trim($_POST['lokasi_kegiatan']) : null,
-            !empty($_POST['surat_tugas_ref_id']) ? (int) $_POST['surat_tugas_ref_id'] : null
+            !empty($_POST['surat_tugas_ref_id']) ? (int) $_POST['surat_tugas_ref_id'] : null,
+            \App\Models\Transaksi::normalizeSumberDana($_POST['sumber_dana'] ?? 'UP')
         );
 
         $this->logAudit($userId, 'update_transaksi_seksi', 'transaksi', $id, $ok ? 'Update transaksi seksi' : 'Gagal update transaksi seksi');
@@ -666,7 +670,8 @@ class SeksiTransaksiController
                             $tglSurat,
                             $tglPelaksana,
                             $lokasi,
-                            $stRefId
+                            $stRefId,
+                            \App\Models\Transaksi::normalizeSumberDana($post['sumber_dana'] ?? 'UP')
                         );
                         if ($pegawaiNip) {
                             $db->prepare("UPDATE transaksi SET pegawai_nip = ? WHERE id = ?")->execute([$pegawaiNip, $itemId]);
@@ -692,7 +697,8 @@ class SeksiTransaksiController
                         $tglPelaksana,
                         $lokasi,
                         $stRefId,
-                        $pegawaiNip ?: null
+                        $pegawaiNip ?: null,
+                        \App\Models\Transaksi::normalizeSumberDana($post['sumber_dana'] ?? 'UP')
                     );
                     $updatedCount++;
                 }
@@ -960,11 +966,13 @@ class SeksiTransaksiController
         $stmtSeksi->execute([$seksiId]);
         $namaSeksi = $stmtSeksi->fetchColumn() ?: 'Seksi';
 
-        // Ambil SEMUA transaksi seksi ini pada bulan/tahun, urut tanggal ASC lalu id ASC
+        // Ambil SEMUA transaksi seksi ini pada bulan/tahun, urut tanggal ASC lalu id ASC.
+        // BKU kas seksi hanya mencatat arus kas bendahara (UP); LS dikecualikan.
         $stmt = $db->prepare("
             SELECT t.tanggal, t.uraian, t.nomor_bukti, t.nilai, t.nama_penerima, t.status
             FROM transaksi t
             WHERE t.seksi_id = :seksi_id
+              AND t.sumber_dana = 'UP'
               AND MONTH(t.tanggal) = :bulan
               AND YEAR(t.tanggal)  = :tahun
             ORDER BY t.tanggal ASC, t.id ASC
@@ -1004,7 +1012,7 @@ class SeksiTransaksiController
         $sheet->mergeCells('A2:' . $lastCol . '2');
         $sheet->setCellValue('A2', strtoupper($namaSeksi));
         $sheet->mergeCells('A3:' . $lastCol . '3');
-        $sheet->setCellValue('A3', 'Bulan: ' . $namaBulan . ' ' . $tahun);
+        $sheet->setCellValue('A3', 'Bulan: ' . $namaBulan . ' ' . $tahun . '  (Kas Seksi — transaksi LS tidak termasuk)');
 
         foreach (['A1', 'A2', 'A3'] as $cell) {
             $sheet->getStyle($cell)->applyFromArray([

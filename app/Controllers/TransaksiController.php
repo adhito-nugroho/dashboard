@@ -300,6 +300,7 @@ class TransaksiController
 
         try {
             $tanggal = $_POST['tanggal'];
+            $sumberDana = Transaksi::normalizeSumberDana($_POST['sumber_dana'] ?? 'UP');
             $successCount = 0;
             $errorMessages = [];
 
@@ -368,7 +369,8 @@ class TransaksiController
                         $rekeningId,
                         trim($rekening['uraian']),
                         $nilai,
-                        trim($rekening['nomor_bukti'])
+                        trim($rekening['nomor_bukti']),
+                        $sumberDana
                     );
                     $successCount++;
                 } catch (\Exception $e) {
@@ -377,7 +379,7 @@ class TransaksiController
             }
 
             if ($successCount > 0) {
-                $message = "Berhasil menambahkan {$successCount} transaksi";
+                $message = "Berhasil menambahkan {$successCount} transaksi" . ($sumberDana === 'LS' ? ' (sumber dana LS — tidak mengurangi kas bendahara)' : '');
                 if (!empty($errorMessages)) {
                     $message .= ". " . count($errorMessages) . " transaksi gagal: " . implode(', ', array_slice($errorMessages, 0, 3));
                 }
@@ -1090,7 +1092,10 @@ class TransaksiController
         $db = \Database::getConnection();
 
         // ── Bangun query dinamis ───────────────────────────────────────────
+        // BKU bendahara hanya mencatat arus kas bendahara (sumber dana UP);
+        // transaksi LS (langsung Kasda ke rekanan) tidak mengurangi kas.
         $conditions = [
+            "t.sumber_dana = 'UP'",
             'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan',
             'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal))  = :tahun',
         ];
@@ -1287,7 +1292,7 @@ class TransaksiController
         foreach ([
             ['A1', 'BUKU KAS UMUM (BKU)', 14],
             ['A2', 'CDK WILAYAH BOJONEGORO', 12],
-            ['A3', 'Bulan: ' . $namaBulan . ' ' . $tahun, 11],
+            ['A3', 'Bulan: ' . $namaBulan . ' ' . $tahun . '  ·  Kas Bendahara (UP/GU — transaksi LS tidak termasuk)', 11],
         ] as [$cell, $val, $size]) {
             $sheet->mergeCells($cell . ':' . $lastCol . substr($cell, 1));
             $sheet->setCellValue($cell, $val);

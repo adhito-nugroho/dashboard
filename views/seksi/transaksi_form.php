@@ -16,6 +16,7 @@ $tanggalSuratTugas = $transaksi['tanggal_surat_tugas'] ?? '';
 $tanggalPelaksanaan = $transaksi['tanggal_pelaksanaan'] ?? '';
 $lokasiKegiatan = $transaksi['lokasi_kegiatan'] ?? '';
 $suratTugasRefId = $transaksi['surat_tugas_ref_id'] ?? '';
+$sumberDana = $transaksi['sumber_dana'] ?? 'UP';
 
 $errors = $validationErrors ?? [];
 $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) : base_url('seksi/transaksi/store');
@@ -397,6 +398,15 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 <input type="hidden" name="jenis_transaksi" value="<?= htmlspecialchars($jenisTransaksi) ?>">
                             <?php endif; ?>
                         </div>
+                    </div>
+
+                    <!-- Sumber Dana -->
+                    <div class="p-3 mb-3" style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="sumber_ls" name="sumber_dana" value="LS" <?= $sumberDana === 'LS' ? 'checked' : '' ?>>
+                            <label class="form-check-label fw-semibold" for="sumber_ls" style="font-size:0.85rem;color:#1E3A8A;">LS — Dibayar langsung Bank Jatim Kas Daerah ke rekanan</label>
+                        </div>
+                        <small class="text-muted" style="font-size:0.75rem;">Jika dicentang, transaksi ini tidak melalui kas bendahara sehingga <strong>tidak mengurangi saldo kas</strong> (tetap tercatat sebagai realisasi anggaran).</small>
                     </div>
 
                     <!-- BATCH ITEMS CONTAINER (Jika memilih beberapa pegawai dari Surat Tugas) -->

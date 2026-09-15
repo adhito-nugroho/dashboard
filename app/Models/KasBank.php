@@ -232,13 +232,13 @@ class KasBank
             // 3. Ambil total pengeluaran transaksi diverifikasi di bulan & tahun ini.
             //    Basis tanggal = TANGGAL BAYAR (tanggal_lunas_dibayar / diverifikasi_at),
             //    fallback ke tanggal pengajuan — sama seperti BKU (cash basis).
-            //    Sebelumnya memakai MONTH(tanggal) pengajuan sehingga transaksi
-            //    lintas bulan (diajukan bulan A, dibayar bulan B) masuk bulan
-            //    yang berbeda dengan BKU dan saldo tidak sama.
+            //    Hanya sumber dana UP (via kas bendahara); LS (langsung Kasda
+            //    ke rekanan) tidak mengurangi kas bendahara.
             $stmtTrx = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0)
                 FROM transaksi
                 WHERE status = 'diverifikasi'
+                  AND sumber_dana = 'UP'
                   AND MONTH(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :bulan
                   AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
             ");

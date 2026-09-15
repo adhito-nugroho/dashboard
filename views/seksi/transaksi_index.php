@@ -391,6 +391,13 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                 <?php if ($jenisInfo): ?>
                                     <div class="mb-1">
                                         <span class="jenis-chip <?= $jenisInfo[1] ?>"><?= $jenisInfo[0] ?></span>
+                                        <?php if (($t['sumber_dana'] ?? 'UP') === 'LS'): ?>
+                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size:0.65rem;" title="Dibayar langsung Bank Jatim Kas Daerah — tidak mengurangi kas">LS</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php elseif (($t['sumber_dana'] ?? 'UP') === 'LS'): ?>
+                                    <div class="mb-1">
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size:0.65rem;" title="Dibayar langsung Bank Jatim Kas Daerah — tidak mengurangi kas">LS</span>
                                     </div>
                                 <?php endif; ?>
                                 <div class="d-flex align-items-start gap-1">
@@ -502,6 +509,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
                         </div>
                         <?php if($jenisInfo2): ?><span class="jenis-chip <?= $jenisInfo2[1] ?> mb-2 d-inline-block"><?= $jenisInfo2[0] ?></span><?php endif; ?>
+                        <?php if(($t['sumber_dana'] ?? 'UP') === 'LS'): ?><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle mb-2 d-inline-block" style="font-size:0.65rem;" title="Dibayar langsung Bank Jatim Kas Daerah — tidak mengurangi kas">LS</span><?php endif; ?>
                         <div class="mc-label">Sub Kegiatan</div>
                         <div class="mc-value"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?> - <?= htmlspecialchars($t['nama_sub_kegiatan'] ?? '-') ?></div>
                         <div class="mc-label">Rekening</div>
