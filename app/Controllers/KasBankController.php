@@ -51,16 +51,19 @@ class KasBankController
         $ringkasan = $this->kasBankModel->getRingkasan($bulan, $tahun);
         $mutasiList = $this->kasBankModel->getByPeriode($bulan, $tahun);
 
-        // Ambil daftar transaksi belanja diverifikasi di bulan ini untuk rincian mutasi kas keluar
+        // Ambil daftar transaksi belanja diverifikasi di bulan ini untuk rincian mutasi kas keluar.
+        // Basis bulan & tanggal tampil = TANGGAL BAYAR (sama seperti BKU), bukan tanggal pengajuan.
         $db = \Database::getConnection();
         $stmtTrx = $db->prepare("
-            SELECT t.id, t.tanggal, t.tanggal_lunas_dibayar, t.nomor_bukti, t.uraian, t.nama_penerima, t.nilai, s.nama_seksi
+            SELECT t.id, t.tanggal, t.tanggal_lunas_dibayar,
+                COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) AS tanggal_efektif,
+                t.nomor_bukti, t.uraian, t.nama_penerima, t.nilai, s.nama_seksi
             FROM transaksi t
             INNER JOIN seksi s ON t.seksi_id = s.id
             WHERE t.status = 'diverifikasi'
-              AND MONTH(t.tanggal) = :bulan
-              AND YEAR(t.tanggal) = :tahun
-            ORDER BY t.nomor_bukti ASC, t.id ASC
+              AND MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan
+              AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun
+            ORDER BY tanggal_efektif ASC, t.id ASC
         ");
         $stmtTrx->execute([':bulan' => $bulan, ':tahun' => $tahun]);
         $belanjaList = $stmtTrx->fetchAll(\PDO::FETCH_ASSOC);

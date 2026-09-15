@@ -988,10 +988,10 @@ class SeksiTransaksiController
         $namaBulan = $namaBulanMap[$bulan] ?? (string) $bulan;
 
         // ── Tentukan kolom sesuai role ─────────────────────────────────────
-        // Tanpa saldo : A=No, B=Tanggal, C=Uraian, D=No Bukti, E=Penerimaan, F=Pengeluaran, G=Status
-        // Dengan saldo: A=No, B=Tanggal, C=Uraian, D=No Bukti, E=Penerimaan, F=Pengeluaran, G=Saldo, H=Status
-        $lastCol      = $tampilSaldo ? 'H' : 'G';
-        $colLetters   = ['A','B','C','D','E','F','G','H'];
+        // Tanpa saldo : A=No, B=Tanggal, C=Uraian, D=Penerima, E=No Bukti, F=Penerimaan, G=Pengeluaran, H=Status
+        // Dengan saldo: A=No, B=Tanggal, C=Uraian, D=Penerima, E=No Bukti, F=Penerimaan, G=Pengeluaran, H=Saldo, I=Status
+        $lastCol      = $tampilSaldo ? 'I' : 'H';
+        $colLetters   = ['A','B','C','D','E','F','G','H','I'];
 
         // ── Generate Excel ─────────────────────────────────────────────────
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -1015,7 +1015,7 @@ class SeksiTransaksiController
         $sheet->getStyle('A1')->getFont()->setSize(14);
 
         // Header kolom (baris 5)
-        $headers = ['No', 'Tanggal', 'Uraian / Keterangan', 'No Bukti', 'Penerimaan (Rp)', 'Pengeluaran (Rp)'];
+        $headers = ['No', 'Tanggal', 'Uraian / Keterangan', 'Penerima', 'No Bukti', 'Penerimaan (Rp)', 'Pengeluaran (Rp)'];
         if ($tampilSaldo) {
             $headers[] = 'Saldo (Rp)';
         }
@@ -1073,31 +1073,43 @@ class SeksiTransaksiController
                 $saldo -= $nilai;
             }
 
+            // Nama penerima
+            $penerimaTampil = trim((string) ($t['nama_penerima'] ?? ''));
+            if ($penerimaTampil === '' && !empty($t['uraian'])) {
+                if (preg_match('/(?:An\.|a\.n\.|A\.n\.)\s+([^,\.\n\r]+)/i', $t['uraian'], $mPenerima)) {
+                    $penerimaTampil = trim($mPenerima[1]);
+                }
+            }
+            if ($penerimaTampil === '') {
+                $penerimaTampil = '-';
+            }
+
             $sheet->setCellValue('A' . $dataRow, $no);
             $sheet->setCellValue('B' . $dataRow, date('d/m/Y', strtotime($t['tanggal'])));
             $sheet->setCellValue('C' . $dataRow, $uraianTampil);
-            $sheet->setCellValue('D' . $dataRow, $t['nomor_bukti'] ?? '-');
-            $sheet->setCellValue('E' . $dataRow, $penerimaan);
-            $sheet->setCellValue('F' . $dataRow, $nilai);
+            $sheet->setCellValue('D' . $dataRow, $penerimaTampil);
+            $sheet->setCellValue('E' . $dataRow, $t['nomor_bukti'] ?? '-');
+            $sheet->setCellValue('F' . $dataRow, $penerimaan);
+            $sheet->setCellValue('G' . $dataRow, $nilai);
 
             if ($tampilSaldo) {
                 if ($statusKey !== 'ditolak') {
-                    $sheet->setCellValue('G' . $dataRow, $saldo);
-                    $sheet->getStyle('G' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->setCellValue('H' . $dataRow, $saldo);
+                    $sheet->getStyle('H' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
                 } else {
-                    $sheet->setCellValue('G' . $dataRow, '-');
+                    $sheet->setCellValue('H' . $dataRow, '-');
                 }
-                $sheet->getStyle('G' . $dataRow)->getAlignment()
+                $sheet->getStyle('H' . $dataRow)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
-                $statusCol = 'H';
+                $statusCol = 'I';
             } else {
-                $statusCol = 'G';
+                $statusCol = 'H';
             }
 
             $sheet->setCellValue($statusCol . $dataRow, $statusLabel[$statusKey] ?? ucfirst($statusKey));
 
-            $sheet->getStyle('E' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('F' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('G' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
 
             // Border seluruh baris
             $sheet->getStyle('A' . $dataRow . ':' . $lastCol . $dataRow)->applyFromArray($borderStyle);
@@ -1119,9 +1131,10 @@ class SeksiTransaksiController
             $sheet->getStyle('A' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('B' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('C' . $dataRow)->getAlignment()->setWrapText(true);
-            $sheet->getStyle('D' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('E' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('D' . $dataRow)->getAlignment()->setWrapText(true);
+            $sheet->getStyle('E' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('F' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('G' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle($statusCol . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
             $dataRow++;
@@ -1137,23 +1150,23 @@ class SeksiTransaksiController
             $sheet->getStyle('A6')->getFont()->getColor()->setRGB('64748B');
         } else {
             $totalRow = $dataRow;
-            // Merge kolom label (A–D)
-            $sheet->mergeCells('A' . $totalRow . ':D' . $totalRow);
+            // Merge kolom label (A–E)
+            $sheet->mergeCells('A' . $totalRow . ':E' . $totalRow);
             $sheet->setCellValue('A' . $totalRow, 'TOTAL');
 
             // Total penerimaan
-            $sheet->setCellValue('E' . $totalRow, 0.0);
-            $sheet->getStyle('E' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->setCellValue('F' . $totalRow, 0.0);
+            $sheet->getStyle('F' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
 
             // Total pengeluaran
             $totalNilai = array_sum(array_column($rows, 'nilai'));
-            $sheet->setCellValue('F' . $totalRow, (float) $totalNilai);
-            $sheet->getStyle('F' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->setCellValue('G' . $totalRow, (float) $totalNilai);
+            $sheet->getStyle('G' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
 
             if ($tampilSaldo) {
-                $sheet->setCellValue('G' . $totalRow, $saldo);
-                $sheet->getStyle('G' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
-                $sheet->getStyle('G' . $totalRow)->getAlignment()
+                $sheet->setCellValue('H' . $totalRow, $saldo);
+                $sheet->getStyle('H' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('H' . $totalRow)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
             }
 
@@ -1171,16 +1184,23 @@ class SeksiTransaksiController
         // ── Lebar kolom ───────────────────────────────────────────────────
         $sheet->getColumnDimension('A')->setWidth(5);
         $sheet->getColumnDimension('B')->setWidth(13);
-        $sheet->getColumnDimension('C')->setWidth(45);
-        $sheet->getColumnDimension('D')->setWidth(28);
-        $sheet->getColumnDimension('E')->setWidth(20);
+        $sheet->getColumnDimension('C')->setWidth(40);
+        $sheet->getColumnDimension('D')->setWidth(26);
+        $sheet->getColumnDimension('E')->setWidth(28);
         $sheet->getColumnDimension('F')->setWidth(20);
+        $sheet->getColumnDimension('G')->setWidth(20);
         if ($tampilSaldo) {
-            $sheet->getColumnDimension('G')->setWidth(20);
-            $sheet->getColumnDimension('H')->setWidth(24);
+            $sheet->getColumnDimension('H')->setWidth(20);
+            $sheet->getColumnDimension('I')->setWidth(24);
         } else {
-            $sheet->getColumnDimension('G')->setWidth(24);
+            $sheet->getColumnDimension('H')->setWidth(24);
         }
+
+        // Pengaturan cetak / print setup (Landscape A4, fit to 1 page wide)
+        $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(0);
 
         // ── Nama file & kirim ke browser ──────────────────────────────────
         $namaSeksiFile = preg_replace('/[^A-Za-z0-9\s\-]/', '', $namaSeksi);
@@ -1189,9 +1209,6 @@ class SeksiTransaksiController
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $fileName . '"');
-        header('Cache-Control: max-age=0');
-        header('Pragma: public');
-
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
         exit;

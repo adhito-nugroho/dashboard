@@ -311,7 +311,7 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                                         <tr>
                                             <td class="ps-3">
                                                 <div class="fw-bold font-monospace text-dark text-xs"><?= htmlspecialchars($b['nomor_bukti'] ?: '-') ?></div>
-                                                <small class="text-muted" style="font-size:0.7rem;"><?= date('d/m/Y', strtotime($b['tanggal'])) ?></small>
+                                                <small class="text-muted" style="font-size:0.7rem;"><?= date('d/m/Y', strtotime($b['tanggal_efektif'] ?? $b['tanggal'])) ?></small>
                                             </td>
                                             <td>
                                                 <div class="text-truncate text-dark fw-medium" style="max-width: 180px;" title="<?= htmlspecialchars($b['uraian']) ?>">

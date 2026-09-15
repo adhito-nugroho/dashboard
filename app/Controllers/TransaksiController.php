@@ -1127,17 +1127,18 @@ class TransaksiController
         foreach ($kasRows as $k) {
             $tglKas = !empty($k['tanggal_cair']) ? $k['tanggal_cair'] : ($k['tanggal'] ?? null);
             $bkuItems[] = [
-                'type'         => 'penerimaan',
-                'id'           => 'kas_' . $k['id'],
-                'tanggal_sort' => $tglKas ?: ($tahun . '-' . str_pad((string) $bulan, 2, '0', STR_PAD_LEFT) . '-01'),
-                'tanggal_raw'  => $tglKas,
-                'nama_seksi'   => 'BENDAHARA',
-                'uraian'       => $k['keterangan'] ?? 'Penerimaan Kas/Bank',
-                'nomor_bukti'  => $k['nomor_bukti'] ?? '-',
-                'penerimaan'   => (float) ($k['nominal'] ?? 0),
-                'pengeluaran'  => 0.0,
-                'status'       => $k['status'] ?: 'cair',
-                'jenis'        => $k['jenis'] ?? 'penerimaan',
+                'type'          => 'penerimaan',
+                'id'            => 'kas_' . $k['id'],
+                'tanggal_sort'  => $tglKas ?: ($tahun . '-' . str_pad((string) $bulan, 2, '0', STR_PAD_LEFT) . '-01'),
+                'tanggal_raw'   => $tglKas,
+                'nama_seksi'    => 'BENDAHARA',
+                'uraian'        => $k['keterangan'] ?? 'Penerimaan Kas/Bank',
+                'nama_penerima' => 'BENDAHARA',
+                'nomor_bukti'   => $k['nomor_bukti'] ?? '-',
+                'penerimaan'    => (float) ($k['nominal'] ?? 0),
+                'pengeluaran'   => 0.0,
+                'status'        => $k['status'] ?: 'cair',
+                'jenis'         => $k['jenis'] ?? 'penerimaan',
             ];
         }
 
@@ -1153,17 +1154,18 @@ class TransaksiController
             }
 
             $bkuItems[] = [
-                'type'         => 'pengeluaran',
-                'id'           => 'trx_' . ($t['id'] ?? 0),
-                'tanggal_sort' => $rawTgl ?: '9999-12-31',
-                'tanggal_raw'  => $rawTgl,
-                'nama_seksi'   => $t['nama_seksi'] ?? '-',
-                'uraian'       => $t['uraian'] ?? '',
-                'nomor_bukti'  => $t['nomor_bukti'] ?? '-',
-                'penerimaan'   => 0.0,
-                'pengeluaran'  => (float) ($t['nilai'] ?? 0),
-                'status'       => $t['status'] ?? '',
-                'jenis'        => 'pengeluaran',
+                'type'          => 'pengeluaran',
+                'id'            => 'trx_' . ($t['id'] ?? 0),
+                'tanggal_sort'  => $rawTgl ?: '9999-12-31',
+                'tanggal_raw'   => $rawTgl,
+                'nama_seksi'    => $t['nama_seksi'] ?? '-',
+                'uraian'        => $t['uraian'] ?? '',
+                'nama_penerima' => $t['nama_penerima'] ?? '',
+                'nomor_bukti'   => $t['nomor_bukti'] ?? '-',
+                'penerimaan'    => 0.0,
+                'pengeluaran'   => (float) ($t['nilai'] ?? 0),
+                'status'        => $t['status'] ?? '',
+                'jenis'         => 'pengeluaran',
             ];
         }
 
@@ -1218,25 +1220,22 @@ class TransaksiController
         $namaBulan = $namaBulanMap[$bulan] ?? (string) $bulan;
 
         $statusLabel = [
-            'diajukan'      => 'Menunggu Verifikasi',
-            'diverifikasi'  => 'Diverifikasi',
-            'ditolak'       => 'Ditolak',
-            'cair'          => 'Sudah Cair',
-            'menunggu_cair' => 'Menunggu Cair',
+            'diajukan'     => 'Menunggu Verifikasi',
+            'diverifikasi' => 'Diverifikasi',
+            'ditolak'      => 'Ditolak',
+            'cair'         => 'Cair (Kas/Bank)',
         ];
-        $statusFill  = [
-            'diajukan'      => ['rgb' => 'FEF9C3'],
-            'diverifikasi'  => ['rgb' => 'DCFCE7'],
-            'ditolak'       => ['rgb' => 'FEE2E2'],
-            'cair'          => ['rgb' => 'DCFCE7'],
-            'menunggu_cair' => ['rgb' => 'FEF9C3'],
+        $statusFill = [
+            'diajukan'     => ['rgb' => 'FEF9C3'],
+            'diverifikasi' => ['rgb' => 'DCFCE7'],
+            'ditolak'      => ['rgb' => 'FEE2E2'],
+            'cair'         => ['rgb' => 'E0F2FE'],
         ];
         $statusColor = [
-            'diajukan'      => ['rgb' => '854D0E'],
-            'diverifikasi'  => ['rgb' => '166534'],
-            'ditolak'       => ['rgb' => '991B1B'],
-            'cair'          => ['rgb' => '166534'],
-            'menunggu_cair' => ['rgb' => '854D0E'],
+            'diajukan'     => ['rgb' => '854D0E'],
+            'diverifikasi' => ['rgb' => '166534'],
+            'ditolak'      => ['rgb' => '991B1B'],
+            'cair'         => ['rgb' => '0369A1'],
         ];
 
         // ── Spreadsheet ────────────────────────────────────────────────────
@@ -1244,8 +1243,8 @@ class TransaksiController
         $sheet       = $spreadsheet->getActiveSheet();
         $sheet->setTitle('BKU CDK Bojonegoro');
 
-        // Header organisasi (baris 1–3); 9 kolom: A–I
-        $lastCol = 'I';
+        // Header organisasi (baris 1–3); 10 kolom: A–J
+        $lastCol = 'J';
         foreach ([
             ['A1', 'BUKU KAS UMUM (BKU)', 14],
             ['A2', 'CDK WILAYAH BOJONEGORO', 12],
@@ -1260,12 +1259,12 @@ class TransaksiController
         }
 
         // Header kolom (baris 5)
-        $headers = ['No', 'Tanggal', 'Seksi', 'Uraian / Keterangan', 'No Bukti', 'Penerimaan (Rp)', 'Pengeluaran (Rp)', 'Saldo (Rp)', 'Status'];
-        $cols    = ['A','B','C','D','E','F','G','H','I'];
+        $headers = ['No', 'Tanggal', 'Seksi', 'Uraian / Keterangan', 'Penerima', 'No Bukti', 'Penerimaan (Rp)', 'Pengeluaran (Rp)', 'Saldo (Rp)', 'Status'];
+        $cols    = ['A','B','C','D','E','F','G','H','I','J'];
         foreach ($headers as $i => $h) {
             $sheet->setCellValue($cols[$i] . '5', $h);
         }
-        $sheet->getStyle('A5:I5')->applyFromArray([
+        $sheet->getStyle('A5:J5')->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1e3a5f']],
             'alignment' => [
@@ -1311,30 +1310,42 @@ class TransaksiController
             $rawTgl       = $item['tanggal_raw'] ?? null;
             $tglTampil    = $rawTgl ? date('d/m/Y', strtotime($rawTgl)) : '-';
 
+            // Nama penerima
+            $penerimaTampil = trim((string) ($item['nama_penerima'] ?? ''));
+            if ($penerimaTampil === '' && !empty($item['uraian'])) {
+                if (preg_match('/(?:An\.|a\.n\.|A\.n\.)\s+([^,\.\n\r]+)/i', $item['uraian'], $mPenerima)) {
+                    $penerimaTampil = trim($mPenerima[1]);
+                }
+            }
+            if ($penerimaTampil === '') {
+                $penerimaTampil = ($item['type'] === 'penerimaan') ? 'BENDAHARA' : '-';
+            }
+
             $sheet->setCellValue('A' . $dataRow, $no);
             $sheet->setCellValue('B' . $dataRow, $tglTampil);
             $sheet->setCellValue('C' . $dataRow, $item['nama_seksi'] ?? '-');
             $sheet->setCellValue('D' . $dataRow, $uraianTampil);
-            $sheet->setCellValue('E' . $dataRow, $item['nomor_bukti'] ?? '-');
-            $sheet->setCellValue('F' . $dataRow, $penerimaan);
-            $sheet->setCellValue('G' . $dataRow, $pengeluaran);
-            $sheet->setCellValue('H' . $dataRow, $saldo);
-            $sheet->setCellValue('I' . $dataRow, $statusLabel[$statusKey] ?? ucfirst($statusKey));
+            $sheet->setCellValue('E' . $dataRow, $penerimaTampil);
+            $sheet->setCellValue('F' . $dataRow, $item['nomor_bukti'] ?? '-');
+            $sheet->setCellValue('G' . $dataRow, $penerimaan);
+            $sheet->setCellValue('H' . $dataRow, $pengeluaran);
+            $sheet->setCellValue('I' . $dataRow, $saldo);
+            $sheet->setCellValue('J' . $dataRow, $statusLabel[$statusKey] ?? ucfirst($statusKey));
 
             // Format angka
-            $sheet->getStyle('F' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('G' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('H' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('I' . $dataRow)->getNumberFormat()->setFormatCode('#,##0');
 
             // Border + zebra
-            $sheet->getStyle('A' . $dataRow . ':I' . $dataRow)->applyFromArray($borderStyle);
+            $sheet->getStyle('A' . $dataRow . ':J' . $dataRow)->applyFromArray($borderStyle);
             if ($no % 2 === 0) {
-                $sheet->getStyle('A' . $dataRow . ':I' . $dataRow)->applyFromArray($altFill);
+                $sheet->getStyle('A' . $dataRow . ':J' . $dataRow)->applyFromArray($altFill);
             }
 
             // Warna kolom status
             if (isset($statusFill[$statusKey])) {
-                $sheet->getStyle('I' . $dataRow)->applyFromArray([
+                $sheet->getStyle('J' . $dataRow)->applyFromArray([
                     'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => $statusFill[$statusKey]],
                     'font' => ['bold' => true, 'color' => $statusColor[$statusKey]],
                 ]);
@@ -1345,11 +1356,12 @@ class TransaksiController
             $sheet->getStyle('B' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('C' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('D' . $dataRow)->getAlignment()->setWrapText(true);
-            $sheet->getStyle('E' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('F' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('E' . $dataRow)->getAlignment()->setWrapText(true);
+            $sheet->getStyle('F' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('G' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle('H' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
-            $sheet->getStyle('I' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('I' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('J' . $dataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
             $dataRow++;
             $no++;
@@ -1357,38 +1369,38 @@ class TransaksiController
 
         // ── Baris total / kosong ───────────────────────────────────────────
         if (count($bkuItems) === 0) {
-            $sheet->mergeCells('A6:I6');
+            $sheet->mergeCells('A6:J6');
             $sheet->setCellValue('A6', 'Tidak ada mutasi transaksi pada periode ini.');
             $sheet->getStyle('A6')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('A6')->getFont()->setItalic(true);
             $sheet->getStyle('A6')->getFont()->getColor()->setRGB('64748B');
         } else {
             $totalRow = $dataRow;
-            $sheet->mergeCells('A' . $totalRow . ':E' . $totalRow);
+            $sheet->mergeCells('A' . $totalRow . ':F' . $totalRow);
             $sheet->setCellValue('A' . $totalRow, 'TOTAL');
 
             // Total Penerimaan
-            $sheet->setCellValue('F' . $totalRow, $totalPenerimaan);
-            $sheet->getStyle('F' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
-
-            // Total Pengeluaran
-            $sheet->setCellValue('G' . $totalRow, $totalPengeluaran);
+            $sheet->setCellValue('G' . $totalRow, $totalPenerimaan);
             $sheet->getStyle('G' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
 
-            // Saldo Akhir (Penerimaan - Pengeluaran)
-            $sheet->setCellValue('H' . $totalRow, $saldo);
+            // Total Pengeluaran
+            $sheet->setCellValue('H' . $totalRow, $totalPengeluaran);
             $sheet->getStyle('H' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
 
-            $sheet->getStyle('A' . $totalRow . ':I' . $totalRow)->applyFromArray([
+            // Saldo Akhir (Penerimaan - Pengeluaran)
+            $sheet->setCellValue('I' . $totalRow, $saldo);
+            $sheet->getStyle('I' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+
+            $sheet->getStyle('A' . $totalRow . ':J' . $totalRow)->applyFromArray([
                 'font'      => ['bold' => true],
                 'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'DBEAFE']],
                 'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => '93C5FD']]],
                 'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT],
             ]);
             $sheet->getStyle('A' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('F' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle('G' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
             $sheet->getStyle('H' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('I' . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
         }
 
         // ── Lebar kolom ────────────────────────────────────────────────────
@@ -1396,11 +1408,18 @@ class TransaksiController
         $sheet->getColumnDimension('B')->setWidth(13);
         $sheet->getColumnDimension('C')->setWidth(18);
         $sheet->getColumnDimension('D')->setWidth(40);
-        $sheet->getColumnDimension('E')->setWidth(28);
-        $sheet->getColumnDimension('F')->setWidth(20);
+        $sheet->getColumnDimension('E')->setWidth(26);
+        $sheet->getColumnDimension('F')->setWidth(28);
         $sheet->getColumnDimension('G')->setWidth(20);
         $sheet->getColumnDimension('H')->setWidth(20);
-        $sheet->getColumnDimension('I')->setWidth(22);
+        $sheet->getColumnDimension('I')->setWidth(20);
+        $sheet->getColumnDimension('J')->setWidth(22);
+
+        // Pengaturan cetak / print setup (Landscape A4, fit to 1 page wide)
+        $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(0);
 
         // ── Nama file & kirim ke browser ───────────────────────────────────
         $fileName = 'BKU_CDK_Bojonegoro_' . $namaBulan . '_' . $tahun . '.xlsx';
