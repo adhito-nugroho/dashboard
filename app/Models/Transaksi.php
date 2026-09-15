@@ -65,7 +65,7 @@ class Transaksi
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
                 INNER JOIN program p ON k.program_id = p.id
                 {$where}
-                ORDER BY COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) DESC, t.id DESC
+                ORDER BY CASE t.status WHEN 'diajukan' THEN 0 WHEN 'ditolak' THEN 1 ELSE 2 END ASC, COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) DESC, t.id DESC
             ");
             foreach ($params as $key => $val) {
                 $stmt->bindValue($key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
@@ -99,7 +99,7 @@ class Transaksi
                 INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
                 INNER JOIN program p ON k.program_id = p.id
-                ORDER BY t.tanggal DESC, t.id DESC
+                ORDER BY CASE t.status WHEN 'diajukan' THEN 0 WHEN 'ditolak' THEN 1 ELSE 2 END ASC, t.tanggal DESC, t.id DESC
             ");
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
