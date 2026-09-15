@@ -516,11 +516,10 @@ $isFiltered = !empty($activeFilterLabels);
                                 </th>
                                 <th width="3%" class="text-center">No</th>
                                 <th width="8%">Tanggal</th>
-                                <th width="12%">Seksi</th>
-                                <th width="16%">Rekening</th>
-                                <th width="24%">Uraian</th>
+                                <th width="10%">Seksi</th>
+                                <th width="36%">Uraian</th>
                                 <th width="13%" class="text-end">Nilai (Rp)</th>
-                                <th width="9%">Nomor Bukti</th>
+                                <th width="10%">Nomor Bukti</th>
                                 <th width="11%" class="text-center">Status</th>
                                 <th width="9%" class="text-center">Aksi</th>
                             </tr>
@@ -560,18 +559,13 @@ $isFiltered = !empty($activeFilterLabels);
                                         <span class="badge-seksi"><?= htmlspecialchars($transaksi['kode_seksi']) ?></span>
                                     </td>
 
-                                    <!-- Rekening (kode saja; hierarki anggaran di strip detail) -->
-                                    <td>
-                                        <span class="code-rekening"><?= htmlspecialchars($transaksi['kode_rekening']) ?></span>
-                                    </td>
-
-                                    <!-- Uraian + tombol expand info anggaran -->
+                                    <!-- Uraian (tampil penuh) + tombol expand info anggaran -->
                                     <td>
                                         <div class="d-flex align-items-start gap-1">
                                             <button type="button" class="trx-expand" aria-expanded="false" aria-label="Tampilkan info anggaran" data-bs-toggle="tooltip" title="Info Seksi / Program / Kegiatan">
                                                 <i class="bi bi-chevron-down"></i>
                                             </button>
-                                            <div class="uraian-clamp" title="<?= htmlspecialchars($transaksi['uraian']) ?>">
+                                            <div style="font-size:0.85rem;word-break:break-word;white-space:normal;">
                                                 <?= htmlspecialchars($transaksi['uraian']) ?>
                                             </div>
                                         </div>
@@ -715,7 +709,7 @@ $isFiltered = !empty($activeFilterLabels);
                                 </tr>
                                 <!-- Strip detail info anggaran (expand-on-click) -->
                                 <tr class="trx-extra">
-                                    <td colspan="10">
+                                    <td colspan="9">
                                         <div class="trx-extra-grid">
                                             <div class="trx-extra-item">
                                                 <span>Seksi</span>
@@ -744,7 +738,7 @@ $isFiltered = !empty($activeFilterLabels);
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="6" class="text-end py-3 fw-bold text-secondary">
+                                <td colspan="5" class="text-end py-3 fw-bold text-secondary">
                                     Total Nilai<?= $filterBulan !== null ? ' (' . $namaBulan[$filterBulan] . ' ' . $filterTahun . ')' : '' ?>:
                                 </td>
                                 <td class="text-end py-3 fw-bold text-dark font-monospace" style="font-size: 0.95rem;">
