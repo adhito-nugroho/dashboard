@@ -38,6 +38,10 @@ foreach ($pendingBySeksi as $ps) {
    di halaman lain tidak tertutup header.) */
 .admin-dash { position: relative; z-index: 1; }
 .header { background: #ffffff; }
+/* Guard: netralkan border/outline nyasar di kontainer teratas halaman ini */
+.admin-dash, .admin-dash-header { border-top: 0; outline: none; box-shadow: none; }
+/* Feed aktivitas bisa diklik */
+.admin-feed-link:hover .admin-timeline__text { text-decoration: underline; }
 /* Tombol primer Dashboard Admin = hijau brand sidebar (#1b2f23, hover #101d16) */
 .admin-dash .btn-primary {
     --bs-btn-bg: #1b2f23;
@@ -87,7 +91,7 @@ foreach ($pendingBySeksi as $ps) {
                         <span class="text-muted small">Periode <?= date('F Y') ?></span>
                     </div>
                     <div class="d-flex align-items-baseline gap-2">
-                        <div class="h3 fw-bold mb-0 font-monospace text-dark">
+                        <div class="h3 fw-bold mb-0 font-monospace text-dark" style="white-space:nowrap;font-size:clamp(1.1rem, 1.1rem + 1vw, 1.75rem);">
                             Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
                         </div>
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style="font-size:0.7rem;">
@@ -112,7 +116,7 @@ foreach ($pendingBySeksi as $ps) {
                 <!-- Belanja Siap GU -->
                 <div class="px-3 py-2 rounded-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
                     <div class="text-xs fw-semibold" style="color: #475569; font-size:0.72rem;">
-                        <i class="bi bi-receipt me-1"></i>Belanja Bulan Ini (Siap GU):
+                        <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>Belanja Bulan Ini (Siap GU):
                     </div>
                     <div class="fw-bold font-monospace fs-6 mb-0" style="color: #334155;">
                         Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?>
@@ -122,7 +126,7 @@ foreach ($pendingBySeksi as $ps) {
                 <!-- Proyeksi Kas Setelah Cair -->
                 <div class="px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;" title="Saldo Kas Riil + GU yang menunggu pencairan">
                     <div class="text-xs fw-semibold text-success" style="font-size:0.72rem;">
-                        <i class="bi bi-graph-up-arrow me-1"></i>Proyeksi Setelah GU Cair:
+                        <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Proyeksi Setelah GU Cair:
                     </div>
                     <div class="fw-bold font-monospace text-success fs-6 mb-0">
                         Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?>
@@ -299,7 +303,7 @@ foreach ($pendingBySeksi as $ps) {
             <!-- Distribusi per Seksi -->
             <div class="admin-panel mb-3">
                 <div class="admin-panel__header">
-                    <i class="bi bi-bar-chart-line" style="color:var(--warning);"></i>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
                     Pending per Seksi
                 </div>
                 <div class="admin-panel__body">
@@ -343,15 +347,27 @@ foreach ($pendingBySeksi as $ps) {
                                 $isVerified = $act['status'] === 'diverifikasi';
                                 $icon = $isVerified ? 'verified' : 'rejected';
                                 $verb = $isVerified ? 'memverifikasi' : 'menolak';
+                                $feedUraian = trim((string)($act['uraian'] ?? ''));
+                                if (function_exists('mb_strimwidth')) {
+                                    $feedUraian = mb_strimwidth($feedUraian, 0, 60, '…');
+                                } elseif (strlen($feedUraian) > 60) {
+                                    $feedUraian = substr($feedUraian, 0, 60) . '…';
+                                }
+                                $feedTs = strtotime($act['diverifikasi_at'] ?? '');
                             ?>
                             <li class="admin-timeline__item">
                                 <div class="admin-timeline__dot admin-timeline__dot--<?= $icon ?>"></div>
-                                <div class="admin-timeline__text">
-                                    <strong><?= htmlspecialchars($act['kode_seksi']) ?></strong>
-                                    <?= $verb ?>
-                                    <span style="color:var(--gray-800);font-weight:600;"><?= formatRp((float)$act['nilai']) ?></span>
-                                </div>
-                                <div class="admin-timeline__time"><?= timeAgo($act['diverifikasi_at']) ?></div>
+                                <a href="<?= base_url('transaksi/show/' . (int)$act['id']) ?>" class="admin-feed-link" style="color:inherit;text-decoration:none;display:flex;gap:0.5rem;align-items:flex-start;flex:1;min-width:0;" title="Lihat Detail Transaksi">
+                                    <div class="admin-timeline__text">
+                                        <strong><?= htmlspecialchars($act['kode_seksi']) ?></strong>
+                                        <?= $verb ?>
+                                        <span style="color:var(--gray-800);font-weight:600;"><?= formatRp((float)$act['nilai']) ?></span>
+                                        <?php if ($feedUraian !== ''): ?>
+                                            <span class="d-block text-truncate" style="color:var(--gray-500);font-weight:400;max-width:100%;" title="<?= htmlspecialchars($act['uraian']) ?>"><?= htmlspecialchars($feedUraian) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="admin-timeline__time" <?= $feedTs ? 'title="' . date('d M Y, H:i', $feedTs) . '"' : '' ?>><?= timeAgo($act['diverifikasi_at']) ?></div>
+                                </a>
                             </li>
                             <?php endforeach; ?>
                         </ul>
@@ -365,7 +381,7 @@ foreach ($pendingBySeksi as $ps) {
     <div class="admin-trend animate-fade-in-up" style="animation-delay:0.15s;">
         <div class="admin-trend__header">
             <i class="bi bi-graph-up" style="color:var(--primary);"></i>
-            Tren Transaksi Bulanan <?= $tahun ?>
+            Tren Transaksi Bulanan <?= $tahun ?> (jumlah transaksi)
         </div>
         <div class="admin-trend__body">
             <canvas id="adminTrendChart" height="85"></canvas>
@@ -438,6 +454,8 @@ foreach ($pendingBySeksi as $ps) {
         const diverifikasi = trendData.map(d => d.diverifikasi);
         const ditolak      = trendData.map(d => d.ditolak);
 
+        const isAllZero = arr => arr.every(v => v == 0);
+
         new Chart(ctx, {
             type: 'bar',
             data: {
@@ -446,32 +464,38 @@ foreach ($pendingBySeksi as $ps) {
                     {
                         label: 'Diajukan',
                         data: diajukan,
+                        hidden: isAllZero(diajukan),
                         backgroundColor: 'rgba(245, 158, 11, 0.7)',
                         borderColor: '#f59e0b',
                         borderWidth: 1,
                         borderRadius: 4,
                         barPercentage: 0.7,
-                        categoryPercentage: 0.65
+                        categoryPercentage: 0.8,
+                        maxBarThickness: 48
                     },
                     {
                         label: 'Terverifikasi',
                         data: diverifikasi,
+                        hidden: isAllZero(diverifikasi),
                         backgroundColor: 'rgba(5, 150, 105, 0.7)',
                         borderColor: '#059669',
                         borderWidth: 1,
                         borderRadius: 4,
                         barPercentage: 0.7,
-                        categoryPercentage: 0.65
+                        categoryPercentage: 0.8,
+                        maxBarThickness: 48
                     },
                     {
                         label: 'Ditolak',
                         data: ditolak,
+                        hidden: isAllZero(ditolak),
                         backgroundColor: 'rgba(220, 38, 38, 0.5)',
                         borderColor: '#dc2626',
                         borderWidth: 1,
                         borderRadius: 4,
                         barPercentage: 0.7,
-                        categoryPercentage: 0.65
+                        categoryPercentage: 0.8,
+                        maxBarThickness: 48
                     }
                 ]
             },
@@ -486,7 +510,11 @@ foreach ($pendingBySeksi as $ps) {
                             usePointStyle: true,
                             pointStyle: 'rectRounded',
                             padding: 16,
-                            font: { size: 11, family: 'Inter', weight: '600' }
+                            font: { size: 11, family: 'Inter', weight: '600' },
+                            filter: function(legendItem, chartData) {
+                                const ds = chartData.datasets[legendItem.datasetIndex];
+                                return ds && !(ds.data || []).every(v => v == 0);
+                            }
                         }
                     },
                     tooltip: {
@@ -513,7 +541,8 @@ foreach ($pendingBySeksi as $ps) {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            stepSize: 1,
+                            maxTicksLimit: 6,
+                            precision: 0,
                             font: { size: 11, family: 'Inter' },
                             color: '#94a3b8'
                         },
