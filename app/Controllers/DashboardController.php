@@ -59,9 +59,12 @@ class DashboardController {
         if (!empty($_SESSION['is_admin']) && (!isset($_GET['view']) || $_GET['view'] !== 'public')) {
             $statusCounts      = $this->transaksiModel->getCountByStatus($tahun);
             $recentPending     = $this->transaksiModel->getRecentPending(10);
-            $recentActivity    = $this->transaksiModel->getRecentActivity(5);
+            $recentActivity    = $this->transaksiModel->getRecentActivityDetail(5);
             $pendingBySeksi    = $this->transaksiModel->getPendingCountBySeksi($tahun);
             $monthlyTrend      = $this->transaksiModel->getMonthlySubmissionTrend($tahun);
+            $monthlyValueTrend = $this->transaksiModel->getMonthlyValueTrend($tahun);
+            $serapanTotal      = $this->transaksiModel->getSerapanTotal($tahun);
+            $serapanPerSeksi   = $this->transaksiModel->getSerapanPerSeksi($tahun);
             $pendingCount      = $this->transaksiModel->countPending();
 
             $bulanIni          = (int) date('m');

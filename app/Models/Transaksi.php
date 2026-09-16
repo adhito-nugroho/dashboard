@@ -1150,6 +1150,211 @@ class Transaksi
     }
 
     /**
+     * Nilai rupiah per bulan per status untuk satu tahun (mode "Nilai (Rp)"
+     * pada chart Tren Transaksi Bulanan).
+     * Basis bulan & status SAMA dengan getMonthlySubmissionTrend
+     * (MONTH/YEAR(tanggal)) agar kedua mode sebanding.
+     * Definisi realisasi SAMA dengan serapan: status apa pun ikut
+     * (termasuk LS), tanpa filter sumber_dana.
+     *
+     * @return array{diajukan:float[12], diverifikasi:float[12], ditolak:float[12]}
+     */
+    public function getMonthlyValueTrend(int $tahun): array
+    {
+        $out = [
+            'diajukan' => array_fill(0, 12, 0.0),
+            'diverifikasi' => array_fill(0, 12, 0.0),
+            'ditolak' => array_fill(0, 12, 0.0),
+        ];
+        try {
+            $stmt = $this->db->prepare("
+                SELECT MONTH(tanggal) AS bln, status, COALESCE(SUM(nilai), 0) AS total
+                FROM transaksi
+                WHERE YEAR(tanggal) = :tahun
+                GROUP BY MONTH(tanggal), status
+                ORDER BY bln
+            ");
+            $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $m = (int) $row['bln'];
+                $s = $row['status'] ?? 'diverifikasi';
+                if ($m >= 1 && $m <= 12 && isset($out[$s])) {
+                    $out[$s][$m - 1] = (float) $row['total'];
+                }
+            }
+        } catch (PDOException $e) {
+            error_log('getMonthlyValueTrend error: ' . $e->getMessage());
+        }
+        return $out;
+    }
+
+    /**
+     * Sama dengan getRecentActivity, ditambah t.nomor_bukti untuk feed
+     * aktivitas (format "[no. bukti] uraian"). Fungsi lama tidak diubah.
+     */
+    public function getRecentActivityDetail(int $limit = 10): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT t.id, t.uraian, t.nilai, t.status, t.tanggal,
+                       t.nomor_bukti, t.diverifikasi_at, t.catatan_verifikasi,
+                       s.kode_seksi, s.nama_seksi
+                FROM transaksi t
+                INNER JOIN seksi s ON t.seksi_id = s.id
+                WHERE t.status IN ('diverifikasi', 'ditolak')
+                  AND t.diverifikasi_at IS NOT NULL
+                ORDER BY t.diverifikasi_at DESC
+                LIMIT :lim
+            ");
+            $stmt->bindParam(':lim', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('getRecentActivityDetail error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Total serapan tahun berjalan untuk kartu "Serapan Anggaran".
+     * Definisi SAMA dengan halaman serapan: pagu = SUM(pagu.nilai_pagu),
+     * realisasi = SUM(transaksi.nilai) berstatus diverifikasi per
+     * YEAR(tanggal), termasuk LS. Sisa = pagu - realisasi.
+     *
+     * @return array{pagu:float, realisasi:float, sisa:float, persen:float}
+     */
+    public function getSerapanTotal(int $tahun): array
+    {
+        try {
+            $stmtPagu = $this->db->prepare("
+                SELECT COALESCE(SUM(nilai_pagu), 0) AS total
+                FROM pagu
+                WHERE tahun = :tahun
+            ");
+            $stmtPagu->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmtPagu->execute();
+            $pagu = (float) ($stmtPagu->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
+            $stmtReal = $this->db->prepare("
+                SELECT COALESCE(SUM(nilai), 0) AS total
+                FROM transaksi
+                WHERE status = 'diverifikasi'
+                  AND YEAR(tanggal) = :tahun
+            ");
+            $stmtReal->bindParam(':tahun', $tahun, PDO::PARAM_INT);
+            $stmtReal->execute();
+            $realisasi = (float) ($stmtReal->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
+            return [
+                'pagu' => $pagu,
+                'realisasi' => $realisasi,
+                'sisa' => $pagu - $realisasi,
+                'persen' => $pagu > 0 ? ($realisasi / $pagu) * 100 : 0,
+            ];
+        } catch (PDOException $e) {
+            error_log('getSerapanTotal error: ' . $e->getMessage());
+            return ['pagu' => 0, 'realisasi' => 0, 'sisa' => 0, 'persen' => 0];
+        }
+    }
+
+    /**
+     * Serapan per seksi: semua seksi tampil walau realisasi 0.
+     * Pagu & realisasi diatribusikan via rekening -> sub_kegiatan -> seksi,
+     * definisi SAMA dengan halaman serapan (diverifikasi per YEAR(tanggal),
+     * termasuk LS).
+     *
+     * @return array<int, array{id:int, kode_seksi:string, nama_seksi:string, pagu:float, realisasi:float, persen:float}>
+     */
+    public function getSerapanPerSeksi(int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT s.id, s.kode_seksi, s.nama_seksi,
+                       COALESCE(p.pagu, 0) AS pagu,
+                       COALESCE(r.realisasi, 0) AS realisasi
+                FROM seksi s
+                LEFT JOIN (
+                    SELECT sk.seksi_id, SUM(pg.nilai_pagu) AS pagu
+                    FROM pagu pg
+                    INNER JOIN rekening rk ON rk.id = pg.rekening_id
+                    INNER JOIN sub_kegiatan sk ON sk.id = rk.sub_kegiatan_id
+                    WHERE pg.tahun = :tahun_pagu
+                    GROUP BY sk.seksi_id
+                ) p ON p.seksi_id = s.id
+                LEFT JOIN (
+                    SELECT sk.seksi_id, SUM(t.nilai) AS realisasi
+                    FROM transaksi t
+                    INNER JOIN rekening rk ON rk.id = t.rekening_id
+                    INNER JOIN sub_kegiatan sk ON sk.id = rk.sub_kegiatan_id
+                    WHERE t.status = 'diverifikasi'
+                      AND YEAR(t.tanggal) = :tahun_trx
+                    GROUP BY sk.seksi_id
+                ) r ON r.seksi_id = s.id
+                ORDER BY s.kode_seksi ASC
+            ");
+            $stmt->bindValue(':tahun_pagu', $tahun, PDO::PARAM_INT);
+            $stmt->bindValue(':tahun_trx', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$row) {
+                $row['id'] = (int) $row['id'];
+                $row['pagu'] = (float) $row['pagu'];
+                $row['realisasi'] = (float) $row['realisasi'];
+                $row['persen'] = $row['pagu'] > 0 ? ($row['realisasi'] / $row['pagu']) * 100 : 0;
+            }
+            unset($row);
+
+            // Pengaman silent undercount: transaksi/pagu yang rantainya putus
+            // (rekening NULL/menunjuk entitas hilang, sub_kegiatan tanpa seksi)
+            // tidak masuk baris seksi mana pun. Kumpulkan sebagai "Tanpa Seksi"
+            // agar total panel selalu cocok dengan getSerapanTotal.
+            // Muncul di UI hanya bila nilainya > 0.
+            $stmtY = $this->db->prepare("
+                SELECT COALESCE(SUM(t.nilai), 0) AS realisasi_yatim
+                FROM transaksi t
+                LEFT JOIN rekening rk ON rk.id = t.rekening_id
+                LEFT JOIN sub_kegiatan sk ON sk.id = rk.sub_kegiatan_id
+                LEFT JOIN seksi s2 ON s2.id = sk.seksi_id
+                WHERE t.status = 'diverifikasi'
+                  AND YEAR(t.tanggal) = :tahun_yatim
+                  AND s2.id IS NULL
+            ");
+            $stmtY->bindValue(':tahun_yatim', $tahun, PDO::PARAM_INT);
+            $stmtY->execute();
+            $realisasiYatim = (float) ($stmtY->fetch(PDO::FETCH_ASSOC)['realisasi_yatim'] ?? 0);
+
+            $stmtP = $this->db->prepare("
+                SELECT COALESCE(SUM(pg.nilai_pagu), 0) AS pagu_yatim
+                FROM pagu pg
+                LEFT JOIN rekening rk ON rk.id = pg.rekening_id
+                LEFT JOIN sub_kegiatan sk ON sk.id = rk.sub_kegiatan_id
+                LEFT JOIN seksi s2 ON s2.id = sk.seksi_id
+                WHERE pg.tahun = :tahun_pagu_yatim
+                  AND s2.id IS NULL
+            ");
+            $stmtP->bindValue(':tahun_pagu_yatim', $tahun, PDO::PARAM_INT);
+            $stmtP->execute();
+            $paguYatim = (float) ($stmtP->fetch(PDO::FETCH_ASSOC)['pagu_yatim'] ?? 0);
+
+            if ($realisasiYatim > 0 || $paguYatim > 0) {
+                $rows[] = [
+                    'id' => 0,
+                    'kode_seksi' => '-',
+                    'nama_seksi' => 'Tanpa Seksi',
+                    'pagu' => $paguYatim,
+                    'realisasi' => $realisasiYatim,
+                    'persen' => $paguYatim > 0 ? ($realisasiYatim / $paguYatim) * 100 : 0,
+                ];
+            }
+            return $rows;
+        } catch (PDOException $e) {
+            error_log('getSerapanPerSeksi error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Count all pending transactions (for sidebar badge).
      */
     public function countPending(): int

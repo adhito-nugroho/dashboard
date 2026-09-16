@@ -74,6 +74,33 @@ foreach ($pendingBySeksi as $ps) {
         </div>
     </div>
 
+    <!-- BARIS 1 (baru) — Serapan Anggaran -->
+    <?php
+        $stTotal = $serapanTotal ?? ['pagu' => 0, 'realisasi' => 0, 'sisa' => 0, 'persen' => 0];
+        $stOver = $stTotal['persen'] > 100;
+        $stBarColor = $stOver ? '#dc2626' : '#1b2f23';
+    ?>
+    <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 p-md-4 bg-white animate-fade-in-up" style="border: 1px solid #e2e8f0 !important;">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+            <div>
+                <span class="badge fw-semibold" style="font-size:0.7rem;background:#eef2ff;color:var(--primary);border:1px solid #c7d2fe;">
+                    SERAPAN ANGGARAN <?= $tahun ?>
+                </span>
+                <div class="fw-bold font-monospace mt-1" style="font-size:1.9rem;line-height:1.1;color:<?= $stBarColor ?>;white-space:nowrap;">
+                    <?= number_format($stTotal['persen'], 2) ?>%
+                </div>
+            </div>
+            <div class="text-end small">
+                <div class="text-muted">Realisasi <strong class="font-monospace text-dark">Rp <?= number_format($stTotal['realisasi'], 0, ',', '.') ?></strong></div>
+                <div class="text-muted">dari Pagu <strong class="font-monospace text-dark">Rp <?= number_format($stTotal['pagu'], 0, ',', '.') ?></strong></div>
+                <div class="mt-1">Sisa Pagu <strong class="font-monospace" style="color:<?= $stOver ? '#dc2626' : 'var(--success)' ?>;">Rp <?= number_format($stTotal['sisa'], 0, ',', '.') ?></strong></div>
+            </div>
+        </div>
+        <div class="progress" style="height:10px;border-radius:6px;background:#eef1f8;">
+            <div class="progress-bar" role="progressbar" style="width:<?= min($stTotal['persen'], 100) ?>%;border-radius:6px;background:<?= $stBarColor ?>;" aria-valuenow="<?= round($stTotal['persen'], 2) ?>" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+    </div>
+
     <!-- Widget Saldo Kas/Bank (UP/GU) -->
     <?php if (!empty($kasRingkasan)): ?>
     <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 bg-white animate-fade-in-up" style="border: 1px solid #e2e8f0 !important;">
@@ -296,12 +323,9 @@ foreach ($pendingBySeksi as $ps) {
                     </div>
                 <?php endif; ?>
             </div>
-        </div>
 
-        <!-- Right: Side Panels -->
-        <div class="col-12 col-xl-4">
-            <!-- Distribusi per Seksi -->
-            <div class="admin-panel mb-3">
+            <!-- Pending per Seksi (dipindah ke bawah Antrian Verifikasi, isi utuh) -->
+            <div class="admin-panel mt-3">
                 <div class="admin-panel__header">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
                     Pending per Seksi
@@ -313,7 +337,7 @@ foreach ($pendingBySeksi as $ps) {
                             <span>Tidak ada transaksi pending.</span>
                         </div>
                     <?php else: ?>
-                        <?php foreach ($pendingBySeksi as $ps): 
+                        <?php foreach ($pendingBySeksi as $ps):
                             $pct = $maxPendingSeksi > 0 ? ((int)$ps['cnt'] / $maxPendingSeksi) * 100 : 0;
                         ?>
                         <div class="seksi-bar-row">
@@ -324,6 +348,47 @@ foreach ($pendingBySeksi as $ps) {
                                 </div>
                             </div>
                             <div class="seksi-bar-value"><?= formatRp((float)$ps['total_nilai']) ?></div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Side Panels -->
+        <div class="col-12 col-xl-4">
+            <!-- Serapan per Seksi (posisi menggantikan Pending per Seksi) -->
+            <div class="admin-panel mb-3">
+                <div class="admin-panel__header">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
+                    Serapan per Seksi
+                </div>
+                <div class="admin-panel__body">
+                    <?php $spList = $serapanPerSeksi ?? []; ?>
+                    <?php if (empty($spList)): ?>
+                        <div class="text-center d-flex align-items-center justify-content-center gap-2" style="padding:0.75rem 1rem;max-height:80px;color:var(--gray-400);font-size:var(--fs-sm);">
+                            <i class="bi bi-check-circle" style="font-size:1rem;opacity:0.5;"></i>
+                            <span>Belum ada data serapan.</span>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($spList as $sp):
+                            $spPct = (float) ($sp['persen'] ?? 0);
+                            $spW = max(6, (int) min(100, $spPct));
+                            $isYatim = ((int) ($sp['id'] ?? 0)) === 0;
+                            $spBar = ((float) ($sp['pagu'] ?? 0)) <= 0 ? '#94a3b8' : ($spPct > 100 ? '#dc2626' : '#1b2f23');
+                            $spTip = htmlspecialchars(($sp['nama_seksi'] ?? '') . ' — Rp ' . number_format((float) ($sp['realisasi'] ?? 0), 0, ',', '.') . ' dari Rp ' . number_format((float) ($sp['pagu'] ?? 0), 0, ',', '.') . ' (' . number_format($spPct, 2) . '%)');
+                            if ($isYatim) {
+                                $spTip .= ' — transaksi/pagu yang rantainya putus (tidak masuk seksi mana pun)';
+                            }
+                        ?>
+                        <div class="seksi-bar-row" title="<?= $spTip ?>">
+                            <div class="seksi-bar-label" style="width:48px;" title="<?= htmlspecialchars($sp['nama_seksi'] ?? '') ?>"><?= htmlspecialchars($sp['kode_seksi']) ?></div>
+                            <div class="seksi-bar-track">
+                                <div class="seksi-bar-fill" style="width:<?= $spW ?>%;background:<?= $isYatim ? '#f59e0b' : $spBar ?>;">
+                                    <span><?= number_format($spPct, 1) ?>%</span>
+                                </div>
+                            </div>
+                            <div class="seksi-bar-value" style="width:110px;"><?= formatRp((float) ($sp['realisasi'] ?? 0)) ?></div>
                         </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -363,7 +428,7 @@ foreach ($pendingBySeksi as $ps) {
                                         <?= $verb ?>
                                         <span style="color:var(--gray-800);font-weight:600;"><?= formatRp((float)$act['nilai']) ?></span>
                                         <?php if ($feedUraian !== ''): ?>
-                                            <span class="d-block text-truncate" style="color:var(--gray-500);font-weight:400;max-width:100%;" title="<?= htmlspecialchars($act['uraian']) ?>"><?= htmlspecialchars($feedUraian) ?></span>
+                                            <span class="d-block text-truncate" style="color:var(--gray-500);font-weight:400;max-width:100%;" title="<?= htmlspecialchars(trim(($act['nomor_bukti'] ?? '') !== '' ? '[' . $act['nomor_bukti'] . '] ' : '') . ($act['uraian'] ?? '')) ?>"><?= htmlspecialchars(trim(($act['nomor_bukti'] ?? '') !== '' ? '[' . $act['nomor_bukti'] . '] ' : '') . $feedUraian) ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="admin-timeline__time" <?= $feedTs ? 'title="' . date('d M Y, H:i', $feedTs) . '"' : '' ?>><?= timeAgo($act['diverifikasi_at']) ?></div>
@@ -380,8 +445,14 @@ foreach ($pendingBySeksi as $ps) {
     <!-- Row 3: Monthly Trend -->
     <div class="admin-trend animate-fade-in-up" style="animation-delay:0.15s;">
         <div class="admin-trend__header">
-            <i class="bi bi-graph-up" style="color:var(--primary);"></i>
-            Tren Transaksi Bulanan <?= $tahun ?> (jumlah transaksi)
+            <span id="trendTitle">
+                <i class="bi bi-graph-up" style="color:var(--primary);"></i>
+                Tren Transaksi Bulanan <?= $tahun ?> (jumlah transaksi)
+            </span>
+            <span class="btn-group btn-group-sm ms-auto" role="group" aria-label="Mode chart">
+                <button type="button" class="btn btn-outline-secondary active" id="trendModeCount" aria-pressed="true">Jumlah Transaksi</button>
+                <button type="button" class="btn btn-outline-secondary" id="trendModeValue" aria-pressed="false">Nilai (Rp)</button>
+            </span>
         </div>
         <div class="admin-trend__body">
             <canvas id="adminTrendChart" height="85"></canvas>
@@ -449,14 +520,16 @@ foreach ($pendingBySeksi as $ps) {
     if (ctx) {
         const monthLabels = <?= json_encode(array_values($bulanNames)) ?>;
         const trendData   = <?= json_encode(array_values($monthlyTrend)) ?>;
+        const valueTrend  = <?= json_encode($monthlyValueTrend ?? ['diajukan' => array_fill(0, 12, 0), 'diverifikasi' => array_fill(0, 12, 0), 'ditolak' => array_fill(0, 12, 0)]) ?>;
 
         const diajukan     = trendData.map(d => d.diajukan);
         const diverifikasi = trendData.map(d => d.diverifikasi);
         const ditolak      = trendData.map(d => d.ditolak);
 
         const isAllZero = arr => arr.every(v => v == 0);
+        let trendMode = 'count'; // 'count' | 'value'
 
-        new Chart(ctx, {
+        const trendChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: monthLabels,
@@ -524,8 +597,11 @@ foreach ($pendingBySeksi as $ps) {
                         padding: 10,
                         cornerRadius: 8,
                         callbacks: {
-                            label: function(ctx) {
-                                return ' ' + ctx.dataset.label + ': ' + ctx.raw + ' transaksi';
+                            label: function(c) {
+                                if (trendMode === 'value') {
+                                    return ' ' + c.dataset.label + ': Rp ' + Number(c.raw).toLocaleString('id-ID');
+                                }
+                                return ' ' + c.dataset.label + ': ' + c.raw + ' transaksi';
                             }
                         }
                     }
@@ -554,6 +630,41 @@ foreach ($pendingBySeksi as $ps) {
                 }
             }
         });
+
+        // ── Chart mode toggle: Jumlah Transaksi / Nilai (Rp) ──
+        const trendTitleEl = document.getElementById('trendTitle');
+        const btnModeCount = document.getElementById('trendModeCount');
+        const btnModeValue = document.getElementById('trendModeValue');
+        const trendYear = <?= json_encode($tahun) ?>;
+        const countSeries = { diajukan: diajukan, diverifikasi: diverifikasi, ditolak: ditolak };
+
+        function seriesKey(label) {
+            return label === 'Diajukan' ? 'diajukan' : (label === 'Terverifikasi' ? 'diverifikasi' : 'ditolak');
+        }
+
+        function setTrendMode(mode) {
+            trendMode = mode;
+            const src = mode === 'value' ? valueTrend : countSeries;
+            trendChart.data.datasets.forEach(ds => {
+                ds.data = src[seriesKey(ds.label)] || [];
+            });
+            trendChart.update();
+            if (trendTitleEl) {
+                trendTitleEl.innerHTML = '<i class="bi bi-graph-up" style="color:var(--primary);"></i> '
+                    + 'Tren Transaksi Bulanan ' + trendYear
+                    + (mode === 'value' ? ' (nilai (Rp))' : ' (jumlah transaksi)');
+            }
+            if (btnModeCount && btnModeValue) {
+                const isValue = mode === 'value';
+                btnModeCount.classList.toggle('active', !isValue);
+                btnModeValue.classList.toggle('active', isValue);
+                btnModeCount.setAttribute('aria-pressed', String(!isValue));
+                btnModeValue.setAttribute('aria-pressed', String(isValue));
+            }
+        }
+
+        if (btnModeCount) btnModeCount.addEventListener('click', () => setTrendMode('count'));
+        if (btnModeValue) btnModeValue.addEventListener('click', () => setTrendMode('value'));
     }
 })();
 </script>
