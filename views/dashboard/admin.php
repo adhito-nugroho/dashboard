@@ -42,7 +42,10 @@ foreach ($pendingBySeksi as $ps) {
 .admin-dash, .admin-dash-header { border-top: 0; outline: none; box-shadow: none; }
 /* Feed aktivitas bisa diklik */
 .admin-feed-link:hover .admin-timeline__text { text-decoration: underline; }
-/* Tombol primer Dashboard Admin = hijau brand sidebar (#1b2f23, hover #101d16) */
+/* Tombol primer Dashboard Admin = hijau brand sidebar (#1b2f23, hover #101d16).
+   Properti background/border ditulis eksplisit karena style.css global
+   meng-hardcode .btn-primary{background:var(--primary)} sehingga
+   override variabel --bs-btn-bg saja tidak terbaca. */
 .admin-dash .btn-primary {
     --bs-btn-bg: #1b2f23;
     --bs-btn-border-color: #1b2f23;
@@ -52,6 +55,12 @@ foreach ($pendingBySeksi as $ps) {
     --bs-btn-active-border-color: #101d16;
     --bs-btn-disabled-bg: #1b2f23;
     --bs-btn-disabled-border-color: #1b2f23;
+    background: #1b2f23;
+    border-color: #1b2f23;
+}
+.admin-dash .btn-primary:hover {
+    background: #101d16;
+    border-color: #101d16;
 }
 </style>
 
