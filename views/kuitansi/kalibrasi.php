@@ -7,6 +7,7 @@ $data = $kalibrasiData ?? [];
 $positions = $data['positions'] ?? [];
 $labels = $data['labels'] ?? [];
 $widths = $data['widths'] ?? [];
+$defaultWidths = $data['defaultWidths'] ?? $widths;
 $refUrl = $data['refUrl'] ?? null;
 $refKind = $data['refKind'] ?? null;
 $flash = $data['flash'] ?? null;
@@ -42,6 +43,8 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
 .kal-canvas canvas.kal-pdfbg { position:absolute; inset:0; width:860px; height:660px; opacity:.5; pointer-events:none; }
 .kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; font-family:Arial,Helvetica,sans-serif; }
 .kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
+.kal-box.nowrap .kal-txt { white-space:nowrap; word-break:normal; overflow:visible; }
+.kal-box.is-wrap .kal-txt { white-space:pre-wrap; word-break:break-word; }
 .kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
 .kal-box { max-height:240px; overflow:hidden; }
 .kal-box[data-key^="ttd_"] .kal-txt { text-align:center; }
@@ -201,9 +204,18 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
                         <input type="number" class="form-control form-control-sm mb-2" id="kalInX" step="0.5" min="-20" max="235">
                         <label class="form-label mb-1" style="font-size:.8rem;">Y (mm)</label>
                         <input type="number" class="form-control form-control-sm mb-2" id="kalInY" step="0.5" min="-20" max="185">
-                        <div id="kalWrapW">
-                            <label class="form-label mb-1" style="font-size:.8rem;">Lebar maks (mm) — khusus uraian</label>
-                            <input type="number" class="form-control form-control-sm" id="kalInW" step="0.5" min="10" max="215">
+                        <div>
+                            <label class="form-label mb-1" style="font-size:.8rem;">Lebar (mm) — panjang/pendek kotak</label>
+                            <div class="input-group input-group-sm mb-1">
+                                <input type="number" class="form-control" id="kalInW" step="0.5" min="5" max="215" placeholder="default">
+                                <button type="button" class="btn btn-outline-secondary" id="kalResetW" title="Kembalikan ke lebar default">Reset</button>
+                            </div>
+                            <div class="form-text mb-2" style="font-size:.75rem;" id="kalDefWInfo"></div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="kalInWrap">
+                                <label class="form-check-label" for="kalInWrap" style="font-size:.8rem;">Wrap teks <span class="text-muted">(baris baru otomatis)</span></label>
+                            </div>
+                            <div class="form-text" style="font-size:.75rem;">Wrap = teks panjang turun ke bawah (MultiCell). Mati = satu baris, teks panjang meluber tanpa wrap.</div>
                         </div>
                     </div>
                     <hr>
@@ -221,6 +233,7 @@ const SCALE = 4; // 1mm = 4px
 const state = <?= json_encode($positions, JSON_UNESCAPED_UNICODE) ?>;
 const labels = <?= json_encode($labels, JSON_UNESCAPED_UNICODE) ?>;
 const widths = <?= json_encode($widths, JSON_UNESCAPED_UNICODE) ?>;
+const defaultWidths = <?= json_encode($defaultWidths, JSON_UNESCAPED_UNICODE) ?>;
 const dummy = <?= json_encode($dummy, JSON_UNESCAPED_UNICODE) ?>;
 const sample = <?= json_encode($sampleTexts, JSON_UNESCAPED_UNICODE) ?>;
 const order = <?= json_encode($order) ?>;
@@ -243,24 +256,35 @@ function showAlert(msg, type) {
 function markDirty() {
     dirtyBadge.classList.toggle('d-none', JSON.stringify(state) === initial);
 }
+function defaultWidthOf(key) {
+    return parseFloat(defaultWidths[key] ?? widths[key] ?? 60);
+}
 function widthOf(key) {
-    if (key === 'uraian') return parseFloat(state.uraian?.max_width_mm ?? widths.uraian ?? 185);
-    return parseFloat(widths[key] ?? 60);
+    const ov = state[key]?.max_width_mm;
+    if (ov !== null && ov !== undefined && ov !== '' && !isNaN(parseFloat(ov))) return parseFloat(ov);
+    return parseFloat(widths[key] ?? defaultWidthOf(key));
+}
+function isWrap(key) {
+    const wr = state[key]?.is_wrap;
+    if (wr !== null && wr !== undefined && wr !== '') return !!parseInt(wr, 10);
+    return key === 'uraian'; // default: hanya uraian yang wrap
 }
 
-// --- render kotak ---
+// --- render kotak (semua bisa di-resize lebarnya) ---
 const boxes = {};
 order.forEach(key => {
-    if (!state[key]) state[key] = { x_mm: 10, y_mm: 10 };
+    if (!state[key]) state[key] = { x_mm: 10, y_mm: 10, max_width_mm: null, is_wrap: null };
     const el = document.createElement('div');
     el.className = 'kal-box';
     el.dataset.key = key;
     el.innerHTML = '<span class="kal-badge"></span>'
         + '<span class="kal-txt"></span>'
-        + (key === 'uraian' ? '<span class="kal-resize" title="Geser untuk atur lebar"></span>' : '');
+        + '<span class="kal-resize" title="Geser untuk atur lebar (panjang/pendek)"></span>';
     canvas.appendChild(el);
     boxes[key] = el;
     el.addEventListener('pointerdown', e => onBoxDown(e, key));
+    const rz = el.querySelector('.kal-resize');
+    rz.addEventListener('pointerdown', e => onResizeDown(e, key));
 });
 function layout() {
     order.forEach(key => {
@@ -268,6 +292,8 @@ function layout() {
         el.style.left = (s.x_mm * SCALE) + 'px';
         el.style.top = (s.y_mm * SCALE) + 'px';
         el.style.width = (widthOf(key) * SCALE) + 'px';
+        el.classList.toggle('nowrap', !isWrap(key));
+        el.classList.toggle('is-wrap', isWrap(key));
         // Isi kotak: data transaksi asli bila ada; dummy bila belum ada transaksi;
         // placeholder bila nilainya memang kosong (tidak dicetak).
         const txt = (sample[key] !== undefined && sample[key] !== null && sample[key] !== '')
@@ -281,7 +307,7 @@ function layout() {
             txtEl.textContent = txt;
             txtEl.classList.remove('kal-txt-empty');
         }
-        el.querySelector('.kal-badge').textContent = 'x: ' + Number(s.x_mm).toFixed(1) + 'mm, y: ' + Number(s.y_mm).toFixed(1) + 'mm';
+        el.querySelector('.kal-badge').textContent = 'x: ' + Number(s.x_mm).toFixed(1) + 'mm, y: ' + Number(s.y_mm).toFixed(1) + 'mm, w: ' + widthOf(key).toFixed(1) + 'mm' + (isWrap(key) ? ', wrap' : ', 1-baris');
         el.classList.toggle('selected', selected === key);
     });
     renderList();
@@ -317,16 +343,17 @@ function onBoxDown(e, key) {
     el.addEventListener('pointercancel', up);
 }
 
-// --- resize lebar uraian ---
-document.querySelector('.kal-resize')?.addEventListener('pointerdown', e => {
+// --- resize lebar semua elemen (drag handle kanan) ---
+function onResizeDown(e, key) {
     e.preventDefault(); e.stopPropagation();
-    const startX = e.clientX, startW = widthOf('uraian');
+    select(key);
+    const startX = e.clientX, startW = widthOf(key);
     const h = e.target;
-    h.setPointerCapture(e.pointerId);
+    try { h.setPointerCapture(e.pointerId); } catch (err) {}
     const move = ev => {
         let w = startW + (ev.clientX - startX) / SCALE;
-        w = Math.min(215, Math.max(10, snap(w)));
-        state.uraian.max_width_mm = w;
+        w = Math.min(215, Math.max(5, snap(w)));
+        state[key].max_width_mm = w;
         layout();
     };
     const up = () => {
@@ -337,7 +364,7 @@ document.querySelector('.kal-resize')?.addEventListener('pointerdown', e => {
     h.addEventListener('pointermove', move);
     h.addEventListener('pointerup', up);
     h.addEventListener('pointercancel', up);
-});
+}
 
 // --- panel + list ---
 function select(key) {
@@ -355,9 +382,17 @@ function syncPanel() {
     if (document.activeElement !== document.getElementById('kalInY')) {
         document.getElementById('kalInY').value = state[selected].y_mm;
     }
-    document.getElementById('kalWrapW').style.display = selected === 'uraian' ? '' : 'none';
-    if (selected === 'uraian' && document.activeElement !== document.getElementById('kalInW')) {
-        document.getElementById('kalInW').value = widthOf('uraian');
+    const inW = document.getElementById('kalInW');
+    if (document.activeElement !== inW) {
+        const ov = state[selected].max_width_mm;
+        inW.value = (ov === null || ov === undefined || ov === '') ? '' : ov;
+        inW.placeholder = 'default ' + defaultWidthOf(selected).toFixed(1) + 'mm';
+    }
+    document.getElementById('kalDefWInfo').textContent =
+        'Aktif: ' + widthOf(selected).toFixed(1) + 'mm (default ' + defaultWidthOf(selected).toFixed(1) + 'mm). Kosongkan untuk pakai default.';
+    const inWrap = document.getElementById('kalInWrap');
+    if (document.activeElement !== inWrap) {
+        inWrap.checked = isWrap(selected);
     }
 }
 document.getElementById('kalInX').addEventListener('input', e => {
@@ -377,12 +412,28 @@ document.getElementById('kalInY').addEventListener('input', e => {
     }
 });
 document.getElementById('kalInW').addEventListener('input', e => {
-    if (!selected || selected !== 'uraian') return;
-    const v = parseFloat(e.target.value);
+    if (!selected) return;
+    const raw = e.target.value;
+    if (raw === '' || raw === null) {
+        state[selected].max_width_mm = null; // kembali ke default config
+        layout();
+        return;
+    }
+    const v = parseFloat(raw);
     if (!isNaN(v)) {
-        state.uraian.max_width_mm = Math.min(215, Math.max(10, v));
+        state[selected].max_width_mm = Math.min(215, Math.max(5, v));
         layout();
     }
+});
+document.getElementById('kalResetW')?.addEventListener('click', () => {
+    if (!selected) return;
+    state[selected].max_width_mm = null;
+    layout();
+});
+document.getElementById('kalInWrap').addEventListener('change', e => {
+    if (!selected) return;
+    state[selected].is_wrap = e.target.checked ? 1 : 0;
+    layout();
 });
 function renderList() {
     const list = document.getElementById('kalList');
@@ -394,8 +445,9 @@ function renderList() {
         a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-2'
             + (selected === key ? ' active' : '');
         a.innerHTML = '<span></span><small class="font-monospace"></small>';
-        a.querySelector('span').textContent = labels[key] || key;
-        a.querySelector('small').textContent = Number(s.x_mm).toFixed(1) + ', ' + Number(s.y_mm).toFixed(1);
+        a.querySelector('span').textContent = (labels[key] || key) + (isWrap(key) ? ' ⏎' : ' →');
+        a.querySelector('small').textContent = Number(s.x_mm).toFixed(1) + ', ' + Number(s.y_mm).toFixed(1) + ' · ' + widthOf(key).toFixed(0) + 'mm';
+        a.title = (labels[key] || key) + ' — ' + widthOf(key).toFixed(1) + 'mm, ' + (isWrap(key) ? 'wrap' : 'satu baris');
         a.addEventListener('click', () => select(key));
         list.appendChild(a);
     });
@@ -546,13 +598,21 @@ btnSimpan.addEventListener('click', () => {
     const oldHtml = btnSimpan.innerHTML;
     btnSimpan.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Menyimpan...';
 
-    const items = order.map(key => ({
-        elemen_key: key,
-        label: labels[key] || key,
-        x_mm: state[key].x_mm,
-        y_mm: state[key].y_mm,
-        max_width_mm: key === 'uraian' ? widthOf('uraian') : null
-    }));
+    const items = order.map(key => {
+        const ov = state[key].max_width_mm;
+        return {
+            elemen_key: key,
+            label: labels[key] || key,
+            x_mm: state[key].x_mm,
+            y_mm: state[key].y_mm,
+            max_width_mm: (ov === null || ov === undefined || ov === '') ? null : parseFloat(ov),
+            is_wrap: (() => {
+                const wr = state[key].is_wrap;
+                if (wr === null || wr === undefined || wr === '') return null;
+                return parseInt(wr, 10) ? 1 : 0;
+            })()
+        };
+    });
     fetch(BASE + 'kuitansi/kalibrasi/simpan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -593,10 +653,13 @@ btnUji.addEventListener('click', () => {
 
     const positions = {};
     order.forEach(key => {
+        const ov = state[key].max_width_mm;
+        const wr = state[key].is_wrap;
         positions[key] = {
             x_mm: state[key].x_mm,
             y_mm: state[key].y_mm,
-            max_width_mm: key === 'uraian' ? widthOf('uraian') : null
+            max_width_mm: (ov === null || ov === undefined || ov === '') ? null : parseFloat(ov),
+            is_wrap: (wr === null || wr === undefined || wr === '') ? null : (parseInt(wr, 10) ? 1 : 0)
         };
     });
     fetch(BASE + 'kuitansi/kalibrasi/uji', {

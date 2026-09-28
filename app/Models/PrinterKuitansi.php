@@ -76,7 +76,22 @@ class PrinterKuitansi
         }
         $newId = (int) $this->db->lastInsertId();
         if ($newId > 0 && !empty($sourcePositions)) {
-            $ins = $this->db->prepare("
+            try {
+                $c = $this->db->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?');
+                $c->execute(['kalibrasi_kuitansi_elemen', 'is_wrap']);
+                $hasWrap = (int) $c->fetchColumn() > 0;
+            } catch (\Throwable $e) {
+                $hasWrap = false;
+            }
+            $ins = $hasWrap ? $this->db->prepare("
+                INSERT INTO `kalibrasi_kuitansi_elemen`
+                    (`printer_id`, `elemen_key`, `label`, `x_mm`, `y_mm`, `max_width_mm`, `is_wrap`, `updated_by`)
+                VALUES (:pid, :k, :label, :x, :y, :w, :wrap, 'salin-printer')
+                ON DUPLICATE KEY UPDATE
+                    `x_mm` = VALUES(`x_mm`), `y_mm` = VALUES(`y_mm`),
+                    `max_width_mm` = VALUES(`max_width_mm`),
+                    `is_wrap` = VALUES(`is_wrap`)
+            ") : $this->db->prepare("
                 INSERT INTO `kalibrasi_kuitansi_elemen`
                     (`printer_id`, `elemen_key`, `label`, `x_mm`, `y_mm`, `max_width_mm`, `updated_by`)
                 VALUES (:pid, :k, :label, :x, :y, :w, 'salin-printer')
@@ -88,14 +103,19 @@ class PrinterKuitansi
                 if (!is_array($v)) {
                     continue;
                 }
-                $ins->execute([
+                $params = [
                     ':pid' => $newId,
                     ':k' => substr((string) $key, 0, 40),
                     ':label' => substr((string) ($v['label'] ?? $key), 0, 100),
                     ':x' => number_format((float) ($v['x_mm'] ?? 0), 2, '.', ''),
                     ':y' => number_format((float) ($v['y_mm'] ?? 0), 2, '.', ''),
                     ':w' => ($v['max_width_mm'] ?? null) === null ? null : number_format((float) $v['max_width_mm'], 2, '.', ''),
-                ]);
+                ];
+                if ($hasWrap) {
+                    $wr = $v['is_wrap'] ?? null;
+                    $params[':wrap'] = ($wr === null || $wr === '') ? null : ((int) $wr ? 1 : 0);
+                }
+                $ins->execute($params);
             }
         }
         return $newId;

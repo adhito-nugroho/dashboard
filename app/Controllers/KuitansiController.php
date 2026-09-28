@@ -144,6 +144,27 @@ class KuitansiController
         }
 
         $positions = $this->activePositions($printerId);
+        $koord = (new KuitansiPdfService())->getKoordinat();
+        $ttdW = $koord['ttd_widths'] ?? [];
+        // Lebar default (config) — untuk placeholder/reset di kanvas.
+        $defaultWidths = [];
+        foreach (KuitansiPdfService::ELEMEN_KEYS as $k) {
+            if ($k === 'uraian') {
+                $defaultWidths[$k] = (float) ($koord['uraian']['w_mm'] ?? 170);
+            } elseif (isset($ttdW[$k])) {
+                $defaultWidths[$k] = (float) $ttdW[$k];
+            } elseif (isset($koord[$k]['w_mm'])) {
+                $defaultWidths[$k] = (float) $koord[$k]['w_mm'];
+            } else {
+                $defaultWidths[$k] = 60.0;
+            }
+        }
+        // Lebar efektif: override max_width_mm per-printer, atau default config.
+        $widths = [];
+        foreach (KuitansiPdfService::ELEMEN_KEYS as $k) {
+            $ov = $positions[$k]['max_width_mm'] ?? null;
+            $widths[$k] = ($ov !== null && (float) $ov > 0) ? (float) $ov : $defaultWidths[$k];
+        }
         $labels = [];
         try {
             foreach ($this->elemen->getAll($printerId) as $k => $v) {
@@ -151,20 +172,20 @@ class KuitansiController
             }
         } catch (\Throwable $e) {
         }
-
-        // Lebar kotak kanvas: max_width_mm (uraian), w_mm config (field), atau peta ttd_widths.
-        $koord = (new KuitansiPdfService())->getKoordinat();
-        $ttdW = $koord['ttd_widths'] ?? [];
-        $widths = [];
+        // Fallback label dari config agar panel tidak kosong.
         foreach (KuitansiPdfService::ELEMEN_KEYS as $k) {
-            if ($k === 'uraian') {
-                $widths[$k] = (float) ($positions['uraian']['max_width_mm'] ?? $koord['uraian']['w_mm'] ?? 170);
-            } elseif (isset($ttdW[$k])) {
-                $widths[$k] = (float) $ttdW[$k];
-            } elseif (isset($koord[$k]['w_mm'])) {
-                $widths[$k] = (float) $koord[$k]['w_mm'];
-            } else {
-                $widths[$k] = 60.0;
+            if (empty($labels[$k])) {
+                $labels[$k] = $koord[$k]['label'] ?? $ttdW[$k] ?? $k;
+                if (isset($ttdW[$k])) {
+                    $labels[$k] = match ($k) {
+                        'ttd_kpa_nama' => 'TTD KPA — Nama',
+                        'ttd_kpa_nip' => 'TTD KPA — NIP',
+                        'ttd_bendahara_nama' => 'TTD Bendahara — Nama',
+                        'ttd_bendahara_nip' => 'TTD Bendahara — NIP',
+                        'ttd_penerima_nama' => 'TTD Penerima — Nama',
+                        default => $k,
+                    };
+                }
             }
         }
 
@@ -180,6 +201,7 @@ class KuitansiController
             'positions' => $positions,
             'labels' => $labels,
             'widths' => $widths,
+            'defaultWidths' => $defaultWidths,
             'refUrl' => $refInfo['url'] ?? null,
             'refKind' => $refInfo['kind'] ?? null,
             'flash' => $flash,

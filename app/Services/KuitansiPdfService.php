@@ -48,21 +48,22 @@ class KuitansiPdfService
         $t1 = $koordinat['ttd1'] ?? ['x_mm' => 47, 'y_mm' => 122];
         $t2 = $koordinat['ttd2'] ?? ['x_mm' => 107, 'y_mm' => 122];
         $t3 = $koordinat['ttd3'] ?? ['x_mm' => 168, 'y_mm' => 122];
-        $g = fn($c) => ['x_mm' => (float) ($c['x_mm'] ?? 0), 'y_mm' => (float) ($c['y_mm'] ?? 0)];
+        $g = fn($c) => ['x_mm' => (float) ($c['x_mm'] ?? 0), 'y_mm' => (float) ($c['y_mm'] ?? 0), 'max_width_mm' => null, 'is_wrap' => null];
 
         $p = [];
         foreach (['no_bku', 'no_program', 'no_kegiatan', 'terima_dari', 'jumlah_terbilang', 'uraian', 'terbilang_rp', 'tempat_tanggal'] as $k) {
             $p[$k] = $g($koordinat[$k] ?? []);
         }
-        $p['uraian']['max_width_mm'] = (float) ($koordinat['uraian']['w_mm'] ?? 170);
+        // uraian: default wrap, lebar dari config (null = pakai w_mm config).
+        $p['uraian']['is_wrap'] = 1;
 
         // Nama/NIP di garis titik-titik. ttd1/2/3 hanya jangkar x (teks jabatan
         // tidak digambar — sudah pre-printed di NCR).
-        $p['ttd_kpa_nama'] = ['x_mm' => (float) $t1['x_mm'] + 19, 'y_mm' => 150];
-        $p['ttd_kpa_nip'] = ['x_mm' => (float) $t1['x_mm'] + 19, 'y_mm' => 156];
-        $p['ttd_bendahara_nama'] = ['x_mm' => (float) $t2['x_mm'] + 19, 'y_mm' => 150];
-        $p['ttd_bendahara_nip'] = ['x_mm' => (float) $t2['x_mm'] + 19, 'y_mm' => 156];
-        $p['ttd_penerima_nama'] = ['x_mm' => (float) $t3['x_mm'] + 16, 'y_mm' => 150];
+        $p['ttd_kpa_nama'] = ['x_mm' => (float) $t1['x_mm'] + 19, 'y_mm' => 150, 'max_width_mm' => null, 'is_wrap' => null];
+        $p['ttd_kpa_nip'] = ['x_mm' => (float) $t1['x_mm'] + 19, 'y_mm' => 156, 'max_width_mm' => null, 'is_wrap' => null];
+        $p['ttd_bendahara_nama'] = ['x_mm' => (float) $t2['x_mm'] + 19, 'y_mm' => 150, 'max_width_mm' => null, 'is_wrap' => null];
+        $p['ttd_bendahara_nip'] = ['x_mm' => (float) $t2['x_mm'] + 19, 'y_mm' => 156, 'max_width_mm' => null, 'is_wrap' => null];
+        $p['ttd_penerima_nama'] = ['x_mm' => (float) $t3['x_mm'] + 16, 'y_mm' => 150, 'max_width_mm' => null, 'is_wrap' => null];
         return $p;
     }
 
@@ -78,7 +79,16 @@ class KuitansiPdfService
                 'y_mm' => (float) ($v['y_mm'] ?? $this->pos[$key]['y_mm'] ?? 0),
             ];
             if (array_key_exists('max_width_mm', $v)) {
-                $this->pos[$key]['max_width_mm'] = $v['max_width_mm'] === null ? null : (float) $v['max_width_mm'];
+                $w = $v['max_width_mm'];
+                $this->pos[$key]['max_width_mm'] = ($w === null || $w === '') ? null : (float) $w;
+            } else {
+                $this->pos[$key]['max_width_mm'] = $this->pos[$key]['max_width_mm'] ?? null;
+            }
+            if (array_key_exists('is_wrap', $v)) {
+                $wr = $v['is_wrap'];
+                $this->pos[$key]['is_wrap'] = ($wr === null || $wr === '') ? null : ((int) $wr ? 1 : 0);
+            } else {
+                $this->pos[$key]['is_wrap'] = $this->pos[$key]['is_wrap'] ?? null;
             }
         }
     }
@@ -103,11 +113,15 @@ class KuitansiPdfService
         return $pdf;
     }
 
-    /** Lebar gambar: max_width_mm (uraian), w_mm config, atau peta ttd_widths. */
+    /** Lebar gambar: override max_width_mm per-elemen, lalu w_mm config / peta ttd_widths. */
     private function widthOf(string $key): float
     {
+        $override = $this->pos[$key]['max_width_mm'] ?? null;
+        if ($override !== null && (float) $override > 0) {
+            return (float) $override;
+        }
         if ($key === 'uraian') {
-            return (float) ($this->pos['uraian']['max_width_mm'] ?? $this->koordinat['uraian']['w_mm'] ?? 170);
+            return (float) ($this->koordinat['uraian']['w_mm'] ?? 170);
         }
         $tw = $this->koordinat['ttd_widths'] ?? [];
         if (isset($tw[$key])) {
@@ -116,31 +130,48 @@ class KuitansiPdfService
         return (float) ($this->koordinat[$key]['w_mm'] ?? 60);
     }
 
-    private function field(\FPDF $pdf, string $key, string $text, bool $multi = false): void
+    /** Wrap? override is_wrap per-elemen; default: uraian=wrap, lainnya=single. */
+    private function isWrap(string $key): bool
+    {
+        $wr = $this->pos[$key]['is_wrap'] ?? null;
+        if ($wr !== null) {
+            return (bool) $wr;
+        }
+        return $key === 'uraian';
+    }
+
+    private function field(\FPDF $pdf, string $key, string $text, ?bool $multi = null): void
     {
         $c = $this->koordinat[$key] ?? ['font' => 'Helvetica', 'style' => '', 'size' => 10, 'align' => 'L', 'h_mm' => 6];
         $p = $this->pos[$key] ?? ['x_mm' => 0, 'y_mm' => 0];
         $pdf->SetFont($c['font'] ?? 'Helvetica', $c['style'] ?? '', (int) ($c['size'] ?? 10));
         $pdf->SetXY((float) $p['x_mm'], (float) $p['y_mm']);
         $text = kuitansi_pdf_text($text);
-        if ($multi) {
-            $pdf->MultiCell($this->widthOf($key), (float) ($c['line_h_mm'] ?? 6), $text, 0, $c['align'] ?? 'L');
+        $wrap = $multi ?? $this->isWrap($key);
+        // Teks dengan newline eksplisit selalu wrap agar tidak hilang.
+        if (str_contains($text, "\n")) {
+            $wrap = true;
+        }
+        if ($wrap) {
+            $pdf->MultiCell($this->widthOf($key), (float) ($c['line_h_mm'] ?? $c['h_mm'] ?? 6), $text, 0, $c['align'] ?? 'L');
         } else {
             $pdf->Cell($this->widthOf($key), (float) ($c['h_mm'] ?? 6), $text, 0, 0, $c['align'] ?? 'L');
         }
     }
 
-    /** Satu baris TTD (jabatan pakai MultiCell, nama underline, NIP biasa). */
+    /** Satu baris TTD (nama underline, NIP biasa). Wrap mengikuti setelan kalibrasi. */
     private function ttdLine(\FPDF $pdf, string $key, string $text, string $style = ''): void
     {
         $p = $this->pos[$key] ?? ['x_mm' => 0, 'y_mm' => 0];
         $w = $this->widthOf($key);
         $pdf->SetFont('Helvetica', $style, 9);
         $pdf->SetXY((float) $p['x_mm'], (float) $p['y_mm']);
-        if ($style === '' && str_contains($text, "\n")) {
-            $pdf->MultiCell($w, 5, kuitansi_pdf_text($text), 0, 'C');
+        $t = kuitansi_pdf_text($text);
+        $wrap = $this->isWrap($key) || str_contains($t, "\n");
+        if ($wrap) {
+            $pdf->MultiCell($w, 5, $t, 0, 'C');
         } else {
-            $pdf->Cell($w, 5, kuitansi_pdf_text($text), 0, 0, 'C');
+            $pdf->Cell($w, 5, $t, 0, 0, 'C');
         }
     }
 
@@ -210,7 +241,7 @@ class KuitansiPdfService
         $this->field($pdf, 'no_kegiatan', $d['no_kegiatan']);
         $this->field($pdf, 'terima_dari', $d['terima_dari']);
         $this->field($pdf, 'jumlah_terbilang', $d['jumlah_terbilang']);
-        $this->field($pdf, 'uraian', $d['uraian'], true);
+        $this->field($pdf, 'uraian', $d['uraian']);
         $this->field($pdf, 'terbilang_rp', $d['terbilang_rp']);
         $this->field($pdf, 'tempat_tanggal', $d['tempat_tanggal']);
 
@@ -270,7 +301,13 @@ class KuitansiPdfService
             $x = (float) $p['x_mm'];
             $y = (float) $p['y_mm'];
             $w = $this->widthOf($key);
-            $h = ($key === 'uraian') ? 24 : 6;
+            if ($key === 'uraian') {
+                $h = 24;
+            } elseif ($this->isWrap($key)) {
+                $h = 12;
+            } else {
+                $h = 6;
+            }
 
             $pdf->SetDrawColor(200, 30, 30);
             $pdf->Rect($x, $y, $w, $h);
@@ -282,7 +319,8 @@ class KuitansiPdfService
             $pdf->SetFont('Arial', '', 7);
             $pdf->SetTextColor(200, 30, 30);
             $pdf->SetXY($x + 1, $y + 1);
-            $pdf->Cell($w - 2, 4, kuitansi_pdf_text(($labels[$key] ?? $key) . sprintf(' (%g,%g)', $x, $y)));
+            $wrapTag = $this->isWrap($key) ? 'wrap' : '1-baris';
+            $pdf->Cell($w - 2, 4, kuitansi_pdf_text(($labels[$key] ?? $key) . sprintf(' (%g,%g,%gmm,%s)', $x, $y, $w, $wrapTag)));
             $pdf->SetTextColor(0, 0, 0);
         }
 
