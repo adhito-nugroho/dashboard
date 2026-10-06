@@ -632,6 +632,11 @@ class RakController {
             $sheet->getStyle("A{$row}:T{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CCCCCC');
             $row++;
         } else {
+            $monthCols = [
+                1 => 'H', 2 => 'I', 3 => 'J', 4 => 'K', 5 => 'L', 6 => 'M',
+                7 => 'N', 8 => 'O', 9 => 'P', 10 => 'Q', 11 => 'R', 12 => 'S'
+            ];
+
             foreach ($groupedRak as $item) {
                 $sheet->setCellValue("A{$row}", $no++);
                 $sheet->setCellValueExplicit("B{$row}", $item['kode_rekening'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
@@ -641,11 +646,10 @@ class RakController {
                 $sheet->setCellValue("F{$row}", $item['kode_sub_kegiatan'] . ' - ' . $item['nama_sub_kegiatan']);
                 $sheet->setCellValue("G{$row}", $item['tahun']);
 
-                $colIndex = 'H';
                 for ($m = 1; $m <= 12; $m++) {
+                    $colIndex = $monthCols[$m];
                     $sheet->setCellValue("{$colIndex}{$row}", $item['months'][$m]);
                     $sheet->getStyle("{$colIndex}{$row}")->getNumberFormat()->setFormatCode($numFmt);
-                    $colIndex++;
                 }
 
                 $sheet->setCellValue("T{$row}", "=SUM(H{$row}:S{$row})");
@@ -667,12 +671,11 @@ class RakController {
             $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             $lastDataRow = $row - 1;
-            $colIndex = 'H';
             for ($m = 1; $m <= 12; $m++) {
+                $colIndex = $monthCols[$m];
                 $sheet->setCellValue("{$colIndex}{$row}", "=SUM({$colIndex}6:{$colIndex}{$lastDataRow})");
                 $sheet->getStyle("{$colIndex}{$row}")->getNumberFormat()->setFormatCode($numFmt);
                 $sheet->getStyle("{$colIndex}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                $colIndex++;
             }
             $sheet->setCellValue("T{$row}", "=SUM(T6:T{$lastDataRow})");
             $sheet->getStyle("T{$row}")->getNumberFormat()->setFormatCode($numFmt);
