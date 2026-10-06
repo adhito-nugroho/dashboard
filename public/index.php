@@ -424,7 +424,9 @@ try {
         $rekeningController->delete($id);
     }
     // Route matching - RAK
-    elseif ($path === '/rak/rekap' || $path === '/rak/rekap/') {
+    elseif ($path === '/rak/export' && $requestMethod === 'GET') {
+        $rakController->export();
+    } elseif ($path === '/rak/rekap' || $path === '/rak/rekap/') {
         $rakController->rekap();
     } elseif ($path === '/rak' || $path === '/rak/') {
         $rakController->index();
