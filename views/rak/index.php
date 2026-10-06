@@ -32,6 +32,14 @@ if ($filterSubKegiatan !== null) {
     }
 }
 $isFiltered = !empty($activeFilterLabels);
+
+// Build export URL with active filters
+$exportParams = array_filter([
+    'tahun'           => $filterTahun,
+    'kegiatan_id'     => $filterKegiatan,
+    'sub_kegiatan_id' => $filterSubKegiatan,
+], fn($v) => $v !== null && $v !== '');
+$exportUrl = base_url('rak/export' . (!empty($exportParams) ? '?' . http_build_query($exportParams) : ''));
 ?>
 
 <div class="container-fluid py-4">
@@ -45,16 +53,21 @@ $isFiltered = !empty($activeFilterLabels);
 
     <!-- Page Header -->
     <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h2 class="mb-1">
                     <i class="bi bi-calendar-month text-primary me-2"></i>Data RAK
                 </h2>
                 <p class="text-muted mb-0">Kelola rencana anggaran kas bulanan</p>
             </div>
-            <a href="<?= base_url('rak/create') ?>" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i> Tambah RAK
-            </a>
+            <div class="d-flex gap-2">
+                <a href="<?= $exportUrl ?>" class="btn btn-success" title="Export RAK ke Excel" id="btn-export-rak">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Export Excel
+                </a>
+                <a href="<?= base_url('rak/create') ?>" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah RAK
+                </a>
+            </div>
         </div>
     </div>
 
