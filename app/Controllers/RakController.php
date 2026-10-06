@@ -9,6 +9,12 @@ use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\Rekening;
 use PDOException;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class RakController {
     private Rak $rakModel;
@@ -523,6 +529,203 @@ class RakController {
         include __DIR__ . '/../../views/layout.php';
     }
     
+    /**
+     * Membangun objek Spreadsheet RAK berdasarkan filter.
+     */
+    public function buildSpreadsheet(?int $filterTahun = null, ?int $filterKegiatan = null, ?int $filterSubKegiatan = null): Spreadsheet {
+        $raksFlat = $this->rakModel->getWithFilters($filterTahun, $filterKegiatan, $filterSubKegiatan);
+
+        // Group by rekening_id + tahun
+        $groupedRak = [];
+        foreach ($raksFlat as $rak) {
+            $key = $rak['rekening_id'] . '_' . $rak['tahun'];
+            if (!isset($groupedRak[$key])) {
+                $groupedRak[$key] = [
+                    'rekening_id'       => $rak['rekening_id'],
+                    'tahun'             => $rak['tahun'],
+                    'kode_rekening'     => $rak['kode_rekening'],
+                    'nama_rekening'     => $rak['nama_rekening'],
+                    'kode_program'      => $rak['kode_program'] ?? '',
+                    'nama_program'      => $rak['nama_program'] ?? '',
+                    'kode_kegiatan'     => $rak['kode_kegiatan'] ?? '',
+                    'nama_kegiatan'     => $rak['nama_kegiatan'] ?? '',
+                    'kode_sub_kegiatan' => $rak['kode_sub_kegiatan'] ?? '',
+                    'nama_sub_kegiatan' => $rak['nama_sub_kegiatan'] ?? '',
+                    'months'            => array_fill(1, 12, 0),
+                    'total'             => 0
+                ];
+            }
+            $groupedRak[$key]['months'][$rak['bulan']] = (float) $rak['nilai_rak'];
+            $groupedRak[$key]['total'] += (float) $rak['nilai_rak'];
+        }
+        $groupedRak = array_values($groupedRak);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('RAK');
+
+        // 1. Header Metadata
+        $sheet->setCellValue('A1', 'RENCANA ANGGARAN KAS (RAK)');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $filterInfo = [];
+        $filterInfo[] = 'Tahun: ' . ($filterTahun !== null ? $filterTahun : 'Semua');
+        if ($filterKegiatan !== null) {
+            $keg = $this->kegiatanModel->getById($filterKegiatan);
+            if ($keg) $filterInfo[] = 'Kegiatan: ' . ($keg['kode_kegiatan'] . ' - ' . $keg['nama_kegiatan']);
+        }
+        if ($filterSubKegiatan !== null) {
+            $subKeg = $this->subKegiatanModel->getById($filterSubKegiatan);
+            if ($subKeg) $filterInfo[] = 'Sub Kegiatan: ' . ($subKeg['kode_sub_kegiatan'] . ' - ' . $subKeg['nama_sub_kegiatan']);
+        }
+        $sheet->setCellValue('A2', implode(' | ', $filterInfo));
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->setSize(10);
+        $sheet->setCellValue('A3', 'Diunduh pada: ' . date('d/m/Y H:i:s'));
+        $sheet->getStyle('A3')->getFont()->setSize(9)->getColor()->setRGB('666666');
+
+        // 2. Table Headers (Row 5)
+        $headers = [
+            'A5' => 'No',
+            'B5' => 'Kode Rekening',
+            'C5' => 'Nama Rekening',
+            'D5' => 'Program',
+            'E5' => 'Kegiatan',
+            'F5' => 'Sub Kegiatan',
+            'G5' => 'Tahun',
+            'H5' => 'Jan',
+            'I5' => 'Feb',
+            'J5' => 'Mar',
+            'K5' => 'Apr',
+            'L5' => 'Mei',
+            'M5' => 'Jun',
+            'N5' => 'Jul',
+            'O5' => 'Agu',
+            'P5' => 'Sep',
+            'Q5' => 'Okt',
+            'R5' => 'Nov',
+            'S5' => 'Des',
+            'T5' => 'Total (Rp)'
+        ];
+
+        foreach ($headers as $cell => $val) {
+            $sheet->setCellValue($cell, $val);
+        }
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]]
+        ];
+        $sheet->getStyle('A5:T5')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(5)->setRowHeight(26);
+
+        // 3. Data Rows
+        $row = 6;
+        $numFmt = '#,##0';
+        $no = 1;
+
+        if (empty($groupedRak)) {
+            $sheet->setCellValue("A{$row}", 'Tidak ada data RAK sesuai filter yang dipilih');
+            $sheet->mergeCells("A{$row}:T{$row}");
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("A{$row}:T{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CCCCCC');
+            $row++;
+        } else {
+            foreach ($groupedRak as $item) {
+                $sheet->setCellValue("A{$row}", $no++);
+                $sheet->setCellValueExplicit("B{$row}", $item['kode_rekening'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValue("C{$row}", $item['nama_rekening']);
+                $sheet->setCellValue("D{$row}", $item['kode_program'] . ' - ' . $item['nama_program']);
+                $sheet->setCellValue("E{$row}", $item['kode_kegiatan'] . ' - ' . $item['nama_kegiatan']);
+                $sheet->setCellValue("F{$row}", $item['kode_sub_kegiatan'] . ' - ' . $item['nama_sub_kegiatan']);
+                $sheet->setCellValue("G{$row}", $item['tahun']);
+
+                $colIndex = 'H';
+                for ($m = 1; $m <= 12; $m++) {
+                    $sheet->setCellValue("{$colIndex}{$row}", $item['months'][$m]);
+                    $sheet->getStyle("{$colIndex}{$row}")->getNumberFormat()->setFormatCode($numFmt);
+                    $colIndex++;
+                }
+
+                $sheet->setCellValue("T{$row}", "=SUM(H{$row}:S{$row})");
+                $sheet->getStyle("T{$row}")->getNumberFormat()->setFormatCode($numFmt);
+
+                // Alignments & border
+                $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("H{$row}:T{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle("A{$row}:T{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D1D5DB');
+
+                $row++;
+            }
+
+            // 4. Grand Total Row
+            $sheet->setCellValue("A{$row}", 'TOTAL KESELURUHAN');
+            $sheet->mergeCells("A{$row}:G{$row}");
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $lastDataRow = $row - 1;
+            $colIndex = 'H';
+            for ($m = 1; $m <= 12; $m++) {
+                $sheet->setCellValue("{$colIndex}{$row}", "=SUM({$colIndex}6:{$colIndex}{$lastDataRow})");
+                $sheet->getStyle("{$colIndex}{$row}")->getNumberFormat()->setFormatCode($numFmt);
+                $sheet->getStyle("{$colIndex}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $colIndex++;
+            }
+            $sheet->setCellValue("T{$row}", "=SUM(T6:T{$lastDataRow})");
+            $sheet->getStyle("T{$row}")->getNumberFormat()->setFormatCode($numFmt);
+            $sheet->getStyle("T{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+            $totalStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => '1E293B']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FEF08A']],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '94A3B8']]]
+            ];
+            $sheet->getStyle("A{$row}:T{$row}")->applyFromArray($totalStyle);
+            $sheet->getRowDimension($row)->setRowHeight(22);
+        }
+
+        // Auto width for columns A to T
+        foreach (range('A', 'T') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        return $spreadsheet;
+    }
+
+    /**
+     * Download file Excel RAK sesuai filter.
+     */
+    public function export(): void {
+        try {
+            $filterTahun       = isset($_GET['tahun'])          && $_GET['tahun']          !== '' ? (int) $_GET['tahun']          : null;
+            $filterKegiatan    = isset($_GET['kegiatan_id'])    && $_GET['kegiatan_id']    !== '' ? (int) $_GET['kegiatan_id']    : null;
+            $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
+
+            $spreadsheet = $this->buildSpreadsheet($filterTahun, $filterKegiatan, $filterSubKegiatan);
+
+            $tahunLabel = $filterTahun !== null ? (string)$filterTahun : 'Semua';
+            $filename = 'RAK_' . $tahunLabel . '_' . date('Ymd_His') . '.xlsx';
+
+            if (ob_get_length()) {
+                ob_end_clean();
+            }
+
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+            exit;
+        } catch (\Exception $e) {
+            error_log('Error exporting RAK: ' . $e->getMessage());
+            $this->redirectWithMessage(base_url('rak'), 'error', 'Gagal mengekspor data RAK: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Redirect with flash message
      */
