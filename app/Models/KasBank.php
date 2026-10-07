@@ -331,12 +331,15 @@ class KasBank
             $penerimaanLain = (float) (($cairRows['setoran'] ?? 0) + ($cairRows['lainnya'] ?? 0));
             $totalPenerimaanCair = $saldoAwal + $pencairanUp + $pencairanGu + $penerimaanLain;
 
-            // 2. Belanja UP diverifikasi periode berjalan (siap SPJ / GU berikutnya)
+            // 2. Belanja UP diverifikasi periode berjalan yang BELUM di-SPJ-kan
+            //    (siap diajukan GU berikutnya; yang sudah tercakup pengajuan
+            //    tidak dihitung lagi agar tidak klaim ganda).
             $stmtTrx = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0)
                 FROM transaksi
                 WHERE status = 'diverifikasi'
                   AND sumber_dana = 'UP'
+                  AND pengajuan_gu_id IS NULL
                   AND MONTH(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :bulan
                   AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
             ");

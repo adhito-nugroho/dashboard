@@ -108,6 +108,13 @@
                                     <span>Kas & Bank (UP/GU)</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'pengajuan_gu') ? 'active' : '' ?>"
+                                    href="<?= base_url('pengajuan-gu') ?>">
+                                    <i class="bi bi-send-check"></i>
+                                    <span>Pengajuan GU (SPJ)</span>
+                                </a>
+                            </li>
 
                             <li class="nav-divider"></li>
                             <li class="nav-group-label">Master Data</li>

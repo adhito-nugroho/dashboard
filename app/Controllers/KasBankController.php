@@ -51,7 +51,8 @@ class KasBankController
         $ringkasan = $this->kasBankModel->getRingkasan($bulan, $tahun);
         $mutasiList = $this->kasBankModel->getByPeriode($bulan, $tahun);
 
-        // Ambil daftar transaksi belanja diverifikasi di bulan ini untuk rincian mutasi kas keluar.
+        // Ambil daftar transaksi belanja diverifikasi yang BELUM di-SPJ-kan
+        // di bulan ini untuk rincian mutasi kas keluar.
         // Basis bulan & tanggal tampil = TANGGAL BAYAR (sama seperti BKU), bukan tanggal pengajuan.
         $db = \Database::getConnection();
         $stmtTrx = $db->prepare("
@@ -62,6 +63,7 @@ class KasBankController
             INNER JOIN seksi s ON t.seksi_id = s.id
             WHERE t.status = 'diverifikasi'
               AND t.sumber_dana = 'UP'
+              AND t.pengajuan_gu_id IS NULL
               AND MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan
               AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun
             ORDER BY tanggal_efektif ASC, t.id ASC

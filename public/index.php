@@ -71,6 +71,8 @@ require_once __DIR__ . '/../app/Services/KuitansiPdfService.php';
 require_once __DIR__ . '/../app/Controllers/KuitansiController.php';
 require_once __DIR__ . '/../app/Models/KasBank.php';
 require_once __DIR__ . '/../app/Controllers/KasBankController.php';
+require_once __DIR__ . '/../app/Models/PengajuanGu.php';
+require_once __DIR__ . '/../app/Controllers/PengajuanGuController.php';
 
 use App\Models\Program;
 use App\Models\Kegiatan;
@@ -98,6 +100,8 @@ use App\Models\RincianBiaya;
 use App\Controllers\SpjController;
 use App\Controllers\KuitansiController;
 use App\Controllers\KasBankController;
+use App\Models\PengajuanGu;
+use App\Controllers\PengajuanGuController;
 
 try {
     // Get database connection
@@ -130,6 +134,8 @@ try {
     $spjController = new SpjController($rincianBiayaModel);
     $kuitansiController = new KuitansiController($db);
     $kasBankController = new KasBankController($kasBankModel, $transaksiModel);
+    $pengajuanGuModel = new PengajuanGu($db);
+    $pengajuanGuController = new PengajuanGuController($pengajuanGuModel, $kasBankModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -589,8 +595,19 @@ try {
         $kasBankController->cairkan((int) $matches[1]);
     } elseif (preg_match('#^/kas-bank/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $kasBankController->update((int) $matches[1]);
-    } elseif (preg_match('#^/kas-bank/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+    } elseif (preg_match('#^/kas-bank/delete/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $kasBankController->delete((int) $matches[1]);
+    // Route matching - Pengajuan SPJ ke GU
+    } elseif ($path === '/pengajuan-gu' || $path === '/pengajuan-gu/') {
+        $pengajuanGuController->index();
+    } elseif ($path === '/pengajuan-gu/store' && $requestMethod === 'POST') {
+        $pengajuanGuController->store();
+    } elseif (preg_match('#^/pengajuan-gu/cairkan/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $pengajuanGuController->cairkan((int) $matches[1]);
+    } elseif (preg_match('#^/pengajuan-gu/batalkan/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $pengajuanGuController->batalkan((int) $matches[1]);
+    } elseif (preg_match('#^/pengajuan-gu/lepas/(\\d+)/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $pengajuanGuController->lepas((int) $matches[1], (int) $matches[2]);
     } else {
         // 404 Not Found
         http_response_code(404);

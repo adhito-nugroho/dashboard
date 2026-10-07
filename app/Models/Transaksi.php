@@ -489,6 +489,10 @@ class Transaksi
      * Batalkan verifikasi (unverifikasi) oleh admin/bendahara.
      * Hanya untuk status 'diverifikasi' -> kembali 'diajukan', nomor bukti dikembalikan ke draft,
      * tanggal lunas dan info verifikator dikosongkan. Return false bila status bukan diverifikasi.
+     *
+     * Pengaman SPJ/GU: bila transaksi sudah tercakup pengajuan yang SUDAH CAIR
+     * (atau status pengajuan tak-diajukan), batal ditolak agar riwayat GU
+     * tidak rusak. Bila pengajuan masih 'diajukan', tautan dilepas otomatis.
      */
     public function batalVerifikasi(int $id): bool
     {
@@ -496,6 +500,20 @@ class Transaksi
             $trx = $this->getById($id);
             if (!$trx || $trx['status'] !== 'diverifikasi') {
                 return false;
+            }
+
+            if (!empty($trx['pengajuan_gu_id'])) {
+                $stmtP = $this->db->prepare('SELECT status FROM pengajuan_gu WHERE id = :id');
+                $stmtP->execute([':id' => (int) $trx['pengajuan_gu_id']]);
+                $statusP = $stmtP->fetchColumn();
+                if ($statusP === false) {
+                    // Pengajuan sudah dihapus: bersihkan tautan yatim.
+                    $this->db->prepare('UPDATE transaksi SET pengajuan_gu_id = NULL WHERE id = :id')
+                        ->execute([':id' => $id]);
+                } elseif ($statusP !== 'diajukan') {
+                    return false;
+                }
+                // status 'diajukan': tautan dilepas di UPDATE bawah.
             }
 
             $time = strtotime($trx['tanggal']) ?: time();
@@ -511,6 +529,7 @@ class Transaksi
                     diverifikasi_by = NULL,
                     diverifikasi_at = NULL,
                     tanggal_lunas_dibayar = NULL,
+                    pengajuan_gu_id = NULL,
                     catatan_verifikasi = NULL
                 WHERE id = :id AND status = 'diverifikasi'
             ");
