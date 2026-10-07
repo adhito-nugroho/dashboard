@@ -1318,11 +1318,68 @@ class TransaksiController
         ];
         $namaBulan = $namaBulanMap[$bulan] ?? (string) $bulan;
 
+        // ── Saldo awal periode: posisi kas berjalan s/d akhir bulan SEBELUM
+        //    periode diminta (satu sumber dengan dashboard via KasBank).
+        //    Tanpa ini, bulan tanpa penerimaan di bulan itu (mis. Oktober yang
+        //    hanya punya kas September) mulai dari Rp 0 lalu langsung minus.
+        //    Dilewati bila bulan ini sudah punya baris saldo_awal sendiri, atau
+        //    bila BKU difilter kegiatan/sub-kegiatan (saldo kantor tidak relevan).
+        $adaSaldoAwalBulanIni = false;
+        foreach ($kasRows as $k) {
+            if (($k['jenis'] ?? '') === 'saldo_awal') {
+                $adaSaldoAwalBulanIni = true;
+                break;
+            }
+        }
+        if (!$adaSaldoAwalBulanIni && $filterSubKegiatan === null && $filterKegiatan === null) {
+            require_once __DIR__ . '/../Models/KasBank.php';
+            $kasBankModel = new \App\Models\KasBank($db);
+            $awalPeriode     = sprintf('%04d-%02d-01', $tahun, $bulan);
+            $akhirBulanLalu  = date('Y-m-d', strtotime($awalPeriode . ' -1 day'));
+            $saldoAwalPeriode = $kasBankModel->getSaldoPerTanggal($akhirBulanLalu);
+            if (abs($saldoAwalPeriode) > 0.005) {
+                $tsLalu = strtotime($akhirBulanLalu);
+                $labelLalu = ($namaBulanMap[(int) date('n', $tsLalu)] ?? '') . ' ' . date('Y', $tsLalu);
+                if ($saldoAwalPeriode >= 0) {
+                    array_unshift($bkuItems, [
+                        'type'          => 'penerimaan',
+                        'id'            => 'saldo_awal_lalu',
+                        'tanggal_sort'  => $awalPeriode,
+                        'tanggal_raw'   => $awalPeriode,
+                        'nama_seksi'    => 'BENDAHARA',
+                        'uraian'        => 'Saldo awal kas bendahara s/d ' . $labelLalu,
+                        'nama_penerima' => 'BENDAHARA',
+                        'nomor_bukti'   => '-',
+                        'penerimaan'    => $saldoAwalPeriode,
+                        'pengeluaran'   => 0.0,
+                        'status'        => 'saldo_awal',
+                        'jenis'         => 'saldo_awal',
+                    ]);
+                } else {
+                    array_unshift($bkuItems, [
+                        'type'          => 'pengeluaran',
+                        'id'            => 'saldo_awal_lalu',
+                        'tanggal_sort'  => $awalPeriode,
+                        'tanggal_raw'   => $awalPeriode,
+                        'nama_seksi'    => 'BENDAHARA',
+                        'uraian'        => 'Saldo awal kas bendahara s/d ' . $labelLalu . ' (minus)',
+                        'nama_penerima' => 'BENDAHARA',
+                        'nomor_bukti'   => '-',
+                        'penerimaan'    => 0.0,
+                        'pengeluaran'   => abs($saldoAwalPeriode),
+                        'status'        => 'saldo_awal',
+                        'jenis'         => 'saldo_awal',
+                    ]);
+                }
+            }
+        }
+
         $statusLabel = [
             'diajukan'     => 'Menunggu Verifikasi',
             'diverifikasi' => 'Diverifikasi',
             'ditolak'      => 'Ditolak',
             'cair'         => 'Cair (Kas/Bank)',
+            'saldo_awal'   => 'Saldo Awal',
         ];
         $statusFill = [
             'diajukan'     => ['rgb' => 'FEF9C3'],
@@ -1394,12 +1451,15 @@ class TransaksiController
             $pengeluaran = (float) ($item['pengeluaran'] ?? 0);
             $statusKey   = $item['status'] ?? '';
 
-            // Saldo berjalan: pemasukan menambah saldo, pengeluaran mengurangi saldo (kecuali ditolak)
+            // Saldo berjalan MENGACU DASHBOARD (kas terealisasi): pemasukan cair
+            // menambah saldo; pengeluaran hanya mengurangi bila 'diverifikasi'
+            // (sudah dibayar). Baris 'diajukan'/'ditolak' tetap ditampilkan
+            // sebagai jejak audit, tapi saldonya datar (tidak ikut total).
             if ($item['type'] === 'penerimaan') {
                 $saldo           += $penerimaan;
                 $totalPenerimaan += $penerimaan;
             } else {
-                if ($statusKey !== 'ditolak') {
+                if ($statusKey === 'diverifikasi') {
                     $saldo            -= $pengeluaran;
                     $totalPengeluaran += $pengeluaran;
                 }

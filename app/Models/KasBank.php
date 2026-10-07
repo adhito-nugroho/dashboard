@@ -39,6 +39,109 @@ class KasBank
     }
 
     /**
+     * Baseline saldo awal: baris jenis 'saldo_awal' CAIR terakhir dengan
+     * tanggal efektif (tanggal_cair fallback tanggal) <= $batasAkhir ('Y-m-d').
+     * Return null bila belum pernah ada saldo_awal.
+     *
+     * @return array{id:int, tanggal:string, nominal:float}|null
+     */
+    public function getBaselineSaldoAwal(string $batasAkhir): ?array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id, COALESCE(tanggal_cair, tanggal) AS tgl_efektif, nominal
+                FROM kas_bank
+                WHERE jenis = 'saldo_awal' AND status = 'cair'
+                  AND COALESCE(tanggal_cair, tanggal) <= :batas
+                ORDER BY COALESCE(tanggal_cair, tanggal) DESC, id DESC
+                LIMIT 1
+            ");
+            $stmt->execute([':batas' => $batasAkhir]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                return null;
+            }
+            return [
+                'id'      => (int) $row['id'],
+                'tanggal' => (string) $row['tgl_efektif'],
+                'nominal' => (float) $row['nominal'],
+            ];
+        } catch (PDOException $e) {
+            error_log('Error fetching baseline saldo awal: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Posisi saldo kas berjalan s/d tanggal $batasAkhir (inklusif, 'Y-m-d').
+     * Satu-satunya sumber kebenaran saldo — dipakai dashboard (getRingkasan)
+     * maupun BKU agar angkanya selalu sama:
+     * - Bila ada baseline saldo_awal: nominal baseline + penerimaan CAIR
+     *   sejak baseline - belanja UP diverifikasi sejak baseline (belanja lama
+     *   sebelum baseline dianggap sudah tercermin di baseline).
+     * - Bila belum ada: kumulatif murni seluruh histori.
+     */
+    public function getSaldoPerTanggal(string $batasAkhir): float
+    {
+        try {
+            $baseline = $this->getBaselineSaldoAwal($batasAkhir);
+            if ($baseline !== null) {
+                $stmtIn = $this->db->prepare("
+                    SELECT COALESCE(SUM(nominal), 0)
+                    FROM kas_bank
+                    WHERE status = 'cair'
+                      AND id != :base_id
+                      AND COALESCE(tanggal_cair, tanggal) >= :base_tgl
+                      AND COALESCE(tanggal_cair, tanggal) <= :batas
+                ");
+                $stmtIn->execute([
+                    ':base_id'  => $baseline['id'],
+                    ':base_tgl' => $baseline['tanggal'],
+                    ':batas'    => $batasAkhir,
+                ]);
+                $masuk = (float) $stmtIn->fetchColumn();
+
+                $stmtOut = $this->db->prepare("
+                    SELECT COALESCE(SUM(nilai), 0)
+                    FROM transaksi
+                    WHERE status = 'diverifikasi'
+                      AND sumber_dana = 'UP'
+                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) >= :base_tgl
+                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) <= :batas
+                ");
+                $stmtOut->execute([':base_tgl' => $baseline['tanggal'], ':batas' => $batasAkhir]);
+                $keluar = (float) $stmtOut->fetchColumn();
+
+                return $baseline['nominal'] + $masuk - $keluar;
+            }
+
+            $stmtIn = $this->db->prepare("
+                SELECT COALESCE(SUM(nominal), 0)
+                FROM kas_bank
+                WHERE status = 'cair'
+                  AND COALESCE(tanggal_cair, tanggal) <= :batas
+            ");
+            $stmtIn->execute([':batas' => $batasAkhir]);
+            $masuk = (float) $stmtIn->fetchColumn();
+
+            $stmtOut = $this->db->prepare("
+                SELECT COALESCE(SUM(nilai), 0)
+                FROM transaksi
+                WHERE status = 'diverifikasi'
+                  AND sumber_dana = 'UP'
+                  AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) <= :batas
+            ");
+            $stmtOut->execute([':batas' => $batasAkhir]);
+            $keluar = (float) $stmtOut->fetchColumn();
+
+            return $masuk - $keluar;
+        } catch (PDOException $e) {
+            error_log('Error calculating saldo per tanggal: ' . $e->getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
      * Ambil data mutasi kas_bank berdasarkan ID
      */
     public function getById(int $id): ?array
@@ -241,80 +344,13 @@ class KasBank
             $totalPengeluaranDiverifikasi = (float) $stmtTrx->fetchColumn();
 
             // 3. Saldo berjalan kumulatif s/d akhir periode diminta.
-            //    Basis tanggal cair = COALESCE(tanggal_cair, tanggal) agar baris
-            //    lama yang tanggal_cair-nya NULL tetap terhitung.
+            //    Satu sumber kebenaran dengan BKU (getSaldoPerTanggal).
             $cutoff = sprintf('%04d-%02d-%02d', $tahun, $bulan, (int) date('t', mktime(0, 0, 0, $bulan, 1, $tahun)));
 
-            // Cari baseline: saldo_awal CAIR terakhir <= cutoff.
-            $stmtBase = $this->db->prepare("
-                SELECT id, COALESCE(tanggal_cair, tanggal) AS tgl_efektif, nominal
-                FROM kas_bank
-                WHERE jenis = 'saldo_awal' AND status = 'cair'
-                  AND COALESCE(tanggal_cair, tanggal) <= :cutoff
-                ORDER BY COALESCE(tanggal_cair, tanggal) DESC, id DESC
-                LIMIT 1
-            ");
-            $stmtBase->execute([':cutoff' => $cutoff]);
-            $baseline = $stmtBase->fetch(PDO::FETCH_ASSOC);
-
-            if ($baseline) {
-                $baselineId      = (int) $baseline['id'];
-                $baselineTanggal = (string) $baseline['tgl_efektif'];
-                $baselineNominal = (float) $baseline['nominal'];
-
-                $stmtCumIn = $this->db->prepare("
-                    SELECT COALESCE(SUM(nominal), 0)
-                    FROM kas_bank
-                    WHERE status = 'cair'
-                      AND id != :base_id
-                      AND COALESCE(tanggal_cair, tanggal) >= :base_tgl
-                      AND COALESCE(tanggal_cair, tanggal) <= :cutoff
-                ");
-                $stmtCumIn->execute([
-                    ':base_id'   => $baselineId,
-                    ':base_tgl'  => $baselineTanggal,
-                    ':cutoff'    => $cutoff,
-                ]);
-                $kumulatifPenerimaan = (float) $stmtCumIn->fetchColumn();
-
-                $stmtCumOut = $this->db->prepare("
-                    SELECT COALESCE(SUM(nilai), 0)
-                    FROM transaksi
-                    WHERE status = 'diverifikasi'
-                      AND sumber_dana = 'UP'
-                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) >= :base_tgl
-                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) <= :cutoff
-                ");
-                $stmtCumOut->execute([':base_tgl' => $baselineTanggal, ':cutoff' => $cutoff]);
-                $kumulatifPengeluaran = (float) $stmtCumOut->fetchColumn();
-
-                $saldoKasSaatIni = $baselineNominal + $kumulatifPenerimaan - $kumulatifPengeluaran;
-            } else {
-                // Fallback: belum ada saldo_awal -> kumulatif murni seluruh histori.
-                $baselineTanggal = null;
-                $baselineNominal = 0.0;
-
-                $stmtCumIn = $this->db->prepare("
-                    SELECT COALESCE(SUM(nominal), 0)
-                    FROM kas_bank
-                    WHERE status = 'cair'
-                      AND COALESCE(tanggal_cair, tanggal) <= :cutoff
-                ");
-                $stmtCumIn->execute([':cutoff' => $cutoff]);
-                $kumulatifPenerimaan = (float) $stmtCumIn->fetchColumn();
-
-                $stmtCumOut = $this->db->prepare("
-                    SELECT COALESCE(SUM(nilai), 0)
-                    FROM transaksi
-                    WHERE status = 'diverifikasi'
-                      AND sumber_dana = 'UP'
-                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) <= :cutoff
-                ");
-                $stmtCumOut->execute([':cutoff' => $cutoff]);
-                $kumulatifPengeluaran = (float) $stmtCumOut->fetchColumn();
-
-                $saldoKasSaatIni = $kumulatifPenerimaan - $kumulatifPengeluaran;
-            }
+            $baselineInfo    = $this->getBaselineSaldoAwal($cutoff);
+            $baselineTanggal = $baselineInfo['tanggal'] ?? null;
+            $baselineNominal = $baselineInfo['nominal'] ?? 0.0;
+            $saldoKasSaatIni = $this->getSaldoPerTanggal($cutoff);
 
             // 4. GU menunggu cair KUMULATIF s/d cutoff (bukan hanya bulan ini),
             //    agar pengajuan SPJ bulan lalu tetap tampil di bulan berjalan.
@@ -350,8 +386,6 @@ class KasBank
                 'cutoff'                         => $cutoff,
                 'baseline_tanggal'               => $baselineTanggal,
                 'baseline_nominal'               => $baselineNominal,
-                'kumulatif_penerimaan'           => $kumulatifPenerimaan,
-                'kumulatif_pengeluaran'          => $kumulatifPengeluaran,
             ];
         } catch (PDOException $e) {
             error_log('Error calculating ringkasan kas: ' . $e->getMessage());
@@ -369,6 +403,9 @@ class KasBank
                 'gu_menunggu_cair'               => 0,
                 'belanja_siap_gu'                => 0,
                 'proyeksi_kas_setelah_cair'      => 0,
+                'cutoff'                         => sprintf('%04d-%02d-01', $tahun, $bulan),
+                'baseline_tanggal'               => null,
+                'baseline_nominal'               => 0.0,
             ];
         }
     }

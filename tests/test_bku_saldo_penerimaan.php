@@ -107,7 +107,9 @@ foreach ($bkuItems as $idx => $item) {
         $saldo += $in;
         $totIn += $in;
     } else {
-        if ($item['status'] !== 'ditolak') {
+        // Selaras dashboard & TransaksiController::downloadBkuCdk:
+        // hanya 'diverifikasi' yang menggerakkan saldo (diajukan/ditolak datar).
+        if ($item['status'] === 'diverifikasi') {
             $saldo -= $out;
             $totOut += $out;
         }
@@ -131,6 +133,24 @@ echo sprintf("\n✓ Saldo berjalan terverifikasi! Saldo Akhir = Total Masuk (%s)
     number_format($totOut, 2),
     number_format($saldo, 2)
 );
+
+// 2b. Aturan main: diajukan & ditolak tidak menggerakkan saldo (mengacu dashboard)
+$aturan = [
+    ['type' => 'penerimaan', 'penerimaan' => 1000000, 'pengeluaran' => 0, 'status' => 'cair', 'expect' => 1000000],
+    ['type' => 'pengeluaran', 'penerimaan' => 0, 'pengeluaran' => 400000, 'status' => 'diverifikasi', 'expect' => 600000],
+    ['type' => 'pengeluaran', 'penerimaan' => 0, 'pengeluaran' => 400000, 'status' => 'diajukan', 'expect' => 600000],
+    ['type' => 'pengeluaran', 'penerimaan' => 0, 'pengeluaran' => 400000, 'status' => 'ditolak', 'expect' => 600000],
+];
+$s = 0.0;
+foreach ($aturan as $i => $a) {
+    if ($a['type'] === 'penerimaan') {
+        $s += $a['penerimaan'];
+    } elseif ($a['status'] === 'diverifikasi') {
+        $s -= $a['pengeluaran'];
+    }
+    assert(abs($s - $a['expect']) < 0.001, "Aturan saldo baris $i (status {$a['status']})");
+}
+echo "✓ Aturan saldo BKU = dashboard (diajukan/ditolak datar) terverifikasi!\n";
 
 // 3. Verifikasi file controller
 $transaksiContent = file_get_contents(__DIR__ . '/../app/Controllers/TransaksiController.php');
