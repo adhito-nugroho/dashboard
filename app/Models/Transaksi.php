@@ -180,6 +180,66 @@ class Transaksi
     }
 
     /**
+     * Normalisasi tanggal lunas dibayar (input admin saat verifikasi / edit).
+     * Return 'Y-m-d' bila valid, null bila kosong/tidak valid.
+     */
+    public static function normalizeTanggalLunas(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        $value = trim($value);
+        if ($value === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+        [$y, $m, $d] = array_map('intval', explode('-', $value));
+        if (!checkdate($m, $d, $y)) {
+            return null;
+        }
+        $ts = strtotime($value);
+        if ($ts === false) {
+            return null;
+        }
+        return date('Y-m-d', $ts);
+    }
+
+    /**
+     * Ubah tanggal lunas dibayar transaksi yang SUDAH diverifikasi.
+     * Tanggal ini menentukan bulan kas/BKU transaksi tersebut tercatat.
+     * $tanggalLunas null/kosong => dikosongkan (laporan fallback ke diverifikasi_at).
+     * Return false bila transaksi tidak ada / belum diverifikasi.
+     */
+    public function updateTanggalLunas(int $id, mixed $tanggalLunas): bool
+    {
+        try {
+            $trx = $this->getById($id);
+            if (!$trx || ($trx['status'] ?? '') !== 'diverifikasi') {
+                return false;
+            }
+            $tgl = self::normalizeTanggalLunas($tanggalLunas);
+            // Nilai kosong eksplisit ('' / null) => NULL; string tak-valid ditolak.
+            if ($tgl === null && is_string($tanggalLunas) && trim($tanggalLunas) !== '') {
+                return false;
+            }
+            $stmt = $this->db->prepare("
+                UPDATE transaksi
+                SET tanggal_lunas_dibayar = :tanggal_lunas
+                WHERE id = :id AND status = 'diverifikasi'
+            ");
+            if ($tgl === null) {
+                $stmt->bindValue(':tanggal_lunas', null, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindValue(':tanggal_lunas', $tgl, PDO::PARAM_STR);
+            }
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log('Error updating tanggal lunas: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Create new transaction
      *
      * @param string $tanggal
@@ -355,10 +415,11 @@ class Transaksi
 
     /**
      * Verifikasi atau tolak transaksi oleh admin/bendahara.
-     * Status 'diverifikasi' => diberikan nomor bukti resmi sesuai urutan verifikasi, tanggal_lunas_dibayar = hari ini (tanggal SPJ dibayar).
+     * Status 'diverifikasi' => diberikan nomor bukti resmi sesuai urutan verifikasi,
+     *   tanggal_lunas_dibayar = tanggal yang dipilih admin (default hari ini / tanggal SPJ dibayar).
      * Status lain (ditolak) => tanggal lunas dikosongkan lagi.
      */
-    public function verifikasi(int $id, string $status, int $verifBy, string $catatan): bool
+    public function verifikasi(int $id, string $status, int $verifBy, string $catatan, ?string $tanggalLunas = null): bool
     {
         try {
             $trx = $this->getById($id);
@@ -389,12 +450,14 @@ class Transaksi
                         nomor_bukti = :nomor_bukti,
                         diverifikasi_by = :verif_by,
                         diverifikasi_at = NOW(),
-                        tanggal_lunas_dibayar = CURDATE(),
+                        tanggal_lunas_dibayar = :tanggal_lunas,
                         catatan_verifikasi = :catatan
                     WHERE id = :id
                 ");
+                $tglLunas = self::normalizeTanggalLunas($tanggalLunas) ?? date('Y-m-d');
                 $stmt->bindParam(':nomor_bukti', $nomorBuktiResmi, PDO::PARAM_STR);
                 $stmt->bindParam(':verif_by', $verifBy, PDO::PARAM_INT);
+                $stmt->bindParam(':tanggal_lunas', $tglLunas, PDO::PARAM_STR);
                 $stmt->bindParam(':catatan', $catatan, PDO::PARAM_STR);
                 $stmt->bindParam(':id', $id, PDO::PARAM_INT);
                 $stmt->execute();
@@ -846,13 +909,13 @@ class Transaksi
     /**
      * Verifikasi banyak transaksi sekaligus dalam satu database transaction.
      * Hanya yang berstatus 'diajukan' yang diproses (mamakai logika yang sama
-     * dengan verifikasi satuan: nomor bukti resmi + tanggal lunas hari ini);
-     * sisanya dilewati agar tidak mengubah data yang sudah final.
+     * dengan verifikasi satuan: nomor bukti resmi + tanggal lunas pilihan admin,
+     * default hari ini); sisanya dilewati agar tidak mengubah data yang sudah final.
      *
      * @param int[] $ids
      * @return array{verified:int, skipped:int}
      */
-    public function verifikasiBatch(array $ids, int $verifBy): array
+    public function verifikasiBatch(array $ids, int $verifBy, ?string $tanggalLunas = null): array
     {
         $validIds = array_values(array_filter(array_map('intval', $ids), fn($id) => $id > 0));
         if (empty($validIds)) {
@@ -872,7 +935,7 @@ class Transaksi
                     $skipped++;
                     continue;
                 }
-                if ($this->verifikasi($id, 'diverifikasi', $verifBy, '')) {
+                if ($this->verifikasi($id, 'diverifikasi', $verifBy, '', $tanggalLunas)) {
                     $verified++;
                 } else {
                     $skipped++;

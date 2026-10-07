@@ -684,6 +684,14 @@ $isFiltered = !empty($activeFilterLabels);
                                                 </a>
                                                 <?php if (($transaksi['status'] ?? '') === 'diverifikasi'): ?>
                                                 <button type="button"
+                                                        class="btn-action btn-action-edit btn-edit-lunas"
+                                                        data-id="<?= $transaksi['id'] ?>"
+                                                        data-tanggal="<?= htmlspecialchars($transaksi['tanggal_lunas_dibayar'] ?? '') ?>"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Edit Tanggal Lunas Dibayar">
+                                                    <i class="bi bi-calendar-check"></i>
+                                                </button>
+                                                <button type="button"
                                                         class="btn-action btn-action-undo btn-batal-verifikasi"
                                                         data-id="<?= $transaksi['id'] ?>"
                                                         data-bs-toggle="tooltip"
@@ -811,6 +819,69 @@ $isFiltered = !empty($activeFilterLabels);
     </div>
 </div>
 
+<!-- Modal Verifikasi Satuan (dengan pilihan tanggal lunas dibayar) -->
+<div class="modal fade" id="modalVerif" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content border-0 shadow" id="formVerif" method="POST">
+            <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? base_url('transaksi')) ?>">
+            <div class="modal-header trx-modal-head" style="background:#059669;color:#fff;">
+                <h6 class="modal-title"><i class="bi bi-check2-circle me-2"></i>Verifikasi Transaksi</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="mb-2 small">Verifikasi transaksi ini? Nomor bukti resmi akan diterbitkan otomatis.</p>
+                <div class="mb-0">
+                    <label for="verifTanggalLunas" class="form-label trx-modal-label">
+                        Tanggal Lunas Dibayar <span class="text-danger">*</span>
+                    </label>
+                    <input type="date" name="tanggal_lunas_dibayar" id="verifTanggalLunas" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                    <div class="form-text">Menentukan bulan kas/BKU transaksi ini tercatat. Default hari ini.</div>
+                </div>
+            </div>
+            <div class="modal-footer trx-modal-foot">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-success px-3 fw-medium">
+                    <i class="bi bi-check-lg me-1"></i> Ya, Verifikasi
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit Tanggal Lunas (transaksi sudah diverifikasi) -->
+<div class="modal fade" id="modalTanggalLunas" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content border-0 shadow" id="formTanggalLunas" method="POST">
+            <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? base_url('transaksi')) ?>">
+            <div class="modal-header trx-modal-head" style="background:#d97706;color:#fff;">
+                <h6 class="modal-title"><i class="bi bi-calendar-check me-2"></i>Edit Tanggal Lunas Dibayar</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="mb-2">
+                    <label for="editTanggalLunas" class="form-label trx-modal-label">
+                        Tanggal Lunas Dibayar
+                    </label>
+                    <input type="date" name="tanggal_lunas_dibayar" id="editTanggalLunas" class="form-control">
+                    <div class="form-text">Tanggal ini menentukan bulan kas/BKU transaksi tercatat. Kosongkan + centang di bawah untuk mengosongkan.</div>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="kosongkan" value="1" id="kosongkanTanggalLunas">
+                    <label class="form-check-label small" for="kosongkanTanggalLunas">
+                        Kosongkan tanggal lunas (kembali "Belum lunas")
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer trx-modal-foot">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-warning px-3 fw-medium text-dark">
+                    <i class="bi bi-save me-1"></i> Simpan Tanggal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Konfirmasi Verifikasi Banyak -->
 <div class="modal fade" id="modalBulkVerif" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -822,9 +893,16 @@ $isFiltered = !empty($activeFilterLabels);
             </div>
             <div class="modal-body p-3">
                 <p class="mb-2">Verifikasi <strong id="modal-verif-count" class="text-success">0</strong> transaksi yang dipilih? Total nilai <strong id="modal-verif-total" class="font-monospace">Rp 0</strong>.</p>
-                <div class="alert alert-info py-2 mb-0 small d-flex align-items-center gap-2">
+                <div class="alert alert-info py-2 mb-2 small d-flex align-items-center gap-2">
                     <i class="bi bi-info-circle text-primary fs-5"></i>
-                    <div>Hanya yang berstatus <strong>Menunggu Verifikasi</strong> yang diproses (diberi nomor bukti resmi + tanggal lunas hari ini). <span id="modal-verif-skip-wrap"><strong id="modal-verif-skip">0</strong> lainnya dilewati.</span></div>
+                    <div>Hanya yang berstatus <strong>Menunggu Verifikasi</strong> yang diproses (diberi nomor bukti resmi + tanggal lunas di bawah). <span id="modal-verif-skip-wrap"><strong id="modal-verif-skip">0</strong> lainnya dilewati.</span></div>
+                </div>
+                <div class="mb-0">
+                    <label for="bulkTanggalLunas" class="form-label trx-modal-label">
+                        Tanggal Lunas Dibayar <span class="text-danger">*</span>
+                    </label>
+                    <input type="date" name="tanggal_lunas_dibayar" id="bulkTanggalLunas" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                    <div class="form-text">Berlaku untuk semua transaksi yang diverifikasi sekaligus.</div>
                 </div>
                 <div id="bulk-verif-inputs"></div>
             </div>
@@ -877,19 +955,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Verifikasi Transaksi
+    // Verifikasi Transaksi (modal dengan pilihan tanggal lunas)
+    const modalVerifEl = document.getElementById('modalVerif');
+    const formVerif = document.getElementById('formVerif');
+    const verifTanggalInput = document.getElementById('verifTanggalLunas');
     document.querySelectorAll('.btn-verifikasi').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.dataset.id;
-            if (confirm('Verifikasi transaksi ini?')) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = VERIF_BASE + '/transaksi/verifikasi/' + id;
-                document.body.appendChild(form);
-                form.submit();
+            if (formVerif) formVerif.action = VERIF_BASE + '/transaksi/verifikasi/' + id;
+            if (verifTanggalInput && !verifTanggalInput.value) {
+                verifTanggalInput.value = new Date().toISOString().slice(0, 10);
+            }
+            if (modalVerifEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalVerifEl) || new bootstrap.Modal(modalVerifEl);
+                modal.show();
             }
         });
     });
+
+    // Edit Tanggal Lunas Dibayar (transaksi diverifikasi)
+    const modalLunasEl = document.getElementById('modalTanggalLunas');
+    const formLunas = document.getElementById('formTanggalLunas');
+    const editLunasInput = document.getElementById('editTanggalLunas');
+    const kosongkanCheck = document.getElementById('kosongkanTanggalLunas');
+    document.querySelectorAll('.btn-edit-lunas').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            if (formLunas) formLunas.action = VERIF_BASE + '/transaksi/update-tanggal-lunas/' + id;
+            if (editLunasInput) editLunasInput.value = btn.dataset.tanggal || '';
+            if (kosongkanCheck) kosongkanCheck.checked = false;
+            if (modalLunasEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalLunasEl) || new bootstrap.Modal(modalLunasEl);
+                modal.show();
+            }
+        });
+    });
+    if (kosongkanCheck && editLunasInput) {
+        kosongkanCheck.addEventListener('change', function () {
+            editLunasInput.disabled = this.checked;
+            if (this.checked) editLunasInput.value = '';
+        });
+    }
 
     // Batalkan Verifikasi
     document.querySelectorAll('.btn-batal-verifikasi').forEach(btn => {

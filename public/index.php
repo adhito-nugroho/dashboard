@@ -494,6 +494,8 @@ try {
         $transaksiController->tolak((int) $matches[1]);
     } elseif (preg_match('#^/transaksi/batal-verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
         $transaksiController->batalVerifikasi((int) $matches[1]);
+    } elseif (preg_match('#^/transaksi/update-tanggal-lunas/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
+        $transaksiController->updateTanggalLunas((int) $matches[1]);
     } elseif ($path === '/transaksi/get-remaining-pagu' && $requestMethod === 'GET') {
         $transaksiController->getRemainingPagu();
     } elseif ($path === '/transaksi/generate-no-bukti' && $requestMethod === 'GET') {

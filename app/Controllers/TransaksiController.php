@@ -541,11 +541,22 @@ class TransaksiController
                 $_POST['sumber_dana'] ?? null
             );
 
+            // Tanggal lunas dibayar (khusus transaksi yang sudah diverifikasi)
+            $lunasResult = null;
+            if (($existingTransaksi['status'] ?? '') === 'diverifikasi' && array_key_exists('tanggal_lunas_dibayar', $_POST)) {
+                $rawLunas = trim((string) $_POST['tanggal_lunas_dibayar']);
+                if ($rawLunas !== '' && \App\Models\Transaksi::normalizeTanggalLunas($rawLunas) === null) {
+                    $this->handleError('Tanggal lunas dibayar tidak valid (format YYYY-MM-DD)');
+                    return;
+                }
+                $lunasResult = $this->transaksiModel->updateTanggalLunas($id, $rawLunas === '' ? null : $rawLunas);
+            }
+
             // Debug: Check update result
             error_log("Debug - Update result: " . ($result ? 'success' : 'failed'));
 
-            // Cek apakah update berhasil
-            if (!$result) {
+            // Cek apakah update berhasil (salah satu ada perubahan)
+            if (!$result && !$lunasResult) {
                 error_log("Update gagal: transaksi ID {$id} tidak diupdate");
                 $this->handleError('Gagal memperbarui transaksi: Data tidak berubah');
                 return;
@@ -643,7 +654,13 @@ class TransaksiController
             }
 
             $userId = (int) ($_SESSION['user_id'] ?? 0);
-            $result = $this->transaksiModel->verifikasiBatch($validIds, $userId);
+            $tanggalLunas = \App\Models\Transaksi::normalizeTanggalLunas($_POST['tanggal_lunas_dibayar'] ?? null);
+            if (isset($_POST['tanggal_lunas_dibayar']) && trim((string) $_POST['tanggal_lunas_dibayar']) !== '' && $tanggalLunas === null) {
+                $redirectUrl = !empty($_POST['redirect_to']) ? (string) $_POST['redirect_to'] : base_url('transaksi');
+                $this->redirectWithMessage($redirectUrl, 'error', 'Tanggal lunas dibayar tidak valid (format YYYY-MM-DD)');
+                return;
+            }
+            $result = $this->transaksiModel->verifikasiBatch($validIds, $userId, $tanggalLunas);
             $this->logAudit($userId, 'verifikasi_batch_transaksi_admin', 'transaksi', null, "Verifikasi massal {$result['verified']} transaksi (lewati {$result['skipped']}): " . implode(',', $validIds));
 
             $redirectUrl = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : base_url('transaksi');
@@ -983,14 +1000,51 @@ class TransaksiController
     }
 
     /**
-     * Verifikasi transaksi oleh admin (status -> 'diverifikasi')
+     * Verifikasi transaksi oleh admin (status -> 'diverifikasi').
+     * Tanggal lunas dibayar bisa dipilih via POST (default hari ini).
      */
     public function verifikasi(int $id): void
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $ok = $this->transaksiModel->verifikasi($id, 'diverifikasi', $userId, '');
-        $this->logAudit($userId, 'verifikasi_transaksi', 'transaksi', $id, 'Verifikasi transaksi id ' . $id);
-        $this->redirectWithMessage(base_url('transaksi'), $ok ? 'success' : 'error', $ok ? 'Transaksi berhasil diverifikasi' : 'Gagal memverifikasi transaksi');
+        $tanggalLunas = \App\Models\Transaksi::normalizeTanggalLunas($_POST['tanggal_lunas_dibayar'] ?? null);
+        if (isset($_POST['tanggal_lunas_dibayar']) && trim((string) $_POST['tanggal_lunas_dibayar']) !== '' && $tanggalLunas === null) {
+            $this->redirectWithMessage(base_url('transaksi'), 'error', 'Tanggal lunas dibayar tidak valid (format YYYY-MM-DD)');
+            return;
+        }
+        $ok = $this->transaksiModel->verifikasi($id, 'diverifikasi', $userId, '', $tanggalLunas);
+        $this->logAudit($userId, 'verifikasi_transaksi', 'transaksi', $id, 'Verifikasi transaksi id ' . $id . ' (lunas: ' . ($tanggalLunas ?? date('Y-m-d')) . ')');
+        $redirectUrl = !empty($_POST['redirect_to']) ? (string) $_POST['redirect_to'] : base_url('transaksi');
+        $this->redirectWithMessage($redirectUrl, $ok ? 'success' : 'error', $ok ? 'Transaksi berhasil diverifikasi (lunas: ' . date('d/m/Y', strtotime($tanggalLunas ?? date('Y-m-d'))) . ')' : 'Gagal memverifikasi transaksi');
+    }
+
+    /**
+     * Ubah tanggal lunas dibayar transaksi yang sudah diverifikasi (admin only).
+     * Tanggal ini menentukan bulan kas/BKU transaksi tersebut tercatat.
+     */
+    public function updateTanggalLunas(int $id): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (empty($_SESSION['is_admin'])) {
+            $this->redirectWithMessage(base_url('transaksi'), 'error', 'Akses ditolak: hanya admin');
+            return;
+        }
+        $rawInput = $_POST['tanggal_lunas_dibayar'] ?? null;
+        $bolehKosong = isset($_POST['kosongkan']) && $_POST['kosongkan'] === '1';
+        if (!$bolehKosong && is_string($rawInput) && trim($rawInput) !== '' && \App\Models\Transaksi::normalizeTanggalLunas($rawInput) === null) {
+            $redirectUrl = !empty($_POST['redirect_to']) ? (string) $_POST['redirect_to'] : base_url('transaksi/show/' . $id);
+            $this->redirectWithMessage($redirectUrl, 'error', 'Tanggal lunas dibayar tidak valid (format YYYY-MM-DD)');
+            return;
+        }
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $ok = $this->transaksiModel->updateTanggalLunas($id, $bolehKosong ? null : $rawInput);
+        if ($ok) {
+            $tgl = \App\Models\Transaksi::normalizeTanggalLunas($rawInput);
+            $this->logAudit($userId, 'update_tanggal_lunas', 'transaksi', $id, 'Ubah tanggal lunas transaksi id ' . $id . ' menjadi ' . ($tgl ?? 'NULL'));
+        }
+        $redirectUrl = !empty($_POST['redirect_to']) ? (string) $_POST['redirect_to'] : base_url('transaksi/show/' . $id);
+        $this->redirectWithMessage($redirectUrl, $ok ? 'success' : 'error', $ok ? 'Tanggal lunas dibayar berhasil diperbarui' : 'Gagal memperbarui (pastikan transaksi sudah diverifikasi dan tanggal valid)');
     }
 
     /**

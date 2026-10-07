@@ -102,6 +102,13 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
                     <div class="fw-semibold mt-1 <?= !empty($transaksi['tanggal_lunas_dibayar']) ? 'text-success' : 'text-muted' ?>">
                         <i class="bi bi-check-circle me-1"></i>
                         <?= !empty($transaksi['tanggal_lunas_dibayar']) ? date('d/m/Y', strtotime($transaksi['tanggal_lunas_dibayar'])) : 'Belum lunas' ?>
+                        <?php if ($st === 'diverifikasi'): ?>
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-decoration-none btn-edit-lunas-show"
+                                    data-tanggal="<?= htmlspecialchars($transaksi['tanggal_lunas_dibayar'] ?? '') ?>"
+                                    title="Edit tanggal lunas dibayar" style="font-size:.75rem;">
+                                <i class="bi bi-pencil-square"></i>Edit
+                            </button>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="col-md-3 col-6">
@@ -423,6 +430,55 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
 
 </div>
 
+<!-- Modal Verifikasi (dengan pilihan tanggal lunas dibayar) -->
+<div class="modal fade" id="modalVerifShow" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="formVerifShow" method="POST">
+            <input type="hidden" name="redirect_to" value="<?= base_url('transaksi/show/' . ($transaksi['id'] ?? '')) ?>">
+            <div class="modal-header" style="background:#059669;color:#fff;">
+                <h5 class="modal-title fs-6"><i class="bi bi-check2-circle me-2"></i>Verifikasi Transaksi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2 small text-muted">Nomor bukti resmi akan diterbitkan otomatis.</p>
+                <label class="form-label small fw-bold">Tanggal Lunas Dibayar <span class="text-danger">*</span></label>
+                <input type="date" name="tanggal_lunas_dibayar" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                <div class="form-text">Menentukan bulan kas/BKU transaksi ini tercatat. Default hari ini.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-lg me-1"></i>Verifikasi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Edit Tanggal Lunas -->
+<div class="modal fade" id="modalLunasShow" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="formLunasShow" method="POST" action="<?= base_url('transaksi/update-tanggal-lunas/' . ($transaksi['id'] ?? '')) ?>">
+            <input type="hidden" name="redirect_to" value="<?= base_url('transaksi/show/' . ($transaksi['id'] ?? '')) ?>">
+            <div class="modal-header" style="background:#d97706;color:#fff;">
+                <h5 class="modal-title fs-6"><i class="bi bi-calendar-check me-2"></i>Edit Tanggal Lunas Dibayar</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label small fw-bold">Tanggal Lunas Dibayar</label>
+                <input type="date" name="tanggal_lunas_dibayar" id="lunasShowInput" class="form-control" value="<?= htmlspecialchars($transaksi['tanggal_lunas_dibayar'] ?? '') ?>">
+                <div class="form-text">Tanggal ini menentukan bulan kas/BKU transaksi tercatat.</div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="kosongkan" value="1" id="lunasShowClear">
+                    <label class="form-check-label small" for="lunasShowClear">Kosongkan tanggal lunas</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-warning btn-sm text-dark fw-semibold"><i class="bi bi-save me-1"></i>Simpan Tanggal</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Tolak -->
 <div class="modal fade" id="modalTolakShow" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -445,14 +501,18 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
 
 <script>
 const SHOW_BASE = '<?= rtrim(base_url(), '/') ?>';
+const modalVerifShowEl = document.getElementById('modalVerifShow');
 document.querySelector('.btn-verifikasi-show')?.addEventListener('click', function() {
-    if (confirm('Verifikasi transaksi ini?')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = SHOW_BASE + '/transaksi/verifikasi/' + this.dataset.id;
-        document.body.appendChild(form);
-        form.submit();
-    }
+    document.getElementById('formVerifShow').action = SHOW_BASE + '/transaksi/verifikasi/' + this.dataset.id;
+    new bootstrap.Modal(modalVerifShowEl).show();
+});
+document.querySelector('.btn-edit-lunas-show')?.addEventListener('click', function() {
+    new bootstrap.Modal(document.getElementById('modalLunasShow')).show();
+});
+document.getElementById('lunasShowClear')?.addEventListener('change', function() {
+    const inp = document.getElementById('lunasShowInput');
+    inp.disabled = this.checked;
+    if (this.checked) inp.value = '';
 });
 const modalEl = document.getElementById('modalTolakShow');
 document.querySelector('.btn-tolak-show')?.addEventListener('click', function() {

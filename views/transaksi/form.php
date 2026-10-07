@@ -57,6 +57,21 @@ $batchData = $batchData ?? null;
                             <?php endif; ?>
                         </div>
 
+                        <?php if (($transaksi['status'] ?? '') === 'diverifikasi'): ?>
+                        <!-- Tanggal Lunas Dibayar (khusus yang sudah diverifikasi) -->
+                        <div class="mb-3 p-3 rounded border" style="background:#FFFBEB;border-color:#FDE68A !important;">
+                            <label for="tanggal_lunas_dibayar" class="form-label fw-semibold" style="font-size:.85rem;">
+                                <i class="bi bi-calendar-check text-warning me-1"></i>Tanggal Lunas Dibayar
+                            </label>
+                            <input type="date" class="form-control"
+                                id="tanggal_lunas_dibayar" name="tanggal_lunas_dibayar"
+                                value="<?= htmlspecialchars($transaksi['tanggal_lunas_dibayar'] ?? '') ?>">
+                            <div class="form-text text-muted" style="font-size:0.75rem;">
+                                Menentukan bulan kas/BKU transaksi ini tercatat. Kosongkan untuk mengosongkan (laporan fallback ke tanggal verifikasi).
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
                         <!-- Program -->
                         <div class="mb-3">
                             <?php
