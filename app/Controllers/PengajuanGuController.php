@@ -44,16 +44,14 @@ class PengajuanGuController
     {
         $this->requireAdmin();
 
-        $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
-        $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y');
-        if ($bulan !== null && ($bulan < 1 || $bulan > 12)) {
-            $bulan = null;
-        }
-        if ($tahun < 2000 || $tahun > 2100) {
-            $tahun = (int) date('Y');
+        $dari = Transaksi::normalizeTanggalLunas($_GET['dari'] ?? '');
+        $sampai = Transaksi::normalizeTanggalLunas($_GET['sampai'] ?? '');
+        // Tukarkan bila terbalik agar filter tetap masuk akal.
+        if ($dari !== null && $sampai !== null && $dari > $sampai) {
+            [$dari, $sampai] = [$sampai, $dari];
         }
 
-        $siapList = $this->pengajuanModel->getSiapSpj($bulan, $tahun);
+        $siapList = $this->pengajuanModel->getSiapSpj($dari, $sampai);
         $totalSiap = 0.0;
         foreach ($siapList as $row) {
             $totalSiap += (float) ($row['nilai'] ?? 0);

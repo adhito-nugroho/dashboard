@@ -28,11 +28,12 @@ class PengajuanGu
 
     /**
      * Transaksi yang siap di-SPJ-kan: diverifikasi + UP + belum tercakup
-     * pengajuan mana pun. Basis bulan = tanggal bayar (konsisten kas/BKU).
+     * pengajuan mana pun. Basis tanggal = tanggal bayar (konsisten kas/BKU).
+     * Filter rentang opsional untuk siklus 2x sebulan (mis. 1–15 / 16–akhir).
      *
      * @return array<int, array<string,mixed>>
      */
-    public function getSiapSpj(?int $bulan = null, ?int $tahun = null): array
+    public function getSiapSpj(?string $dari = null, ?string $sampai = null): array
     {
         try {
             $conds = [
@@ -41,13 +42,13 @@ class PengajuanGu
                 't.pengajuan_gu_id IS NULL',
             ];
             $params = [];
-            if ($bulan !== null) {
-                $conds[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
-                $params[':bulan'] = $bulan;
+            if (Transaksi::normalizeTanggalLunas($dari ?? '') !== null) {
+                $conds[] = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) >= :dari';
+                $params[':dari'] = $dari;
             }
-            if ($tahun !== null) {
-                $conds[] = 'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun';
-                $params[':tahun'] = $tahun;
+            if (Transaksi::normalizeTanggalLunas($sampai ?? '') !== null) {
+                $conds[] = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) <= :sampai';
+                $params[':sampai'] = $sampai;
             }
             $where = 'WHERE ' . implode(' AND ', $conds);
             $stmt = $this->db->prepare("

@@ -31,19 +31,28 @@ $statusBadge = [
                 Nominal GU otomatis = jumlah transaksi terpilih.
             </p>
         </div>
-        <form method="GET" action="<?= base_url('pengajuan-gu') ?>" class="d-flex align-items-center gap-2 bg-white p-1 rounded-3 border shadow-sm">
-            <select name="bulan" class="form-select form-select-sm border-0 bg-light" style="width: auto;" onchange="this.form.submit()">
-                <option value="">Semua bulan</option>
-                <?php foreach ($namaBulanMap as $m => $nama): ?>
-                    <option value="<?= $m ?>" <?= $bulan === $m ? 'selected' : '' ?>><?= $nama ?></option>
-                <?php endforeach; ?>
-            </select>
-            <select name="tahun" class="form-select form-select-sm border-0 bg-light" style="width: auto;" onchange="this.form.submit()">
-                <?php for ($y = date('Y') + 1; $y >= 2024; $y--): ?>
-                    <option value="<?= $y ?>" <?= $y === $tahun ? 'selected' : '' ?>><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
+        <form method="GET" action="<?= base_url('pengajuan-gu') ?>" class="d-flex align-items-center gap-2 bg-white p-1 rounded-3 border shadow-sm flex-wrap" id="formFilterPeriode">
+            <input type="date" name="dari" id="filterDari" class="form-control form-control-sm border-0 bg-light" style="width: auto;" value="<?= htmlspecialchars($dari ?? '') ?>" title="Dari tanggal">
+            <span class="text-muted small">s/d</span>
+            <input type="date" name="sampai" id="filterSampai" class="form-control form-control-sm border-0 bg-light" style="width: auto;" value="<?= htmlspecialchars($sampai ?? '') ?>" title="Sampai tanggal">
+            <button type="submit" class="btn btn-sm btn-primary px-3">
+                <i class="bi bi-filter me-1"></i>Tampilkan
+            </button>
+            <?php if (!empty($dari) || !empty($sampai)): ?>
+                <a href="<?= base_url('pengajuan-gu') ?>" class="btn btn-sm btn-outline-secondary" title="Hapus filter periode">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            <?php endif; ?>
         </form>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <span class="small text-muted align-self-center">Pintasan periode:</span>
+        <button type="button" class="btn btn-sm btn-outline-primary preset-periode" data-mode="paruh1">Paruh 1 (1–15 bulan berjalan)</button>
+        <button type="button" class="btn btn-sm btn-outline-primary preset-periode" data-mode="paruh2">Paruh 2 (16–akhir bulan berjalan)</button>
+        <button type="button" class="btn btn-sm btn-outline-primary preset-periode" data-mode="bulan">Sebulan penuh (berjalan)</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnPilihSemua">✓ Pilih semua difilter</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnBatalPilih">Batalkan pilihan</button>
     </div>
 
     <div class="alert alert-light border shadow-sm rounded-3 py-2 px-3 mb-4 d-flex align-items-center gap-2 flex-wrap" style="font-size:0.85rem;">
@@ -272,6 +281,39 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     boxes().forEach(cb => cb.addEventListener('change', hitungTerpilih));
     hitungTerpilih();
+
+    // Pilih semua / batalkan pilihan (bulk atas hasil filter)
+    document.getElementById('btnPilihSemua')?.addEventListener('click', function() {
+        boxes().forEach(cb => { cb.checked = true; });
+        hitungTerpilih();
+    });
+    document.getElementById('btnBatalPilih')?.addEventListener('click', function() {
+        boxes().forEach(cb => { cb.checked = false; });
+        hitungTerpilih();
+    });
+
+    // Pintasan periode: paruh 1 (1–15), paruh 2 (16–akhir), sebulan penuh
+    document.querySelectorAll('.preset-periode').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const last = new Date(y, now.getMonth() + 1, 0).getDate();
+            const dariEl = document.getElementById('filterDari');
+            const sampaiEl = document.getElementById('filterSampai');
+            if (this.dataset.mode === 'paruh1') {
+                dariEl.value = `${y}-${m}-01`;
+                sampaiEl.value = `${y}-${m}-15`;
+            } else if (this.dataset.mode === 'paruh2') {
+                dariEl.value = `${y}-${m}-16`;
+                sampaiEl.value = `${y}-${m}-${last}`;
+            } else {
+                dariEl.value = `${y}-${m}-01`;
+                sampaiEl.value = `${y}-${m}-${last}`;
+            }
+            document.getElementById('formFilterPeriode').submit();
+        });
+    });
 
     window.confirmAjukanSpj = function() {
         const { n, total } = hitungTerpilih();
