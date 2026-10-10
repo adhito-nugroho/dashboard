@@ -401,6 +401,41 @@ foreach ($progRows as $pr) {
 }
 $expTot = (float) ($data['meta']['expected_totals']['TOTAL'] ?? 0);
 papbd_log('TOTAL SKPD ' . $rp($grand) . ' (ekspektasi ' . $rp($expTot) . ') ' . (abs($grand - $expTot) < 0.01 ? 'COCOK' : 'SELISIH'), abs($grand - $expTot) < 0.01 ? 'success' : 'warning');
+
+// ---- 5. Backfill riwayat yatim (aman diulang; pakai backup TERTUA sbg acuan sebelum-push) ----
+papbd_log('--- BACKFILL RIWAYAT ---');
+$bakTables = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name LIKE 'pagu\\_bak\\_%' ORDER BY table_name ASC")->fetchAll(PDO::FETCH_COLUMN);
+if (empty($bakTables)) {
+    papbd_log('Backfill dilewati: tabel backup pagu_* belum ada', 'skip');
+} else {
+    $bak = $bakTables[0];
+    papbd_log("Acuan backup: `$bak`");
+    $diffs = $pdo->query("SELECT c.id AS pid, c.rekening_id AS rid, c.tahun, b.nilai_pagu AS sebelum, c.nilai_pagu AS sesudah
+        FROM pagu c INNER JOIN `$bak` b ON b.id = c.id WHERE ABS(b.nilai_pagu - c.nilai_pagu) > 0.009")->fetchAll();
+    $nBack = 0;
+    foreach ($diffs as $d) {
+        $pid = (int) $d['pid'];
+        $sesudah = (float) $d['sesudah'];
+        $ada = false;
+        $chk = $pdo->prepare('SELECT nilai_sesudah FROM pagu_riwayat WHERE pagu_id = ?');
+        $chk->execute([$pid]);
+        foreach ($chk->fetchAll(PDO::FETCH_COLUMN) as $v) {
+            if (abs((float) $v - $sesudah) < 0.01) { $ada = true; break; }
+        }
+        if ($ada) { continue; }
+        $sebelum = (float) $d['sebelum'];
+        if ($execute) {
+            $pdo->prepare('INSERT INTO pagu_riwayat (pagu_id, rekening_id, tahun, nilai_sebelum, nilai_sesudah, selisih, jenis, keterangan, created_by)
+                VALUES (?,?,?,?,?,?,?,?,?)')
+                ->execute([$pid, (int) $d['rid'], (int) $d['tahun'], $sebelum, $sesudah, $sesudah - $sebelum, 'PAPBD', 'PAPBD 2026 - push dari dataset dev (backfill)', null]);
+            papbd_log("BACKFILL pagu_id=$pid " . $rp($sebelum) . ' -> ' . $rp($sesudah), 'success');
+        } else {
+            papbd_log("BACKFILL (simulasi) pagu_id=$pid " . $rp($sebelum) . ' -> ' . $rp($sesudah));
+        }
+        $nBack++;
+    }
+    papbd_log("Backfill selesai: $nBack baris" . ($execute ? '' : ' (simulasi)'), $nBack > 0 ? 'success' : 'info');
+}
 papbd_log('Catatan: tabel `transaksi` tidak ditulis sama sekali oleh skrip ini (hanya SELECT realisasi).');
 
 if (!$isCli) { echo '</body></html>'; }
