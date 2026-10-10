@@ -262,16 +262,25 @@ foreach ($data['pagu'] as $row) {
     if (!$fr) {
         // Buat rekening + pagu baru (butuh sub resolved)
         if ($execute) {
-            $ins = $pdo->prepare('INSERT INTO rekening (sub_kegiatan_id, kode_rekening, nama_rekening) VALUES (?,?,?)');
-            $ins->execute([(int) $sub['id'], $row['kode_rekening'], $row['nama_rekening']]);
-            $newRid = (int) $pdo->lastInsertId();
-            $pdo->prepare('INSERT INTO pagu (rekening_id, tahun, nilai_pagu) VALUES (?,?,?)')
-                ->execute([$newRid, $tahun, $target]);
-            if (!empty($devRak)) {
-                $pdo->prepare('DELETE FROM rak WHERE rekening_id = ? AND tahun = ?')->execute([$newRid, $tahun]);
-                $ir = $pdo->prepare('INSERT INTO rak (rekening_id, tahun, bulan, nilai_rak) VALUES (?,?,?,?)');
-                foreach ($devRak as $bl => $nl) { if ($nl > 0) { $ir->execute([$newRid, $tahun, $bl, $nl]); } }
-                $stat['rak_tulis']++;
+            try {
+                $pdo->beginTransaction();
+                $ins = $pdo->prepare('INSERT INTO rekening (sub_kegiatan_id, kode_rekening, nama_rekening) VALUES (?,?,?)');
+                $ins->execute([(int) $sub['id'], $row['kode_rekening'], $row['nama_rekening']]);
+                $newRid = (int) $pdo->lastInsertId();
+                $pdo->prepare('INSERT INTO pagu (rekening_id, tahun, nilai_pagu) VALUES (?,?,?)')
+                    ->execute([$newRid, $tahun, $target]);
+                if (!empty($devRak)) {
+                    $ir = $pdo->prepare('INSERT INTO rak (rekening_id, tahun, bulan, nilai_rak) VALUES (?,?,?,?)');
+                    foreach ($devRak as $bl => $nl) { if ($nl > 0) { $ir->execute([$newRid, $tahun, $bl, $nl]); } }
+                    $stat['rak_tulis']++;
+                }
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) { $pdo->rollBack(); }
+                papbd_log("GAGAL $label$fuzzy: " . $e->getMessage() . ' (dilewati, lanjut item berikut)', 'error');
+                $needAction[] = "$label: gagal create (" . $e->getMessage() . ')';
+                $stat['butuh_tindakan']++;
+                continue;
             }
             papbd_log("CREATE $label$fuzzy pagu " . $rp($target), 'success');
             $stat['rek_buat']++; $stat['pagu_buat']++;
@@ -313,10 +322,20 @@ foreach ($data['pagu'] as $row) {
             papbd_log("DITOLAK $label$fuzzy: target " . $rp($target) . " < realisasi " . $rp($real) . ' (dilewati, pagu prod tetap ' . $rp($lama) . ')', 'error');
             $stat['pagu_tolak']++;
         } elseif ($execute) {
-            $pdo->prepare('UPDATE pagu SET nilai_pagu = ? WHERE id = ?')->execute([$target, $pid]);
-            $pdo->prepare('INSERT INTO pagu_riwayat (pagu_id, rekening_id, tahun, nilai_sebelum, nilai_sesudah, selisih, jenis, keterangan, created_by)
-                VALUES (?,?,?,?,?,?,?,NULL,NULL)')
-                ->execute([$pid, $rid, $tahun, $lama, $target, $target - $lama, 'PAPBD', 'PAPBD 2026 - push dari dataset dev']);
+            try {
+                $pdo->beginTransaction();
+                $pdo->prepare('UPDATE pagu SET nilai_pagu = ? WHERE id = ?')->execute([$target, $pid]);
+                $pdo->prepare('INSERT INTO pagu_riwayat (pagu_id, rekening_id, tahun, nilai_sebelum, nilai_sesudah, selisih, jenis, keterangan, created_by)
+                    VALUES (?,?,?,?,?,?,?,?,?)')
+                    ->execute([$pid, $rid, $tahun, $lama, $target, $target - $lama, 'PAPBD', 'PAPBD 2026 - push dari dataset dev', null]);
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) { $pdo->rollBack(); }
+                papbd_log("GAGAL $label$fuzzy: " . $e->getMessage() . ' (dilewati, lanjut item berikut)', 'error');
+                $needAction[] = "$label: gagal update (" . $e->getMessage() . ')';
+                $stat['butuh_tindakan']++;
+                continue;
+            }
             papbd_log("PAGU $label$fuzzy " . $rp($lama) . ' -> ' . $rp($target), 'success');
             $stat['pagu_ubah']++;
             $paguChanged = true;
@@ -330,9 +349,19 @@ foreach ($data['pagu'] as $row) {
     // RAK: tulis jika terdefinisi di dataset; kosongkan jika pagu berubah; lewati sisanya
     if (!empty($devRak)) {
         if ($execute) {
-            $pdo->prepare('DELETE FROM rak WHERE rekening_id = ? AND tahun = ?')->execute([$rid, $tahun]);
-            $ir = $pdo->prepare('INSERT INTO rak (rekening_id, tahun, bulan, nilai_rak) VALUES (?,?,?,?)');
-            foreach ($devRak as $bl => $nl) { if ($nl > 0) { $ir->execute([$rid, $tahun, $bl, $nl]); } }
+            try {
+                $pdo->beginTransaction();
+                $pdo->prepare('DELETE FROM rak WHERE rekening_id = ? AND tahun = ?')->execute([$rid, $tahun]);
+                $ir = $pdo->prepare('INSERT INTO rak (rekening_id, tahun, bulan, nilai_rak) VALUES (?,?,?,?)');
+                foreach ($devRak as $bl => $nl) { if ($nl > 0) { $ir->execute([$rid, $tahun, $bl, $nl]); } }
+                $pdo->commit();
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) { $pdo->rollBack(); }
+                papbd_log("GAGAL RAK $label$fuzzy: " . $e->getMessage(), 'error');
+                $needAction[] = "$label: gagal tulis RAK (" . $e->getMessage() . ')';
+                $stat['butuh_tindakan']++;
+                continue;
+            }
             $stat['rak_tulis']++;
         } else {
             $stat['rak_tulis']++;
