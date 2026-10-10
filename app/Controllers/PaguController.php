@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\Pagu;
+use App\Models\PaguRiwayat;
 use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
@@ -15,19 +16,49 @@ class PaguController {
     private Kegiatan $kegiatanModel;
     private SubKegiatan $subKegiatanModel;
     private Rekening $rekeningModel;
-    
+    private ?PaguRiwayat $riwayatModel;
+
     public function __construct(
         Pagu $paguModel,
         Program $programModel,
         Kegiatan $kegiatanModel,
         SubKegiatan $subKegiatanModel,
-        Rekening $rekeningModel
+        Rekening $rekeningModel,
+        ?PaguRiwayat $riwayatModel = null
     ) {
         $this->paguModel = $paguModel;
         $this->programModel = $programModel;
         $this->kegiatanModel = $kegiatanModel;
         $this->subKegiatanModel = $subKegiatanModel;
         $this->rekeningModel = $rekeningModel;
+        $this->riwayatModel = $riwayatModel;
+    }
+
+    private function getRiwayatModel(): ?PaguRiwayat
+    {
+        if ($this->riwayatModel !== null) {
+            return $this->riwayatModel;
+        }
+        try {
+            $this->riwayatModel = new PaguRiwayat(\Database::getConnection());
+            // Pastikan tabel ada (aman bila migrasi belum dijalankan)
+            $this->riwayatModel->getRingkasanByTahun((int) date('Y'));
+            return $this->riwayatModel;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function tableHasPaguRiwayat(): bool
+    {
+        try {
+            $db = \Database::getConnection();
+            $stmt = $db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?');
+            $stmt->execute(['pagu_riwayat']);
+            return (int) $stmt->fetchColumn() > 0;
+        } catch (\Throwable) {
+            return false;
+        }
     }
     
     /**
@@ -36,12 +67,49 @@ class PaguController {
     public function index(): void {
         try {
             $pagus = $this->paguModel->getAll();
+            $tahunFilter = isset($_GET['tahun']) && is_numeric($_GET['tahun']) ? (int) $_GET['tahun'] : null;
+            if ($tahunFilter) {
+                $pagus = array_values(array_filter($pagus, fn($p) => (int) ($p['tahun'] ?? 0) === $tahunFilter));
+            }
+            $tahunLaporan = $tahunFilter ?? (int) date('Y');
 
-            // Total keseluruhan (dari SEMUA data, bukan hanya halaman aktif)
+            // Total keseluruhan (dari SEMUA data tampil, bukan hanya halaman aktif)
             $totalPaguKeseluruhan = array_sum(array_map(
                 fn($p) => (float) ($p['nilai_pagu'] ?? 0),
                 $pagus
             ));
+
+            // --- PAPBD: lengkapi tiap baris dengan pagu_awal, selisih, realisasi, sisa ---
+            $hasRiwayat = $this->tableHasPaguRiwayat();
+            $nilaiAwalMap = [];
+            $realisasiMap = [];
+            $ringkasanPerubahan = ['jumlah_perubahan' => 0, 'total_tambah' => 0.0, 'total_kurang' => 0.0, 'total_selisih' => 0.0, 'jumlah_rekening_berubah' => 0];
+            if ($hasRiwayat && $this->getRiwayatModel() !== null) {
+                $nilaiAwalMap = $this->getRiwayatModel()->getNilaiAwalMapByTahun($tahunLaporan);
+                $ringkasanPerubahan = $this->getRiwayatModel()->getRingkasanByTahun($tahunLaporan);
+            }
+            // Realisasi per rekening untuk tahun laporan (fallback: semua tahun bila filter kosong)
+            try {
+                $realisasiMap = $this->paguModel->getRealisasiMapByTahun($tahunLaporan);
+            } catch (\Throwable) {
+                $realisasiMap = [];
+            }
+            $totalPaguAwal = 0.0;
+            foreach ($pagus as &$p) {
+                $pid = (int) ($p['id'] ?? 0);
+                $rid = (int) ($p['rekening_id'] ?? 0);
+                $nilaiAkhir = (float) ($p['nilai_pagu'] ?? 0);
+                // Nilai awal = log pertama bila ada, else nilai saat ini (dianggap APBD awal)
+                $nilaiAwal = $nilaiAwalMap[$pid] ?? $nilaiAkhir;
+                $p['pagu_awal'] = $nilaiAwal;
+                $p['selisih'] = $nilaiAkhir - $nilaiAwal;
+                $p['realisasi'] = $realisasiMap[$rid] ?? 0.0;
+                $p['sisa_baru'] = $nilaiAkhir - (float) $p['realisasi'];
+                $p['status_ubah'] = $p['selisih'] > 0 ? 'tambah' : ($p['selisih'] < 0 ? 'kurang' : 'tetap');
+                $p['over_realisasi'] = (float) $p['realisasi'] > $nilaiAkhir;
+                $totalPaguAwal += $nilaiAwal;
+            }
+            unset($p);
             
             $perPage = 10;
             $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
@@ -284,12 +352,25 @@ class PaguController {
             $kegiatans = $this->kegiatanModel->getByProgramId($rekening['program_id'] ?? 0);
             $subKegiatans = $this->subKegiatanModel->getByKegiatanId($rekening['kegiatan_id'] ?? 0);
             $rekenings = $this->rekeningModel->getBySubKegiatanId($rekening['sub_kegiatan_id'] ?? 0);
-            
+
+            // --- PAPBD info box: realisasi + pagu awal + riwayat ---
+            $pagu['realisasi'] = $this->paguModel->getRealisasi((int) $pagu['rekening_id'], (int) $pagu['tahun']);
+            $pagu['sisa'] = (float) $pagu['nilai_pagu'] - (float) $pagu['realisasi'];
+            $pagu['pagu_awal'] = (float) $pagu['nilai_pagu'];
+            $pagu['riwayat'] = [];
+            if ($this->tableHasPaguRiwayat() && $this->getRiwayatModel() !== null) {
+                $pagu['riwayat'] = $this->getRiwayatModel()->getByPaguId($id);
+                $awal = $this->getRiwayatModel()->getNilaiAwal($id);
+                if ($awal !== null) {
+                    $pagu['pagu_awal'] = $awal;
+                }
+            }
+
             $pageTitle = 'Edit Pagu';
             $activePage = 'pagu';
             $viewFile = __DIR__ . '/../../views/pagu/form.php';
             $action = 'update';
-            
+
             include __DIR__ . '/../../views/layout.php';
         } catch (\Exception $e) {
             $this->handleError('Gagal memuat pagu: ' . $e->getMessage());
@@ -314,14 +395,59 @@ class PaguController {
         }
         
         try {
-            $this->paguModel->update(
-                $id,
-                (int) $_POST['rekening_id'],
-                (int) $_POST['tahun'],
-                (float) str_replace(',', '.', str_replace('.', '', $_POST['nilai_pagu']))
-            );
-            
-            $this->redirectWithMessage(base_url('pagu'), 'success', 'Pagu berhasil diperbarui');
+            $lama = $this->paguModel->getById($id);
+            if (!$lama) {
+                $this->redirectWithMessage(base_url('pagu'), 'error', 'Pagu tidak ditemukan');
+                return;
+            }
+            $nilaiSebelum = (float) $lama['nilai_pagu'];
+            $nilaiSesudah = (float) str_replace(',', '.', str_replace('.', '', $_POST['nilai_pagu']));
+            $rekeningBaru = (int) $_POST['rekening_id'];
+            $tahunBaru = (int) $_POST['tahun'];
+
+            $this->paguModel->update($id, $rekeningBaru, $tahunBaru, $nilaiSesudah);
+
+            // --- PAPBD: catat riwayat bila nilai/relasi berubah ---
+            try {
+                if ($this->tableHasPaguRiwayat() && $this->getRiwayatModel() !== null) {
+                    $berubah = abs($nilaiSesudah - $nilaiSebelum) > 0.009
+                        || $rekeningBaru !== (int) $lama['rekening_id']
+                        || $tahunBaru !== (int) $lama['tahun'];
+                    if ($berubah) {
+                        $this->getRiwayatModel()->log(
+                            $id,
+                            $rekeningBaru,
+                            $tahunBaru,
+                            $nilaiSebelum,
+                            $nilaiSesudah,
+                            $_POST['jenis_perubahan'] ?? 'PAPBD',
+                            $_POST['keterangan_perubahan'] ?? null,
+                            isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log('Gagal mencatat riwayat PAPBD: ' . $e->getMessage());
+            }
+
+            // --- Peringatan RAK bila pagu turun di bawah total RAK ---
+            $peringatan = '';
+            try {
+                $db = \Database::getConnection();
+                $stmt = $db->prepare('SELECT COALESCE(SUM(nilai_rak),0) FROM rak WHERE rekening_id = :rid AND tahun = :thn');
+                $stmt->execute([':rid' => $rekeningBaru, ':thn' => $tahunBaru]);
+                $totalRak = (float) $stmt->fetchColumn();
+                if ($totalRak > $nilaiSesudah) {
+                    $peringatan = sprintf(
+                        ' Peringatan: total RAK (Rp %s) kini melebihi pagu baru (Rp %s). Sesuaikan RAK.',
+                        number_format($totalRak, 0, ',', '.'),
+                        number_format($nilaiSesudah, 0, ',', '.')
+                    );
+                }
+            } catch (\Throwable) {
+            }
+
+            $this->redirectWithMessage(base_url('pagu'), 'success', 'Pagu berhasil diperbarui (PAPBD tercatat).' . $peringatan);
         } catch (\Exception $e) {
             $this->handleError('Gagal memperbarui pagu: ' . $e->getMessage());
         }
@@ -332,10 +458,110 @@ class PaguController {
      */
     public function delete(int $id): void {
         try {
+            $lama = $this->paguModel->getById($id);
+            if ($lama) {
+                $realisasi = $this->paguModel->getRealisasi((int) $lama['rekening_id'], (int) $lama['tahun']);
+                if ($realisasi > 0) {
+                    $this->redirectWithMessage(base_url('pagu'), 'error', sprintf(
+                        'Pagu tidak bisa dihapus karena sudah ada realisasi terverifikasi Rp %s.',
+                        number_format($realisasi, 0, ',', '.')
+                    ));
+                    return;
+                }
+            }
             $this->paguModel->delete($id);
+            try {
+                if ($this->tableHasPaguRiwayat()) {
+                    $db = \Database::getConnection();
+                    $stmt = $db->prepare('DELETE FROM pagu_riwayat WHERE pagu_id = :id');
+                    $stmt->execute([':id' => $id]);
+                }
+            } catch (\Throwable) {
+            }
             $this->redirectWithMessage(base_url('pagu'), 'success', 'Pagu berhasil dihapus');
         } catch (\Exception $e) {
             $this->redirectWithMessage(base_url('pagu'), 'error', 'Gagal menghapus pagu: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Halaman riwayat perubahan satu pagu (APBD -> PAPBD).
+     */
+    public function riwayat(int $id): void
+    {
+        try {
+            $pagu = $this->paguModel->getById($id);
+            if (!$pagu) {
+                $this->redirectWithMessage(base_url('pagu'), 'error', 'Pagu tidak ditemukan');
+                return;
+            }
+            $riwayat = $this->tableHasPaguRiwayat() && $this->getRiwayatModel() !== null
+                ? $this->getRiwayatModel()->getByPaguId($id)
+                : [];
+            $nilaiAwal = $pagu['nilai_pagu'];
+            if (!empty($riwayat)) {
+                $nilaiAwal = end($riwayat)['nilai_sebelum'] ?? $riwayat[count($riwayat) - 1]['nilai_sebelum'];
+                // end() menggeser pointer; ambil log pertama = nilai awal
+                $first = $riwayat[count($riwayat) - 1];
+                $nilaiAwal = (float) ($first['nilai_sebelum'] ?? $pagu['nilai_pagu']);
+            }
+            $realisasi = $this->paguModel->getRealisasi((int) $pagu['rekening_id'], (int) $pagu['tahun']);
+
+            $pageTitle = 'Riwayat PAPBD';
+            $activePage = 'pagu';
+            $viewFile = __DIR__ . '/../../views/pagu/riwayat.php';
+
+            include __DIR__ . '/../../views/layout.php';
+        } catch (\Exception $e) {
+            $this->handleError('Gagal memuat riwayat pagu: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Laporan selisih APBD vs PAPBD per tahun.
+     */
+    public function laporan(): void
+    {
+        try {
+            $tahun = isset($_GET['tahun']) && is_numeric($_GET['tahun']) ? (int) $_GET['tahun'] : (int) date('Y');
+            $pagus = array_values(array_filter(
+                $this->paguModel->getAll(),
+                fn($p) => (int) ($p['tahun'] ?? 0) === $tahun
+            ));
+            $nilaiAwalMap = $this->tableHasPaguRiwayat() && $this->getRiwayatModel() !== null
+                ? $this->getRiwayatModel()->getNilaiAwalMapByTahun($tahun)
+                : [];
+            try {
+                $realisasiMap = $this->paguModel->getRealisasiMapByTahun($tahun);
+            } catch (\Throwable) {
+                $realisasiMap = [];
+            }
+            $rows = [];
+            $totAwal = 0.0; $totAkhir = 0.0; $totReal = 0.0;
+            foreach ($pagus as $p) {
+                $awal = (float) ($nilaiAwalMap[(int) $p['id']] ?? $p['nilai_pagu']);
+                $akhir = (float) $p['nilai_pagu'];
+                $real = (float) ($realisasiMap[(int) $p['rekening_id']] ?? 0);
+                $rows[] = array_merge($p, [
+                    'pagu_awal' => $awal,
+                    'selisih' => $akhir - $awal,
+                    'realisasi' => $real,
+                    'sisa_baru' => $akhir - $real,
+                ]);
+                $totAwal += $awal; $totAkhir += $akhir; $totReal += $real;
+            }
+            usort($rows, fn($a, $b) => strcmp(($a['kode_rekening'] ?? ''), ($b['kode_rekening'] ?? '')));
+            $ringkasan = $this->tableHasPaguRiwayat() && $this->getRiwayatModel() !== null
+                ? $this->getRiwayatModel()->getRingkasanByTahun($tahun)
+                : ['jumlah_perubahan' => 0, 'total_tambah' => 0.0, 'total_kurang' => 0.0, 'total_selisih' => 0.0, 'jumlah_rekening_berubah' => 0];
+
+            $pageTitle = 'Laporan Selisih APBD vs PAPBD';
+            $activePage = 'pagu';
+            $viewFile = __DIR__ . '/../../views/pagu/laporan.php';
+
+            include __DIR__ . '/../../views/layout.php';
+        } catch (\Exception $e) {
+            $this->handleError('Gagal memuat laporan PAPBD: ' . $e->getMessage());
         }
     }
     
@@ -436,7 +662,21 @@ class PaguController {
                 $errors['rekening_id'] = 'Pagu untuk rekening dan tahun ini sudah ada';
             }
         }
-        
+
+        // PAPBD: pagu baru tidak boleh di bawah realisasi terverifikasi
+        if (empty($errors['nilai_pagu']) && empty($errors['rekening_id']) && empty($errors['tahun'])) {
+            $nilaiBaru = (float) str_replace(',', '.', str_replace('.', '', $data['nilai_pagu']));
+            $realisasi = $this->paguModel->getRealisasi((int) $data['rekening_id'], (int) $data['tahun']);
+            // Koreksi relasi pindah rekening pada mode edit: realisasi ikut rekening baru
+            if ($realisasi > 0 && $nilaiBaru + 0.009 < $realisasi) {
+                $errors['nilai_pagu'] = sprintf(
+                    'Pagu baru (Rp %s) tidak boleh di bawah realisasi terverifikasi (Rp %s). Naikkan pagu atau batalkan verifikasi transaksi dulu.',
+                    number_format($nilaiBaru, 0, ',', '.'),
+                    number_format($realisasi, 0, ',', '.')
+                );
+            }
+        }
+
         return $errors;
     }
     

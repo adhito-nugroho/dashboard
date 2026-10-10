@@ -153,6 +153,86 @@ class Pagu {
      * @param int|null $excludeId Exclude this ID from check (for updates)
      * @return bool
      */
+    /**
+     * Total realisasi terverifikasi satu rekening + tahun.
+     * Dipakai validasi PAPBD: pagu baru tidak boleh di bawah realisasi.
+     */
+    public function getRealisasi(int $rekeningId, int $tahun): float
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT COALESCE(SUM(nilai), 0) AS total
+                FROM transaksi
+                WHERE rekening_id = :rekening_id
+                  AND YEAR(tanggal) = :tahun
+                  AND status = 'diverifikasi'
+            ");
+            $stmt->bindValue(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (float) ($row['total'] ?? 0);
+        } catch (\Throwable $e) {
+            // Fallback bila kolom status belum ada (env belum migrate)
+            try {
+                $stmt = $this->db->prepare("
+                    SELECT COALESCE(SUM(nilai), 0) AS total
+                    FROM transaksi
+                    WHERE rekening_id = :rekening_id AND YEAR(tanggal) = :tahun
+                ");
+                $stmt->bindValue(':rekening_id', $rekeningId, PDO::PARAM_INT);
+                $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+                $stmt->execute();
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                return (float) ($row['total'] ?? 0);
+            } catch (\Throwable) {
+                error_log('Error calculating realisasi pagu: ' . $e->getMessage());
+                return 0.0;
+            }
+        }
+    }
+
+    /**
+     * Peta rekening_id => total realisasi untuk satu tahun (1 query, anti N+1).
+     */
+    public function getRealisasiMapByTahun(int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT rekening_id, COALESCE(SUM(nilai), 0) AS total
+                FROM transaksi
+                WHERE YEAR(tanggal) = :tahun AND status = 'diverifikasi'
+                GROUP BY rekening_id
+            ");
+            $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            $map = [];
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $map[(int) $row['rekening_id']] = (float) $row['total'];
+            }
+            return $map;
+        } catch (\Throwable) {
+            try {
+                $stmt = $this->db->prepare("
+                    SELECT rekening_id, COALESCE(SUM(nilai), 0) AS total
+                    FROM transaksi
+                    WHERE YEAR(tanggal) = :tahun
+                    GROUP BY rekening_id
+                ");
+                $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+                $stmt->execute();
+                $map = [];
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $map[(int) $row['rekening_id']] = (float) $row['total'];
+                }
+                return $map;
+            } catch (\Throwable $e) {
+                error_log('Error fetching realisasi map: ' . $e->getMessage());
+                return [];
+            }
+        }
+    }
+
     public function exists(int $rekeningId, int $tahun, ?int $excludeId = null): bool {
         try {
             $sql = "SELECT COUNT(*) FROM pagu WHERE rekening_id = :rekening_id AND tahun = :tahun";

@@ -182,22 +182,62 @@ $batchData = $batchData ?? null;
                     </label>
                     <div class="input-group">
                         <span class="input-group-text">Rp</span>
-                        <input type="text" 
-                               class="form-control <?= isset($errors['nilai_pagu']) ? 'is-invalid' : '' ?>" 
-                               id="nilai_pagu" 
-                               name="nilai_pagu" 
+                        <input type="text"
+                               class="form-control <?= isset($errors['nilai_pagu']) ? 'is-invalid' : '' ?>"
+                               id="nilai_pagu"
+                               name="nilai_pagu"
                                value="<?= $nilaiPagu ? number_format($nilaiPagu, 0, ',', '.') : '' ?>"
                                placeholder="0"
-                               required>
+                               required
+                               data-realisasi="<?= htmlspecialchars($pagu['realisasi'] ?? 0) ?>">
                     </div>
                     <?php if (isset($errors['nilai_pagu'])): ?>
-                        <div class="invalid-feedback">
+                        <div class="invalid-feedback d-block">
                             <?= htmlspecialchars($errors['nilai_pagu']) ?>
                         </div>
                     <?php else: ?>
                         <div class="form-text">Masukkan nilai pagu (contoh: 1000000 atau 1.000.000)</div>
                     <?php endif; ?>
+                    <div class="alert alert-warning d-none mt-2" id="papbdWarning"></div>
                 </div>
+
+                <?php if ($isEdit): ?>
+                <!-- PAPBD info + jenis perubahan -->
+                <div class="alert alert-info">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">APBD AWAL</small>
+                            <strong>Rp <?= number_format($pagu['pagu_awal'] ?? $pagu['nilai_pagu'] ?? 0, 0, ',', '.') ?></strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">REALISASI TERVERIFIKASI</small>
+                            <strong>Rp <?= number_format($pagu['realisasi'] ?? 0, 0, ',', '.') ?></strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">SISA SAAT INI</small>
+                            <strong>Rp <?= number_format($pagu['sisa'] ?? 0, 0, ',', '.') ?></strong>
+                        </div>
+                    </div>
+                    <small class="d-block mt-2"><i class="bi bi-info-circle"></i> Pagu baru <strong>tidak boleh di bawah realisasi</strong>. Setiap perubahan tercatat otomatis di riwayat PAPBD.</small>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="jenis_perubahan" class="form-label">Jenis Perubahan</label>
+                        <select class="form-select" id="jenis_perubahan" name="jenis_perubahan">
+                            <?php $jp = $_POST['jenis_perubahan'] ?? 'PAPBD'; ?>
+                            <option value="PAPBD" <?= $jp === 'PAPBD' ? 'selected' : '' ?>>PAPBD</option>
+                            <option value="APBD" <?= $jp === 'APBD' ? 'selected' : '' ?>>APBD (koreksi awal)</option>
+                            <option value="KOREKSI" <?= $jp === 'KOREKSI' ? 'selected' : '' ?>>KOREKSI</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8 mb-3">
+                        <label for="keterangan_perubahan" class="form-label">Keterangan Perubahan</label>
+                        <input type="text" class="form-control" id="keterangan_perubahan" name="keterangan_perubahan"
+                               maxlength="255" placeholder="cth: Pergeseran PAPBD 2026 — penambahan belanja ATK"
+                               value="<?= htmlspecialchars($_POST['keterangan_perubahan'] ?? '') ?>">
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <!-- Form Actions -->
                 <div class="d-flex justify-content-between mt-4 pt-3 border-top" id="singleFormActions">
@@ -406,6 +446,20 @@ document.addEventListener('DOMContentLoaded', function() {
         let value = this.value.replace(/[^\d]/g, '');
         if (value) {
             this.value = parseInt(value).toLocaleString('id-ID');
+        }
+        // PAPBD live warning: nilai baru vs realisasi
+        const warn = document.getElementById('papbdWarning');
+        if (warn) {
+            const realisasi = parseFloat(this.dataset.realisasi || '0');
+            const baru = parseFloat(value || '0');
+            if (realisasi > 0 && baru > 0 && baru < realisasi) {
+                warn.classList.remove('d-none');
+                warn.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Pagu baru di bawah realisasi terverifikasi (Rp ' +
+                    Math.round(realisasi).toLocaleString('id-ID') + '). Penyimpanan akan ditolak server.';
+            } else {
+                warn.classList.add('d-none');
+                warn.innerHTML = '';
+            }
         }
     });
 

@@ -48,6 +48,7 @@ require_once __DIR__ . '/../app/Models/SubKegiatan.php';
 require_once __DIR__ . '/../app/Models/Seksi.php';
 require_once __DIR__ . '/../app/Models/Rekening.php';
 require_once __DIR__ . '/../app/Models/Pagu.php';
+require_once __DIR__ . '/../app/Models/PaguRiwayat.php';
 require_once __DIR__ . '/../app/Models/Rak.php';
 require_once __DIR__ . '/../app/Models/Transaksi.php';
 require_once __DIR__ . '/../app/Controllers/ProgramController.php';
@@ -80,6 +81,7 @@ use App\Models\SubKegiatan;
 use App\Models\Seksi;
 use App\Models\Rekening;
 use App\Models\Pagu;
+use App\Models\PaguRiwayat;
 use App\Models\Rak;
 use App\Models\Transaksi;
 use App\Models\KasBank;
@@ -121,7 +123,13 @@ try {
     $kegiatanController = new KegiatanController($kegiatanModel, $programModel);
     $subKegiatanController = new SubKegiatanController($subKegiatanModel, $kegiatanModel, $seksiModel);
     $seksiController = new SeksiController($seksiModel);
-    $paguController = new PaguController($paguModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
+    $paguRiwayatModel = null;
+    try {
+        $paguRiwayatModel = new PaguRiwayat($db);
+    } catch (Throwable) {
+        $paguRiwayatModel = null;
+    }
+    $paguController = new PaguController($paguModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel, $paguRiwayatModel);
     $rekeningController = new RekeningController($rekeningModel, $programModel, $kegiatanModel, $subKegiatanModel);
     $rakController = new RakController($rakModel, $paguModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
     $transaksiController = new TransaksiController($transaksiModel, $seksiModel, $paguModel, $rakModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
@@ -382,6 +390,11 @@ try {
         $paguController->store();
     } elseif ($path === '/pagu/store-batch' && $requestMethod === 'POST') {
         $paguController->storeBatch();
+    } elseif ($path === '/pagu/laporan' || $path === '/pagu/laporan/') {
+        $paguController->laporan();
+    } elseif (preg_match('#^/pagu/riwayat/(\d+)$#', $path, $matches)) {
+        $id = (int) $matches[1];
+        $paguController->riwayat($id);
     } elseif (preg_match('#^/pagu/edit/(\d+)$#', $path, $matches)) {
         $id = (int) $matches[1];
         if ($requestMethod === 'GET') {

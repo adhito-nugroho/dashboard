@@ -28,27 +28,55 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                 </h2>
                 <p class="text-muted mb-0">Kelola alokasi anggaran tahunan</p>
             </div>
-            <a href="<?= base_url('pagu/create') ?>" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i> Tambah Pagu
-            </a>
+            <div class="d-flex gap-2">
+                <a href="<?= base_url('pagu/laporan?tahun=' . (int)($_GET['tahun'] ?? date('Y'))) ?>" class="btn btn-outline-info">
+                    <i class="bi bi-clipboard-data me-1"></i> Laporan APBD vs PAPBD
+                </a>
+                <a href="<?= base_url('pagu/create') ?>" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah Pagu
+                </a>
+            </div>
         </div>
     </div>
 
     <?php if (!empty($pagus)): ?>
-        <!-- Summary Card -->
-        <div class="row mb-4">
-            <div class="col-md-6 col-lg-4">
+        <!-- Summary Cards: APBD awal vs PAPBD -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-6 col-lg-3">
+                <div class="card stat-card border-secondary" style="border-left-width: 4px;">
+                    <div class="card-body">
+                        <p class="text-muted mb-2 small text-uppercase fw-semibold">Total APBD Awal</p>
+                        <h4 class="mb-0 fw-bold">Rp <?= number_format($totalPaguAwal ?? $totalPaguKeseluruhan ?? 0, 0, ',', '.') ?></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
                 <div class="card stat-card border-primary" style="border-left-width: 4px;">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <p class="text-muted mb-2 small text-uppercase fw-semibold">Total Keseluruhan Pagu</p>
-                                <h3 class="mb-0 fw-bold text-primary">Rp <?= number_format($totalPaguKeseluruhan ?? 0, 0, ',', '.') ?></h3>
-                            </div>
-                            <div class="bg-primary bg-opacity-10 rounded-circle p-3">
-                                <i class="bi bi-wallet2 fs-2 text-primary"></i>
-                            </div>
-                        </div>
+                        <p class="text-muted mb-2 small text-uppercase fw-semibold">Total PAPBD (Saat Ini)</p>
+                        <h4 class="mb-0 fw-bold text-primary">Rp <?= number_format($totalPaguKeseluruhan ?? 0, 0, ',', '.') ?></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="card stat-card border-<?= (($totalPaguKeseluruhan ?? 0) - ($totalPaguAwal ?? 0)) >= 0 ? 'success' : 'danger' ?>" style="border-left-width: 4px;">
+                    <div class="card-body">
+                        <p class="text-muted mb-2 small text-uppercase fw-semibold">Selisih</p>
+                        <h4 class="mb-0 fw-bold">Rp <?= number_format(($totalPaguKeseluruhan ?? 0) - ($totalPaguAwal ?? 0), 0, ',', '.') ?></h4>
+                        <?php if (!empty($ringkasanPerubahan['jumlah_perubahan'])): ?>
+                            <small class="text-muted"><?= (int) $ringkasanPerubahan['jumlah_perubahan'] ?>x perubahan di <?= (int) $ringkasanPerubahan['jumlah_rekening_berubah'] ?> rekening</small>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="card stat-card border-warning" style="border-left-width: 4px;">
+                    <div class="card-body">
+                        <p class="text-muted mb-2 small text-uppercase fw-semibold">Filter Tahun</p>
+                        <form method="GET" action="<?= base_url('pagu') ?>" class="d-flex gap-2">
+                            <input type="number" name="tahun" class="form-control" min="2000" max="2100" value="<?= htmlspecialchars($_GET['tahun'] ?? '') ?>" placeholder="<?= date('Y') ?>">
+                            <button class="btn btn-outline-primary" type="submit">Tampil</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -99,14 +127,17 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th width="4%">No</th>
-                                <th width="8%">Program</th>
-                                <th width="8%">Kegiatan</th>
-                                <th width="20%">Sub Kegiatan</th>
-                                <th width="10%">Kode Rekening</th>
-                                <th width="25%">Nama Rekening</th>
-                                <th width="15%" class="text-end">Nilai Pagu</th>
-                                <th width="10%" class="text-center">Aksi</th>
+                                <th width="3%">No</th>
+                                <th width="7%">Program</th>
+                                <th width="7%">Kegiatan</th>
+                                <th width="14%">Sub Kegiatan</th>
+                                <th width="9%">Kode Rekening</th>
+                                <th width="16%">Nama Rekening</th>
+                                <th width="10%" class="text-end">APBD Awal</th>
+                                <th width="10%" class="text-end">PAPBD</th>
+                                <th width="9%" class="text-end">Selisih</th>
+                                <th width="9%" class="text-end">Sisa</th>
+                                <th width="6%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -124,11 +155,34 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                         <span class="badge bg-warning text-dark"><?= htmlspecialchars($pagu['kode_rekening']) ?></span>
                                     </td>
                                     <td><?= htmlspecialchars($pagu['nama_rekening']) ?></td>
+                                    <td class="text-end text-muted">
+                                        Rp <?= number_format($pagu['pagu_awal'] ?? $pagu['nilai_pagu'], 0, ',', '.') ?>
+                                    </td>
                                     <td class="text-end">
                                         <strong>Rp <?= number_format($pagu['nilai_pagu'], 0, ',', '.') ?></strong>
+                                        <?php if (!empty($pagu['over_realisasi'])): ?>
+                                            <br><span class="badge bg-danger" title="Realisasi melebihi pagu">Over</span>
+                                        <?php elseif (($pagu['status_ubah'] ?? 'tetap') === 'tambah'): ?>
+                                            <br><span class="badge bg-success">+ Tambah</span>
+                                        <?php elseif (($pagu['status_ubah'] ?? 'tetap') === 'kurang'): ?>
+                                            <br><span class="badge bg-warning text-dark">− Kurang</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end">
+                                        <?php $sel = (float) ($pagu['selisih'] ?? 0); ?>
+                                        <span class="<?= $sel > 0 ? 'text-success' : ($sel < 0 ? 'text-danger' : 'text-muted') ?>">
+                                            <?= $sel > 0 ? '+' : '' ?>Rp <?= number_format($sel, 0, ',', '.') ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <?php $sisa = (float) ($pagu['sisa_baru'] ?? ($pagu['nilai_pagu'] - ($pagu['realisasi'] ?? 0))); ?>
+                                        <span class="<?= $sisa < 0 ? 'text-danger fw-bold' : '' ?>">Rp <?= number_format($sisa, 0, ',', '.') ?></span>
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group" role="group">
+                                            <a href="<?= base_url('pagu/riwayat/' . $pagu['id']) ?>" class="btn btn-sm btn-outline-info" title="Riwayat PAPBD">
+                                                <i class="bi bi-clock-history"></i>
+                                            </a>
                                             <a href="<?= base_url('pagu/edit/' . $pagu['id']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>

@@ -80,9 +80,18 @@ program
               └── transaksi (transactions) (tetap butuh seksi_id seperti saat ini)
 ```
 
+### pagu_riwayat (PAPBD change log — added 2026-10-10)
+- `id` (Primary Key, INT UNSIGNED AUTO_INCREMENT)
+- `pagu_id` → snapshot FK to `pagu.id` (riwayat dihapus bila pagu dihapus)
+- `rekening_id`, `tahun`
+- `nilai_sebelum`, `nilai_sesudah`, `selisih` (= sesudah − sebelum)
+- `jenis` (`APBD`/`PAPBD`/`KOREKSI`), `keterangan`
+- `created_by` → `users.id` (nullable), `created_at`
+- Aturan: APBD awal = `nilai_sebelum` log pertama; bila belum ada log, nilai pagu saat ini = APBD awal.
+
 ## Notes
 
 - All table and column names must be used exactly as specified
-- No additional tables or fields should be created
+- No additional tables or fields should be created (exception: `pagu_riwayat` for PAPBD, approved 2026-10-10)
 - Foreign key relationships must be maintained as defined
 
