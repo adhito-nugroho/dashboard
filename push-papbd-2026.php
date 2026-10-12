@@ -114,7 +114,7 @@ papbd_log('Mode: ' . ($execute ? 'EKSEKUSI (menulis DB)' : 'DRY-RUN (simulasi, t
 function realisasi(PDO $pdo, int $rekeningId, int $tahun): float
 {
     try {
-        $s = $pdo->prepare("SELECT COALESCE(SUM(nilai),0) FROM transaksi WHERE rekening_id = :rid AND YEAR(tanggal) = :thn AND status = 'diverifikasi'");
+        $s = $pdo->prepare("SELECT COALESCE(SUM(nilai),0) FROM transaksi WHERE rekening_id = :rid AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :thn AND status = 'diverifikasi'");
         $s->execute([':rid' => $rekeningId, ':thn' => $tahun]);
         return (float) $s->fetchColumn();
     } catch (Throwable) {

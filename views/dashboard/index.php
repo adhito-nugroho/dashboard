@@ -2068,7 +2068,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
             <div class="col-12">
               <div id="exportInfoBox" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem 1rem;font-size:var(--fs-sm);color:#166534;">
                 <i class="bi bi-info-circle-fill me-1"></i>
-                File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.
+                File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.
               </div>
             </div>
           </div>
@@ -2116,8 +2116,8 @@ document.getElementById('btnDownloadExcel').addEventListener('click', function()
     var radioSeksi = document.getElementById('exportGroupingSeksi');
     var seksiWrap = document.getElementById('exportSeksiWrap');
     var infoBox = document.getElementById('exportInfoBox');
-    var infoProgram = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.';
-    var infoSeksi = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur <strong>Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening</strong>. Pilih "Semua Seksi" untuk seluruh seksi, atau satu seksi tertentu.';
+    var infoProgram = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.';
+    var infoSeksi = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur <strong>Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening</strong>. Pilih "Semua Seksi" untuk seluruh seksi, atau satu seksi tertentu.';
     function refreshExportGrouping() {
         var isSeksi = radioSeksi && radioSeksi.checked;
         if (seksiWrap) seksiWrap.style.display = isSeksi ? '' : 'none';

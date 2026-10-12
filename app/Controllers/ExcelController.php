@@ -86,7 +86,7 @@ class ExcelController {
             $realisasiSaatIni     = 0;  // bulan terpilih saja
 
             foreach ($transaksis as $t) {
-                $tBulan = (int) date('n', strtotime($t['tanggal']));
+                $tBulan = Transaksi::bulanEfektifRealisasi($t);
                 if ($tBulan <= $bulan) {
                     $realisasiSd += (float)$t['nilai'];
                     if ($tBulan < $bulan) {
@@ -379,7 +379,7 @@ class ExcelController {
             $realisasiSebelumnya = 0;
             $realisasiSaatIni = 0;
             foreach ($transaksis as $t) {
-                $tBulan = (int) date('n', strtotime($t['tanggal']));
+                $tBulan = Transaksi::bulanEfektifRealisasi($t);
                 if ($tBulan <= $bulan) {
                     $realisasiSd += (float) $t['nilai'];
                     if ($tBulan < $bulan) {
@@ -783,7 +783,7 @@ class ExcelController {
             $rekeningMonths = array_fill(1, 12, 0);
             $transaksis     = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             foreach ($transaksis as $t) {
-                $bulan = (int) date('n', strtotime($t['tanggal']));
+                $bulan = Transaksi::bulanEfektifRealisasi($t);
                 if ($bulan >= 1 && $bulan <= 12) {
                     $rekeningMonths[$bulan] += (float) $t['nilai'];
                 }
@@ -1046,7 +1046,7 @@ class ExcelController {
             $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realS1 = 0; $realS2 = 0;
             foreach ($transaksis as $t) {
-                $b   = (int)   date('n', strtotime($t['tanggal']));
+                $b   = Transaksi::bulanEfektifRealisasi($t);
                 $val = (float) $t['nilai'];
                 if ($b >= 1 && $b <= 6)       $realS1 += $val;
                 elseif ($b >= 7 && $b <= 12)  $realS2 += $val;
@@ -1352,10 +1352,10 @@ class ExcelController {
         $db = \Database::getConnection();
         try {
             $stmt = $db->prepare("
-                SELECT * FROM transaksi 
-                WHERE YEAR(tanggal) = :tahun
+                SELECT * FROM transaksi
+                WHERE YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
                 AND status = 'diverifikasi'
-                ORDER BY tanggal DESC
+                ORDER BY COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) DESC
             ");
             $stmt->execute([':tahun' => $tahun]);
             $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);

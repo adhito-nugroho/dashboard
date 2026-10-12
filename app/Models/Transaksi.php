@@ -154,11 +154,11 @@ class Transaksi
     {
         try {
             $stmt = $this->db->prepare("
-                SELECT * FROM transaksi 
-                WHERE rekening_id = :rekening_id 
-                AND YEAR(tanggal) = :tahun
+                SELECT * FROM transaksi
+                WHERE rekening_id = :rekening_id
+                AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
                 AND status = 'diverifikasi'
-                ORDER BY tanggal DESC
+                ORDER BY COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) DESC
             ");
             $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
             $stmt->bindParam(':tahun', $tahun, PDO::PARAM_INT);
@@ -177,6 +177,46 @@ class Transaksi
     public static function normalizeSumberDana(mixed $value): string
     {
         return (is_string($value) && strtoupper(trim($value)) === 'LS') ? 'LS' : 'UP';
+    }
+
+    /**
+     * Tanggal efektif realisasi: tanggal lunas dibayar bila ada,
+     * fallback ke tanggal verifikasi (diverifikasi_at), terakhir tanggal bukti.
+     * Definisi tunggal supaya dashboard, laporan Excel, BKU, dan kas
+     * mencatat realisasi pada bulan yang SAMA (bulan diverifikasi/dibayar).
+     * Return 'Y-m-d'.
+     */
+    public static function tanggalEfektifRealisasi(array $row): string
+    {
+        if (!empty($row['tanggal_lunas_dibayar'])) {
+            $ts = strtotime((string) $row['tanggal_lunas_dibayar']);
+            if ($ts !== false) {
+                return date('Y-m-d', $ts);
+            }
+        }
+        if (!empty($row['diverifikasi_at'])) {
+            $ts = strtotime((string) $row['diverifikasi_at']);
+            if ($ts !== false) {
+                return date('Y-m-d', $ts);
+            }
+        }
+        return (string) ($row['tanggal'] ?? date('Y-m-d'));
+    }
+
+    /**
+     * Bulan (1-12) pencatatan realisasi = bulan dari tanggal efektif.
+     */
+    public static function bulanEfektifRealisasi(array $row): int
+    {
+        return (int) date('n', strtotime(self::tanggalEfektifRealisasi($row)));
+    }
+
+    /**
+     * Tahun pencatatan realisasi = tahun dari tanggal efektif.
+     */
+    public static function tahunEfektifRealisasi(array $row): int
+    {
+        return (int) date('Y', strtotime(self::tanggalEfektifRealisasi($row)));
     }
 
     /**
@@ -561,11 +601,11 @@ class Transaksi
                 $params[':status'] = $status;
             }
             if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
-                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
                 $params[':bulan'] = $bulan;
             }
             if ($tahun !== null && $tahun > 0) {
-                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $conditions[] = 'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun';
                 $params[':tahun'] = $tahun;
             }
             if ($q !== null && trim($q) !== '') {
@@ -625,11 +665,11 @@ class Transaksi
                 $params[':status'] = $status;
             }
             if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
-                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
                 $params[':bulan'] = $bulan;
             }
             if ($tahun !== null && $tahun > 0) {
-                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $conditions[] = 'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun';
                 $params[':tahun'] = $tahun;
             }
             if ($q !== null && trim($q) !== '') {
@@ -667,11 +707,11 @@ class Transaksi
                 $params[':input_by'] = $inputBy;
             }
             if ($bulan !== null && $bulan >= 1 && $bulan <= 12) {
-                $conditions[] = 'MONTH(t.tanggal) = :bulan';
+                $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
                 $params[':bulan'] = $bulan;
             }
             if ($tahun !== null && $tahun > 0) {
-                $conditions[] = 'YEAR(t.tanggal) = :tahun';
+                $conditions[] = 'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun';
                 $params[':tahun'] = $tahun;
             }
             if ($q !== null && trim($q) !== '') {
@@ -1062,10 +1102,10 @@ class Transaksi
     {
         try {
             $stmt = $this->db->prepare("
-                SELECT COALESCE(SUM(nilai), 0) as total 
-                FROM transaksi 
-                WHERE rekening_id = :rekening_id 
-                AND YEAR(tanggal) = :tahun
+                SELECT COALESCE(SUM(nilai), 0) as total
+                FROM transaksi
+                WHERE rekening_id = :rekening_id
+                AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
                 AND status = 'diverifikasi'
             ");
             $stmt->bindParam(':rekening_id', $rekeningId, PDO::PARAM_INT);
@@ -1301,8 +1341,9 @@ class Transaksi
     /**
      * Total serapan tahun berjalan untuk kartu "Serapan Anggaran".
      * Definisi SAMA dengan halaman serapan: pagu = SUM(pagu.nilai_pagu),
-     * realisasi = SUM(transaksi.nilai) berstatus diverifikasi per
-     * YEAR(tanggal), termasuk LS. Sisa = pagu - realisasi.
+     * realisasi = SUM(transaksi.nilai) berstatus diverifikasi per tahun
+     * tanggal efektif (lunas dibayar / diverifikasi / tanggal bukti),
+     * termasuk LS. Sisa = pagu - realisasi.
      *
      * @return array{pagu:float, realisasi:float, sisa:float, persen:float}
      */
@@ -1322,7 +1363,7 @@ class Transaksi
                 SELECT COALESCE(SUM(nilai), 0) AS total
                 FROM transaksi
                 WHERE status = 'diverifikasi'
-                  AND YEAR(tanggal) = :tahun
+                  AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
             ");
             $stmtReal->bindParam(':tahun', $tahun, PDO::PARAM_INT);
             $stmtReal->execute();
@@ -1343,8 +1384,8 @@ class Transaksi
     /**
      * Serapan per seksi: semua seksi tampil walau realisasi 0.
      * Pagu & realisasi diatribusikan via rekening -> sub_kegiatan -> seksi,
-     * definisi SAMA dengan halaman serapan (diverifikasi per YEAR(tanggal),
-     * termasuk LS).
+     * definisi SAMA dengan halaman serapan (diverifikasi per tahun tanggal
+     * efektif, termasuk LS).
      *
      * @return array<int, array{id:int, kode_seksi:string, nama_seksi:string, pagu:float, realisasi:float, persen:float}>
      */
@@ -1370,7 +1411,7 @@ class Transaksi
                     INNER JOIN rekening rk ON rk.id = t.rekening_id
                     INNER JOIN sub_kegiatan sk ON sk.id = rk.sub_kegiatan_id
                     WHERE t.status = 'diverifikasi'
-                      AND YEAR(t.tanggal) = :tahun_trx
+                      AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun_trx
                     GROUP BY sk.seksi_id
                 ) r ON r.seksi_id = s.id
                 ORDER BY s.kode_seksi ASC
@@ -1399,7 +1440,7 @@ class Transaksi
                 LEFT JOIN sub_kegiatan sk ON sk.id = rk.sub_kegiatan_id
                 LEFT JOIN seksi s2 ON s2.id = sk.seksi_id
                 WHERE t.status = 'diverifikasi'
-                  AND YEAR(t.tanggal) = :tahun_yatim
+                  AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun_yatim
                   AND s2.id IS NULL
             ");
             $stmtY->bindValue(':tahun_yatim', $tahun, PDO::PARAM_INT);

@@ -966,16 +966,17 @@ class SeksiTransaksiController
         $stmtSeksi->execute([$seksiId]);
         $namaSeksi = $stmtSeksi->fetchColumn() ?: 'Seksi';
 
-        // Ambil SEMUA transaksi seksi ini pada bulan/tahun, urut tanggal ASC lalu id ASC.
+        // Ambil SEMUA transaksi seksi ini pada bulan/tahun tanggal efektif
+        // (lunas dibayar / verifikasi / tanggal bukti), urut tanggal efektif ASC lalu id ASC.
         // BKU kas seksi hanya mencatat arus kas bendahara (UP); LS dikecualikan.
         $stmt = $db->prepare("
-            SELECT t.tanggal, t.uraian, t.nomor_bukti, t.nilai, t.nama_penerima, t.status
+            SELECT t.tanggal, t.tanggal_lunas_dibayar, t.diverifikasi_at, t.uraian, t.nomor_bukti, t.nilai, t.nama_penerima, t.status
             FROM transaksi t
             WHERE t.seksi_id = :seksi_id
               AND t.sumber_dana = 'UP'
-              AND MONTH(t.tanggal) = :bulan
-              AND YEAR(t.tanggal)  = :tahun
-            ORDER BY t.tanggal ASC, t.id ASC
+              AND MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan
+              AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal))  = :tahun
+            ORDER BY COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) ASC, t.id ASC
         ");
         $stmt->execute([':seksi_id' => $seksiId, ':bulan' => $bulan, ':tahun' => $tahun]);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -1093,7 +1094,8 @@ class SeksiTransaksiController
             }
 
             $sheet->setCellValue('A' . $dataRow, $no);
-            $sheet->setCellValue('B' . $dataRow, date('d/m/Y', strtotime($t['tanggal'])));
+            $tglEfektifBku = !empty($t['tanggal_lunas_dibayar']) ? $t['tanggal_lunas_dibayar'] : (!empty($t['diverifikasi_at']) ? $t['diverifikasi_at'] : $t['tanggal']);
+            $sheet->setCellValue('B' . $dataRow, date('d/m/Y', strtotime($tglEfektifBku)));
             $sheet->setCellValue('C' . $dataRow, $uraianTampil);
             $sheet->setCellValue('D' . $dataRow, $penerimaTampil);
             $sheet->setCellValue('E' . $dataRow, $t['nomor_bukti'] ?? '-');

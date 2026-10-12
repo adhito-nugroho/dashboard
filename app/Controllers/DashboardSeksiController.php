@@ -93,7 +93,7 @@ class DashboardSeksiController {
                     (SELECT COALESCE(SUM(t.nilai), 0)
                      FROM rekening rek
                      INNER JOIN sub_kegiatan sk ON sk.id = rek.sub_kegiatan_id
-                     INNER JOIN transaksi t ON t.rekening_id = rek.id AND YEAR(t.tanggal) = ? AND t.status = 'diverifikasi'
+                     INNER JOIN transaksi t ON t.rekening_id = rek.id AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = ? AND t.status = 'diverifikasi'
                      WHERE sk.id IN ($placeholders)) AS total_realisasi
             ";
 
@@ -111,14 +111,14 @@ class DashboardSeksiController {
 
             // ===== DATA BULANAN =====
             $monthlyQuery = "
-                SELECT 
-                    MONTH(t.tanggal) as bulan,
+                SELECT
+                    MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) as bulan,
                     COALESCE(SUM(t.nilai), 0) as realisasi
                 FROM transaksi t
                 INNER JOIN rekening rek ON rek.id = t.rekening_id
                 INNER JOIN sub_kegiatan sk ON sk.id = rek.sub_kegiatan_id
-                WHERE YEAR(t.tanggal) = ? AND sk.id IN ($placeholders) AND t.status = 'diverifikasi'
-                GROUP BY MONTH(t.tanggal)
+                WHERE YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = ? AND sk.id IN ($placeholders) AND t.status = 'diverifikasi'
+                GROUP BY MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal))
             ";
             $monthlyParams = array_merge([$tahun], $subKegiatanIds);
             $monthlyStmt = $db->prepare($monthlyQuery);

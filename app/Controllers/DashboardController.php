@@ -313,7 +313,7 @@ class DashboardController {
                 // Get transactions for each month (cached batch)
                 $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
                 foreach ($transaksis as $transaksi) {
-                    $bulan = (int) date('n', strtotime($transaksi['tanggal']));
+                    $bulan = Transaksi::bulanEfektifRealisasi($transaksi);
                     if ($bulan >= 1 && $bulan <= 12) {
                         $monthlyRealisasi[$bulan] += (float) $transaksi['nilai'];
                     }
@@ -657,7 +657,7 @@ class DashboardController {
             $rekeningMonths = array_fill(1, 12, 0);
             $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             foreach ($transaksis as $transaksi) {
-                $bulan = (int) date('n', strtotime($transaksi['tanggal']));
+                $bulan = Transaksi::bulanEfektifRealisasi($transaksi);
                 if ($bulan >= 1 && $bulan <= 12) {
                     $rekeningMonths[$bulan] += (float) $transaksi['nilai'];
                 }
@@ -732,7 +732,7 @@ class DashboardController {
             $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realisasiByMonth = [];
             foreach ($transaksis as $t) {
-                $b = (int) date('n', strtotime($t['tanggal']));
+                $b = Transaksi::bulanEfektifRealisasi($t);
                 $realisasiByMonth[$b] = ($realisasiByMonth[$b] ?? 0) + (float)$t['nilai'];
             }
 
@@ -830,7 +830,7 @@ class DashboardController {
             $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
             $realS1 = 0; $realS2 = 0;
             foreach ($transaksis as $t) {
-                $b = (int) date('n', strtotime($t['tanggal']));
+                $b = Transaksi::bulanEfektifRealisasi($t);
                 $val = (float) $t['nilai'];
                 if ($b >= 1 && $b <= 6) $realS1 += $val;
                 elseif ($b >= 7 && $b <= 12) $realS2 += $val;
@@ -953,10 +953,10 @@ class DashboardController {
         $db = \Database::getConnection();
         try {
             $stmt = $db->prepare("
-                SELECT * FROM transaksi 
-                WHERE YEAR(tanggal) = :tahun
+                SELECT * FROM transaksi
+                WHERE YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
                 AND status = 'diverifikasi'
-                ORDER BY tanggal DESC
+                ORDER BY COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) DESC
             ");
             $stmt->execute([':tahun' => $tahun]);
             $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);

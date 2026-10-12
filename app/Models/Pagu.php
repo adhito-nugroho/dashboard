@@ -164,7 +164,7 @@ class Pagu {
                 SELECT COALESCE(SUM(nilai), 0) AS total
                 FROM transaksi
                 WHERE rekening_id = :rekening_id
-                  AND YEAR(tanggal) = :tahun
+                  AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
                   AND status = 'diverifikasi'
             ");
             $stmt->bindValue(':rekening_id', $rekeningId, PDO::PARAM_INT);
@@ -201,7 +201,7 @@ class Pagu {
             $stmt = $this->db->prepare("
                 SELECT rekening_id, COALESCE(SUM(nilai), 0) AS total
                 FROM transaksi
-                WHERE YEAR(tanggal) = :tahun AND status = 'diverifikasi'
+                WHERE YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun AND status = 'diverifikasi'
                 GROUP BY rekening_id
             ");
             $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
