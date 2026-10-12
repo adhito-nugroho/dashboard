@@ -39,6 +39,20 @@ class ExcelController {
         $bulan = isset($_GET['bulan']) ? (int) $_GET['bulan'] : (int) date('n');
         $bulan = max(1, min(12, $bulan));
 
+        // Opsi grouping: 'program' (default, hierarki Program->Kegiatan->Sub->Rekening)
+        // atau 'seksi' (dikelompokkan per Seksi -> Program -> Kegiatan -> Sub -> Rekening).
+        $grouping = strtolower(trim($_GET['grouping'] ?? 'program'));
+        if (!in_array($grouping, ['program', 'seksi'], true)) {
+            $grouping = 'program';
+        }
+        $filterSeksiId = isset($_GET['seksi_id']) && $_GET['seksi_id'] !== ''
+            ? (int) $_GET['seksi_id'] : null;
+
+        if ($grouping === 'seksi') {
+            $this->exportLaporanPerSeksi($tahun, $bulan, $filterSeksiId);
+            return;
+        }
+
         $bulanNamesLong = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
                            7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
         $namaBulan = $bulanNamesLong[$bulan];
@@ -313,6 +327,301 @@ class ExcelController {
         exit;
     }
 
+    /**
+     * Export Laporan Realisasi Anggaran dengan grouping per Seksi.
+     * Struktur: Seksi -> Program -> Kegiatan -> Sub Kegiatan -> Rekening.
+     * Mendukung filter satu seksi via $filterSeksiId (null = semua seksi).
+     */
+    private function exportLaporanPerSeksi(int $tahun, int $bulan, ?int $filterSeksiId): void {
+        $bulanNamesLong = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
+                           7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
+        $namaBulan = $bulanNamesLong[$bulan];
+
+        // Peta seksi id => [kode_seksi, nama_seksi] untuk label header.
+        $seksiMap = [];
+        try {
+            foreach ($this->seksiModel->getAll() as $s) {
+                $seksiMap[(int) $s['id']] = [
+                    'kode' => $s['kode_seksi'] ?? '',
+                    'nama' => $s['nama_seksi'] ?? ('Seksi #' . $s['id']),
+                ];
+            }
+        } catch (\Throwable) {
+            $seksiMap = [];
+        }
+
+        // -------------------------------------------------------
+        // 1. Build hierarchy: Seksi -> Program -> Kegiatan -> Sub -> Rekening
+        // -------------------------------------------------------
+        $pagus = $this->paguModel->getAll();
+        $hierarchy = []; // [seksiId => node + children[programId => ...]]
+
+        foreach ($pagus as $pagu) {
+            if ((int) $pagu['tahun'] !== $tahun) continue;
+
+            $paguSeksiId = isset($pagu['sub_kegiatan_seksi_id']) && $pagu['sub_kegiatan_seksi_id'] !== ''
+                ? (int) $pagu['sub_kegiatan_seksi_id'] : 0;
+            if ($filterSeksiId !== null && $paguSeksiId !== $filterSeksiId) continue;
+
+            $pid  = $pagu['program_id'];
+            $kid  = $pagu['kegiatan_id'];
+            $skid = $pagu['sub_kegiatan_id'];
+            $rid  = $pagu['rekening_id'];
+
+            $rakBulan   = $this->getRakByRekeningAndYear((int) $rid, $tahun);
+            $monthlyRak = array_fill(1, 12, 0);
+            foreach ($rakBulan as $r) {
+                $monthlyRak[(int) $r['bulan']] += (float) $r['nilai_rak'];
+            }
+
+            $transaksis = $this->getTransaksiByRekeningAndYear((int) $rid, $tahun);
+            $realisasiSd = 0;
+            $realisasiSebelumnya = 0;
+            $realisasiSaatIni = 0;
+            foreach ($transaksis as $t) {
+                $tBulan = (int) date('n', strtotime($t['tanggal']));
+                if ($tBulan <= $bulan) {
+                    $realisasiSd += (float) $t['nilai'];
+                    if ($tBulan < $bulan) {
+                        $realisasiSebelumnya += (float) $t['nilai'];
+                    } else {
+                        $realisasiSaatIni += (float) $t['nilai'];
+                    }
+                }
+            }
+
+            $paguRek = (float) $pagu['nilai_pagu'];
+
+            $rekRow = [
+                'kode'                 => $pagu['kode_rekening'],
+                'nama'                 => $pagu['nama_rekening'],
+                'pagu'                 => $paguRek,
+                'rak_saat_ini'         => $monthlyRak[$bulan] ?? 0,
+                'realisasi_saat_ini'   => $realisasiSaatIni,
+                'realisasi_sebelumnya' => $realisasiSebelumnya,
+                'realisasi_sd'         => $realisasiSd,
+                'jumlah_realisasi'     => $realisasiSd,
+                'sisa'                 => $paguRek - $realisasiSd,
+                'pct_keuangan'         => $paguRek > 0 ? ($realisasiSd / $paguRek) * 100 : 0,
+                'children'             => [],
+                'type'                 => 'rekening',
+            ];
+
+            if (!isset($hierarchy[$paguSeksiId])) {
+                $info = $seksiMap[$paguSeksiId]
+                    ?? ['kode' => '', 'nama' => 'Tanpa Seksi'];
+                $hierarchy[$paguSeksiId] = $this->initNode('seksi', $info['kode'], $info['nama']);
+            }
+            if (!isset($hierarchy[$paguSeksiId]['children'][$pid])) {
+                $hierarchy[$paguSeksiId]['children'][$pid] = $this->initNode('program', $pagu['kode_program'] ?? '', $pagu['nama_program'] ?? '');
+            }
+            if (!isset($hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid])) {
+                $hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid] = $this->initNode('kegiatan', $pagu['kode_kegiatan'] ?? '', $pagu['nama_kegiatan'] ?? '');
+            }
+            if (!isset($hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid]['children'][$skid])) {
+                $hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid]['children'][$skid] = $this->initNode('sub_kegiatan', $pagu['kode_sub_kegiatan'] ?? '', $pagu['nama_sub_kegiatan'] ?? '');
+            }
+
+            $hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid]['children'][$skid]['children'][$rid] = $rekRow;
+
+            $this->accum($hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid]['children'][$skid], $rekRow);
+            $this->accum($hierarchy[$paguSeksiId]['children'][$pid]['children'][$kid], $rekRow);
+            $this->accum($hierarchy[$paguSeksiId]['children'][$pid], $rekRow);
+            $this->accum($hierarchy[$paguSeksiId], $rekRow);
+        }
+
+        // Sort: seksi by kode (tanpa seksi di paling bawah), lalu program/kegiatan/sub/rekening by kode.
+        uasort($hierarchy, function($a, $b) {
+            $ka = $a['kode'] !== '' ? $a['kode'] : 'ZZZ';
+            $kb = $b['kode'] !== '' ? $b['kode'] : 'ZZZ';
+            return strcmp($ka, $kb);
+        });
+        foreach ($hierarchy as &$s) {
+            uasort($s['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
+            foreach ($s['children'] as &$p) {
+                uasort($p['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
+                foreach ($p['children'] as &$k) {
+                    uasort($k['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
+                    foreach ($k['children'] as &$sk) {
+                        uasort($sk['children'], fn($a,$b) => strcmp($a['kode'],$b['kode']));
+                    }
+                }
+            }
+        }
+        unset($s, $p, $k, $sk);
+
+        // -------------------------------------------------------
+        // 2. Build Spreadsheet (layout kolom identik dengan export program)
+        // -------------------------------------------------------
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Realisasi per Seksi');
+
+        $sheet->getColumnDimension('A')->setWidth(55);
+        $sheet->getColumnDimension('B')->setWidth(20);
+        $sheet->getColumnDimension('C')->setWidth(20);
+        $sheet->getColumnDimension('D')->setWidth(20);
+        $sheet->getColumnDimension('E')->setWidth(20);
+        $sheet->getColumnDimension('F')->setWidth(20);
+        $sheet->getColumnDimension('G')->setWidth(14);
+        $sheet->getColumnDimension('H')->setWidth(20);
+
+        $filterLabel = '';
+        if ($filterSeksiId !== null) {
+            $info = $seksiMap[$filterSeksiId] ?? null;
+            $filterLabel = $info
+                ? ' — ' . strtoupper(trim(($info['kode'] !== '' ? $info['kode'] . ' ' : '') . $info['nama']))
+                : ' — SEKSI #' . $filterSeksiId;
+        }
+
+        $sheet->mergeCells('A1:H1');
+        $sheet->setCellValue('A1', 'LAPORAN REALISASI ANGGARAN PER SEKSI — BULAN ' . strtoupper($namaBulan) . ' ' . $tahun . $filterLabel);
+        $sheet->getStyle('A1')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 14, 'color' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+
+        $sheet->mergeCells('A2:H2');
+        $sheet->setCellValue('A2', 'CDK WILAYAH BOJONEGORO');
+        $sheet->getStyle('A2')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '374151']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(2)->setRowHeight(22);
+        $sheet->getRowDimension(3)->setRowHeight(8);
+
+        // Header kolom (sama persis dengan export program agar konsisten dibaca).
+        $sheet->mergeCells('A4:A6');
+        $sheet->setCellValue('A4', 'SEKSI / PROGRAM / KEGIATAN / SUB KEGIATAN');
+        $sheet->mergeCells('B4:B6');
+        $sheet->setCellValue('B4', 'ANGGARAN');
+        $sheet->mergeCells('C4:E4');
+        $sheet->setCellValue('C4', 'REALISASI (UP/GU/TU)');
+        $sheet->mergeCells('F4:F6');
+        $sheet->setCellValue('F4', 'JUMLAH REALISASI');
+        $sheet->mergeCells('G4:G6');
+        $sheet->setCellValue('G4', 'PRESENTASE (%)');
+        $sheet->mergeCells('H4:H6');
+        $sheet->setCellValue('H4', 'SISA ANGGARAN');
+        $sheet->setCellValue('C5', 'BULAN ' . strtoupper($namaBulan));
+        $sheet->mergeCells('C5:C6');
+        $sheet->setCellValue('D5', 'S/D BULAN LALU');
+        $sheet->mergeCells('D5:D6');
+        $sheet->setCellValue('E5', 'S/D ' . strtoupper($namaBulan) . ' ' . $tahun);
+        $sheet->mergeCells('E5:E6');
+        $sheet->setCellValue('G5', 'KEUANGAN');
+        $sheet->mergeCells('G5:G6');
+
+        $sheet->getStyle('A4:H6')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension(4)->setRowHeight(24);
+        $sheet->getRowDimension(5)->setRowHeight(24);
+        $sheet->getRowDimension(6)->setRowHeight(20);
+
+        // Grand total.
+        $grandTotal = $this->initNode('total', '', 'TOTAL KESELURUHAN');
+        foreach ($hierarchy as $seksiNode) {
+            $this->accum($grandTotal, $seksiNode);
+        }
+
+        $currentRow = 7;
+        $sheet->setCellValue("A{$currentRow}", 'CABANG DINAS KEHUTANAN (CDK) WIL. BOJONEGORO — s/d ' . strtoupper($namaBulan) . ' ' . $tahun . $filterLabel);
+        $sheet->setCellValue("B{$currentRow}", $grandTotal['pagu']);
+        $sheet->setCellValue("C{$currentRow}", $grandTotal['realisasi_saat_ini']);
+        $sheet->setCellValue("D{$currentRow}", $grandTotal['realisasi_sebelumnya']);
+        $sheet->setCellValue("E{$currentRow}", $grandTotal['realisasi_sd']);
+        $sheet->setCellValue("F{$currentRow}", $grandTotal['jumlah_realisasi']);
+        $sheet->setCellValue("G{$currentRow}", $grandTotal['pagu'] > 0 ? ($grandTotal['jumlah_realisasi'] / $grandTotal['pagu']) * 100 : 0);
+        $sheet->setCellValue("H{$currentRow}", $grandTotal['sisa']);
+        $sheet->getStyle("A{$currentRow}:H{$currentRow}")->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '000000']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'AAAAAA']]],
+        ]);
+        $sheet->getRowDimension($currentRow)->setRowHeight(20);
+        $this->applyNumberFormat($sheet, $currentRow);
+        $currentRow++;
+
+        // Tulis baris per seksi; ingat nomor baris seksi untuk SUM total bawah.
+        $seksiRows = [];
+
+        foreach ($hierarchy as $seksiNode) {
+            $seksiRows[] = $currentRow;
+            $this->writeRow($sheet, $currentRow, $seksiNode, 'seksi');
+            $currentRow++;
+
+            foreach ($seksiNode['children'] as $progNode) {
+                $this->writeRow($sheet, $currentRow, $progNode, 'program');
+                $currentRow++;
+
+                foreach ($progNode['children'] as $kegNode) {
+                    $this->writeRow($sheet, $currentRow, $kegNode, 'kegiatan');
+                    $currentRow++;
+
+                    foreach ($kegNode['children'] as $skNode) {
+                        $this->writeRow($sheet, $currentRow, $skNode, 'sub_kegiatan');
+                        $currentRow++;
+
+                        foreach ($skNode['children'] as $rekNode) {
+                            $this->writeRow($sheet, $currentRow, $rekNode, 'rekening');
+                            $currentRow++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Baris JUMLAH TOTAL — jumlahkan hanya baris level seksi agar tidak double-count.
+        $sheet->setCellValue("A{$currentRow}", 'JUMLAH TOTAL');
+        if (!empty($seksiRows)) {
+            foreach (['B','C','D','E','F','H'] as $col) {
+                $refs = array_map(fn($r) => "{$col}{$r}", $seksiRows);
+                $sheet->setCellValue("{$col}{$currentRow}", '=' . implode('+', $refs));
+            }
+        } else {
+            foreach (['B','C','D','E','F','H'] as $col) {
+                $sheet->setCellValue("{$col}{$currentRow}", 0);
+            }
+        }
+        $sheet->setCellValue("G{$currentRow}", "=IF(B{$currentRow}>0,(F{$currentRow}/B{$currentRow})*100,0)");
+
+        $sheet->getStyle("A{$currentRow}:H{$currentRow}")->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_LEFT],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension($currentRow)->setRowHeight(22);
+
+        $numFmt = '#,##0';
+        $pctFmt = '0.00"%"';
+        foreach (['B','C','D','E','F','H'] as $col) {
+            $sheet->getStyle("{$col}{$currentRow}")->getNumberFormat()->setFormatCode($numFmt);
+            $sheet->getStyle("{$col}{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        }
+        $sheet->getStyle("G{$currentRow}")->getNumberFormat()->setFormatCode($pctFmt);
+        $sheet->getStyle("G{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        $sheet->freezePane('A7');
+
+        $filename = 'Laporan_Realisasi_PerSeksi_CDK_Bojonegoro_' . $namaBulan . '_' . $tahun
+            . ($filterSeksiId !== null ? '_Seksi' . $filterSeksiId : '') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
     // -------------------------------------------------------
     // Helper: init a node with zeroed numeric fields
     // -------------------------------------------------------
@@ -354,6 +663,7 @@ class ExcelController {
     // -------------------------------------------------------
     private function writeRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row, array $node, string $type): void {
         $indent = match($type) {
+            'seksi'       => '',
             'program'     => '',
             'kegiatan'    => '  ',
             'sub_kegiatan'=> '    ',
@@ -374,6 +684,7 @@ class ExcelController {
 
         // Base style
         $bgColor = match($type) {
+            'seksi'        => '15803D',  // Dark green - Seksi
             'program'      => 'D6E4F0',  // Light blue - Program
             'kegiatan'     => 'E8F5E9',  // Light green - Kegiatan
             'sub_kegiatan' => 'FFF9E6',  // Light yellow - Sub Kegiatan
@@ -381,15 +692,17 @@ class ExcelController {
             default        => 'FFFFFF',
         };
 
-        $bold = in_array($type, ['program', 'kegiatan']);
+        $bold = in_array($type, ['seksi', 'program', 'kegiatan']);
         $fontSize = match($type) {
+            'seksi'    => 10,
             'program'  => 10,
             'kegiatan' => 9,
             default    => 9,
         };
+        $fontColor = $type === 'seksi' ? 'FFFFFF' : '000000';
 
         $style = [
-            'font'      => ['bold' => $bold, 'size' => $fontSize],
+            'font'      => ['bold' => $bold, 'size' => $fontSize, 'color' => ['rgb' => $fontColor]],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => false],
             'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CCCCCC']]],

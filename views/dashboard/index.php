@@ -2032,9 +2032,41 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
               </select>
             </div>
 
+            <!-- Grouping -->
+            <div class="col-12">
+              <label class="form-label fw-semibold" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-diagram-3 me-1" style="color:#16a34a;"></i>Pengelompokan Baris</label>
+              <div class="d-flex flex-column gap-2">
+                <div class="form-check" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 1rem 0.6rem 2.25rem;">
+                  <input class="form-check-input" type="radio" name="grouping" id="exportGroupingProgram" value="program" checked>
+                  <label class="form-check-label fw-semibold" for="exportGroupingProgram" style="font-size:var(--fs-base);color:#1e293b;">
+                    Hierarki Program
+                    <span class="d-block fw-normal" style="font-size:var(--fs-sm);color:#64748b;">Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening (seperti biasa)</span>
+                  </label>
+                </div>
+                <div class="form-check" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.6rem 1rem 0.6rem 2.25rem;">
+                  <input class="form-check-input" type="radio" name="grouping" id="exportGroupingSeksi" value="seksi">
+                  <label class="form-check-label fw-semibold" for="exportGroupingSeksi" style="font-size:var(--fs-base);color:#1e293b;">
+                    Grouping per Seksi
+                    <span class="d-block fw-normal" style="font-size:var(--fs-sm);color:#64748b;">Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filter Seksi (hanya dipakai saat grouping per seksi) -->
+            <div class="col-12" id="exportSeksiWrap" style="display:none;">
+              <label class="form-label fw-semibold" for="exportSeksi" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-building me-1" style="color:#16a34a;"></i>Seksi</label>
+              <select class="form-select" id="exportSeksi" name="seksi_id">
+                <option value="">Semua Seksi</option>
+                <?php foreach(($filterOptions['seksi'] ?? []) as $s): ?>
+                <option value="<?= (int) $s['id'] ?>"><?= htmlspecialchars(($s['kode_seksi'] ?? '') !== '' ? $s['kode_seksi'] . ' — ' . $s['nama_seksi'] : $s['nama_seksi']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
             <!-- Info box -->
             <div class="col-12">
-              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem 1rem;font-size:var(--fs-sm);color:#166534;">
+              <div id="exportInfoBox" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem 1rem;font-size:var(--fs-sm);color:#166534;">
                 <i class="bi bi-info-circle-fill me-1"></i>
                 File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.
               </div>
@@ -2060,7 +2092,16 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 document.getElementById('btnDownloadExcel').addEventListener('click', function() {
     var tahun = document.getElementById('exportTahun').value;
     var bulan = document.getElementById('exportBulan').value;
-    var url   = '<?= base_url('export/laporan') ?>?tahun=' + tahun + '&bulan=' + bulan;
+    var groupingEl = document.querySelector('input[name="grouping"]:checked');
+    var grouping = groupingEl ? groupingEl.value : 'program';
+    var seksiEl = document.getElementById('exportSeksi');
+    var seksiId = seksiEl ? seksiEl.value : '';
+    var url   = '<?= base_url('export/laporan') ?>?tahun=' + encodeURIComponent(tahun)
+        + '&bulan=' + encodeURIComponent(bulan)
+        + '&grouping=' + encodeURIComponent(grouping);
+    if (grouping === 'seksi' && seksiId !== '') {
+        url += '&seksi_id=' + encodeURIComponent(seksiId);
+    }
     window.location.href = url;
     // Close modal after short delay
     setTimeout(function() {
@@ -2068,6 +2109,23 @@ document.getElementById('btnDownloadExcel').addEventListener('click', function()
         if (modal) modal.hide();
     }, 500);
 });
+
+// Toggle filter seksi + info box sesuai pilihan grouping
+(function() {
+    var radioProgram = document.getElementById('exportGroupingProgram');
+    var radioSeksi = document.getElementById('exportGroupingSeksi');
+    var seksiWrap = document.getElementById('exportSeksiWrap');
+    var infoBox = document.getElementById('exportInfoBox');
+    var infoProgram = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.';
+    var infoSeksi = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dengan struktur <strong>Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening</strong>. Pilih "Semua Seksi" untuk seluruh seksi, atau satu seksi tertentu.';
+    function refreshExportGrouping() {
+        var isSeksi = radioSeksi && radioSeksi.checked;
+        if (seksiWrap) seksiWrap.style.display = isSeksi ? '' : 'none';
+        if (infoBox) infoBox.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>' + (isSeksi ? infoSeksi : infoProgram);
+    }
+    if (radioProgram) radioProgram.addEventListener('change', refreshExportGrouping);
+    if (radioSeksi) radioSeksi.addEventListener('change', refreshExportGrouping);
+})();
 </script>
 
 
