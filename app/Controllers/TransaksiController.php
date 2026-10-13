@@ -1146,6 +1146,15 @@ class TransaksiController
      */
     public function downloadBkuCdk(): void
     {
+        // Respons berupa biner xlsx: pastikan TIDAK ada byte nyasar (whitespace,
+        // BOM, notice/warning PHP) yang ikut terkirim dan merusak file.
+        // - Bersihkan seluruh output buffer yang mungkin sudah terisi.
+        // - Matikan display_errors selama unduhan (error tetap tercatat di log).
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        @ini_set('display_errors', '0');
+
         // Hanya admin yang boleh mengakses
         if (session_status() === PHP_SESSION_NONE) session_start();
         if (!isset($_SESSION['user_id'])) {
@@ -1166,6 +1175,7 @@ class TransaksiController
 
         if (!$modePeriode && ($bulan === null || $tahun === null || $bulan < 1 || $bulan > 12 || $tahun < 2000)) {
             http_response_code(400);
+            header('Content-Type: text/plain; charset=utf-8');
             echo 'Pilih Bulan dan Tahun (atau isi Tanggal Dari/Sampai) terlebih dahulu untuk mengunduh BKU';
             exit;
         }
@@ -1670,17 +1680,45 @@ class TransaksiController
         $sheet->getPageSetup()->setFitToHeight(0);
 
         // ── Nama file & kirim ke browser ───────────────────────────────────
+        // Ditulis dulu ke file sementara sehingga yang dikirim pasti utuh
+        // (beserta Content-Length agar browser/Excel bisa mendeteksi truncation).
         $fileName = $modePeriode
             ? 'BKU_CDK_Bojonegoro_' . ($dari ?? 'awal') . '_sd_' . ($sampai ?? 'akhir') . '.xlsx'
             : 'BKU_CDK_Bojonegoro_' . $namaBulan . '_' . $tahun . '.xlsx';
 
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tmpFile = tempnam(sys_get_temp_dir(), 'bku_cdk_');
+        if ($tmpFile === false) {
+            http_response_code(500);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Gagal menyiapkan file sementara untuk unduhan BKU';
+            exit;
+        }
+        try {
+            $writer->save($tmpFile);
+        } catch (\Throwable $e) {
+            @unlink($tmpFile);
+            error_log('downloadBkuCdk gagal menyusun xlsx: ' . $e->getMessage());
+            http_response_code(500);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Gagal menyusun file BKU. Detail tercatat di log server.';
+            exit;
+        }
+
+        // Buang lagi semua buffer tepat sebelum mengirim biner.
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $fileSize = filesize($tmpFile);
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Content-Length: ' . $fileSize);
         header('Cache-Control: max-age=0');
         header('Pragma: public');
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save('php://output');
+        readfile($tmpFile);
+        @unlink($tmpFile);
         exit;
     }
 }
