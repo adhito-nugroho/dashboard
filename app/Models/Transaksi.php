@@ -23,12 +23,23 @@ class Transaksi
      * @param int|null $subKegiatanId
      * @return array
      */
-    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null): array
+    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null): array
     {
         try {
             $conditions = [];
             $params = [];
 
+            // Filter periode tanggal memakai tanggal efektif yang sama
+            // (tanggal lunas dibayar → diverifikasi_at → tanggal bukti).
+            $tglEfektif = 'DATE(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal))';
+            if ($dari !== null && $dari !== '') {
+                $conditions[] = "{$tglEfektif} >= :dari";
+                $params[':dari'] = $dari;
+            }
+            if ($sampai !== null && $sampai !== '') {
+                $conditions[] = "{$tglEfektif} <= :sampai";
+                $params[':sampai'] = $sampai;
+            }
             if ($bulan !== null) {
                 $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
                 $params[':bulan'] = $bulan;

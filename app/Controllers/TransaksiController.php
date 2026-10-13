@@ -55,12 +55,28 @@ class TransaksiController
             $filterKegiatan   = isset($_GET['kegiatan_id'])    && $_GET['kegiatan_id']    !== '' ? (int) $_GET['kegiatan_id']    : null;
             $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
             $filterStatus      = isset($_GET['status']) && $_GET['status'] !== '' ? $_GET['status'] : null;
+            // Filter periode tanggal (format YYYY-MM-DD, tanggal efektif realisasi)
+            $filterDari   = isset($_GET['dari'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['dari']))   ? trim((string) $_GET['dari'])   : null;
+            $filterSampai = isset($_GET['sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['sampai'])) ? trim((string) $_GET['sampai']) : null;
+            if ($filterDari !== null && !strtotime($filterDari)) {
+                $filterDari = null;
+            }
+            if ($filterSampai !== null && !strtotime($filterSampai)) {
+                $filterSampai = null;
+            }
+            // Tukar otomatis bila dari > sampai agar tidak menghasilkan data kosong
+            if ($filterDari !== null && $filterSampai !== null && $filterDari > $filterSampai) {
+                [$filterDari, $filterSampai] = [$filterSampai, $filterDari];
+            }
 
             // Check if any filter is active
-            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterStatus !== null;
+            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterStatus !== null || $filterDari !== null || $filterSampai !== null;
+            // Bila periode tanggal diisi, filter Bulan/Tahun diabaikan (periode lebih spesifik)
+            $queryBulan = ($filterDari !== null || $filterSampai !== null) ? null : $filterBulan;
+            $queryTahun = ($filterDari !== null || $filterSampai !== null) ? null : $filterTahun;
 
             if ($hasFilter) {
-                $transaksis = $this->transaksiModel->getWithFilters($filterBulan, $filterTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus);
+                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai);
             } else {
                 $transaksis = $this->transaksiModel->getAll();
             }
@@ -81,11 +97,13 @@ class TransaksiController
 
             // Build baseUrl with filter params for pagination links
             $queryParams = array_filter([
-                'bulan'           => $filterBulan,
-                'tahun'           => $filterTahun,
+                'bulan'           => $queryBulan,
+                'tahun'           => $queryTahun,
                 'kegiatan_id'     => $filterKegiatan,
                 'sub_kegiatan_id' => $filterSubKegiatan,
                 'status'          => $filterStatus,
+                'dari'            => $filterDari,
+                'sampai'          => $filterSampai,
             ], fn($v) => $v !== null);
             $paginationBase = base_url('transaksi') . '?' . http_build_query($queryParams) . '&';
 
@@ -1113,13 +1131,18 @@ class TransaksiController
 
     /**
      * Download BKU CDK Bojonegoro — satu BKU gabungan seluruh kantor (admin only).
+     * Mengikuti filter yang aktif di halaman Transaksi:
      *
-     * - Semua transaksi lintas seksi, semua status (tidak difilter status kecuali user memilih filter Status).
-     * - Filter Bulan & Tahun wajib; filter Kegiatan/SubKegiatan/Status bersifat opsional.
+     * - Mode periode: bila query `dari`/`sampai` (YYYY-MM-DD) diisi, BKU mencakup
+     *   rentang tanggal efektif tersebut (Bulan/Tahun diabaikan). Minimal satu
+     *   dari keduanya wajib diisi pada mode ini.
+     * - Mode bulanan: bila tanpa `dari`/`sampai`, filter Bulan & Tahun wajib.
+     * - Filter Kegiatan/SubKegiatan/Status bersifat opsional pada kedua mode.
      * - Urut nomor_bukti ASC (natural numeric sort).
      * - Kolom Tanggal menggunakan tanggal verifikasi (tanggal_lunas_dibayar / diverifikasi_at).
      * - Kolom: No, Tanggal, Seksi, Uraian, No Bukti, Pengeluaran (Rp), Saldo (Rp), Status.
-     * - Nama file: BKU_CDK_Bojonegoro_[Bulan]_[Tahun].xlsx
+     * - Nama file mode bulanan: BKU_CDK_Bojonegoro_[Bulan]_[Tahun].xlsx
+     * - Nama file mode periode:  BKU_CDK_Bojonegoro_[dari]_sd_[sampai].xlsx
      */
     public function downloadBkuCdk(): void
     {
@@ -1133,9 +1156,17 @@ class TransaksiController
         $bulan  = isset($_GET['bulan'])  && $_GET['bulan']  !== '' ? (int) $_GET['bulan']  : null;
         $tahun  = isset($_GET['tahun'])  && $_GET['tahun']  !== '' ? (int) $_GET['tahun']  : null;
 
-        if ($bulan === null || $tahun === null || $bulan < 1 || $bulan > 12 || $tahun < 2000) {
+        // Periode tanggal (mode unduhan mengikuti filter periode di halaman Transaksi)
+        $dari   = isset($_GET['dari'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['dari']))   && strtotime(trim((string) $_GET['dari']))   ? trim((string) $_GET['dari'])   : null;
+        $sampai = isset($_GET['sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['sampai'])) && strtotime(trim((string) $_GET['sampai'])) ? trim((string) $_GET['sampai']) : null;
+        if ($dari !== null && $sampai !== null && $dari > $sampai) {
+            [$dari, $sampai] = [$sampai, $dari];
+        }
+        $modePeriode = $dari !== null || $sampai !== null;
+
+        if (!$modePeriode && ($bulan === null || $tahun === null || $bulan < 1 || $bulan > 12 || $tahun < 2000)) {
             http_response_code(400);
-            echo 'Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU';
+            echo 'Pilih Bulan dan Tahun (atau isi Tanggal Dari/Sampai) terlebih dahulu untuk mengunduh BKU';
             exit;
         }
 
@@ -1149,12 +1180,25 @@ class TransaksiController
         // ── Bangun query dinamis ───────────────────────────────────────────
         // BKU bendahara hanya mencatat arus kas bendahara (sumber dana UP);
         // transaksi LS (langsung Kasda ke rekanan) tidak mengurangi kas.
-        $conditions = [
-            "t.sumber_dana = 'UP'",
-            'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan',
-            'YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal))  = :tahun',
-        ];
-        $params = [':bulan' => $bulan, ':tahun' => $tahun];
+        // Tanggal acuan = tanggal efektif (lunas dibayar → diverifikasi_at → tanggal bukti).
+        $tglEfektif = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)';
+        $conditions = ["t.sumber_dana = 'UP'"];
+        $params = [];
+        if ($modePeriode) {
+            if ($dari !== null) {
+                $conditions[] = "DATE({$tglEfektif}) >= :dari";
+                $params[':dari'] = $dari;
+            }
+            if ($sampai !== null) {
+                $conditions[] = "DATE({$tglEfektif}) <= :sampai";
+                $params[':sampai'] = $sampai;
+            }
+        } else {
+            $conditions[] = "MONTH({$tglEfektif}) = :bulan";
+            $conditions[] = "YEAR({$tglEfektif})  = :tahun";
+            $params[':bulan'] = $bulan;
+            $params[':tahun'] = $tahun;
+        }
 
         if ($filterSubKegiatan !== null) {
             $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
@@ -1199,23 +1243,51 @@ class TransaksiController
         // Ambil mutasi penerimaan kas/bank jika tidak memfilter sub_kegiatan/kegiatan spesifik
         $kasRows = [];
         if ($filterSubKegiatan === null && $filterKegiatan === null && $filterStatus !== 'ditolak') {
-            $stmtKas = $db->prepare("
-                SELECT
-                    id,
-                    tanggal,
-                    tanggal_cair,
-                    jenis,
-                    status,
-                    nomor_bukti,
-                    keterangan,
-                    nominal
-                FROM kas_bank
-                WHERE bulan = :bulan
-                  AND tahun = :tahun
-                  AND (status = 'cair' OR status IS NULL)
-                ORDER BY tanggal ASC, id ASC
-            ");
-            $stmtKas->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+            if ($modePeriode) {
+                $kasConditions = ["(status = 'cair' OR status IS NULL)"];
+                $kasParams = [];
+                if ($dari !== null) {
+                    $kasConditions[] = 'DATE(COALESCE(tanggal_cair, tanggal)) >= :dari';
+                    $kasParams[':dari'] = $dari;
+                }
+                if ($sampai !== null) {
+                    $kasConditions[] = 'DATE(COALESCE(tanggal_cair, tanggal)) <= :sampai';
+                    $kasParams[':sampai'] = $sampai;
+                }
+                $stmtKas = $db->prepare("
+                    SELECT
+                        id,
+                        tanggal,
+                        tanggal_cair,
+                        jenis,
+                        status,
+                        nomor_bukti,
+                        keterangan,
+                        nominal
+                    FROM kas_bank
+                    WHERE " . implode(' AND ', $kasConditions) . "
+                    ORDER BY COALESCE(tanggal_cair, tanggal) ASC, id ASC
+                ");
+                $stmtKas->execute($kasParams);
+            } else {
+                $stmtKas = $db->prepare("
+                    SELECT
+                        id,
+                        tanggal,
+                        tanggal_cair,
+                        jenis,
+                        status,
+                        nomor_bukti,
+                        keterangan,
+                        nominal
+                    FROM kas_bank
+                    WHERE bulan = :bulan
+                      AND tahun = :tahun
+                      AND (status = 'cair' OR status IS NULL)
+                    ORDER BY tanggal ASC, id ASC
+                ");
+                $stmtKas->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+            }
             $kasRows = $stmtKas->fetchAll(\PDO::FETCH_ASSOC);
         }
 
@@ -1331,15 +1403,25 @@ class TransaksiController
                 break;
             }
         }
-        if (!$adaSaldoAwalBulanIni && $filterSubKegiatan === null && $filterKegiatan === null) {
+        // Mode periode tanpa tanggal awal (hanya `sampai`) dianggap sejak awal
+        // pembukuan sehingga tidak ada saldo awal yang disisipkan.
+        $bisaSaldoAwal = !$modePeriode || $dari !== null;
+        if (!$adaSaldoAwalBulanIni && $filterSubKegiatan === null && $filterKegiatan === null && $bisaSaldoAwal) {
             require_once __DIR__ . '/../Models/KasBank.php';
             $kasBankModel = new \App\Models\KasBank($db);
-            $awalPeriode     = sprintf('%04d-%02d-01', $tahun, $bulan);
-            $akhirBulanLalu  = date('Y-m-d', strtotime($awalPeriode . ' -1 day'));
+            if ($modePeriode) {
+                $awalPeriode    = $dari;
+                $akhirBulanLalu = date('Y-m-d', strtotime($dari . ' -1 day'));
+            } else {
+                $awalPeriode    = sprintf('%04d-%02d-01', $tahun, $bulan);
+                $akhirBulanLalu = date('Y-m-d', strtotime($awalPeriode . ' -1 day'));
+            }
             $saldoAwalPeriode = $kasBankModel->getSaldoPerTanggal($akhirBulanLalu);
             if (abs($saldoAwalPeriode) > 0.005) {
                 $tsLalu = strtotime($akhirBulanLalu);
-                $labelLalu = ($namaBulanMap[(int) date('n', $tsLalu)] ?? '') . ' ' . date('Y', $tsLalu);
+                $labelLalu = $modePeriode
+                    ? date('d/m/Y', $tsLalu)
+                    : (($namaBulanMap[(int) date('n', $tsLalu)] ?? '') . ' ' . date('Y', $tsLalu));
                 if ($saldoAwalPeriode >= 0) {
                     array_unshift($bkuItems, [
                         'type'          => 'penerimaan',
@@ -1401,10 +1483,17 @@ class TransaksiController
 
         // Header organisasi (baris 1–3); 10 kolom: A–J
         $lastCol = 'J';
+        $fmtPeriode = function (?string $ymd): string {
+            $ts = $ymd !== null ? strtotime($ymd) : false;
+            return $ts ? date('d/m/Y', $ts) : '…';
+        };
+        $labelPeriode = $modePeriode
+            ? 'Periode: ' . $fmtPeriode($dari) . ' – ' . $fmtPeriode($sampai)
+            : 'Bulan: ' . $namaBulan . ' ' . $tahun;
         foreach ([
             ['A1', 'BUKU KAS UMUM (BKU)', 14],
             ['A2', 'CDK WILAYAH BOJONEGORO', 12],
-            ['A3', 'Bulan: ' . $namaBulan . ' ' . $tahun . '  ·  Kas Bendahara (UP/GU — transaksi LS tidak termasuk)', 11],
+            ['A3', $labelPeriode . '  ·  Kas Bendahara (UP/GU — transaksi LS tidak termasuk)', 11],
         ] as [$cell, $val, $size]) {
             $sheet->mergeCells($cell . ':' . $lastCol . substr($cell, 1));
             $sheet->setCellValue($cell, $val);
@@ -1581,7 +1670,9 @@ class TransaksiController
         $sheet->getPageSetup()->setFitToHeight(0);
 
         // ── Nama file & kirim ke browser ───────────────────────────────────
-        $fileName = 'BKU_CDK_Bojonegoro_' . $namaBulan . '_' . $tahun . '.xlsx';
+        $fileName = $modePeriode
+            ? 'BKU_CDK_Bojonegoro_' . ($dari ?? 'awal') . '_sd_' . ($sampai ?? 'akhir') . '.xlsx'
+            : 'BKU_CDK_Bojonegoro_' . $namaBulan . '_' . $tahun . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $fileName . '"');

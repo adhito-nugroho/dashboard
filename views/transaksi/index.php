@@ -17,6 +17,9 @@ $filterSubKegiatan  = $filterSubKegiatan ?? null;
 $filterKegiatanList    = $filterKegiatanList ?? [];
 $filterSubKegiatanList = $filterSubKegiatanList ?? [];
 $filterStatus          = $filterStatus ?? null;
+$filterDari            = $filterDari ?? null;
+$filterSampai          = $filterSampai ?? null;
+$isPeriodeAktif        = $filterDari !== null || $filterSampai !== null;
 
 $statusLabels = [
     'diajukan'     => ['Menunggu Verifikasi', 'warning'],
@@ -33,7 +36,23 @@ $namaBulan = [
 
 // Build active filter labels
 $activeFilterLabels = [];
-if ($filterBulan !== null) $activeFilterLabels[] = $namaBulan[$filterBulan] . ' ' . $filterTahun;
+if ($isPeriodeAktif) {
+    $fmtTgl = function ($ymd) {
+        $ts = strtotime($ymd);
+        return $ts ? date('d/m/Y', $ts) : $ymd;
+    };
+    if ($filterDari !== null && $filterSampai !== null) {
+        $activeFilterLabels[] = $filterDari === $filterSampai
+            ? 'Tanggal: ' . $fmtTgl($filterDari)
+            : 'Periode: ' . $fmtTgl($filterDari) . ' – ' . $fmtTgl($filterSampai);
+    } elseif ($filterDari !== null) {
+        $activeFilterLabels[] = 'Dari: ' . $fmtTgl($filterDari);
+    } else {
+        $activeFilterLabels[] = 'Sampai: ' . $fmtTgl($filterSampai);
+    }
+} elseif ($filterBulan !== null) {
+    $activeFilterLabels[] = $namaBulan[$filterBulan] . ' ' . $filterTahun;
+}
 if ($filterSubKegiatan !== null) {
     foreach ($filterSubKegiatanList as $sk) {
         if ($sk['id'] == $filterSubKegiatan) { $activeFilterLabels[] = $sk['kode_sub_kegiatan'] . ' ' . $sk['nama_sub_kegiatan']; break; }
@@ -394,6 +413,40 @@ $isFiltered = !empty($activeFilterLabels);
                     </div>
                 </div>
 
+                <!-- Baris 1b: Filter Periode Tanggal (mengabaikan Bulan/Tahun bila diisi) -->
+                <div class="row g-2 g-lg-3 align-items-end mt-1">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label for="filter-dari" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
+                            <i class="bi bi-calendar-event text-muted"></i> Tanggal Dari
+                        </label>
+                        <input type="date" name="dari" id="filter-dari" class="form-control form-control-sm"
+                               value="<?= htmlspecialchars($filterDari ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label for="filter-sampai" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
+                            <i class="bi bi-calendar-event text-muted"></i> Tanggal Sampai
+                        </label>
+                        <input type="date" name="sampai" id="filter-sampai" class="form-control form-control-sm"
+                               value="<?= htmlspecialchars($filterSampai ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <span class="form-label trx-filter-label d-block">
+                            <i class="bi bi-lightning-charge text-muted"></i> Cepat
+                        </span>
+                        <div class="d-flex flex-wrap gap-1" role="group" aria-label="Preset periode cepat">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="today">Hari Ini</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="7">7 Hari Terakhir</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="30">30 Hari Terakhir</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="month">Bulan Ini</button>
+                            <?php if ($isPeriodeAktif): ?>
+                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle align-self-center ms-1" title="Filter Bulan/Tahun diabaikan selama periode tanggal aktif">
+                                    <i class="bi bi-info-circle me-1"></i>Periode aktif — Bulan/Tahun diabaikan
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Baris 2: Informasi Filter Aktif & Tombol Aksi -->
                 <div class="trx-filter-foot d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
                     <!-- Status Filter Aktif -->
@@ -418,7 +471,7 @@ $isFiltered = !empty($activeFilterLabels);
                             <i class="bi bi-arrow-counterclockwise"></i>
                             <span>Reset</span>
                         </a>
-                        <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter Bulan &amp; Tahun aktif">
+                        <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter yang aktif">
                             <i class="bi bi-file-earmark-excel"></i>
                             <span>Unduh BKU</span>
                         </button>
@@ -449,6 +502,62 @@ $isFiltered = !empty($activeFilterLabels);
             }
             kegiatanSel.addEventListener('change', cascade);
             cascade();
+        }
+
+        // Periode tanggal: bila diisi, Bulan/Tahun dinonaktifkan (diabaikan backend)
+        const bulanSel  = document.getElementById('filter-bulan');
+        const tahunSel  = document.getElementById('filter-tahun');
+        const dariInput   = document.getElementById('filter-dari');
+        const sampaiInput = document.getElementById('filter-sampai');
+        function toISODate(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + day;
+        }
+        function syncBulanTahunState() {
+            const periodeAktif = (dariInput && dariInput.value) || (sampaiInput && sampaiInput.value);
+            [bulanSel, tahunSel].forEach(function (sel) {
+                if (!sel) return;
+                sel.disabled = !!periodeAktif;
+                sel.title = periodeAktif ? 'Diabaikan selama filter periode tanggal aktif' : '';
+            });
+        }
+        if (dariInput && sampaiInput) {
+            dariInput.addEventListener('change', function () {
+                if (sampaiInput.value && dariInput.value && sampaiInput.value < dariInput.value) {
+                    sampaiInput.value = dariInput.value;
+                }
+                syncBulanTahunState();
+            });
+            sampaiInput.addEventListener('change', function () {
+                if (dariInput.value && sampaiInput.value && sampaiInput.value < dariInput.value) {
+                    dariInput.value = sampaiInput.value;
+                }
+                syncBulanTahunState();
+            });
+            syncBulanTahunState();
+
+            // Preset cepat: Hari Ini / 7 / 30 hari / Bulan Ini
+            document.querySelectorAll('[data-preset]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const now = new Date();
+                    const preset = btn.getAttribute('data-preset');
+                    let dari, sampai = toISODate(now);
+                    if (preset === 'today') {
+                        dari = sampai;
+                    } else if (preset === '7' || preset === '30') {
+                        const start = new Date(now);
+                        start.setDate(start.getDate() - (parseInt(preset, 10) - 1));
+                        dari = toISODate(start);
+                    } else if (preset === 'month') {
+                        dari = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+                    }
+                    if (dari) dariInput.value = dari;
+                    sampaiInput.value = sampai;
+                    syncBulanTahunState();
+                });
+            });
         }
     })();
     </script>
@@ -483,7 +592,9 @@ $isFiltered = !empty($activeFilterLabels);
                         <i class="bi bi-inbox fs-2"></i>
                     </div>
                     <h6 class="fw-bold text-dark mb-1">
-                        <?php if ($filterBulan !== null): ?>
+                        <?php if ($isPeriodeAktif): ?>
+                            Tidak Ada Transaksi pada Periode <?= htmlspecialchars($filterDari ?? '…') ?> s/d <?= htmlspecialchars($filterSampai ?? '…') ?>
+                        <?php elseif ($filterBulan !== null): ?>
                             Tidak Ada Transaksi pada <?= $namaBulan[$filterBulan] ?> <?= $filterTahun ?>
                         <?php else: ?>
                             Belum Ada Data Transaksi
@@ -752,7 +863,13 @@ $isFiltered = !empty($activeFilterLabels);
                         <tfoot class="table-light">
                             <tr>
                                 <td colspan="5" class="text-end py-3 fw-bold text-secondary">
-                                    Total Nilai<?= $filterBulan !== null ? ' (' . $namaBulan[$filterBulan] . ' ' . $filterTahun . ')' : '' ?>:
+                                    Total Nilai<?php
+                                        if ($isPeriodeAktif) {
+                                            echo ' (' . htmlspecialchars($filterDari ?? '…') . ' s/d ' . htmlspecialchars($filterSampai ?? '…') . ')';
+                                        } elseif ($filterBulan !== null) {
+                                            echo ' (' . $namaBulan[$filterBulan] . ' ' . $filterTahun . ')';
+                                        }
+                                    ?>:
                                 </td>
                                 <td class="text-end py-3 fw-bold text-dark font-monospace" style="font-size: 0.95rem;">
                                     Rp <?= number_format($totalNilai, 0, ',', '.') ?>
@@ -1166,19 +1283,29 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initial check state
     updateSelectionState();
 
-    // Tombol Unduh BKU CDK
+    // Tombol Unduh BKU CDK — mengikuti seluruh filter yang aktif
+    // (periode tanggal bila diisi, jika tidak memakai Bulan & Tahun)
     const btnBku = document.getElementById('btn-unduh-bku');
     if (btnBku) {
         btnBku.addEventListener('click', function () {
-            const selBulan = document.getElementById('filter-bulan').value;
-            const selTahun = document.getElementById('filter-tahun').value;
-            if (!selBulan || !selTahun) {
-                alert('Pilih Bulan dan Tahun terlebih dahulu untuk mengunduh BKU');
-                return;
-            }
             const params = new URLSearchParams();
-            params.set('bulan', selBulan);
-            params.set('tahun', selTahun);
+            const dariEl = document.getElementById('filter-dari');
+            const sampaiEl = document.getElementById('filter-sampai');
+            const dariVal = dariEl ? dariEl.value : '';
+            const sampaiVal = sampaiEl ? sampaiEl.value : '';
+            if (dariVal || sampaiVal) {
+                if (dariVal) params.set('dari', dariVal);
+                if (sampaiVal) params.set('sampai', sampaiVal);
+            } else {
+                const selBulan = document.getElementById('filter-bulan').value;
+                const selTahun = document.getElementById('filter-tahun').value;
+                if (!selBulan || !selTahun) {
+                    alert('Pilih Bulan dan Tahun (atau isi Tanggal Dari/Sampai) terlebih dahulu untuk mengunduh BKU');
+                    return;
+                }
+                params.set('bulan', selBulan);
+                params.set('tahun', selTahun);
+            }
             const keg = document.getElementById('filter-kegiatan').value;
             if (keg) params.set('kegiatan_id', keg);
             const subKeg = document.getElementById('filter-sub-kegiatan').value;
