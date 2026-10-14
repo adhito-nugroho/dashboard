@@ -71,6 +71,18 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
     --fs-lg: 1.1rem;
     --fs-xl: 1.35rem;
 }
+/* Tipografi angka tabular: digit & titik ribuan sejajar vertikal */
+.kpi-value,
+.kpi-sublabel,
+.badge-capaian,
+.monthly-absorption-pct,
+.table-dashboard td,
+.table-dashboard th,
+.sm-tbl td,
+.sm-tbl th,
+.breakdown-legend__pct {
+    font-variant-numeric: tabular-nums;
+}
 </style>
 <div class="container-fluid" style="padding: 1.75rem 1.5rem;">
     <!-- Page Header -->
@@ -294,7 +306,14 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <div class="kpi-icon" style="background:#ecfeff;color:var(--info);"><i class="bi bi-calendar-check"></i></div>
                         <div style="flex:1;min-width:0;">
                             <div class="kpi-label">Serapan vs RAK <small style="font-size:0.7em;font-weight:600;color:var(--gray-400);">s/d <?= strtoupper($bulanNames[$bulanBerjalan]) ?></small></div>
-                            <div class="kpi-value" style="font-size:1.05rem;color:var(--gray-700);"><?= number_format($capaianRakBulanBerjalan, 2) ?>% <span style="font-size:0.72rem;font-weight:600;color:var(--gray-400);">dari target RAK</span></div>
+                            <?php
+                                $fmtTargetRakKpi = $targetRakBulanBerjalan >= 1e9
+                                    ? 'Rp ' . number_format($targetRakBulanBerjalan / 1e9, 2, ',', '.') . ' M'
+                                    : ($targetRakBulanBerjalan >= 1e6
+                                        ? 'Rp ' . number_format($targetRakBulanBerjalan / 1e6, 2, ',', '.') . ' Jt'
+                                        : 'Rp ' . number_format($targetRakBulanBerjalan, 0, ',', '.'));
+                            ?>
+                            <div class="kpi-value" style="font-size:1.05rem;color:var(--gray-700);"><?= number_format($capaianRakBulanBerjalan, 2) ?>% <span style="font-size:0.72rem;font-weight:600;color:var(--gray-400);" title="Target RAK kumulatif s/d <?= $bulanNames[$bulanBerjalan] ?>: Rp <?= number_format($targetRakBulanBerjalan, 0, ',', '.') ?>">dari target <?= $fmtTargetRakKpi ?></span></div>
                             <div class="mt-2">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="progress flex-grow-1" style="height:5px;border-radius:3px;background:var(--gray-100);">
@@ -440,10 +459,13 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                 </div>
                 <div class="card-body" style="padding:0.75rem 1.5rem 1.5rem;">
                     <!-- Toggle Buttons -->
-                    <div class="d-flex gap-1 mb-3" id="monthlyChartToggle">
+                    <div class="d-flex gap-1 mb-3 align-items-center flex-wrap" id="monthlyChartToggle">
                         <button type="button" class="btn btn-sm monthly-toggle-btn active" data-range="all">Semua Bulan</button>
                         <button type="button" class="btn btn-sm monthly-toggle-btn" data-range="h1">Jan–Jun</button>
                         <button type="button" class="btn btn-sm monthly-toggle-btn" data-range="h2">Jul–Des</button>
+                        <button type="button" class="btn btn-sm monthly-toggle-btn ms-auto" id="monthlyLogToggle" aria-pressed="false" title="Ubah skala sumbu Y ke logaritmik agar bulan kecil tetap terlihat saat ada lonjakan besar">
+                            <i class="bi bi-bar-chart-line me-1"></i>Mode Skala Logaritmik
+                        </button>
                     </div>
                     <div class="chart-wrapper monthly-chart-wrapper"><canvas id="monthlyChart"></canvas></div>
                     <?php
@@ -524,6 +546,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <!-- Breakdown Chart -->
                     <div class="flex-grow-1 d-flex flex-column justify-content-center">
                         <div class="chart-wrapper breakdown-chart-wrapper"><canvas id="breakdownChart"></canvas></div>
+                        <div id="breakdownCustomLegend" class="breakdown-legend" aria-label="Legenda komposisi realisasi"></div>
                         <div class="mt-2 text-center">
                             <span style="font-size:var(--fs-xs);font-weight:600;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:var(--gray-50);color:var(--gray-500);border:1px solid var(--gray-200);">
                                 <i class="bi bi-pie-chart-fill me-1"></i>Distribusi Realisasi <?php echo empty($filters['seksi_id'])?'per Seksi':(empty($filters['program_id'])?'per Program':(empty($filters['kegiatan_id'])?'per Kegiatan':'per Sub Kegiatan')); ?>
@@ -543,7 +566,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                     <div><h5 class="section-title"><i class="bi bi-calendar2-month me-2" style="color:var(--primary);"></i>Detail Penyerapan per Bulan</h5><p class="section-subtitle">Tabel rincian RAK (Target) vs Realisasi tiap bulan</p></div>
                     <div class="d-flex align-items-center gap-2">
                         <button type="button" class="btn-export-section" onclick="exportTableToExcel('table-detail-bulan', 'detail-bulan-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export tabel detail penyerapan bulanan ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export XLSX
+                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export Excel
                         </button>
                     </div>
                 </div>
@@ -577,14 +600,14 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                 ?>
                                 <?php if ($isFutureMonth): ?>
                                 <!-- Baris bulan future: tampilkan netral (abu-abu), bukan merah -->
-                                <tr style="opacity:0.55;">
-                                    <td class="ps-4" style="font-weight:600;color:#94a3b8;">
+                                <tr style="opacity:0.9;">
+                                    <td class="ps-4" style="font-weight:600;color:#64748b;">
                                         <?= $bulanNames[(int)$i] ?>
-                                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8;margin-left:0.4rem;vertical-align:middle;">Belum Berjalan</span>
+                                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;margin-left:0.4rem;vertical-align:middle;">Belum Berjalan</span>
                                     </td>
-                                    <td class="text-end" style="color:#94a3b8;">Rp <?= number_format($mRak,0,',','.') ?></td>
-                                    <td class="text-end" style="color:#94a3b8;">&mdash;</td>
-                                    <td class="text-end" style="color:#94a3b8;">&mdash;</td>
+                                    <td class="text-end" style="color:#64748b;">Rp <?= number_format($mRak,0,',','.') ?></td>
+                                    <td class="text-end" style="color:#64748b;">&mdash;</td>
+                                    <td class="text-end" style="color:#64748b;">&mdash;</td>
                                     <td class="text-end pe-4">
                                         <span class="badge-capaian badge-capaian-neutral">Proyeksi</span>
                                     </td>
@@ -732,6 +755,10 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <p class="section-subtitle">Realisasi bulanan per rekening, dikelompokkan berdasarkan sub kegiatan</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <input type="text" id="absorptionSearchInput" class="form-control form-control-sm" placeholder="Cari sub kegiatan / rekening..." aria-label="Cari sub kegiatan atau rekening" style="width:230px;">
+                        <button type="button" id="btnAbsorptionToggleAll" class="btn btn-outline-secondary btn-sm" aria-pressed="false" title="Buka atau tutup seluruh rincian rekening sekaligus">
+                            <i class="bi bi-arrows-expand me-1"></i><span>Expand All</span>
+                        </button>
                         <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;white-space:nowrap;">
                             <i class="bi bi-wallet2 me-1"></i><?= (int) $absorptionTotals['rekening_count'] ?> Rekening
                         </span>
@@ -779,8 +806,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                     <?php for ($m = 1; $m <= 12; $m++): ?>
                                         <th class="text-end monthly-absorption-month"><?= $bulanNames[$m] ?></th>
                                     <?php endfor; ?>
-                                    <th class="text-end monthly-absorption-total monthly-sticky-total">Total</th>
-                                    <th class="text-end pe-4 monthly-absorption-percent monthly-sticky-percent">%</th>
+                                    <th class="text-end text-nowrap monthly-absorption-total monthly-sticky-total">Total</th>
+                                    <th class="text-end text-nowrap pe-4 monthly-absorption-percent monthly-sticky-percent">%</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -848,6 +875,9 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                                 </tr>
                             </tfoot>
                         </table>
+                    </div>
+                    <div id="absorptionEmptyMsg" style="display:none;padding:2rem 1rem;text-align:center;color:var(--gray-400);font-size:var(--fs-base);">
+                        <i class="bi bi-search me-1"></i>Tidak ada sub kegiatan / rekening yang cocok dengan pencarian.
                     </div>
                 </div>
             </div>
@@ -1618,7 +1648,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                             <i class="bi bi-diagram-3 me-1"></i><?= $totalSubKegiatanDeviasi ?> Sub Kegiatan
                         </span>
                         <button type="button" class="btn-export-section" onclick="exportDeviasiToExcel('deviasi-rak-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export seluruh daftar deviasi RAK ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export XLSX
+                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export Excel
                         </button>
                     </div>
                 </div>
@@ -1903,7 +1933,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
                     <button type="button" class="btn-export-section" onclick="exportBreakdownToExcel('breakdown-seksi-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export ringkasan per unit ke Excel">
-                        <i class="bi bi-file-earmark-excel-fill text-success"></i> Export XLSX
+                        <i class="bi bi-file-earmark-excel-fill text-success"></i> Export Excel
                     </button>
                 </div>
                 <div class="card-body" style="padding:0 1.5rem 1.5rem;">
@@ -2158,15 +2188,89 @@ document.addEventListener('DOMContentLoaded', function () {
         row.addEventListener('click', function (event) {
             if (event.target.closest('a')) return;
             setAbsorptionGroupState(row, row.getAttribute('aria-expanded') !== 'true');
+            syncToggleAllBtn();
         });
 
         row.addEventListener('keydown', function (event) {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 setAbsorptionGroupState(row, row.getAttribute('aria-expanded') !== 'true');
+                syncToggleAllBtn();
             }
         });
     });
+
+    // Expand All / Collapse All
+    var toggleAllBtn = document.getElementById('btnAbsorptionToggleAll');
+    function syncToggleAllBtn() {
+        if (!toggleAllBtn) return;
+        var groups = absorptionTable.querySelectorAll('[data-absorption-toggle]');
+        var expandedCount = absorptionTable.querySelectorAll('[data-absorption-toggle][aria-expanded="true"]').length;
+        var allExpanded = groups.length > 0 && expandedCount === groups.length;
+        toggleAllBtn.setAttribute('aria-pressed', allExpanded ? 'true' : 'false');
+        toggleAllBtn.innerHTML = allExpanded
+            ? '<i class="bi bi-arrows-collapse me-1"></i><span>Collapse All</span>'
+            : '<i class="bi bi-arrows-expand me-1"></i><span>Expand All</span>';
+    }
+    if (toggleAllBtn) {
+        toggleAllBtn.addEventListener('click', function() {
+            var groups = absorptionTable.querySelectorAll('[data-absorption-toggle]');
+            var allExpanded = groups.length > 0
+                && absorptionTable.querySelectorAll('[data-absorption-toggle][aria-expanded="true"]').length === groups.length;
+            groups.forEach(function(row) { setAbsorptionGroupState(row, !allExpanded); });
+            syncToggleAllBtn();
+        });
+        syncToggleAllBtn();
+    }
+
+    // Real-time search: filter baris sub kegiatan & rekening (client-side)
+    var searchInput = document.getElementById('absorptionSearchInput');
+    var emptyMsg = document.getElementById('absorptionEmptyMsg');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            var q = (searchInput.value || '').toLowerCase().trim();
+            var groups = absorptionTable.querySelectorAll('[data-absorption-toggle]');
+            var anyVisible = false;
+            groups.forEach(function(groupRow) {
+                var key = groupRow.getAttribute('data-absorption-toggle');
+                var childRows = absorptionTable.querySelectorAll('[data-absorption-child="' + key + '"]');
+                if (!q) {
+                    groupRow.style.display = '';
+                    // Kembalikan ke state collapse/expand masing-masing (jangan paksa tampil semua child)
+                    var isExp = groupRow.getAttribute('aria-expanded') === 'true';
+                    childRows.forEach(function(ch) { ch.hidden = !isExp; if (!ch.hidden) ch.style.display = ''; else ch.style.display = ''; });
+                    anyVisible = true;
+                    return;
+                }
+                var groupText = (groupRow.textContent || '').toLowerCase();
+                var groupMatch = groupText.indexOf(q) >= 0;
+                var matchedChildren = [];
+                childRows.forEach(function(ch) {
+                    var childText = (ch.textContent || '').toLowerCase();
+                    if (childText.indexOf(q) >= 0) matchedChildren.push(ch);
+                });
+                if (groupMatch) {
+                    // Grup cocok: tampilkan grup + semua child-nya, expand otomatis
+                    groupRow.style.display = '';
+                    setAbsorptionGroupState(groupRow, true);
+                    anyVisible = true;
+                } else if (matchedChildren.length > 0) {
+                    // Hanya sebagian child cocok: tampilkan grup + child yang cocok
+                    groupRow.style.display = '';
+                    setAbsorptionGroupState(groupRow, true);
+                    childRows.forEach(function(ch) {
+                        ch.hidden = matchedChildren.indexOf(ch) < 0;
+                    });
+                    anyVisible = true;
+                } else {
+                    groupRow.style.display = 'none';
+                    childRows.forEach(function(ch) { ch.hidden = true; });
+                }
+            });
+            if (emptyMsg) emptyMsg.style.display = anyVisible ? 'none' : 'block';
+            syncToggleAllBtn();
+        });
+    }
 });
 </script>
 
@@ -2508,44 +2612,73 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Toggle buttons for semester zoom
-    document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn').forEach(function(btn) {
+    // Toggle buttons for semester zoom + log scale mode
+    // datasets: [0]=RAK Aktual, [1]=RAK Proyeksi, [2]=Realisasi
+    var isLogMode = false;
+    function applyMonthlyRange(range) {
+        let labels, rakA, rakP, real, ptBg, ptRadius, ptBorder;
+        if (range === 'h1') {
+            labels = mData.labels.slice(0, 6);
+            rakA = rakAktual.slice(0, 6);
+            rakP = rakProyeksi.slice(0, 6);
+            real = mData.realisasi.slice(0, 6);
+            ptBg = realisasiPointBg.slice(0, 6);
+            ptRadius = realisasiPointRadius.slice(0, 6);
+            ptBorder = realisasiPointBorder.slice(0, 6);
+        } else if (range === 'h2') {
+            labels = mData.labels.slice(6, 12);
+            rakA = rakAktual.slice(6, 12);
+            rakP = rakProyeksi.slice(6, 12);
+            real = mData.realisasi.slice(6, 12);
+            ptBg = realisasiPointBg.slice(6, 12);
+            ptRadius = realisasiPointRadius.slice(6, 12);
+            ptBorder = realisasiPointBorder.slice(6, 12);
+        } else {
+            labels = mData.labels;
+            rakA = rakAktual;
+            rakP = rakProyeksi;
+            real = mData.realisasi;
+            ptBg = realisasiPointBg;
+            ptRadius = realisasiPointRadius;
+            ptBorder = realisasiPointBorder;
+        }
+        monthlyChartInstance.data.labels = labels;
+        monthlyChartInstance.data.datasets[0].data = rakA;
+        monthlyChartInstance.data.datasets[1].data = rakP;
+        monthlyChartInstance.data.datasets[2].data = real;
+        monthlyChartInstance.data.datasets[2].pointBackgroundColor = ptBg;
+        monthlyChartInstance.data.datasets[2].pointRadius = ptRadius;
+        monthlyChartInstance.data.datasets[2].pointBorderColor = ptBorder;
+        // Re-calculate skala Y mengikuti nilai maksimum rentang yang dipilih
+        monthlyChartInstance.options.scales.y.beginAtZero = !isLogMode;
+        monthlyChartInstance.update();
+    }
+    document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn[data-range]').forEach(function(btn) {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn[data-range]').forEach(function(b) { b.classList.remove('active'); });
             this.classList.add('active');
-            const range = this.dataset.range;
-            let labels, rak, real, ptBg, ptRadius, ptBorder;
-            if (range === 'h1') {
-                labels = mData.labels.slice(0, 6);
-                rak = mData.rak.slice(0, 6);
-                real = mData.realisasi.slice(0, 6);
-                ptBg = realisasiPointBg.slice(0, 6);
-                ptRadius = realisasiPointRadius.slice(0, 6);
-                ptBorder = realisasiPointBorder.slice(0, 6);
-            } else if (range === 'h2') {
-                labels = mData.labels.slice(6, 12);
-                rak = mData.rak.slice(6, 12);
-                real = mData.realisasi.slice(6, 12);
-                ptBg = realisasiPointBg.slice(6, 12);
-                ptRadius = realisasiPointRadius.slice(6, 12);
-                ptBorder = realisasiPointBorder.slice(6, 12);
-            } else {
-                labels = mData.labels;
-                rak = mData.rak;
-                real = mData.realisasi;
-                ptBg = realisasiPointBg;
-                ptRadius = realisasiPointRadius;
-                ptBorder = realisasiPointBorder;
-            }
-            monthlyChartInstance.data.labels = labels;
-            monthlyChartInstance.data.datasets[0].data = rak;
-            monthlyChartInstance.data.datasets[1].data = real;
-            monthlyChartInstance.data.datasets[1].pointBackgroundColor = ptBg;
-            monthlyChartInstance.data.datasets[1].pointRadius = ptRadius;
-            monthlyChartInstance.data.datasets[1].pointBorderColor = ptBorder;
-            monthlyChartInstance.update();
+            applyMonthlyRange(this.dataset.range);
         });
     });
+
+    // Mode Skala Logaritmik: membantu melihat perbandingan saat ada lonjakan (mis. Okt Rp 4,28 M)
+    var logToggleBtn = document.getElementById('monthlyLogToggle');
+    if (logToggleBtn) {
+        logToggleBtn.addEventListener('click', function() {
+            isLogMode = !isLogMode;
+            this.classList.toggle('active', isLogMode);
+            this.setAttribute('aria-pressed', isLogMode ? 'true' : 'false');
+            var yScale = monthlyChartInstance.options.scales.y;
+            if (isLogMode) {
+                yScale.type = 'logarithmic';
+                yScale.beginAtZero = false;
+            } else {
+                yScale.type = 'linear';
+                yScale.beginAtZero = true;
+            }
+            monthlyChartInstance.update();
+        });
+    }
 
     // ================================================================
     // Breakdown Doughnut
@@ -2567,7 +2700,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
     const dColorsSisa = dColorsReal.map(c => c.replace('0.90','0.22'));
 
-    new Chart(document.getElementById('breakdownChart').getContext('2d'), {
+    var breakdownChartInstance = new Chart(document.getElementById('breakdownChart').getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: bdLabels,
@@ -2631,6 +2764,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Custom legend donut: titik warna + nama unit + persentase realisasi
+    (function renderBreakdownLegend() {
+        var legendEl = document.getElementById('breakdownCustomLegend');
+        if (!legendEl) return;
+        var totalReal = bdReal.reduce(function(a, b) { return a + (Number(b) || 0); }, 0) || 1;
+        var html = '';
+        bdEntries.forEach(function(entry, idx) {
+            var fullName = entry[0];
+            var shortName = bdLabels[idx];
+            var val = Number(entry[1].realisasi) || 0;
+            var pct = ((val / totalReal) * 100).toFixed(1);
+            var color = dColorsReal[idx % dColorsReal.length];
+            html += '<div class="breakdown-legend__item" title="' + fullName.replace(/"/g, '&quot;') + ' — Rp ' + val.toLocaleString('id-ID') + ' (' + pct + '%)">'
+                + '<span class="breakdown-legend__dot" style="background:' + color + ';"></span>'
+                + '<span class="breakdown-legend__name">' + shortName.replace(/</g, '&lt;') + '</span>'
+                + '<span class="breakdown-legend__pct">' + pct + '%</span>'
+                + '</div>';
+        });
+        legendEl.innerHTML = html;
+    })();
 });
 
 
@@ -2666,9 +2820,11 @@ document.addEventListener('DOMContentLoaded', function() {
 .sticky-sec-nav__inner {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.45rem 1.25rem;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    padding: 0.45rem 0.75rem;
     overflow-x: auto;
+    white-space: nowrap;
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
@@ -2678,7 +2834,8 @@ document.addEventListener('DOMContentLoaded', function() {
 .sticky-sec-nav__group {
     display: flex;
     align-items: center;
-    gap: 0.15rem;
+    flex-wrap: nowrap;
+    gap: 0.1rem;
     flex-shrink: 0;
 }
 .sticky-sec-nav__group-tag {
@@ -2697,13 +2854,14 @@ document.addEventListener('DOMContentLoaded', function() {
 .sticky-sec-nav__link {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
     white-space: nowrap;
-    font-size: 13px;
+    flex-shrink: 0;
+    font-size: 12.5px;
     font-weight: 600;
     color: #64748b;
     text-decoration: none;
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0.6rem;
     border-radius: 999px;
     transition: color .2s, background .2s;
 }
@@ -2721,7 +2879,7 @@ document.addEventListener('DOMContentLoaded', function() {
     height: 24px;
     background: #e2e8f0;
     align-self: center;
-    margin: 0 0.5rem;
+    margin: 0 0.3rem;
     flex-shrink: 0;
 }
 @media (max-width: 767.98px) {
@@ -2759,6 +2917,47 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #fff;
     border-color: #4338ca;
     box-shadow: 0 2px 6px rgba(67,56,202,.25);
+}
+/* Custom legend donut Komposisi */
+.breakdown-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.85rem;
+    padding: 0.75rem 0.9rem;
+    background: #f8fafc;
+    border: 1px solid var(--gray-200, #e2e8f0);
+    border-radius: 10px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+.breakdown-legend__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: #334155;
+    min-width: 0;
+}
+.breakdown-legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.breakdown-legend__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+.breakdown-legend__pct {
+    font-weight: 800;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
 }
 /* Export per section button */
 .btn-export-section {
@@ -2820,8 +3019,8 @@ document.addEventListener('DOMContentLoaded', function() {
     --ma-pagu-width: 150px;
     --ma-month-width: 118px;
     --ma-total-width: 160px;
-    --ma-pct-width: 84px;
-    min-width: 2170px;
+    --ma-pct-width: 90px;
+    min-width: 2180px;
     border-collapse: separate;
     border-spacing: 0;
     font-variant-numeric: tabular-nums;
@@ -2872,13 +3071,16 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .monthly-absorption-table .monthly-absorption-total {
     width: var(--ma-total-width);
-    min-width: var(--ma-total-width);
+    min-width: 150px;
+    padding-right: 1rem;
     font-weight: 800;
     color: #0f172a;
+    white-space: nowrap;
 }
 .monthly-absorption-table .monthly-absorption-percent {
     width: var(--ma-pct-width);
-    min-width: var(--ma-pct-width);
+    min-width: 90px;
+    white-space: nowrap;
 }
 /* ── STICKY COLUMNS BASE ─────────────────────────────────────
    PENTING: background harus warna solid eksplisit — JANGAN inherit
@@ -2910,10 +3112,14 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .monthly-sticky-total {
     right: var(--ma-pct-width);
-    box-shadow: -3px 0 6px -2px rgba(0,0,0,0.10), -1px 0 0 #cbd5e1;
+    z-index: 3;
+    background-color: #f8fafc;
+    box-shadow: -4px 0 8px -2px rgba(0,0,0,0.08), -1px 0 0 #cbd5e1;
 }
 .monthly-sticky-percent {
     right: 0;
+    z-index: 3;
+    background-color: #f8fafc;
     box-shadow: -1px 0 0 #e2e8f0;
 }
 .monthly-absorption-title {
@@ -3180,15 +3386,21 @@ document.addEventListener('DOMContentLoaded', function() {
     onScroll();
 
     // Helper: switch to tab and scroll to tab container
+    // Klik di sticky sub-navbar atas => smooth-scroll SEKALIGUS aktifkan tab Bootstrap yang sesuai
     function activateTabAndScroll(targetId) {
-        if (tabTargetMap[targetId]) {
+        var isTabbedSection = !!tabTargetMap[targetId];
+        if (isTabbedSection) {
             var tabBtn = document.getElementById(tabTargetMap[targetId]);
             if (tabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
                 var tabInstance = bootstrap.Tab.getOrCreateInstance(tabBtn);
                 tabInstance.show();
             }
         }
-        var target = document.getElementById(targetId) || document.getElementById('section-detail-tabs');
+        // Untuk section di dalam tab, scroll ke container tab agar posisi selalu terlihat
+        // (elemen di dalam tab yang hidden punya rect 0 sehingga harus ke wrapper-nya)
+        var target = isTabbedSection
+            ? document.getElementById('section-detail-tabs')
+            : (document.getElementById(targetId) || document.getElementById('section-detail-tabs'));
         if (target) {
             // Offset = header aplikasi + sticky nav + jarak napas
             var headerEl = document.querySelector('.header');

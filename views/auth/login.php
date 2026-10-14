@@ -9,46 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS CDN + Config -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            corePlugins: {
-                preflight: false,
-            },
-            theme: {
-                extend: {
-                    colors: {
-                        forest: {
-                            900: '#1F3D2B',
-                            700: '#33553F',
-                        },
-                        moss: {
-                            500: '#6B9080',
-                            100: '#E4EBE6',
-                        },
-                        gold: {
-                            500: '#B8874B',
-                            100: '#F3E7D4',
-                        },
-                        paper: {
-                            50: '#F7F5EF',
-                            100: '#EFEAE0',
-                        },
-                        ink: {
-                            900: '#23241F',
-                            600: '#5C5A50',
-                        },
-                    },
-                    fontFamily: {
-                        serif: ['"Source Serif 4"', 'serif'],
-                        sans: ['"IBM Plex Sans"', 'sans-serif'],
-                    }
-                }
-            }
-        };
-    </script>
-
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
