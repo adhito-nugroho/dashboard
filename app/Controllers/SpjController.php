@@ -582,6 +582,33 @@ class SpjController
         $exportService->download($header, $details, $transaksi);
     }
 
+    /**
+     * Unduh SPD (Surat Perjalanan Dinas) per pegawai — kelengkapan SPJ.
+     * Akses: GET /spj/spd/{st_id}/{nip}?format=xlsx|pdf
+     * Aturan isi otomatis ada di SpdExportService (alat angkut, tingkat
+     * biaya, akun dari transaksi, pengikut dikosongkan).
+     */
+    public function unduhSpd(int $suratTugasId, string $nip): void
+    {
+        $this->requireLogin();
+
+        require_once __DIR__ . '/../Services/SpdExportService.php';
+        $svc = new \App\Services\SpdExportService();
+        $data = $svc->buildData($suratTugasId, $nip);
+        if ($data === null) {
+            http_response_code(404);
+            echo 'Data SPD tidak ditemukan (Surat Tugas/pegawai tidak valid atau database Surat Tugas tidak terjangkau).';
+            exit;
+        }
+
+        $format = strtolower(trim($_GET['format'] ?? 'xlsx'));
+        if ($format === 'pdf') {
+            $svc->downloadPdf($data);
+        } else {
+            $svc->downloadExcel($data);
+        }
+    }
+
     private function redirectWithMessage(string $url, string $type, string $message): void
     {
         if (session_status() === PHP_SESSION_NONE) session_start();

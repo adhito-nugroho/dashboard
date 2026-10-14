@@ -143,6 +143,16 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                                 <i class="bi bi-plus-circle me-1"></i>Isi Rincian
                                             </a>
                                         <?php endif; ?>
+                                        <div class="mt-1 d-flex justify-content-center gap-1">
+                                            <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>?format=xlsx"
+                                               class="btn btn-sm btn-outline-success" title="Unduh SPD (Excel)">
+                                                <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPD
+                                            </a>
+                                            <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>?format=pdf"
+                                               class="btn btn-sm btn-outline-danger" title="Unduh SPD (PDF)">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
