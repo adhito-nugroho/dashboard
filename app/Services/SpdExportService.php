@@ -331,9 +331,11 @@ class SpdExportService
         $sheet->getPageMargins()->setLeft(0.5);
         $sheet->getPageMargins()->setRight(0.5);
 
-        // Kolom: A = No, B = Uraian, C+D = Isi (D dipakai terpisah utk baris Pengikut)
-        $sheet->getColumnDimension('A')->setWidth(5);
-        $sheet->getColumnDimension('B')->setWidth(44);
+        // Kolom: A = No (+ logo kop), B = Uraian, C+D = Isi (D dipakai terpisah utk baris Pengikut).
+        // Kolom A dibuat cukup lebar agar logo kop muat di dalamnya tanpa
+        // menindih teks kop di kolom B.
+        $sheet->getColumnDimension('A')->setWidth(13);
+        $sheet->getColumnDimension('B')->setWidth(40);
         $sheet->getColumnDimension('C')->setWidth(27);
         $sheet->getColumnDimension('D')->setWidth(27);
 
@@ -344,12 +346,14 @@ class SpdExportService
         // ── Kop ──
         $logo = $this->logoPath();
         if (is_file($logo)) {
+            // Blok kop = baris 1..4 (total ±84pt ≈ 112px). Logo dipaskan di
+            // dalamnya (100px) dan di tengah kolom A agar tidak meluber ke teks.
             $drawing = new Drawing();
             $drawing->setPath($logo);
             $drawing->setCoordinates('A1');
-            $drawing->setHeight(62);
-            $drawing->setOffsetX(6);
-            $drawing->setOffsetY(4);
+            $drawing->setHeight(100);
+            $drawing->setOffsetX(12);
+            $drawing->setOffsetY(6);
             $drawing->setWorksheet($sheet);
         }
         $sheet->mergeCells('B1:D1');
@@ -543,7 +547,9 @@ class SpdExportService
         // ── Kop ──
         $logo = $this->logoPath();
         if (is_file($logo)) {
-            $pdf->Image($logo, 15, 10, 20);
+            // Lebar 15mm (tinggi ±21mm) agar pas di dalam blok kop,
+            // tidak melewati garis ganda di bawahnya.
+            $pdf->Image($logo, 15, 10, 15);
         }
         $pdf->SetFont('Times', 'B', 11);
         $pdf->SetY(10);
