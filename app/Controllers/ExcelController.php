@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Font;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class ExcelController {
     private Pagu $paguModel;
@@ -859,10 +860,9 @@ class ExcelController {
         $headerRow = 4;
         $sheet->setCellValue('A4', 'Sub Kegiatan / Rekening');
         $sheet->setCellValue('B4', 'Pagu');
-        $colIdx = 'C';
         for ($m = 1; $m <= 12; $m++) {
-            $sheet->setCellValue("{$colIdx}4", $bulanNamesLong[$m]);
-            $colIdx++;
+            $colLetter = Coordinate::stringFromColumnIndex(2 + $m); // C..N
+            $sheet->setCellValue("{$colLetter}4", $bulanNamesLong[$m]);
         }
         $sheet->setCellValue('O4', 'Total Realisasi');
         $sheet->setCellValue('P4', '% Serapan');
@@ -887,10 +887,9 @@ class ExcelController {
             // Sub Kegiatan row (group header)
             $sheet->setCellValue("A{$currentRow}", $skData['kode'] . '   ' . $skData['nama']);
             $sheet->setCellValue("B{$currentRow}", $skData['pagu']);
-            $colIdx = 'C';
             for ($m = 1; $m <= 12; $m++) {
-                $sheet->setCellValue("{$colIdx}{$currentRow}", $skData['months'][$m]);
-                $colIdx++;
+                $colLetter = Coordinate::stringFromColumnIndex(2 + $m); // C..N
+                $sheet->setCellValue("{$colLetter}{$currentRow}", $skData['months'][$m]);
             }
             $sheet->setCellValue("O{$currentRow}", $skData['realisasi']);
             $sheet->setCellValue("P{$currentRow}", $skPct);
@@ -912,10 +911,9 @@ class ExcelController {
 
                 $sheet->setCellValue("A{$currentRow}", '        ' . $rek['kode'] . '   ' . $rek['nama']);
                 $sheet->setCellValue("B{$currentRow}", $rek['pagu']);
-                $colIdx = 'C';
                 for ($m = 1; $m <= 12; $m++) {
-                    $sheet->setCellValue("{$colIdx}{$currentRow}", $rek['months'][$m]);
-                    $colIdx++;
+                    $colLetter = Coordinate::stringFromColumnIndex(2 + $m); // C..N
+                    $sheet->setCellValue("{$colLetter}{$currentRow}", $rek['months'][$m]);
                 }
                 $sheet->setCellValue("O{$currentRow}", $rek['realisasi']);
                 $sheet->setCellValue("P{$currentRow}", $rekPct);
@@ -937,10 +935,9 @@ class ExcelController {
         $totalPct = $totals['pagu'] > 0 ? ($totals['realisasi'] / $totals['pagu']) * 100 : 0;
         $sheet->setCellValue("A{$currentRow}", 'TOTAL KESELURUHAN');
         $sheet->setCellValue("B{$currentRow}", $totals['pagu']);
-        $colIdx = 'C';
         for ($m = 1; $m <= 12; $m++) {
-            $sheet->setCellValue("{$colIdx}{$currentRow}", $totals['months'][$m]);
-            $colIdx++;
+            $colLetter = Coordinate::stringFromColumnIndex(2 + $m); // C..N
+            $sheet->setCellValue("{$colLetter}{$currentRow}", $totals['months'][$m]);
         }
         $sheet->setCellValue("O{$currentRow}", $totals['realisasi']);
         $sheet->setCellValue("P{$currentRow}", $totalPct);
@@ -982,11 +979,10 @@ class ExcelController {
         // B = Pagu, C..N = months, O = Total
         $sheet->getStyle("B{$row}")->getNumberFormat()->setFormatCode($numFmt);
         $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $colIdx = 'C';
         for ($m = 1; $m <= 12; $m++) {
-            $sheet->getStyle("{$colIdx}{$row}")->getNumberFormat()->setFormatCode($numFmt);
-            $sheet->getStyle("{$colIdx}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            $colIdx++;
+            $colLetter = Coordinate::stringFromColumnIndex(2 + $m); // C..N
+            $sheet->getStyle("{$colLetter}{$row}")->getNumberFormat()->setFormatCode($numFmt);
+            $sheet->getStyle("{$colLetter}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         }
         $sheet->getStyle("O{$row}")->getNumberFormat()->setFormatCode($numFmt);
         $sheet->getStyle("O{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
