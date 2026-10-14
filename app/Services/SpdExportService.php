@@ -436,7 +436,7 @@ class SpdExportService
         }
         $pdf->SetXY($x0, $y0 + $h8b);
 
-        $row('9', "Pembebanan Anggaran\n\na. Instansi\nb. Akun", "\n\na. " . $d['instansi'] . "\nb. " . $d['akun']);
+        $row('9', "Pembebanan Anggaran\na. Instansi\nb. Akun", "\na. " . $d['instansi'] . "\nb. " . $d['akun']);
         $row('10', 'Keterangan Lain-lain', ' ');
         $pdf->Ln(3);
 
