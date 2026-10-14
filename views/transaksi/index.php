@@ -755,13 +755,7 @@ $isFiltered = !empty($activeFilterLabels);
                                                         <i class="bi bi-printer"></i>
                                                     </a>
                                                     <?php if (($transaksi['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                                    <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=xlsx"
-                                                       class="btn-action btn-action-print"
-                                                       data-bs-toggle="tooltip"
-                                                       title="Unduh Excel SPD (Surat Perjalanan Dinas)">
-                                                        <i class="bi bi-file-earmark-spreadsheet"></i>
-                                                    </a>
-                                                    <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=pdf"
+                                                    <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>"
                                                        target="_blank" rel="noopener"
                                                        class="btn-action btn-action-print"
                                                        data-bs-toggle="tooltip"
@@ -791,13 +785,7 @@ $isFiltered = !empty($activeFilterLabels);
                                                     <i class="bi bi-printer"></i>
                                                 </a>
                                                 <?php if (($transaksi['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=xlsx"
-                                                   class="btn-action btn-action-print"
-                                                   data-bs-toggle="tooltip"
-                                                   title="Unduh Excel SPD (Surat Perjalanan Dinas)">
-                                                    <i class="bi bi-file-earmark-spreadsheet"></i>
-                                                </a>
-                                                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=pdf"
+                                                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>"
                                                    target="_blank" rel="noopener"
                                                    class="btn-action btn-action-print"
                                                    data-bs-toggle="tooltip"

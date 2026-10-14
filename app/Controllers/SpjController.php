@@ -583,8 +583,8 @@ class SpjController
     }
 
     /**
-     * Unduh SPD (Surat Perjalanan Dinas) per pegawai — kelengkapan SPJ.
-     * Akses: GET /spj/spd/{st_id}/{nip}?format=xlsx|pdf
+     * Unduh SPD (Surat Perjalanan Dinas, PDF) per pegawai — kelengkapan SPJ.
+     * Akses: GET /spj/spd/{st_id}/{nip}
      * Aturan isi otomatis ada di SpdExportService (alat angkut, tingkat
      * biaya, akun dari transaksi, pengikut dikosongkan).
      */
@@ -601,19 +601,14 @@ class SpjController
             exit;
         }
 
-        $format = strtolower(trim($_GET['format'] ?? 'xlsx'));
-        if ($format === 'pdf') {
-            $svc->downloadPdf($data);
-        } else {
-            $svc->downloadExcel($data);
-        }
+        $svc->downloadPdf($data);
     }
 
     /**
-     * Unduh SPD berbasis ID transaksi db_anggaran (untuk tombol sejajar
+     * Unduh SPD (PDF) berbasis ID transaksi db_anggaran (untuk tombol sejajar
      * Cetak Kuitansi di daftar transaksi). ST + NIP di-resolve otomatis
      * dari transaksi (ref_id → nomor surat → pegawai_nip).
-     * Akses: GET /spj/spd-transaksi/{id}?format=xlsx|pdf
+     * Akses: GET /spj/spd-transaksi/{id}
      * Seksi hanya boleh mengunduh transaksi yang ia input sendiri.
      */
     public function unduhSpdTransaksi(int $transaksiId): void
@@ -651,12 +646,7 @@ class SpjController
             exit;
         }
 
-        $format = strtolower(trim($_GET['format'] ?? 'xlsx'));
-        if ($format === 'pdf') {
-            $svc->downloadPdf($data);
-        } else {
-            $svc->downloadExcel($data);
-        }
+        $svc->downloadPdf($data);
     }
 
     private function redirectWithMessage(string $url, string $type, string $message): void

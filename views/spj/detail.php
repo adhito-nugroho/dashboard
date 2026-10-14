@@ -144,13 +144,10 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                             </a>
                                         <?php endif; ?>
                                         <div class="mt-1 d-flex justify-content-center gap-1">
-                                            <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>?format=xlsx"
-                                               class="btn btn-sm btn-outline-success" title="Unduh SPD (Excel)">
-                                                <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPD
-                                            </a>
-                                            <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>?format=pdf"
+                                            <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>"
+                                               target="_blank" rel="noopener"
                                                class="btn btn-sm btn-outline-danger" title="Unduh SPD (PDF)">
-                                                <i class="bi bi-file-earmark-pdf"></i>
+                                                <i class="bi bi-file-earmark-text me-1"></i>SPD
                                             </a>
                                         </div>
                                     </td>

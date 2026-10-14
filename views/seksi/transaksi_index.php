@@ -463,12 +463,8 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                            title="Unduh Excel Rincian Biaya SPPD">
                                             <i class="bi bi-file-earmark-excel"></i>
                                         </a>
-                                        <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>?format=xlsx"
-                                           class="btn btn-outline-success btn-action-icon"
-                                           title="Unduh Excel SPD (Surat Perjalanan Dinas)">
-                                            <i class="bi bi-file-earmark-spreadsheet"></i>
-                                        </a>
-                                        <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>?format=pdf"
+                                        <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
+                                           target="_blank" rel="noopener"
                                            class="btn btn-outline-success btn-action-icon"
                                            title="Unduh PDF SPD (Surat Perjalanan Dinas)">
                                             <i class="bi bi-file-earmark-text"></i>
@@ -560,11 +556,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                    title="Unduh Excel Rincian Biaya SPPD">
                                     <i class="bi bi-file-earmark-excel me-1"></i>Excel
                                 </a>
-                                <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>?format=xlsx"
-                                   class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   title="Unduh Excel SPD (Surat Perjalanan Dinas)">
-                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPD
-                                </a>
                             <?php endif; ?>
                             <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
                                target="_blank" rel="noopener"
@@ -573,7 +564,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                 <i class="bi bi-printer me-1"></i>Kuitansi
                             </a>
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>?format=pdf"
+                                <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
                                    target="_blank" rel="noopener"
                                    class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
                                    title="Unduh PDF SPD (Surat Perjalanan Dinas)">
