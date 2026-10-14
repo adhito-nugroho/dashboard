@@ -146,6 +146,64 @@ class SpdExportService
     }
 
     /**
+     * Susun data SPD langsung dari satu baris transaksi db_anggaran.
+     * ST di-resolve via surat_tugas_ref_id, fallback cocokkan nomor_surat_tugas.
+     * Return null bila ST/NIP tidak bisa di-resolve.
+     */
+    public function buildDataFromTransaksi(array $trx): ?array
+    {
+        $stId = (int) ($trx['surat_tugas_ref_id'] ?? 0);
+        if ($stId <= 0) {
+            $nomor = trim((string) ($trx['nomor_surat_tugas'] ?? ''));
+            if ($nomor === '') {
+                return null;
+            }
+            $found = $this->resolveStIdByNomor($nomor);
+            if ($found === null) {
+                return null;
+            }
+            $stId = $found;
+        }
+        $nip = trim((string) ($trx['pegawai_nip'] ?? ''));
+        if ($nip === '' || $nip === '-') {
+            return null;
+        }
+        return $this->buildData($stId, $nip);
+    }
+
+    /**
+     * Cari ID Surat Tugas dari nomornya (cocok persis dulu, lalu LIKE).
+     */
+    public function resolveStIdByNomor(string $nomor): ?int
+    {
+        $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
+        if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
+            require_once $cfg;
+        }
+        if (!class_exists('DatabaseSuratTugas')) {
+            return null;
+        }
+        $pdo = \DatabaseSuratTugas::getConnection();
+        if ($pdo === null) {
+            return null;
+        }
+        try {
+            $stmt = $pdo->prepare('SELECT id FROM surat_tugas WHERE nomor_surat = ? LIMIT 1');
+            $stmt->execute([$nomor]);
+            $id = $stmt->fetchColumn();
+            if ($id !== false) {
+                return (int) $id;
+            }
+            $stmt = $pdo->prepare('SELECT id FROM surat_tugas WHERE nomor_surat LIKE ? ORDER BY id DESC LIMIT 1');
+            $stmt->execute(['%' . $nomor . '%']);
+            $id = $stmt->fetchColumn();
+            return $id !== false ? (int) $id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Cari transaksi perjalanan dinas untuk (ST + pegawai) guna mengambil
      * kode rekening (akun) dan lokasi kegiatan (tempat tujuan).
      */

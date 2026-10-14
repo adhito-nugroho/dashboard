@@ -546,6 +546,8 @@ try {
         $spjController->download((int) $matches[1]);
     } elseif (preg_match('#^/spj/spd/(\d+)/(.+)$#', $path, $matches)) {
         $spjController->unduhSpd((int) $matches[1], urldecode($matches[2]));
+    } elseif (preg_match('#^/spj/spd-transaksi/(\d+)$#', $path, $matches)) {
+        $spjController->unduhSpdTransaksi((int) $matches[1]);
     }
     // Route matching - Kuitansi NCR 215x165mm (kalibrasi admin only, cetak admin+seksi)
     elseif ($path === '/kuitansi/kalibrasi' || $path === '/kuitansi/kalibrasi/') {

@@ -754,6 +754,21 @@ $isFiltered = !empty($activeFilterLabels);
                                                        title="Cetak Kuitansi (PDF 215x165mm)">
                                                         <i class="bi bi-printer"></i>
                                                     </a>
+                                                    <?php if (($transaksi['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
+                                                    <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=xlsx"
+                                                       class="btn-action btn-action-print"
+                                                       data-bs-toggle="tooltip"
+                                                       title="Unduh Excel SPD (Surat Perjalanan Dinas)">
+                                                        <i class="bi bi-file-earmark-spreadsheet"></i>
+                                                    </a>
+                                                    <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=pdf"
+                                                       target="_blank" rel="noopener"
+                                                       class="btn-action btn-action-print"
+                                                       data-bs-toggle="tooltip"
+                                                       title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                                                        <i class="bi bi-file-earmark-text"></i>
+                                                    </a>
+                                                    <?php endif; ?>
                                                 </span>
                                             <?php else: ?>
                                                 <a href="<?= base_url('transaksi/show/' . $transaksi['id']) ?>" 
@@ -775,6 +790,21 @@ $isFiltered = !empty($activeFilterLabels);
                                                    title="Cetak Kuitansi (PDF 215x165mm)">
                                                     <i class="bi bi-printer"></i>
                                                 </a>
+                                                <?php if (($transaksi['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
+                                                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=xlsx"
+                                                   class="btn-action btn-action-print"
+                                                   data-bs-toggle="tooltip"
+                                                   title="Unduh Excel SPD (Surat Perjalanan Dinas)">
+                                                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                                                </a>
+                                                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=pdf"
+                                                   target="_blank" rel="noopener"
+                                                   class="btn-action btn-action-print"
+                                                   data-bs-toggle="tooltip"
+                                                   title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                </a>
+                                                <?php endif; ?>
                                                 <?php if (($transaksi['status'] ?? '') === 'diverifikasi'): ?>
                                                 <button type="button"
                                                         class="btn-action btn-action-edit btn-edit-lunas"

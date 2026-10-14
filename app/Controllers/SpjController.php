@@ -609,6 +609,56 @@ class SpjController
         }
     }
 
+    /**
+     * Unduh SPD berbasis ID transaksi db_anggaran (untuk tombol sejajar
+     * Cetak Kuitansi di daftar transaksi). ST + NIP di-resolve otomatis
+     * dari transaksi (ref_id → nomor surat → pegawai_nip).
+     * Akses: GET /spj/spd-transaksi/{id}?format=xlsx|pdf
+     * Seksi hanya boleh mengunduh transaksi yang ia input sendiri.
+     */
+    public function unduhSpdTransaksi(int $transaksiId): void
+    {
+        $this->requireLogin();
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $isAdmin = !empty($_SESSION['is_admin']);
+
+        $db = \Database::getConnection();
+        if ($isAdmin) {
+            $stmtT = $db->prepare('SELECT * FROM transaksi WHERE id = ? LIMIT 1');
+            $stmtT->execute([$transaksiId]);
+        } else {
+            $stmtT = $db->prepare('SELECT * FROM transaksi WHERE id = ? AND input_by = ? LIMIT 1');
+            $stmtT->execute([$transaksiId, $userId]);
+        }
+        $trx = $stmtT->fetch(\PDO::FETCH_ASSOC);
+        if (!$trx) {
+            http_response_code(404);
+            echo 'Transaksi tidak ditemukan atau Anda tidak memiliki akses.';
+            exit;
+        }
+        if (($trx['jenis_transaksi'] ?? '') !== 'perjalanan_dinas') {
+            http_response_code(422);
+            echo 'SPD hanya tersedia untuk transaksi Perjalanan Dinas.';
+            exit;
+        }
+
+        require_once __DIR__ . '/../Services/SpdExportService.php';
+        $svc = new \App\Services\SpdExportService();
+        $data = $svc->buildDataFromTransaksi($trx);
+        if ($data === null) {
+            http_response_code(404);
+            echo 'SPD tidak dapat dibuat: transaksi ini belum tertaut ke Surat Tugas + NIP pegawai yang valid di database Surat Tugas.';
+            exit;
+        }
+
+        $format = strtolower(trim($_GET['format'] ?? 'xlsx'));
+        if ($format === 'pdf') {
+            $svc->downloadPdf($data);
+        } else {
+            $svc->downloadExcel($data);
+        }
+    }
+
     private function redirectWithMessage(string $url, string $type, string $message): void
     {
         if (session_status() === PHP_SESSION_NONE) session_start();

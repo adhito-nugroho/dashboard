@@ -304,6 +304,22 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
                     <i class="bi bi-file-earmark-excel me-1"></i>Unduh Excel
                 </a>
             <?php endif; ?>
+            <?php
+                $bisaSpd = ($transaksi['jenis_transaksi'] ?? '') === 'perjalanan_dinas'
+                    && !empty($transaksi['pegawai_nip'])
+                    && (!empty($transaksi['surat_tugas_ref_id']) || !empty($transaksi['nomor_surat_tugas']));
+            ?>
+            <?php if ($bisaSpd): ?>
+                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=xlsx"
+                   class="btn btn-sm btn-outline-success" title="Unduh Excel SPD (Surat Perjalanan Dinas)">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPD Excel
+                </a>
+                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>?format=pdf"
+                   target="_blank" rel="noopener"
+                   class="btn btn-sm btn-outline-danger" title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                    <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
+                </a>
+            <?php endif; ?>
         </div>
         <div class="card-body p-4">
         <?php if (!$rincianBiaya || empty($rincianBiaya['details'])): ?>
