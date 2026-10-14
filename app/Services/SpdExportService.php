@@ -335,13 +335,13 @@ class SpdExportService
             // tidak melewati garis ganda di bawahnya.
             $pdf->Image($logo, 15, 10, 15);
         }
-        $pdf->SetFont('Times', 'B', 11);
+        $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetY(10);
         $pdf->Cell($W, 5, $txt('PEMERINTAH PROVINSI JAWA TIMUR'), 0, 1, 'C');
         $pdf->Cell($W, 5, $txt('DINAS KEHUTANAN'), 0, 1, 'C');
-        $pdf->SetFont('Times', 'B', 14);
+        $pdf->SetFont('Arial', 'B', 14);
         $pdf->Cell($W, 6, $txt('CABANG DINAS WILAYAH BOJONEGORO'), 0, 1, 'C');
-        $pdf->SetFont('Times', '', 8);
+        $pdf->SetFont('Arial', '', 8);
         $pdf->Cell($W, 4, $txt('Jalan Hayamwuruk Nomor 9, Karangpacar, Bojonegoro, Jawa Timur 62119'), 0, 1, 'C');
         $pdf->Cell($W, 4, $txt('Tlp./Fak. (0353) 2898161, Pos-el cdkwilayahbojonegoro@jatimprov.go.id'), 0, 1, 'C');
         $y = $pdf->GetY() + 1;
@@ -352,7 +352,7 @@ class SpdExportService
         $pdf->SetY($y + 5);
 
         // ── Lembar Ke / Kode Nomor ──
-        $pdf->SetFont('Times', '', 11);
+        $pdf->SetFont('Arial', '', 11);
         $pdf->Cell(90, 6, '', 0, 0);
         $pdf->Cell(30, 6, $txt('Lembar Ke'), 0, 0);
         $pdf->Cell(60, 6, $txt(':  Satu'), 0, 1);
@@ -362,7 +362,7 @@ class SpdExportService
         $pdf->Ln(2);
 
         // ── Judul ──
-        $pdf->SetFont('Times', 'BU', 12);
+        $pdf->SetFont('Arial', 'BU', 12);
         $pdf->Cell($W, 7, $txt('SURAT PERJALANAN DINAS (SPD)'), 0, 1, 'C');
         $pdf->Ln(2);
 
@@ -371,7 +371,7 @@ class SpdExportService
         $wUraian = 68;
         $wIsi = $W - $wNo - $wUraian; // 102
         $lh = 5.5;
-        $pdf->SetFont('Times', '', 11);
+        $pdf->SetFont('Arial', '', 11);
 
         $row = function (string $no, string $uraian, string $isi) use ($pdf, $txt, $wNo, $wUraian, $wIsi, $lh): void {
             $h = $this->pdfRowHeight($pdf, [[$wNo, $no], [$wUraian, $uraian], [$wIsi, $isi]], $lh);
@@ -450,10 +450,10 @@ class SpdExportService
         $pdf->Cell($wIsi, 6, $txt('Kuasa Pengguna Anggaran'), 0, 1);
         $pdf->Ln(14);
         $pdf->SetX(15 + $wNo + $wUraian);
-        $pdf->SetFont('Times', 'U', 11);
+        $pdf->SetFont('Arial', 'U', 11);
         $pdf->Cell($wIsi, 6, $txt($d['kpa_nama_full']), 0, 1);
         $pdf->SetX(15 + $wNo + $wUraian);
-        $pdf->SetFont('Times', '', 11);
+        $pdf->SetFont('Arial', '', 11);
         $pdf->Cell($wIsi, 6, $txt('NIP ' . $d['kpa_nip']), 0, 1);
 
         return $pdf;
