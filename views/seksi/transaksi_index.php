@@ -466,7 +466,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                         <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
                                            target="_blank" rel="noopener"
                                            class="btn btn-outline-success btn-action-icon"
-                                           title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                                           title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                             <i class="bi bi-file-earmark-text"></i>
                                         </a>
                                     <?php elseif ($bolehEdit): ?>
@@ -567,7 +567,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                 <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
                                    target="_blank" rel="noopener"
                                    class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                                   title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                     <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
                                 </a>
                             <?php endif; ?>

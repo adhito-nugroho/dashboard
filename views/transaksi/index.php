@@ -759,7 +759,7 @@ $isFiltered = !empty($activeFilterLabels);
                                                        target="_blank" rel="noopener"
                                                        class="btn-action btn-action-print"
                                                        data-bs-toggle="tooltip"
-                                                       title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                                                       title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                                         <i class="bi bi-file-earmark-text"></i>
                                                     </a>
                                                     <?php endif; ?>
@@ -789,7 +789,7 @@ $isFiltered = !empty($activeFilterLabels);
                                                    target="_blank" rel="noopener"
                                                    class="btn-action btn-action-print"
                                                    data-bs-toggle="tooltip"
-                                                   title="Unduh PDF SPD (Surat Perjalanan Dinas)">
+                                                   title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                                     <i class="bi bi-file-earmark-text"></i>
                                                 </a>
                                                 <?php endif; ?>

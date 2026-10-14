@@ -309,9 +309,10 @@ class SpdExportService
         $pdf = $this->generatePdf($d);
         $filename = 'SPD_' . $this->safeName($d['pegawai_nama']) . '.pdf';
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        // Inline (I) seperti kuitansi: pratinjau di tab baru, bukan unduhan langsung.
+        header('Content-Disposition: inline; filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
-        $pdf->Output('D', $filename);
+        $pdf->Output('I', $filename);
         exit;
     }
 
