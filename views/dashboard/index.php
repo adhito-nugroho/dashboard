@@ -777,6 +777,12 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                            data-bs-toggle="tooltip" data-bs-placement="top" title="Export rincian serapan per rekening ini saja ke Excel">
                             <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
                         </a>
+                        <a href="<?= base_url('export/serapan-triwulan') ?>?<?= $exportParams ?>"
+                           class="btn btn-sm btn-export-section"
+                           id="btn-export-serapan-triwulan"
+                           data-bs-toggle="tooltip" data-bs-placement="top" title="Export serapan per triwulan (TW I–IV) ke Excel">
+                            <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Triwulan
+                        </a>
                     </div>
                 </div>
                 <div class="card-body p-0">

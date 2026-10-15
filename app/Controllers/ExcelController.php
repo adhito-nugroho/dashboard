@@ -967,6 +967,266 @@ class ExcelController {
     }
 
     /**
+     * Export Serapan per Sub Kegiatan per Triwulan to Excel.
+     * Cerminan exportSerapanBulanan, dengan 12 bulan diagregasi menjadi
+     * TW I (Jan–Mar), TW II (Apr–Jun), TW III (Jul–Sep), TW IV (Okt–Des).
+     * Kolom: A = Sub Kegiatan/Rekening, B = Pagu, C..F = TW I..IV,
+     * G = Total Realisasi, H = % Serapan.
+     */
+    public function exportSerapanTriwulan(): void {
+        $tahun        = isset($_GET['tahun'])            ? (int) $_GET['tahun']            : (int) date('Y');
+        $seksiId      = isset($_GET['seksi_id'])         && $_GET['seksi_id']         !== '' ? (int) $_GET['seksi_id']         : null;
+        $programId    = isset($_GET['program_id'])       && $_GET['program_id']       !== '' ? (int) $_GET['program_id']       : null;
+        $kegiatanId   = isset($_GET['kegiatan_id'])      && $_GET['kegiatan_id']      !== '' ? (int) $_GET['kegiatan_id']      : null;
+        $subKegId     = isset($_GET['sub_kegiatan_id'])  && $_GET['sub_kegiatan_id']  !== '' ? (int) $_GET['sub_kegiatan_id']  : null;
+
+        $twNames = [1 => 'Triwulan I', 2 => 'Triwulan II', 3 => 'Triwulan III', 4 => 'Triwulan IV'];
+
+        // -------------------------------------------------------
+        // 1. Build quarterly absorption data (agregasi dari logika bulanan)
+        // -------------------------------------------------------
+        $pagus           = $this->paguModel->getAll();
+        $subKegiatanMap  = [];
+        $totals = [
+            'pagu'      => 0,
+            'realisasi' => 0,
+            'quarters'  => array_fill(1, 4, 0),
+        ];
+
+        foreach ($pagus as $pagu) {
+            if ($pagu['tahun'] != $tahun) continue;
+
+            // Apply filters
+            if ($seksiId   !== null && ($pagu['sub_kegiatan_seksi_id'] ?? 0) != $seksiId)   continue;
+            if ($programId !== null && ($pagu['program_id'] ?? 0)             != $programId) continue;
+            if ($kegiatanId !== null && ($pagu['kegiatan_id'] ?? 0)           != $kegiatanId) continue;
+            if ($subKegId  !== null && ($pagu['sub_kegiatan_id'] ?? 0)        != $subKegId)  continue;
+
+            $skid         = (int) $pagu['sub_kegiatan_id'];
+            $rid          = (int) $pagu['rekening_id'];
+            $paguRekening = (float) $pagu['nilai_pagu'];
+
+            if (!isset($subKegiatanMap[$skid])) {
+                $subKegiatanMap[$skid] = [
+                    'kode'      => $pagu['kode_sub_kegiatan'] ?? '',
+                    'nama'      => $pagu['nama_sub_kegiatan'] ?? 'Tidak Diketahui',
+                    'pagu'      => 0,
+                    'realisasi' => 0,
+                    'quarters'  => array_fill(1, 4, 0),
+                    'rekening'  => [],
+                ];
+            }
+
+            $rekeningQuarters = array_fill(1, 4, 0);
+            $transaksis       = $this->getTransaksiByRekeningAndYear($rid, $tahun);
+            foreach ($transaksis as $t) {
+                $bulan = Transaksi::bulanEfektifRealisasi($t);
+                if ($bulan >= 1 && $bulan <= 12) {
+                    $tw = (int) ceil($bulan / 3); // 1..4
+                    $rekeningQuarters[$tw] += (float) $t['nilai'];
+                }
+            }
+
+            $realisasiRekening = array_sum($rekeningQuarters);
+
+            $subKegiatanMap[$skid]['rekening'][$rid] = [
+                'kode'      => $pagu['kode_rekening'] ?? '',
+                'nama'      => $pagu['nama_rekening'] ?? 'Tidak Diketahui',
+                'pagu'      => $paguRekening,
+                'realisasi' => $realisasiRekening,
+                'quarters'  => $rekeningQuarters,
+            ];
+
+            $subKegiatanMap[$skid]['pagu']      += $paguRekening;
+            $subKegiatanMap[$skid]['realisasi'] += $realisasiRekening;
+            $totals['pagu']      += $paguRekening;
+            $totals['realisasi'] += $realisasiRekening;
+
+            for ($q = 1; $q <= 4; $q++) {
+                $subKegiatanMap[$skid]['quarters'][$q] += $rekeningQuarters[$q];
+                $totals['quarters'][$q]               += $rekeningQuarters[$q];
+            }
+        }
+
+        uasort($subKegiatanMap, fn($a, $b) => strcmp($a['kode'], $b['kode']));
+        foreach ($subKegiatanMap as &$sk) {
+            uasort($sk['rekening'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
+        }
+        unset($sk);
+
+        // -------------------------------------------------------
+        // 2. Build Spreadsheet
+        // -------------------------------------------------------
+        $spreadsheet = new Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Serapan Triwulan');
+
+        // Column widths: A=name, B=pagu, C..F=TW I..IV, G=Total, H=%
+        $sheet->getColumnDimension('A')->setWidth(48);
+        $sheet->getColumnDimension('B')->setWidth(20);
+        foreach (range('C', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setWidth(18);
+        }
+        $sheet->getColumnDimension('G')->setWidth(20);
+        $sheet->getColumnDimension('H')->setWidth(10);
+
+        $lastCol = 'H'; // 8 columns total
+
+        // ---- Row 1: Title ----
+        $sheet->mergeCells("A1:{$lastCol}1");
+        $sheet->setCellValue('A1', 'SERAPAN PER SUB KEGIATAN DAN REKENING PER TRIWULAN — TAHUN ' . $tahun);
+        $sheet->getStyle('A1')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(28);
+
+        // ---- Row 2: Subtitle ----
+        $sheet->mergeCells("A2:{$lastCol}2");
+        $sheet->setCellValue('A2', 'CDK WILAYAH BOJONEGORO');
+        $sheet->getStyle('A2')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 11, 'color' => ['rgb' => '374151']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(2)->setRowHeight(20);
+
+        // ---- Row 3: spacer ----
+        $sheet->getRowDimension(3)->setRowHeight(6);
+
+        // ---- Row 4: Column headers ----
+        $sheet->setCellValue('A4', 'Sub Kegiatan / Rekening');
+        $sheet->setCellValue('B4', 'Pagu');
+        for ($q = 1; $q <= 4; $q++) {
+            $colLetter = Coordinate::stringFromColumnIndex(2 + $q); // C..F
+            $sheet->setCellValue("{$colLetter}4", $twNames[$q]);
+        }
+        $sheet->setCellValue('G4', 'Total Realisasi');
+        $sheet->setCellValue('H4', '% Serapan');
+
+        $headerStyle = [
+            'font'      => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0369A1']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '075985']]],
+        ];
+        $sheet->getStyle("A4:{$lastCol}4")->applyFromArray($headerStyle);
+        $sheet->getRowDimension(4)->setRowHeight(22);
+
+        // ---- Row 5 onwards: data ----
+        $currentRow = 5;
+        $numFmt  = '#,##0';
+        $pctFmt  = '0.0"%"';
+
+        foreach ($subKegiatanMap as $skData) {
+            $skPct = $skData['pagu'] > 0 ? ($skData['realisasi'] / $skData['pagu']) * 100 : 0;
+
+            // Sub Kegiatan row (group header)
+            $sheet->setCellValue("A{$currentRow}", $skData['kode'] . '   ' . $skData['nama']);
+            $sheet->setCellValue("B{$currentRow}", $skData['pagu']);
+            for ($q = 1; $q <= 4; $q++) {
+                $colLetter = Coordinate::stringFromColumnIndex(2 + $q); // C..F
+                $sheet->setCellValue("{$colLetter}{$currentRow}", $skData['quarters'][$q]);
+            }
+            $sheet->setCellValue("G{$currentRow}", $skData['realisasi']);
+            $sheet->setCellValue("H{$currentRow}", $skPct);
+
+            $skStyle = [
+                'font'      => ['bold' => true, 'size' => 9, 'color' => ['rgb' => '0C4A6E']],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E0F2FE']],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'BAE6FD']]],
+            ];
+            $sheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray($skStyle);
+            $sheet->getRowDimension($currentRow)->setRowHeight(18);
+            $this->applyTriwulanNumberFormat($sheet, $currentRow, $numFmt, $pctFmt);
+            $currentRow++;
+
+            // Rekening rows (children)
+            foreach ($skData['rekening'] as $rek) {
+                $rekPct = $rek['pagu'] > 0 ? ($rek['realisasi'] / $rek['pagu']) * 100 : 0;
+
+                $sheet->setCellValue("A{$currentRow}", '        ' . $rek['kode'] . '   ' . $rek['nama']);
+                $sheet->setCellValue("B{$currentRow}", $rek['pagu']);
+                for ($q = 1; $q <= 4; $q++) {
+                    $colLetter = Coordinate::stringFromColumnIndex(2 + $q); // C..F
+                    $sheet->setCellValue("{$colLetter}{$currentRow}", $rek['quarters'][$q]);
+                }
+                $sheet->setCellValue("G{$currentRow}", $rek['realisasi']);
+                $sheet->setCellValue("H{$currentRow}", $rekPct);
+
+                $rekStyle = [
+                    'font'      => ['bold' => false, 'size' => 9],
+                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'DDDDDD']]],
+                ];
+                $sheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray($rekStyle);
+                $sheet->getRowDimension($currentRow)->setRowHeight(17);
+                $this->applyTriwulanNumberFormat($sheet, $currentRow, $numFmt, $pctFmt);
+                $currentRow++;
+            }
+        }
+
+        // ---- Total row ----
+        $totalPct = $totals['pagu'] > 0 ? ($totals['realisasi'] / $totals['pagu']) * 100 : 0;
+        $sheet->setCellValue("A{$currentRow}", 'TOTAL KESELURUHAN');
+        $sheet->setCellValue("B{$currentRow}", $totals['pagu']);
+        for ($q = 1; $q <= 4; $q++) {
+            $colLetter = Coordinate::stringFromColumnIndex(2 + $q); // C..F
+            $sheet->setCellValue("{$colLetter}{$currentRow}", $totals['quarters'][$q]);
+        }
+        $sheet->setCellValue("G{$currentRow}", $totals['realisasi']);
+        $sheet->setCellValue("H{$currentRow}", $totalPct);
+
+        $totalStyle = [
+            'font'      => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+        $sheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray($totalStyle);
+        $sheet->getRowDimension($currentRow)->setRowHeight(20);
+        $this->applyTriwulanNumberFormat($sheet, $currentRow, $numFmt, $pctFmt);
+
+        // ---- Freeze header ----
+        $sheet->freezePane('A5');
+
+        // ---- Output ----
+        $filename = 'Serapan_Triwulan_CDK_Bojonegoro_' . $tahun . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Apply number formats to columns B–G and percentage format to H
+     * for the quarterly absorption export rows.
+     */
+    private function applyTriwulanNumberFormat(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $row,
+        string $numFmt,
+        string $pctFmt
+    ): void {
+        // B = Pagu, C..F = quarters, G = Total
+        $sheet->getStyle("B{$row}")->getNumberFormat()->setFormatCode($numFmt);
+        $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        for ($q = 1; $q <= 4; $q++) {
+            $colLetter = Coordinate::stringFromColumnIndex(2 + $q); // C..F
+            $sheet->getStyle("{$colLetter}{$row}")->getNumberFormat()->setFormatCode($numFmt);
+            $sheet->getStyle("{$colLetter}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        }
+        $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode($numFmt);
+        $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("H{$row}")->getNumberFormat()->setFormatCode($pctFmt);
+        $sheet->getStyle("H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    }
+
+    /**
      * Apply number formats to columns B–O and percentage format to P
      * for the monthly absorption export rows.
      */
