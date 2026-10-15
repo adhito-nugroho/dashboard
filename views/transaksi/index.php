@@ -298,11 +298,38 @@ $isFiltered = !empty($activeFilterLabels);
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="<?= base_url('transaksi/create') ?>" class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 fw-medium shadow-sm">
+            <a href="<?= base_url('transaksi/create') ?>" class="btn btn-cta px-3 py-2 shadow-sm" title="Input transaksi baru">
                 <i class="bi bi-plus-lg"></i>
                 <span>Input Transaksi (Batch)</span>
             </a>
         </div>
+    </div>
+
+    <!-- Tab Filter Status (akses tercepat, tepat di bawah judul) -->
+    <?php
+        $statusPillDefs = ['' => 'Semua', 'diajukan' => 'Menunggu Verifikasi', 'diverifikasi' => 'Diverifikasi', 'ditolak' => 'Ditolak'];
+        $statusPillBase = [
+            'bulan'           => $filterBulan,
+            'tahun'           => $filterTahun,
+            'kegiatan_id'     => $filterKegiatan,
+            'sub_kegiatan_id' => $filterSubKegiatan,
+            'dari'            => $filterDari,
+            'sampai'          => $filterSampai,
+        ];
+    ?>
+    <div class="ux-status-pills mb-3" role="tablist" aria-label="Filter status transaksi">
+        <?php foreach ($statusPillDefs as $stVal => $stLabel): ?>
+            <?php
+                $pillQs = array_filter(array_merge($statusPillBase, ['status' => $stVal === '' ? null : $stVal]), fn($v) => $v !== null && $v !== '');
+                $pillHref = base_url('transaksi') . ($pillQs ? '?' . http_build_query($pillQs) : '');
+                $pillActive = ($filterStatus ?? '') === $stVal;
+            ?>
+            <a href="<?= $pillHref ?>" role="tab" aria-selected="<?= $pillActive ? 'true' : 'false' ?>"
+               data-status="<?= htmlspecialchars($stVal) ?>"
+               class="ux-status-pill <?= $pillActive ? 'active' : '' ?>">
+                <?= htmlspecialchars($stLabel) ?>
+            </a>
+        <?php endforeach; ?>
     </div>
 
     <!-- Filter Card (Structured 2-row layout) -->
@@ -317,6 +344,19 @@ $isFiltered = !empty($activeFilterLabels);
                     </span>
                 <?php endif; ?>
             </div>
+            <?php
+                $advancedCount = ($filterSubKegiatan !== null ? 1 : 0) + ($filterDari !== null ? 1 : 0) + ($filterSampai !== null ? 1 : 0);
+                $advancedOpen = $advancedCount > 0;
+            ?>
+            <button type="button" class="btn btn-sm btn-outline-secondary ux-filter-toggle"
+                    data-bs-toggle="collapse" data-bs-target="#filterLanjutan"
+                    aria-expanded="<?= $advancedOpen ? 'true' : 'false' ?>" aria-controls="filterLanjutan"
+                    title="Tampilkan/sembunyikan filter tanggal & sub kegiatan">
+                <i class="bi bi-chevron-down me-1"></i>Filter Lanjutan
+                <?php if ($advancedCount > 0): ?>
+                    <span class="ux-filter-count ms-1"><?= $advancedCount ?></span>
+                <?php endif; ?>
+            </button>
         </div>
         <div class="card-body p-3" id="filterBody">
             <form method="GET" action="<?= base_url('transaksi') ?>" id="filterForm">
@@ -363,68 +403,64 @@ $isFiltered = !empty($activeFilterLabels);
                             <?php endforeach; ?>
                         </select>
                     </div>
-
-                    <!-- Sub Kegiatan -->
-                    <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-sub-kegiatan" class="form-label trx-filter-label">
-                            <i class="bi bi-diagram-3 text-muted"></i> Sub Kegiatan
-                        </label>
-                        <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select form-select-sm">
-                            <option value="">-- Semua Sub Kegiatan --</option>
-                            <?php foreach ($filterSubKegiatanList as $sk): ?>
-                                <option value="<?= $sk['id'] ?>"
-                                        data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
-                                        <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Status (Sejajar rapi bersama filter lainnya) -->
-                    <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-status" class="form-label trx-filter-label">
-                            <i class="bi bi-shield-check text-muted"></i> Status
-                        </label>
-                        <select name="status" id="filter-status" class="form-select form-select-sm">
-                            <option value="">-- Semua Status --</option>
-                            <option value="diajukan" <?= $filterStatus === 'diajukan' ? 'selected' : '' ?>>Menunggu Verifikasi</option>
-                            <option value="diverifikasi" <?= $filterStatus === 'diverifikasi' ? 'selected' : '' ?>>Terverifikasi</option>
-                            <option value="ditolak" <?= $filterStatus === 'ditolak' ? 'selected' : '' ?>>Ditolak</option>
-                        </select>
-                    </div>
                 </div>
 
-                <!-- Baris 1b: Filter Periode Tanggal (mengabaikan Bulan/Tahun bila diisi) -->
-                <div class="row g-2 g-lg-3 align-items-end mt-1">
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <label for="filter-dari" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
-                            <i class="bi bi-calendar-event text-muted"></i> Tanggal Dari
-                        </label>
-                        <input type="date" name="dari" id="filter-dari" class="form-control form-control-sm"
-                               value="<?= htmlspecialchars($filterDari ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                <!-- Filter Lanjutan (collapsible): Sub Kegiatan + Periode Tanggal -->
+                <div class="collapse <?= $advancedOpen ? 'show' : '' ?>" id="filterLanjutan">
+                    <div class="row g-2 g-lg-3 align-items-end pt-2">
+                        <!-- Sub Kegiatan -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="filter-sub-kegiatan" class="form-label trx-filter-label">
+                                <i class="bi bi-diagram-3 text-muted"></i> Sub Kegiatan
+                            </label>
+                            <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select form-select-sm">
+                                <option value="">-- Semua Sub Kegiatan --</option>
+                                <?php foreach ($filterSubKegiatanList as $sk): ?>
+                                    <option value="<?= $sk['id'] ?>"
+                                            data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
+                                            <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Tanggal Dari -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="filter-dari" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
+                                <i class="bi bi-calendar-event text-muted"></i> Tanggal Dari
+                            </label>
+                            <input type="date" name="dari" id="filter-dari" class="form-control form-control-sm"
+                                   value="<?= htmlspecialchars($filterDari ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                        </div>
+
+                        <!-- Tanggal Sampai -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="filter-sampai" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
+                                <i class="bi bi-calendar-event text-muted"></i> Tanggal Sampai
+                            </label>
+                            <input type="date" name="sampai" id="filter-sampai" class="form-control form-control-sm"
+                                   value="<?= htmlspecialchars($filterSampai ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                        </div>
                     </div>
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <label for="filter-sampai" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
-                            <i class="bi bi-calendar-event text-muted"></i> Tanggal Sampai
-                        </label>
-                        <input type="date" name="sampai" id="filter-sampai" class="form-control form-control-sm"
-                               value="<?= htmlspecialchars($filterSampai ?? '') ?>" max="<?= date('Y-m-d') ?>">
-                    </div>
-                    <div class="col-12 col-lg-6">
-                        <span class="form-label trx-filter-label d-block">
-                            <i class="bi bi-lightning-charge text-muted"></i> Cepat
-                        </span>
-                        <div class="d-flex flex-wrap gap-1" role="group" aria-label="Preset periode cepat">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="today">Hari Ini</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="7">7 Hari Terakhir</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="30">30 Hari Terakhir</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="month">Bulan Ini</button>
-                            <?php if ($isPeriodeAktif): ?>
-                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle align-self-center ms-1" title="Filter Bulan/Tahun diabaikan selama periode tanggal aktif">
-                                    <i class="bi bi-info-circle me-1"></i>Periode aktif — Bulan/Tahun diabaikan
-                                </span>
-                            <?php endif; ?>
+
+                    <!-- Preset Periode Cepat -->
+                    <div class="row g-2 g-lg-3 align-items-end mt-1">
+                        <div class="col-12">
+                            <span class="form-label trx-filter-label d-block">
+                                <i class="bi bi-lightning-charge text-muted"></i> Cepat
+                            </span>
+                            <div class="d-flex flex-wrap gap-1" role="group" aria-label="Preset periode cepat">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="today">Hari Ini</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="7">7 Hari Terakhir</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="30">30 Hari Terakhir</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-preset="month">Bulan Ini</button>
+                                <?php if ($isPeriodeAktif): ?>
+                                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle align-self-center ms-1" title="Filter Bulan/Tahun diabaikan selama periode tanggal aktif">
+                                        <i class="bi bi-info-circle me-1"></i>Periode aktif — Bulan/Tahun diabaikan
+                                    </span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -590,7 +626,7 @@ $isFiltered = !empty($activeFilterLabels);
                         <?php endif; ?>
                     </p>
                     <?php if ($filterBulan === null && !$isFiltered): ?>
-                        <a href="<?= base_url('transaksi/create') ?>" class="btn btn-sm btn-primary px-3 py-2 fw-medium shadow-sm">
+                        <a href="<?= base_url('transaksi/create') ?>" class="btn btn-cta px-3 py-2 shadow-sm">
                             <i class="bi bi-plus-circle me-1"></i> Input Transaksi Pertama (Batch)
                         </a>
                     <?php else: ?>
@@ -652,14 +688,24 @@ $isFiltered = !empty($activeFilterLabels);
                                         <span class="badge-seksi"><?= htmlspecialchars($transaksi['kode_seksi']) ?></span>
                                     </td>
 
-                                    <!-- Uraian (tampil penuh) + tombol expand info anggaran -->
+                                    <!-- Uraian (clamp 2 baris + selengkapnya) + tombol expand info anggaran -->
                                     <td>
                                         <div class="d-flex align-items-start gap-1">
                                             <button type="button" class="trx-expand" aria-expanded="false" aria-label="Tampilkan info anggaran" data-bs-toggle="tooltip" title="Info Seksi / Program / Kegiatan">
                                                 <i class="bi bi-chevron-down"></i>
                                             </button>
-                                            <div style="font-size:0.85rem;word-break:break-word;white-space:normal;">
-                                                <?= htmlspecialchars($transaksi['uraian']) ?>
+                                            <div class="flex-grow-1" style="min-width:0;">
+                                                <div class="uraian-clamp ux-clamp-2" id="uraian-<?= $transaksi['id'] ?>" style="font-size:0.85rem;word-break:break-word;white-space:normal;">
+                                                    <?= htmlspecialchars($transaksi['uraian']) ?>
+                                                </div>
+                                                <?php if (mb_strlen((string) $transaksi['uraian']) > 100): ?>
+                                                    <button type="button" class="ux-expand-btn mt-1"
+                                                            data-uraian-expand data-uraian-target="uraian-<?= $transaksi['id'] ?>"
+                                                            data-label-open="Selengkapnya" data-label-close="Tutup"
+                                                            aria-expanded="false">
+                                                        Selengkapnya
+                                                    </button>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </td>
@@ -1310,7 +1356,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (keg) params.set('kegiatan_id', keg);
             const subKeg = document.getElementById('filter-sub-kegiatan').value;
             if (subKeg) params.set('sub_kegiatan_id', subKeg);
-            const status = document.getElementById('filter-status').value;
+            const statusEl = document.querySelector('.ux-status-pill.active');
+            const status = statusEl ? (statusEl.dataset.status || '') : '';
             if (status) params.set('status', status);
             window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
         });
@@ -1340,3 +1387,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 </script>
+<script src="<?= base_url('js/transaksi-ui.js') ?>"></script>

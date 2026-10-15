@@ -2494,4 +2494,133 @@ tr.trx-extra td {
     font-weight: 600;
     color: var(--gray-600);
     margin-bottom: 0.35rem;
-}
+}
+
+/* ============================================
+   UI HARMONY — komponen lintas halaman/role
+   (prefiks ux- agar tidak bentrok dgn modul lain)
+   ============================================ */
+
+/* ---- 1. Dropdown profil terpadu (header admin & topbar seksi) ---- */
+.ux-profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #fff;
+    border: 1px solid var(--gray-200, #e2e8f0);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-800, #1e293b);
+    box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,.05));
+}
+.ux-profile-chip:hover { border-color: var(--gray-300, #cbd5e1); color: var(--gray-900, #0f172a); }
+.ux-profile-chip-dark {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.25);
+    color: #fff;
+}
+.ux-profile-chip-dark:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.4); }
+.ux-profile-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1F3D2B, #4c8a5f);
+    color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 800;
+    flex-shrink: 0;
+}
+.ux-profile-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ux-profile-caret { font-size: 0.65rem; opacity: 0.6; }
+.ux-profile-menu { min-width: 220px; border-radius: 12px; font-size: 0.85rem; }
+
+/* ---- 2. CTA brand terpadu (hijau forest) ---- */
+.btn-cta {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: linear-gradient(135deg, #1F3D2B, #2c5a3e);
+    border: 1px solid #1F3D2B;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(31,61,43,0.3);
+}
+.btn-cta:hover, .btn-cta:focus { background: linear-gradient(135deg, #2c5a3e, #1F3D2B); color: #fff; border-color: #1F3D2B; }
+
+/* ---- 3. Tab/pill filter status (dipakai semua halaman transaksi) ---- */
+.ux-status-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.ux-status-pill {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.78rem; font-weight: 600;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--gray-200, #e2e8f0);
+    background: #fff; color: var(--gray-600, #475569);
+    text-decoration: none; white-space: nowrap;
+    transition: all 0.15s ease;
+}
+.ux-status-pill:hover { border-color: #4f46e5; color: #4f46e5; text-decoration: none; }
+.ux-status-pill.active { background: #1F3D2B; border-color: #1F3D2B; color: #fff; }
+.ux-status-pill.active:hover { color: #fff; }
+
+/* ---- 4. Filter lanjutan collapsible ---- */
+.ux-filter-toggle { font-size: 0.78rem; font-weight: 600; }
+.ux-filter-toggle .bi { transition: transform 0.2s ease; }
+.ux-filter-toggle[aria-expanded="true"] .bi-chevron-down { transform: rotate(180deg); }
+.ux-filter-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 1.25rem; height: 1.25rem; padding: 0 0.3rem;
+    border-radius: 999px; background: #1F3D2B; color: #fff;
+    font-size: 0.68rem; font-weight: 800;
+}
+
+/* ---- 5. Uraian clamp + tombol selengkapnya ---- */
+.ux-clamp-2, .ux-clamp-3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.45;
+}
+.ux-clamp-2 { -webkit-line-clamp: 2; max-height: calc(1.45em * 2); }
+.ux-clamp-3 { -webkit-line-clamp: 3; max-height: calc(1.45em * 3); }
+.ux-clamp-off { display: block; max-height: none; -webkit-line-clamp: unset; }
+.ux-expand-btn {
+    padding: 0; font-size: 0.72rem; font-weight: 600;
+    color: #1d4ed8; background: none; border: none;
+    display: inline-flex; align-items: center; gap: 0.2rem;
+    cursor: pointer; white-space: nowrap;
+}
+.ux-expand-btn:hover { text-decoration: underline; }
+
+/* ---- 6. Angka tabular rata kanan ---- */
+.font-tabular, .ux-mono { font-variant-numeric: tabular-nums; }
+.ux-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+/* ---- 7. Sticky action footer form ---- */
+.form-sticky-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
+    background: #ffffff;
+    border-top: 1px solid var(--gray-200, #e2e8f0);
+    padding: 0.85rem 1.25rem;
+    margin-top: 1.5rem;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.08);
+}
+
+/* ---- 8. Switch LS aktif tegas ---- */
+.switch-ls .form-check-input { width: 2.75em; height: 1.5em; cursor: pointer; }
+.switch-ls .form-check-input:checked {
+    background-color: #059669;
+    border-color: #059669;
+    box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.18);
+}
+.switch-ls .form-check-input:focus { box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.18); border-color: #059669; }
+.switch-ls .form-check-label { cursor: pointer; }
+.switch-ls.is-on .form-check-label { color: #047857; }
+
+/* ---- 9. Cascade select: status disabled + hint ---- */
+select:disabled { cursor: not-allowed; }
+.cascade-hint { font-size: 0.72rem; color: var(--gray-400, #94a3b8); }

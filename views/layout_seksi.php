@@ -110,8 +110,14 @@ $urlDashboard = base_url('dashboard/' . strtolower($_SESSION['role']));
                 <span class="fw-bold" style="font-size:0.95rem;">CDK Wilayah Bojonegoro <small style="opacity:.82;font-weight:400;color:#D9E2DC;">· <?= htmlspecialchars($seksiName ?: ucfirst($_SESSION['role'])) ?></small></span>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <span style="font-size:0.875rem;"><i class="bi bi-person-circle me-1"></i> <?= htmlspecialchars($_SESSION['username'] ?? '') ?></span>
-                <a href="<?= base_url('logout') ?>" class="btn btn-sm btn-outline-light" style="font-size:0.8rem;border-color:rgba(255,255,255,0.3);"><i class="bi bi-box-arrow-right me-1"></i> Logout</a>
+                <?php
+                // Dropdown profil terpadu (varian dark utk topbar hijau).
+                $pdName = $_SESSION['username'] ?? '';
+                $pdRole = ucfirst((string) ($_SESSION['role'] ?? ''));
+                $pdSub = $seksiName ?? '';
+                $pdVariant = 'dark';
+                include __DIR__ . '/shared/_profile_dropdown.php';
+                ?>
             </div>
         </div>
         <nav class="seksi-nav">

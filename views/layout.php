@@ -210,15 +210,22 @@
                             <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?></h5>
                     </div>
                     <div class="header-actions">
-                        <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin']): ?>
-                            <a href="<?= base_url('logout') ?>" class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-box-arrow-right"></i> Logout
-                            </a>
-                        <?php else: ?>
-                            <a href="<?= base_url('login') ?>" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-box-arrow-in-right"></i> Login Admin
-                            </a>
-                        <?php endif; ?>
+                        <?php
+                        // Dropdown profil terpadu (nama + peran + logout); mode tamu = tombol login.
+                        $pdName = $_SESSION['username'] ?? '';
+                        $pdRole = !empty($_SESSION['is_admin']) ? 'Admin' : ucfirst((string) ($_SESSION['role'] ?? ''));
+                        $pdSub = '';
+                        if (!empty($_SESSION['seksi_id'])) {
+                            try {
+                                $dbPd = \Database::getConnection();
+                                $stPd = $dbPd->prepare('SELECT nama_seksi FROM seksi WHERE id = ?');
+                                $stPd->execute([$_SESSION['seksi_id']]);
+                                $pdSub = (string) ($stPd->fetchColumn() ?: '');
+                            } catch (\Exception $e) { $pdSub = ''; }
+                        }
+                        $pdVariant = 'light';
+                        include __DIR__ . '/shared/_profile_dropdown.php';
+                        ?>
                     </div>
                 </div>
             </header>

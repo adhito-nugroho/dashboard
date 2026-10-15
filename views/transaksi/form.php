@@ -39,7 +39,7 @@ $batchData = $batchData ?? null;
     <div class="card">
         <div class="card-body">
             <?php if ($isEdit): ?>
-            <form method="POST" action="<?= base_url('transaksi/update/' . ($transaksi['id'] ?? '')) ?>" novalidate id="transaksiForm">
+            <form method="POST" action="<?= base_url('transaksi/update/' . ($transaksi['id'] ?? '')) ?>" novalidate id="transaksiForm" data-rupiah-normalize>
                 <div class="row">
                     <!-- Left Column -->
                     <div class="col-md-6">
@@ -82,7 +82,7 @@ $batchData = $batchData ?? null;
                                 Program <span class="text-danger">*</span>
                             </label>
                             <select class="form-select" id="program_id" name="program_id" required>
-                                <option value="">-- Pilih Program --</option>
+                                <option value="">-- 1. Pilih Program --</option>
                                 <?php foreach ($programs as $program): ?>
                                     <option value="<?= $program['id'] ?>" <?= ($programId == $program['id']) ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($program['kode_program'] . ' - ' . $program['nama_program']) ?>
@@ -98,7 +98,7 @@ $batchData = $batchData ?? null;
                             </label>
                             <select class="form-select" id="kegiatan_id" name="kegiatan_id" required
                                 <?= (empty($programId) && !$isEdit) ? 'disabled' : '' ?>>
-                                <option value="">-- Pilih Kegiatan --</option>
+                                <option value="">-- 2. Pilih Kegiatan --</option>
                                 <?php foreach ($kegiatans as $kegiatan): ?>
                                     <option value="<?= $kegiatan['id'] ?>" <?= ($kegiatanId == $kegiatan['id']) ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($kegiatan['kode_kegiatan'] . ' - ' . $kegiatan['nama_kegiatan']) ?>
@@ -114,7 +114,7 @@ $batchData = $batchData ?? null;
                             </label>
                             <select class="form-select" id="sub_kegiatan_id" name="sub_kegiatan_id" required
                                 <?= (empty($kegiatanId) && !$isEdit) ? 'disabled' : '' ?>>
-                                <option value="">-- Pilih Sub Kegiatan --</option>
+                                <option value="">-- 3. Pilih Sub Kegiatan --</option>
                                 <?php foreach ($subKegiatans as $subKegiatan): ?>
                                     <option value="<?= $subKegiatan['id'] ?>" <?= ($subKegiatanId == $subKegiatan['id']) ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($subKegiatan['kode_sub_kegiatan'] . ' - ' . $subKegiatan['nama_sub_kegiatan']) ?>
@@ -130,7 +130,7 @@ $batchData = $batchData ?? null;
                             </label>
                             <select class="form-select <?= isset($errors['rekening_id']) ? 'is-invalid' : '' ?>"
                                 id="rekening_id" name="rekening_id" required <?= (empty($subKegiatanId) && !$isEdit) ? 'disabled' : '' ?>>
-                                <option value="">-- Pilih Rekening --</option>
+                                <option value="">-- 4. Pilih Rekening Belanja --</option>
                                 <?php foreach ($rekenings as $rekening): ?>
                                     <option value="<?= $rekening['id'] ?>" <?= ($rekeningId == $rekening['id']) ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($rekening['kode_rekening'] . ' - ' . $rekening['nama_rekening']) ?>
@@ -173,7 +173,7 @@ $batchData = $batchData ?? null;
                                 <span class="input-group-text">Rp</span>
                                 <input type="text"
                                     class="form-control text-end <?= isset($errors['nilai']) ? 'is-invalid' : '' ?>"
-                                    id="nilai" name="nilai"
+                                    id="nilai" name="nilai" data-rupiah
                                     value="<?= $nilai ? (is_numeric($nilai) ? number_format((float) $nilai, 0, ',', '.') : $nilai) : '' ?>"
                                     placeholder="0" required>
                             </div>
@@ -211,7 +211,7 @@ $batchData = $batchData ?? null;
                         <!-- Sumber Dana -->
                         <div class="mb-3 p-3 rounded border" style="background:#EFF6FF;border-color:#BFDBFE !important;">
                             <input type="hidden" name="sumber_dana" value="UP">
-                            <div class="form-check form-switch">
+                            <div class="form-check form-switch switch-ls">
                                 <input class="form-check-input" type="checkbox" role="switch" id="sumber_ls" name="sumber_dana" value="LS" <?= $sumberDana === 'LS' ? 'checked' : '' ?>>
                                 <label class="form-check-label fw-semibold" for="sumber_ls" style="font-size:.85rem;">LS — Langsung (Bank Jatim Kas Daerah ke rekanan)</label>
                             </div>
@@ -229,7 +229,7 @@ $batchData = $batchData ?? null;
                 </div>
 
                 <!-- Form Actions -->
-                <div class="d-flex justify-content-between mt-4 pt-3 border-top" id="singleFormActions">
+                <div class="d-flex justify-content-between mt-4 pt-3 border-top form-sticky-footer" id="singleFormActions">
                     <a href="<?= base_url('transaksi') ?>" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-1"></i> Kembali
                     </a>
@@ -241,7 +241,7 @@ $batchData = $batchData ?? null;
             <?php endif; ?>
 
             <?php if (!$isEdit): ?>
-            <form method="POST" action="<?= base_url('transaksi/store-batch') ?>" novalidate id="batchTransaksiForm" enctype="multipart/form-data">
+            <form method="POST" action="<?= base_url('transaksi/store-batch') ?>" novalidate id="batchTransaksiForm" enctype="multipart/form-data" data-rupiah-normalize>
                 <?php
                 // Get batch data if exists (from validation errors)
                 $batchData = $batchData ?? null;
@@ -290,7 +290,7 @@ $batchData = $batchData ?? null;
                                         <label for="batch_program_id" class="form-label batch-field-label">Program <span class="text-danger">*</span></label>
                                         <div class="batch-select-wrap">
                                             <select class="form-select" id="batch_program_id" name="program_id" required>
-                                                <option value="">-- Pilih Program --</option>
+                                                <option value="">-- 1. Pilih Program --</option>
                                                 <?php foreach ($programs as $program): ?>
                                                     <option value="<?= $program['id'] ?>" <?= ($batchProgramId == $program['id']) ? 'selected' : '' ?>>
                                                         <?= htmlspecialchars($program['kode_program'] . ' - ' . $program['nama_program']) ?>
@@ -302,13 +302,13 @@ $batchData = $batchData ?? null;
                                     <div class="col-md-6">
                                         <label for="batch_kegiatan_id" class="form-label batch-field-label">Kegiatan <span class="text-danger">*</span></label>
                                         <select class="form-select" id="batch_kegiatan_id" name="kegiatan_id" required disabled>
-                                            <option value="">-- Pilih Kegiatan --</option>
+                                            <option value="">-- 2. Pilih Kegiatan --</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="batch_sub_kegiatan_id" class="form-label batch-field-label">Sub Kegiatan <span class="text-danger">*</span></label>
                                         <select class="form-select" id="batch_sub_kegiatan_id" name="sub_kegiatan_id" required disabled>
-                                            <option value="">-- Pilih Sub Kegiatan --</option>
+                                            <option value="">-- 3. Pilih Sub Kegiatan --</option>
                                         </select>
                                     </div>
                                 </div>
@@ -323,7 +323,7 @@ $batchData = $batchData ?? null;
                         <h6 class="fw-bold text-dark mb-2" style="letter-spacing:-.01em;">
                             <i class="bi bi-bank text-primary me-2"></i>Sumber Dana
                         </h6>
-                        <div class="form-check form-switch">
+                        <div class="form-check form-switch switch-ls">
                             <input type="hidden" name="sumber_dana" value="UP">
                             <input class="form-check-input" type="checkbox" role="switch" id="batch_sumber_ls" name="sumber_dana" value="LS" <?= $batchSumberDana === 'LS' ? 'checked' : '' ?>>
                             <label class="form-check-label fw-semibold" for="batch_sumber_ls">LS — Langsung (Bank Jatim Kas Daerah ke rekanan)</label>
@@ -366,7 +366,7 @@ $batchData = $batchData ?? null;
                 </div>
 
                 <!-- Form Actions -->
-                <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                <div class="d-flex justify-content-between mt-4 pt-3 border-top form-sticky-footer">
                     <a href="<?= base_url('transaksi') ?>" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-1"></i> Kembali
                     </a>
@@ -471,15 +471,15 @@ $batchData = $batchData ?? null;
             programSelect?.addEventListener('change', function () {
                 const programId = this.value;
                 if (kegiatanSelect) {
-                    kegiatanSelect.innerHTML = '<option value="">-- Pilih Kegiatan --</option>';
+                    kegiatanSelect.innerHTML = '<option value="">-- 2. Pilih Kegiatan --</option>';
                     kegiatanSelect.disabled = true;
                 }
                 if (subKegiatanSelect) {
-                    subKegiatanSelect.innerHTML = '<option value="">-- Pilih Sub Kegiatan --</option>';
+                    subKegiatanSelect.innerHTML = '<option value="">-- 3. Pilih Sub Kegiatan --</option>';
                     subKegiatanSelect.disabled = true;
                 }
                 if (rekeningSelect) {
-                    rekeningSelect.innerHTML = '<option value="">-- Pilih Rekening --</option>';
+                    rekeningSelect.innerHTML = '<option value="">-- 4. Pilih Rekening Belanja --</option>';
                     rekeningSelect.disabled = true;
                 }
                 if (remainingPaguInfo) {
@@ -511,9 +511,9 @@ $batchData = $batchData ?? null;
 
         kegiatanSelect.addEventListener('change', function () {
             const kegiatanId = this.value;
-            subKegiatanSelect.innerHTML = '<option value="">-- Pilih Sub Kegiatan --</option>';
+            subKegiatanSelect.innerHTML = '<option value="">-- 3. Pilih Sub Kegiatan --</option>';
             subKegiatanSelect.disabled = true;
-            rekeningSelect.innerHTML = '<option value="">-- Pilih Rekening --</option>';
+            rekeningSelect.innerHTML = '<option value="">-- 4. Pilih Rekening Belanja --</option>';
             rekeningSelect.disabled = true;
             remainingPaguInfo.innerHTML = '<p class="mb-0 text-muted">Pilih rekening dan tanggal untuk melihat sisa pagu</p>';
 
@@ -542,7 +542,7 @@ $batchData = $batchData ?? null;
 
         subKegiatanSelect.addEventListener('change', function () {
             const subKegiatanId = this.value;
-            rekeningSelect.innerHTML = '<option value="">-- Pilih Rekening --</option>';
+            rekeningSelect.innerHTML = '<option value="">-- 4. Pilih Rekening Belanja --</option>';
             rekeningSelect.disabled = true;
             remainingPaguInfo.innerHTML = '<p class="mb-0 text-muted">Pilih rekening dan tanggal untuk melihat sisa pagu</p>';
 
@@ -617,9 +617,9 @@ $batchData = $batchData ?? null;
             // Cascading dropdowns for batch form
             batchProgramSelect.addEventListener('change', function () {
                 const programId = this.value;
-                batchKegiatanSelect.innerHTML = '<option value="">-- Pilih Kegiatan --</option>';
+                batchKegiatanSelect.innerHTML = '<option value="">-- 2. Pilih Kegiatan --</option>';
                 batchKegiatanSelect.disabled = true;
-                batchSubKegiatanSelect.innerHTML = '<option value="">-- Pilih Sub Kegiatan --</option>';
+                batchSubKegiatanSelect.innerHTML = '<option value="">-- 3. Pilih Sub Kegiatan --</option>';
                 batchSubKegiatanSelect.disabled = true;
                 rekeningTableBody.innerHTML = '';
 
@@ -648,7 +648,7 @@ $batchData = $batchData ?? null;
 
             batchKegiatanSelect.addEventListener('change', function () {
                 const kegiatanId = this.value;
-                batchSubKegiatanSelect.innerHTML = '<option value="">-- Pilih Sub Kegiatan --</option>';
+                batchSubKegiatanSelect.innerHTML = '<option value="">-- 3. Pilih Sub Kegiatan --</option>';
                 batchSubKegiatanSelect.disabled = true;
                 rekeningTableBody.innerHTML = '';
 
@@ -751,6 +751,7 @@ $batchData = $batchData ?? null;
                                                 <input type="text" 
                                                        class="form-control text-end nilai-input" 
                                                        name="rekenings[${rowId}][nilai]" 
+                                                       data-rupiah
                                                        value="${oldVal}"
                                                        placeholder="0">
                                             </div>
@@ -967,3 +968,4 @@ $batchData = $batchData ?? null;
         }
     });
 </script>
+<script src="<?= base_url('js/transaksi-ui.js') ?>"></script>

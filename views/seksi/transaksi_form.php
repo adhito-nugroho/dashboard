@@ -269,7 +269,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="<?= $formAction ?>" id="seksiTransaksiForm">
+        <form method="POST" action="<?= $formAction ?>" id="seksiTransaksiForm" data-rupiah-normalize>
             <!-- Hidden field for Surat Tugas ID jika single -->
             <input type="hidden" name="surat_tugas_ref_id" id="surat_tugas_ref_id" value="<?= htmlspecialchars((string)$suratTugasRefId) ?>">
 
@@ -402,7 +402,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
 
                     <!-- Sumber Dana -->
                     <div class="p-3 mb-3" style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
-                        <div class="form-check form-switch">
+                        <div class="form-check form-switch switch-ls">
                             <input type="hidden" name="sumber_dana" value="UP">
                             <input class="form-check-input" type="checkbox" role="switch" id="sumber_ls" name="sumber_dana" value="LS" <?= $sumberDana === 'LS' ? 'checked' : '' ?>>
                             <label class="form-check-label fw-semibold" for="sumber_ls" style="font-size:0.85rem;color:#1E3A8A;">LS — Dibayar langsung Bank Jatim Kas Daerah ke rekanan</label>
@@ -523,7 +523,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text fw-bold" style="border-radius:6px 0 0 6px;font-size:0.875rem;background:#F7F5EF;border:1px solid #DBD5C6;border-right:none;color:#5C5A50;">Rp</span>
-                                    <input type="text" name="nilai" id="nilai" class="form-control custom-form-input" style="border-radius:0 6px 6px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required inputmode="numeric">
+                                    <input type="text" name="nilai" id="nilai" data-rupiah class="form-control custom-form-input" style="border-radius:0 6px 6px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required inputmode="numeric">
                                 </div>
                             </div>
                         </div>
@@ -1415,7 +1415,7 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                                     <span>Nilai (Rp) <span class="text-danger">*</span></span>
                                     <span class="text-primary fw-normal" style="font-size:0.7rem;"><i class="bi bi-magic me-1"></i>Otomatis dari Rincian</span>
                                 </label>
-                                <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required inputmode="numeric" readonly style="background-color: #f8fafc; font-weight: 600;" title="Otomatis terisi dari Total Rincian Biaya">
+                                <input type="text" name="items[${idx}][nilai]" data-rupiah class="form-control custom-form-input form-control-sm batch-nilai-input" placeholder="0" required inputmode="numeric" readonly style="background-color: #f8fafc; font-weight: 600;" title="Otomatis terisi dari Total Rincian Biaya">
                             </div>
                             <div class="col-12 mt-2">
                                 <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
@@ -1867,7 +1867,7 @@ function renderEditBatchItems() {
                             <span>Nilai (Rp) <span class="text-danger">*</span></span>
                             <span class="text-primary fw-normal" style="font-size:0.7rem;"><i class="bi bi-magic me-1"></i>Otomatis dari Rincian</span>
                         </label>
-                        <input type="text" name="items[${idx}][nilai]" class="form-control custom-form-input form-control-sm batch-nilai-input" value="${nilaiFmt}" placeholder="0" required inputmode="numeric" readonly style="background-color: #f8fafc; font-weight: 600;" title="Otomatis terisi dari Total Rincian Biaya">
+                        <input type="text" name="items[${idx}][nilai]" data-rupiah class="form-control custom-form-input form-control-sm batch-nilai-input" value="${nilaiFmt}" placeholder="0" required inputmode="numeric" readonly style="background-color: #f8fafc; font-weight: 600;" title="Otomatis terisi dari Total Rincian Biaya">
                     </div>
                     <div class="col-12 mt-2">
                         <label class="form-label small fw-semibold">Uraian Transaksi <span class="text-danger">*</span></label>
@@ -2034,3 +2034,4 @@ function renderEditBatchItems() {
 .rb-sisa-lebih  { background: #f0fdf4; color: #059669; }
 .rb-sisa-pas    { background: #eff6ff; color: #4f46e5; }
 </style>
+<script src="<?= base_url('js/transaksi-ui.js') ?>"></script>

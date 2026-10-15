@@ -174,7 +174,7 @@
         </h3>
         <p class="text-muted mb-0" style="font-size:0.875rem;">Daftar transaksi anggaran yang diajukan oleh seksi Anda.</p>
     </div>
-    <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-primary px-3 py-2 fw-semibold" style="border-radius:8px;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
+    <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-cta px-3 py-2 fw-semibold">
         <i class="bi bi-plus-circle me-1"></i> Tambah Transaksi
     </a>
 </div>
@@ -300,7 +300,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filter
                     </a>
                 <?php else: ?>
-                    <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-primary px-4 py-2 fw-semibold" style="border-radius:8px;">
+                    <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-cta px-4 py-2 fw-semibold">
                         <i class="bi bi-plus-circle me-1"></i> Tambah Transaksi Sekarang
                     </a>
                 <?php endif; ?>
@@ -401,13 +401,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     </div>
                                 <?php endif; ?>
                                 <div class="d-flex align-items-start gap-1">
-                                    <div class="uraian-text text-dark fw-medium flex-grow-1" style="font-size:0.85rem;word-break:break-word;white-space:normal;">
+                                    <div class="uraian-text text-dark fw-medium flex-grow-1 uraian-clamp ux-clamp-2" id="su-<?= $t['id'] ?>" style="font-size:0.85rem;word-break:break-word;white-space:normal;">
                                         <?= htmlspecialchars($uraianFull) ?>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" title="Salin uraian">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
+                                <?php if (mb_strlen((string) $uraianFull) > 100): ?>
+                                    <button type="button" class="ux-expand-btn mt-1"
+                                            data-uraian-expand data-uraian-target="su-<?= $t['id'] ?>"
+                                            data-label-open="Selengkapnya" data-label-close="Tutup"
+                                            aria-expanded="false">
+                                        Selengkapnya
+                                    </button>
+                                <?php endif; ?>
                                 <?php if (!empty($namaPenerima) || !empty($noST)): ?>
                                     <div class="small text-muted text-truncate" style="max-width:270px;font-size:0.75rem;">
                                         <?php if (!empty($namaPenerima)): ?>
@@ -525,13 +533,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         </div>
                         <div class="mc-label">Uraian</div>
                         <div class="d-flex align-items-start gap-1 mb-1">
-                            <div class="uraian-text text-dark fw-medium flex-grow-1" style="font-size:0.875rem;word-break:break-word;white-space:normal;">
+                            <div class="uraian-text text-dark fw-medium flex-grow-1 uraian-clamp ux-clamp-2" id="sum-<?= $t['id'] ?>" style="font-size:0.875rem;word-break:break-word;white-space:normal;">
                                 <?= htmlspecialchars($t['uraian']) ?>
                             </div>
                             <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" title="Salin uraian">
                                 <i class="bi bi-clipboard"></i>
                             </button>
                         </div>
+                        <?php if (mb_strlen((string) ($t['uraian'] ?? '')) > 100): ?>
+                            <button type="button" class="ux-expand-btn mb-1"
+                                    data-uraian-expand data-uraian-target="sum-<?= $t['id'] ?>"
+                                    data-label-open="Selengkapnya" data-label-close="Tutup"
+                                    aria-expanded="false">
+                                Selengkapnya
+                            </button>
+                        <?php endif; ?>
                         <?php if(!empty($t['nama_penerima'])): ?><div class="small text-muted"><i class="bi bi-person-fill me-1"></i><?= htmlspecialchars($t['nama_penerima']) ?></div><?php endif; ?>
                         <?php if(!empty($noST)): ?>
                             <div class="small text-muted"><i class="bi bi-file-earmark-text me-1"></i>ST: <?= htmlspecialchars($noST) ?><?php if($isSharedSt): ?> <span class="badge bg-indigo-subtle text-primary border" style="font-size:0.65rem;">Rombongan</span><?php endif; ?></div>
@@ -775,3 +791,4 @@ document.addEventListener('DOMContentLoaded', function(){
 
 });
 </script>
+<script src="<?= base_url('js/transaksi-ui.js') ?>"></script>
