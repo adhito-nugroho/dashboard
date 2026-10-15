@@ -2584,7 +2584,7 @@ tr.trx-extra td {
 }
 .ux-clamp-2 { -webkit-line-clamp: 2; max-height: calc(1.45em * 2); }
 .ux-clamp-3 { -webkit-line-clamp: 3; max-height: calc(1.45em * 3); }
-.ux-clamp-off { display: block; max-height: none; -webkit-line-clamp: unset; }
+.ux-clamp-off { display: block !important; max-height: none !important; overflow: visible !important; -webkit-line-clamp: unset !important; }
 .ux-expand-btn {
     padding: 0; font-size: 0.72rem; font-weight: 600;
     color: #1d4ed8; background: none; border: none;

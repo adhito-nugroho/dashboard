@@ -79,12 +79,13 @@
                 }
                 if (!target) return;
                 var opened = target.classList.toggle('ux-clamp-off');
-                // Dukung clamp lama (.uraian-clamp): sembunyikan via max-height inline saat dibuka
-                if (opened && target.classList.contains('uraian-clamp') && !target.classList.contains('ux-clamp-2') && !target.classList.contains('ux-clamp-3')) {
+                // Paksa via inline style agar selalu menang dari CSS clamp
+                // (class .uraian-clamp inline di view punya spesifisitas/urutan lebih kuat).
+                if (opened) {
                     target.style.display = 'block';
                     target.style.overflow = 'visible';
                     target.style.maxHeight = 'none';
-                } else if (target.classList.contains('uraian-clamp')) {
+                } else {
                     target.style.display = '';
                     target.style.overflow = '';
                     target.style.maxHeight = '';
