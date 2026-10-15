@@ -254,382 +254,206 @@ try {
         exit;
     }
 
-    // Route matching - Dashboard
-    if ($path === '/' || $path === '' || $path === '/dashboard' || $path === '/dashboard/') {
-        $dashboardController->index();
-    }
-    // Dashboard Seksi Routes
-    elseif ($path === '/dashboard/tu' || $path === '/dashboard/tu/') {
-        $dashboardSeksiController->showTU();
-    }
-    elseif ($path === '/dashboard/rlpm' || $path === '/dashboard/rlpm/') {
-        $dashboardSeksiController->showRLPM();
-    }
-    elseif ($path === '/dashboard/tkuk' || $path === '/dashboard/tkuk/') {
-        $dashboardSeksiController->showTKUK();
-    }
-    // Route matching - Excel Export
-    elseif ($path === '/export/laporan') {
-        $excelController->exportLaporan();
-    }
-    elseif ($path === '/export/serapan-bulanan') {
-        $excelController->exportSerapanBulanan();
-    }
-    elseif ($path === '/export/serapan-triwulan') {
-        $excelController->exportSerapanTriwulan();
-    }
-    elseif ($path === '/export/sisa-semester') {
-        $excelController->exportSisaSemester();
-    }
-    // Route matching - Program
-    elseif ($path === '/program' || $path === '/program/') {
-        $programController->index();
-    } elseif ($path === '/program/create') {
-        if ($requestMethod === 'GET') {
-            $programController->create();
-        } elseif ($requestMethod === 'POST') {
-            $programController->store();
+    // ---- Route table: [HTTP method, path pattern, handler] ----
+    // $routePattern is either an exact path ('/program') or a regex
+    // ('#^/program/edit/(\d+)$#'). Handler receives preg matches ([] if exact).
+    // First match wins; method 'ANY' matches all request methods.
+    // NOTE: $path is already normalized above (no trailing slash except root,
+    // always leading '/'), so canonical forms are sufficient here.
+    $routes = [
+        // Dashboard
+        ['ANY', '/', fn($m) => $dashboardController->index()],
+        ['ANY', '/dashboard', fn($m) => $dashboardController->index()],
+        ['ANY', '/dashboard/tu', fn($m) => $dashboardSeksiController->showTU()],
+        ['ANY', '/dashboard/rlpm', fn($m) => $dashboardSeksiController->showRLPM()],
+        ['ANY', '/dashboard/tkuk', fn($m) => $dashboardSeksiController->showTKUK()],
+
+        // Excel Export
+        ['ANY', '/export/laporan', fn($m) => $excelController->exportLaporan()],
+        ['ANY', '/export/serapan-bulanan', fn($m) => $excelController->exportSerapanBulanan()],
+        ['ANY', '/export/serapan-triwulan', fn($m) => $excelController->exportSerapanTriwulan()],
+        ['ANY', '/export/sisa-semester', fn($m) => $excelController->exportSisaSemester()],
+
+        // Program
+        ['ANY', '/program', fn($m) => $programController->index()],
+        ['GET', '/program/create', fn($m) => $programController->create()],
+        ['POST', '/program/create', fn($m) => $programController->store()],
+        ['POST', '/program/store', fn($m) => $programController->store()],
+        ['GET', '#^/program/edit/(\d+)$#', fn($m) => $programController->edit((int) $m[1])],
+        ['POST', '#^/program/edit/(\d+)$#', fn($m) => $programController->update((int) $m[1])],
+        ['POST', '#^/program/update/(\d+)$#', fn($m) => $programController->update((int) $m[1])],
+        ['ANY', '#^/program/delete/(\d+)$#', fn($m) => $programController->delete((int) $m[1])],
+
+        // Kegiatan
+        ['ANY', '/kegiatan', fn($m) => $kegiatanController->index()],
+        ['GET', '/kegiatan/create', fn($m) => $kegiatanController->create()],
+        ['POST', '/kegiatan/create', fn($m) => $kegiatanController->store()],
+        ['POST', '/kegiatan/store', fn($m) => $kegiatanController->store()],
+        ['GET', '#^/kegiatan/edit/(\d+)$#', fn($m) => $kegiatanController->edit((int) $m[1])],
+        ['POST', '#^/kegiatan/edit/(\d+)$#', fn($m) => $kegiatanController->update((int) $m[1])],
+        ['POST', '#^/kegiatan/update/(\d+)$#', fn($m) => $kegiatanController->update((int) $m[1])],
+        ['ANY', '#^/kegiatan/delete/(\d+)$#', fn($m) => $kegiatanController->delete((int) $m[1])],
+
+        // Sub Kegiatan
+        ['ANY', '/sub-kegiatan', fn($m) => $subKegiatanController->index()],
+        ['GET', '/sub-kegiatan/create', fn($m) => $subKegiatanController->create()],
+        ['POST', '/sub-kegiatan/create', fn($m) => $subKegiatanController->store()],
+        ['POST', '/sub-kegiatan/store', fn($m) => $subKegiatanController->store()],
+        ['GET', '#^/sub-kegiatan/edit/(\d+)$#', fn($m) => $subKegiatanController->edit((int) $m[1])],
+        ['POST', '#^/sub-kegiatan/edit/(\d+)$#', fn($m) => $subKegiatanController->update((int) $m[1])],
+        ['POST', '#^/sub-kegiatan/update/(\d+)$#', fn($m) => $subKegiatanController->update((int) $m[1])],
+        ['ANY', '#^/sub-kegiatan/delete/(\d+)$#', fn($m) => $subKegiatanController->delete((int) $m[1])],
+
+        // Seksi
+        ['ANY', '/seksi', fn($m) => $seksiController->index()],
+        ['GET', '/seksi/create', fn($m) => $seksiController->create()],
+        ['POST', '/seksi/create', fn($m) => $seksiController->store()],
+        ['POST', '/seksi/store', fn($m) => $seksiController->store()],
+        ['GET', '#^/seksi/edit/(\d+)$#', fn($m) => $seksiController->edit((int) $m[1])],
+        ['POST', '#^/seksi/edit/(\d+)$#', fn($m) => $seksiController->update((int) $m[1])],
+        ['POST', '#^/seksi/update/(\d+)$#', fn($m) => $seksiController->update((int) $m[1])],
+        ['ANY', '#^/seksi/delete/(\d+)$#', fn($m) => $seksiController->delete((int) $m[1])],
+
+        // Pagu
+        ['ANY', '/pagu', fn($m) => $paguController->index()],
+        ['GET', '/pagu/create', fn($m) => $paguController->create()],
+        ['POST', '/pagu/create', fn($m) => $paguController->store()],
+        ['POST', '/pagu/store', fn($m) => $paguController->store()],
+        ['POST', '/pagu/store-batch', fn($m) => $paguController->storeBatch()],
+        ['ANY', '/pagu/laporan', fn($m) => $paguController->laporan()],
+        ['ANY', '#^/pagu/riwayat/(\d+)$#', fn($m) => $paguController->riwayat((int) $m[1])],
+        ['GET', '#^/pagu/edit/(\d+)$#', fn($m) => $paguController->edit((int) $m[1])],
+        ['POST', '#^/pagu/edit/(\d+)$#', fn($m) => $paguController->update((int) $m[1])],
+        ['POST', '#^/pagu/update/(\d+)$#', fn($m) => $paguController->update((int) $m[1])],
+        ['ANY', '#^/pagu/delete/(\d+)$#', fn($m) => $paguController->delete((int) $m[1])],
+        ['GET', '/pagu/get-kegiatans', fn($m) => $paguController->getKegiatansByProgram()],
+        ['GET', '/pagu/get-sub-kegiatans', fn($m) => $paguController->getSubKegiatansByKegiatan()],
+        ['GET', '/pagu/get-rekenings', fn($m) => $paguController->getRekeningsBySubKegiatan()],
+
+        // Rekening
+        ['ANY', '/rekening', fn($m) => $rekeningController->index()],
+        ['GET', '/rekening/create', fn($m) => $rekeningController->create()],
+        ['POST', '/rekening/create', fn($m) => $rekeningController->store()],
+        ['POST', '/rekening/store', fn($m) => $rekeningController->store()],
+        ['POST', '/rekening/store-batch', fn($m) => $rekeningController->storeBatch()],
+        ['GET', '#^/rekening/edit/(\d+)$#', fn($m) => $rekeningController->edit((int) $m[1])],
+        ['POST', '#^/rekening/edit/(\d+)$#', fn($m) => $rekeningController->update((int) $m[1])],
+        ['POST', '#^/rekening/update/(\d+)$#', fn($m) => $rekeningController->update((int) $m[1])],
+        ['ANY', '#^/rekening/delete/(\d+)$#', fn($m) => $rekeningController->delete((int) $m[1])],
+
+        // RAK
+        ['GET', '/rak/export', fn($m) => $rakController->export()],
+        ['ANY', '/rak/rekap', fn($m) => $rakController->rekap()],
+        ['ANY', '/rak', fn($m) => $rakController->index()],
+        ['GET', '/rak/create', fn($m) => $rakController->create()],
+        ['POST', '/rak/create', fn($m) => $rakController->store()],
+        ['POST', '/rak/store', fn($m) => $rakController->store()],
+        ['GET', '#^/rak/edit/(\d+)/(\d+)$#', fn($m) => $rakController->edit((int) $m[1], (int) $m[2])],
+        ['POST', '#^/rak/edit/(\d+)/(\d+)$#', fn($m) => $rakController->update((int) $m[1], (int) $m[2])],
+        ['POST', '#^/rak/update/(\d+)/(\d+)$#', fn($m) => $rakController->update((int) $m[1], (int) $m[2])],
+        ['ANY', '#^/rak/delete/(\d+)/(\d+)$#', fn($m) => $rakController->delete((int) $m[1], (int) $m[2])],
+        ['GET', '/rak/get-rekening-info', fn($m) => $rakController->getRekeningInfo()],
+
+        // Transaksi
+        ['ANY', '/transaksi', fn($m) => $transaksiController->index()],
+        ['GET', '/transaksi/create', fn($m) => $transaksiController->create()],
+        ['POST', '/transaksi/create', fn($m) => $transaksiController->store()],
+        ['POST', '/transaksi/store', fn($m) => $transaksiController->store()],
+        ['POST', '/transaksi/store-batch', fn($m) => $transaksiController->storeBatch()],
+        ['GET', '#^/transaksi/edit/(\d+)$#', fn($m) => $transaksiController->edit((int) $m[1])],
+        ['POST', '#^/transaksi/update/(\d+)$#', fn($m) => $transaksiController->update((int) $m[1])],
+        ['ANY', '#^/transaksi/delete/(\d+)$#', fn($m) => $transaksiController->delete((int) $m[1])],
+        ['POST', '/transaksi/delete-batch', fn($m) => $transaksiController->deleteBatch()],
+        ['POST', '#^/transaksi/verifikasi/(\d+)$#', fn($m) => $transaksiController->verifikasi((int) $m[1])],
+        ['POST', '/transaksi/verifikasi-batch', fn($m) => $transaksiController->verifikasiBatch()],
+        ['POST', '#^/transaksi/tolak/(\d+)$#', fn($m) => $transaksiController->tolak((int) $m[1])],
+        ['POST', '#^/transaksi/batal-verifikasi/(\d+)$#', fn($m) => $transaksiController->batalVerifikasi((int) $m[1])],
+        ['POST', '#^/transaksi/update-tanggal-lunas/(\d+)$#', fn($m) => $transaksiController->updateTanggalLunas((int) $m[1])],
+        ['GET', '/transaksi/get-remaining-pagu', fn($m) => $transaksiController->getRemainingPagu()],
+        ['GET', '/transaksi/generate-no-bukti', fn($m) => $transaksiController->generateNomorBukti()],
+        ['GET', '/transaksi/get-rekenings-with-budget', fn($m) => $transaksiController->getRekeningsWithBudget()],
+        ['GET', '/transaksi/cari-klasifikasi', fn($m) => $transaksiController->cariKlasifikasi()],
+        ['GET', '/transaksi/bku-cdk', fn($m) => $transaksiController->downloadBkuCdk()],
+        ['ANY', '#^/transaksi/show/(\d+)$#', fn($m) => $transaksiController->show((int) $m[1])],
+
+        // SPJ Rincian Biaya Perjalanan Dinas
+        ['ANY', '/spj', fn($m) => $spjController->index()],
+        ['ANY', '#^/spj/detail/(\d+)$#', fn($m) => $spjController->detail((int) $m[1])],
+        ['ANY', '#^/spj/create/(\d+)/(.+)$#', fn($m) => $spjController->create((int) $m[1], urldecode($m[2]))],
+        ['POST', '/spj/store', fn($m) => $spjController->store()],
+        ['ANY', '#^/spj/edit/(\d+)$#', fn($m) => $spjController->edit((int) $m[1])],
+        ['POST', '#^/spj/update/(\d+)$#', fn($m) => $spjController->update((int) $m[1])],
+        ['POST', '#^/spj/delete/(\d+)$#', fn($m) => $spjController->delete((int) $m[1])],
+        ['ANY', '#^/spj/unduh/(\d+)$#', fn($m) => $spjController->download((int) $m[1])],
+        ['ANY', '#^/spj/spd/(\d+)/(.+)$#', fn($m) => $spjController->unduhSpd((int) $m[1], urldecode($m[2]))],
+        ['ANY', '#^/spj/spd-transaksi/(\d+)$#', fn($m) => $spjController->unduhSpdTransaksi((int) $m[1])],
+
+        // Kuitansi NCR 215x165mm (kalibrasi admin only, cetak admin+seksi)
+        ['ANY', '/kuitansi/kalibrasi', fn($m) => $kuitansiController->kalibrasi()],
+        ['POST', '/kuitansi/kalibrasi/simpan', fn($m) => $kuitansiController->simpanElemen()],
+        ['POST', '/kuitansi/kalibrasi/uji', fn($m) => $kuitansiController->cetakUji()],
+        ['POST', '/kuitansi/kalibrasi/upload', fn($m) => $kuitansiController->uploadReferensi()],
+        ['POST', '/kuitansi/kalibrasi/printer/tambah', fn($m) => $kuitansiController->tambahPrinter()],
+        ['POST', '/kuitansi/kalibrasi/printer/default', fn($m) => $kuitansiController->setDefaultPrinter()],
+        ['POST', '/kuitansi/kalibrasi/printer/hapus', fn($m) => $kuitansiController->hapusPrinter()],
+        ['ANY', '#^/kuitansi/cetak/(\d+)$#', fn($m) => $kuitansiController->cetak((int) $m[1])],
+
+        // Input Transaksi Seksi (role seksi)
+        ['ANY', '/seksi/transaksi', fn($m) => $seksiTransaksiController->index()],
+        ['ANY', '/seksi/transaksi/create', fn($m) => $seksiTransaksiController->create()],
+        ['POST', '/seksi/transaksi/store', fn($m) => $seksiTransaksiController->store()],
+        ['ANY', '#^/seksi/transaksi/edit/(\d+)$#', fn($m) => $seksiTransaksiController->edit((int) $m[1])],
+        ['POST', '#^/seksi/transaksi/update/(\d+)$#', fn($m) => $seksiTransaksiController->update((int) $m[1])],
+        ['POST', '#^/seksi/transaksi/delete/(\d+)$#', fn($m) => $seksiTransaksiController->delete((int) $m[1])],
+        ['GET', '/seksi/transaksi/kegiatans', fn($m) => $seksiTransaksiController->getKegiatans()],
+        ['GET', '/seksi/transaksi/subkegiatans', fn($m) => $seksiTransaksiController->getSubKegiatans()],
+        ['GET', '/seksi/transaksi/rekenings', fn($m) => $seksiTransaksiController->getRekenings()],
+        ['GET', '/seksi/transaksi/sisa-pagu', fn($m) => $seksiTransaksiController->getSisaPagu()],
+        ['GET', '/seksi/transaksi/generate-no-bukti', fn($m) => $seksiTransaksiController->generateNomorBukti()],
+        ['GET', '/seksi/transaksi/search-st', fn($m) => $seksiTransaksiController->searchSuratTugas()],
+        ['GET', '/seksi/transaksi/cari-klasifikasi', fn($m) => $seksiTransaksiController->cariKlasifikasi()],
+        ['GET', '/seksi/transaksi/pegawai-st', fn($m) => $seksiTransaksiController->getPegawaiSuratTugas()],
+        ['GET', '/seksi/transaksi/bku', fn($m) => $seksiTransaksiController->downloadBku()],
+        ['GET', '/seksi/transaksi/unduh-rincian-biaya', fn($m) => $seksiTransaksiController->downloadRincianBiaya()],
+
+        // Kas & Bank (UP/GU)
+        ['ANY', '/kas-bank', fn($m) => $kasBankController->index()],
+        ['POST', '/kas-bank/store', fn($m) => $kasBankController->store()],
+        ['POST', '#^/kas-bank/cairkan/(\d+)$#', fn($m) => $kasBankController->cairkan((int) $m[1])],
+        ['POST', '#^/kas-bank/update/(\d+)$#', fn($m) => $kasBankController->update((int) $m[1])],
+        ['POST', '#^/kas-bank/delete/(\d+)$#', fn($m) => $kasBankController->delete((int) $m[1])],
+
+        // Pengajuan SPJ ke GU
+        ['ANY', '/pengajuan-gu', fn($m) => $pengajuanGuController->index()],
+        ['POST', '/pengajuan-gu/store', fn($m) => $pengajuanGuController->store()],
+        ['POST', '#^/pengajuan-gu/cairkan/(\d+)$#', fn($m) => $pengajuanGuController->cairkan((int) $m[1])],
+        ['POST', '#^/pengajuan-gu/batalkan/(\d+)$#', fn($m) => $pengajuanGuController->batalkan((int) $m[1])],
+        ['POST', '#^/pengajuan-gu/lepas/(\d+)/(\d+)$#', fn($m) => $pengajuanGuController->lepas((int) $m[1], (int) $m[2])],
+    ];
+
+    // ---- Dispatcher: first match wins ----
+    $routeMatched = false;
+    foreach ($routes as $route) {
+        [$routeMethod, $routePattern, $routeHandler] = $route;
+        if ($routeMethod !== 'ANY' && $routeMethod !== $requestMethod) {
+            continue;
         }
-    } elseif ($path === '/program/store' && $requestMethod === 'POST') {
-        $programController->store();
-    } elseif (preg_match('#^/program/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $programController->edit($id);
-        } elseif ($requestMethod === 'POST') {
-            $programController->update($id);
+        if ($routePattern[0] === '#') {
+            if (!preg_match($routePattern, $path, $routeMatches)) {
+                continue;
+            }
+            $routeHandler($routeMatches);
+        } else {
+            if ($routePattern !== $path) {
+                continue;
+            }
+            $routeHandler([]);
         }
-    } elseif (preg_match('#^/program/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $id = (int) $matches[1];
-        $programController->update($id);
-    } elseif (preg_match('#^/program/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $programController->delete($id);
+        $routeMatched = true;
+        break;
     }
-    // Route matching - Kegiatan
-    elseif ($path === '/kegiatan' || $path === '/kegiatan/') {
-        $kegiatanController->index();
-    } elseif ($path === '/kegiatan/create') {
-        if ($requestMethod === 'GET') {
-            $kegiatanController->create();
-        } elseif ($requestMethod === 'POST') {
-            $kegiatanController->store();
-        }
-    } elseif ($path === '/kegiatan/store' && $requestMethod === 'POST') {
-        $kegiatanController->store();
-    } elseif (preg_match('#^/kegiatan/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $kegiatanController->edit($id);
-        } elseif ($requestMethod === 'POST') {
-            $kegiatanController->update($id);
-        }
-    } elseif (preg_match('#^/kegiatan/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $id = (int) $matches[1];
-        $kegiatanController->update($id);
-    } elseif (preg_match('#^/kegiatan/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $kegiatanController->delete($id);
-    }
-    // Route matching - Sub Kegiatan
-    elseif ($path === '/sub-kegiatan' || $path === '/sub-kegiatan/') {
-        $subKegiatanController->index();
-    } elseif ($path === '/sub-kegiatan/create') {
-        if ($requestMethod === 'GET') {
-            $subKegiatanController->create();
-        } elseif ($requestMethod === 'POST') {
-            $subKegiatanController->store();
-        }
-    } elseif ($path === '/sub-kegiatan/store' && $requestMethod === 'POST') {
-        $subKegiatanController->store();
-    } elseif (preg_match('#^/sub-kegiatan/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $subKegiatanController->edit($id);
-        } elseif ($requestMethod === 'POST') {
-            $subKegiatanController->update($id);
-        }
-    } elseif (preg_match('#^/sub-kegiatan/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $id = (int) $matches[1];
-        $subKegiatanController->update($id);
-    } elseif (preg_match('#^/sub-kegiatan/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $subKegiatanController->delete($id);
-    }
-    // Route matching - Seksi
-    elseif ($path === '/seksi' || $path === '/seksi/') {
-        $seksiController->index();
-    } elseif ($path === '/seksi/create') {
-        if ($requestMethod === 'GET') {
-            $seksiController->create();
-        } elseif ($requestMethod === 'POST') {
-            $seksiController->store();
-        }
-    } elseif ($path === '/seksi/store' && $requestMethod === 'POST') {
-        $seksiController->store();
-    } elseif (preg_match('#^/seksi/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $seksiController->edit($id);
-        } elseif ($requestMethod === 'POST') {
-            $seksiController->update($id);
-        }
-    } elseif (preg_match('#^/seksi/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $id = (int) $matches[1];
-        $seksiController->update($id);
-    } elseif (preg_match('#^/seksi/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $seksiController->delete($id);
-    }
-    // Route matching - Pagu
-    elseif ($path === '/pagu' || $path === '/pagu/') {
-        $paguController->index();
-    } elseif ($path === '/pagu/create') {
-        if ($requestMethod === 'GET') {
-            $paguController->create();
-        } elseif ($requestMethod === 'POST') {
-            $paguController->store();
-        }
-    } elseif ($path === '/pagu/store' && $requestMethod === 'POST') {
-        $paguController->store();
-    } elseif ($path === '/pagu/store-batch' && $requestMethod === 'POST') {
-        $paguController->storeBatch();
-    } elseif ($path === '/pagu/laporan' || $path === '/pagu/laporan/') {
-        $paguController->laporan();
-    } elseif (preg_match('#^/pagu/riwayat/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $paguController->riwayat($id);
-    } elseif (preg_match('#^/pagu/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $paguController->edit($id);
-        } elseif ($requestMethod === 'POST') {
-            $paguController->update($id);
-        }
-    } elseif (preg_match('#^/pagu/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $id = (int) $matches[1];
-        $paguController->update($id);
-    } elseif (preg_match('#^/pagu/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $paguController->delete($id);
-    } elseif ($path === '/pagu/get-kegiatans' && $requestMethod === 'GET') {
-        $paguController->getKegiatansByProgram();
-    } elseif ($path === '/pagu/get-sub-kegiatans' && $requestMethod === 'GET') {
-        $paguController->getSubKegiatansByKegiatan();
-    } elseif ($path === '/pagu/get-rekenings' && $requestMethod === 'GET') {
-        $paguController->getRekeningsBySubKegiatan();
-    }
-    // Route matching - Rekening
-    elseif ($path === '/rekening' || $path === '/rekening/') {
-        $rekeningController->index();
-    } elseif ($path === '/rekening/create') {
-        if ($requestMethod === 'GET') {
-            $rekeningController->create();
-        } elseif ($requestMethod === 'POST') {
-            $rekeningController->store();
-        }
-    } elseif ($path === '/rekening/store' && $requestMethod === 'POST') {
-        $rekeningController->store();
-    } elseif ($path === '/rekening/store-batch' && $requestMethod === 'POST') {
-        $rekeningController->storeBatch();
-    } elseif (preg_match('#^/rekening/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $rekeningController->edit($id);
-        } elseif ($requestMethod === 'POST') {
-            $rekeningController->update($id);
-        }
-    } elseif (preg_match('#^/rekening/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $id = (int) $matches[1];
-        $rekeningController->update($id);
-    } elseif (preg_match('#^/rekening/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $rekeningController->delete($id);
-    }
-    // Route matching - RAK
-    elseif ($path === '/rak/export' && $requestMethod === 'GET') {
-        $rakController->export();
-    } elseif ($path === '/rak/rekap' || $path === '/rak/rekap/') {
-        $rakController->rekap();
-    } elseif ($path === '/rak' || $path === '/rak/') {
-        $rakController->index();
-    } elseif ($path === '/rak/create') {
-        if ($requestMethod === 'GET') {
-            $rakController->create();
-        } elseif ($requestMethod === 'POST') {
-            $rakController->store();
-        }
-    } elseif ($path === '/rak/store' && $requestMethod === 'POST') {
-        $rakController->store();
-    } elseif (preg_match('#^/rak/edit/(\d+)/(\d+)$#', $path, $matches)) {
-        $rekeningId = (int) $matches[1];
-        $tahun = (int) $matches[2];
-        if ($requestMethod === 'GET') {
-            $rakController->edit($rekeningId, $tahun);
-        } elseif ($requestMethod === 'POST') {
-            $rakController->update($rekeningId, $tahun);
-        }
-    } elseif (preg_match('#^/rak/update/(\d+)/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $rekeningId = (int) $matches[1];
-        $tahun = (int) $matches[2];
-        $rakController->update($rekeningId, $tahun);
-    } elseif (preg_match('#^/rak/delete/(\d+)/(\d+)$#', $path, $matches)) {
-        $rekeningId = (int) $matches[1];
-        $tahun = (int) $matches[2];
-        $rakController->delete($rekeningId, $tahun);
-    } elseif ($path === '/rak/get-rekening-info' && $requestMethod === 'GET') {
-        $rakController->getRekeningInfo();
-    }
-    // Route matching - Transaksi
-    elseif ($path === '/transaksi' || $path === '/transaksi/') {
-        $transaksiController->index();
-    } elseif ($path === '/transaksi/create') {
-        if ($requestMethod === 'GET') {
-            $transaksiController->create();
-        } elseif ($requestMethod === 'POST') {
-            $transaksiController->store();
-        }
-    } elseif ($path === '/transaksi/store' && $requestMethod === 'POST') {
-        $transaksiController->store();
-    } elseif ($path === '/transaksi/store-batch' && $requestMethod === 'POST') {
-        $transaksiController->storeBatch();
-    } elseif (preg_match('#^/transaksi/edit/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'GET') {
-            $transaksiController->edit($id);
-        }
-    } elseif (preg_match('#^/transaksi/update/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        if ($requestMethod === 'POST') {
-            // Handle update
-            $transaksiController->update($id);
-        }
-    } elseif (preg_match('#^/transaksi/delete/(\d+)$#', $path, $matches)) {
-        $id = (int) $matches[1];
-        $transaksiController->delete($id);
-    } elseif ($path === '/transaksi/delete-batch' && $requestMethod === 'POST') {
-        $transaksiController->deleteBatch();
-    } elseif (preg_match('#^/transaksi/verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $transaksiController->verifikasi((int) $matches[1]);
-    } elseif ($path === '/transaksi/verifikasi-batch' && $requestMethod === 'POST') {
-        $transaksiController->verifikasiBatch();
-    } elseif (preg_match('#^/transaksi/tolak/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $transaksiController->tolak((int) $matches[1]);
-    } elseif (preg_match('#^/transaksi/batal-verifikasi/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $transaksiController->batalVerifikasi((int) $matches[1]);
-    } elseif (preg_match('#^/transaksi/update-tanggal-lunas/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $transaksiController->updateTanggalLunas((int) $matches[1]);
-    } elseif ($path === '/transaksi/get-remaining-pagu' && $requestMethod === 'GET') {
-        $transaksiController->getRemainingPagu();
-    } elseif ($path === '/transaksi/generate-no-bukti' && $requestMethod === 'GET') {
-        $transaksiController->generateNomorBukti();
-    } elseif ($path === '/transaksi/get-rekenings-with-budget' && $requestMethod === 'GET') {
-        $transaksiController->getRekeningsWithBudget();
-    } elseif ($path === '/transaksi/cari-klasifikasi' && $requestMethod === 'GET') {
-        $transaksiController->cariKlasifikasi();
-    } elseif ($path === '/transaksi/bku-cdk' && $requestMethod === 'GET') {
-        $transaksiController->downloadBkuCdk();
-    }
-    // Route matching - SPJ Rincian Biaya Perjalanan Dinas (admin only)
-    elseif ($path === '/spj' || $path === '/spj/') {
-        $spjController->index();
-    } elseif (preg_match('#^/spj/detail/(\d+)$#', $path, $matches)) {
-        $spjController->detail((int) $matches[1]);
-    } elseif (preg_match('#^/spj/create/(\d+)/(.+)$#', $path, $matches)) {
-        // $matches[2] = NIP (URL-encoded, sudah di-decode oleh PHP lewat REQUEST_URI)
-        $spjController->create((int) $matches[1], urldecode($matches[2]));
-    } elseif ($path === '/spj/store' && $requestMethod === 'POST') {
-        $spjController->store();
-    } elseif (preg_match('#^/spj/edit/(\d+)$#', $path, $matches)) {
-        $spjController->edit((int) $matches[1]);
-    } elseif (preg_match('#^/spj/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $spjController->update((int) $matches[1]);
-    } elseif (preg_match('#^/spj/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $spjController->delete((int) $matches[1]);
-    } elseif (preg_match('#^/spj/unduh/(\d+)$#', $path, $matches)) {
-        $spjController->download((int) $matches[1]);
-    } elseif (preg_match('#^/spj/spd/(\d+)/(.+)$#', $path, $matches)) {
-        $spjController->unduhSpd((int) $matches[1], urldecode($matches[2]));
-    } elseif (preg_match('#^/spj/spd-transaksi/(\d+)$#', $path, $matches)) {
-        $spjController->unduhSpdTransaksi((int) $matches[1]);
-    }
-    // Route matching - Kuitansi NCR 215x165mm (kalibrasi admin only, cetak admin+seksi)
-    elseif ($path === '/kuitansi/kalibrasi' || $path === '/kuitansi/kalibrasi/') {
-        $kuitansiController->kalibrasi();
-    } elseif ($path === '/kuitansi/kalibrasi/simpan' && $requestMethod === 'POST') {
-        $kuitansiController->simpanElemen();
-    } elseif ($path === '/kuitansi/kalibrasi/uji' && $requestMethod === 'POST') {
-        $kuitansiController->cetakUji();
-    } elseif ($path === '/kuitansi/kalibrasi/upload' && $requestMethod === 'POST') {
-        $kuitansiController->uploadReferensi();
-    } elseif ($path === '/kuitansi/kalibrasi/printer/tambah' && $requestMethod === 'POST') {
-        $kuitansiController->tambahPrinter();
-    } elseif ($path === '/kuitansi/kalibrasi/printer/default' && $requestMethod === 'POST') {
-        $kuitansiController->setDefaultPrinter();
-    } elseif ($path === '/kuitansi/kalibrasi/printer/hapus' && $requestMethod === 'POST') {
-        $kuitansiController->hapusPrinter();
-    } elseif (preg_match('#^/kuitansi/cetak/(\d+)$#', $path, $matches)) {
-        $kuitansiController->cetak((int) $matches[1]);
-    }
-    // Route matching - Input Transaksi Seksi (role seksi)
-    elseif ($path === '/seksi/transaksi' || $path === '/seksi/transaksi/') {
-        $seksiTransaksiController->index();
-    } elseif ($path === '/seksi/transaksi/create') {
-        $seksiTransaksiController->create();
-    } elseif ($path === '/seksi/transaksi/store' && $requestMethod === 'POST') {
-        $seksiTransaksiController->store();
-    } elseif (preg_match('#^/seksi/transaksi/edit/(\d+)$#', $path, $matches)) {
-        $seksiTransaksiController->edit((int) $matches[1]);
-    } elseif (preg_match('#^/seksi/transaksi/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $seksiTransaksiController->update((int) $matches[1]);
-    } elseif (preg_match('#^/seksi/transaksi/delete/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $seksiTransaksiController->delete((int) $matches[1]);
-    } elseif ($path === '/seksi/transaksi/kegiatans' && $requestMethod === 'GET') {
-        $seksiTransaksiController->getKegiatans();
-    } elseif ($path === '/seksi/transaksi/subkegiatans' && $requestMethod === 'GET') {
-        $seksiTransaksiController->getSubKegiatans();
-    } elseif ($path === '/seksi/transaksi/rekenings' && $requestMethod === 'GET') {
-        $seksiTransaksiController->getRekenings();
-    } elseif ($path === '/seksi/transaksi/sisa-pagu' && $requestMethod === 'GET') {
-        $seksiTransaksiController->getSisaPagu();
-    } elseif ($path === '/seksi/transaksi/generate-no-bukti' && $requestMethod === 'GET') {
-        $seksiTransaksiController->generateNomorBukti();
-    } elseif ($path === '/seksi/transaksi/search-st' && $requestMethod === 'GET') {
-        $seksiTransaksiController->searchSuratTugas();
-    } elseif ($path === '/seksi/transaksi/cari-klasifikasi' && $requestMethod === 'GET') {
-        $seksiTransaksiController->cariKlasifikasi();
-    } elseif ($path === '/seksi/transaksi/pegawai-st' && $requestMethod === 'GET') {
-        $seksiTransaksiController->getPegawaiSuratTugas();
-    } elseif ($path === '/seksi/transaksi/bku' && $requestMethod === 'GET') {
-        $seksiTransaksiController->downloadBku();
-    } elseif ($path === '/seksi/transaksi/unduh-rincian-biaya' && $requestMethod === 'GET') {
-        $seksiTransaksiController->downloadRincianBiaya();
-    } elseif (preg_match('#^/transaksi/show/(\d+)$#', $path, $matches)) {
-        $transaksiController->show((int) $matches[1]);
-    }
-    // Route matching - Kas & Bank (UP/GU)
-    elseif ($path === '/kas-bank' || $path === '/kas-bank/') {
-        $kasBankController->index();
-    } elseif ($path === '/kas-bank/store' && $requestMethod === 'POST') {
-        $kasBankController->store();
-    } elseif (preg_match('#^/kas-bank/cairkan/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $kasBankController->cairkan((int) $matches[1]);
-    } elseif (preg_match('#^/kas-bank/update/(\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $kasBankController->update((int) $matches[1]);
-    } elseif (preg_match('#^/kas-bank/delete/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $kasBankController->delete((int) $matches[1]);
-    // Route matching - Pengajuan SPJ ke GU
-    } elseif ($path === '/pengajuan-gu' || $path === '/pengajuan-gu/') {
-        $pengajuanGuController->index();
-    } elseif ($path === '/pengajuan-gu/store' && $requestMethod === 'POST') {
-        $pengajuanGuController->store();
-    } elseif (preg_match('#^/pengajuan-gu/cairkan/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $pengajuanGuController->cairkan((int) $matches[1]);
-    } elseif (preg_match('#^/pengajuan-gu/batalkan/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $pengajuanGuController->batalkan((int) $matches[1]);
-    } elseif (preg_match('#^/pengajuan-gu/lepas/(\\d+)/(\\d+)$#', $path, $matches) && $requestMethod === 'POST') {
-        $pengajuanGuController->lepas((int) $matches[1], (int) $matches[2]);
-    } else {
+
+    if (!$routeMatched) {
         // 404 Not Found
         http_response_code(404);
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>404 - Not Found</title>';
