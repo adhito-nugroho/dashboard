@@ -210,7 +210,8 @@ try {
     // Define public routes (dashboard publik & export laporan dapat diakses tanpa login)
     $publicRoutes = [
         '/', '', '/dashboard', '/dashboard/', '/login', '/logout',
-        '/export/laporan', '/export/serapan-bulanan', '/export/serapan-triwulan', '/export/sisa-semester'
+        '/export/laporan', '/export/serapan-bulanan', '/export/serapan-triwulan', '/export/sisa-semester',
+        '/rak/export'
     ];
     
     // Check authentication for protected routes
