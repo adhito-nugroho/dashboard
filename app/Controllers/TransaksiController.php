@@ -139,7 +139,6 @@ class TransaksiController
 
             // Load rincian biaya jika ada
             $db = \Database::getConnection();
-            require_once __DIR__ . '/../../app/Models/RincianBiaya.php';
             $rincianModel = new \App\Models\RincianBiaya($db);
             $rincianBiaya = $rincianModel->findForTransaksi($transaksi);
 
@@ -1417,7 +1416,6 @@ class TransaksiController
         // pembukuan sehingga tidak ada saldo awal yang disisipkan.
         $bisaSaldoAwal = !$modePeriode || $dari !== null;
         if (!$adaSaldoAwalBulanIni && $filterSubKegiatan === null && $filterKegiatan === null && $bisaSaldoAwal) {
-            require_once __DIR__ . '/../Models/KasBank.php';
             $kasBankModel = new \App\Models\KasBank($db);
             if ($modePeriode) {
                 $awalPeriode    = $dari;

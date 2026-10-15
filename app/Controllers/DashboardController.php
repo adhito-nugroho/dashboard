@@ -10,6 +10,7 @@ use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\KasBank;
+use App\Services\SerapanReportService;
 
 class DashboardController {
     private Pagu $paguModel;
@@ -20,6 +21,7 @@ class DashboardController {
     private Kegiatan $kegiatanModel;
     private SubKegiatan $subKegiatanModel;
     private ?KasBank $kasBankModel;
+    private SerapanReportService $serapanService;
 
     // In-memory request caches to eliminate N+1 queries
     private ?array $allPagusCache = null;
@@ -37,7 +39,8 @@ class DashboardController {
         Program $programModel,
         Kegiatan $kegiatanModel,
         SubKegiatan $subKegiatanModel,
-        ?KasBank $kasBankModel = null
+        ?KasBank $kasBankModel = null,
+        ?SerapanReportService $serapanService = null
     ) {
         $this->paguModel = $paguModel;
         $this->rakModel = $rakModel;
@@ -47,6 +50,7 @@ class DashboardController {
         $this->kegiatanModel = $kegiatanModel;
         $this->subKegiatanModel = $subKegiatanModel;
         $this->kasBankModel = $kasBankModel;
+        $this->serapanService = $serapanService ?? new SerapanReportService(\Database::getConnection());
     }
     
     /**
@@ -625,75 +629,8 @@ class DashboardController {
      * @return array
      */
     private function getMonthlyAbsorptionDetails(int $tahun, array $filters): array {
-        $pagus = $this->getPagusCache();
-        $subKegiatanMap = [];
-        $totals = [
-            'pagu' => 0,
-            'realisasi' => 0,
-            'rekening_count' => 0,
-            'months' => array_fill(1, 12, 0),
-        ];
-
-        foreach ($pagus as $pagu) {
-            if ($pagu['tahun'] != $tahun || !$this->matchesFilters($pagu, $filters)) {
-                continue;
-            }
-
-            $skid = (int) $pagu['sub_kegiatan_id'];
-            $rid = (int) $pagu['rekening_id'];
-            $paguRekening = (float) $pagu['nilai_pagu'];
-
-            if (!isset($subKegiatanMap[$skid])) {
-                $subKegiatanMap[$skid] = [
-                    'kode' => $pagu['kode_sub_kegiatan'] ?? '',
-                    'nama' => $pagu['nama_sub_kegiatan'] ?? 'Tidak Diketahui',
-                    'pagu' => 0,
-                    'realisasi' => 0,
-                    'months' => array_fill(1, 12, 0),
-                    'rekening' => [],
-                ];
-            }
-
-            $rekeningMonths = array_fill(1, 12, 0);
-            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
-            foreach ($transaksis as $transaksi) {
-                $bulan = Transaksi::bulanEfektifRealisasi($transaksi);
-                if ($bulan >= 1 && $bulan <= 12) {
-                    $rekeningMonths[$bulan] += (float) $transaksi['nilai'];
-                }
-            }
-
-            $realisasiRekening = array_sum($rekeningMonths);
-
-            $subKegiatanMap[$skid]['rekening'][$rid] = [
-                'kode' => $pagu['kode_rekening'] ?? '',
-                'nama' => $pagu['nama_rekening'] ?? 'Tidak Diketahui',
-                'pagu' => $paguRekening,
-                'realisasi' => $realisasiRekening,
-                'months' => $rekeningMonths,
-            ];
-
-            $subKegiatanMap[$skid]['pagu'] += $paguRekening;
-            $subKegiatanMap[$skid]['realisasi'] += $realisasiRekening;
-            $totals['pagu'] += $paguRekening;
-            $totals['realisasi'] += $realisasiRekening;
-            $totals['rekening_count']++;
-
-            for ($bulan = 1; $bulan <= 12; $bulan++) {
-                $subKegiatanMap[$skid]['months'][$bulan] += $rekeningMonths[$bulan];
-                $totals['months'][$bulan] += $rekeningMonths[$bulan];
-            }
-        }
-
-        uasort($subKegiatanMap, fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        foreach ($subKegiatanMap as &$subKegiatan) {
-            uasort($subKegiatan['rekening'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        }
-
-        return [
-            'sub_kegiatan' => $subKegiatanMap,
-            'totals' => $totals,
-        ];
+        // Didelegasikan ke service pusat — angka identik dengan export Excel.
+        return $this->serapanService->absorption($this->getPagusCache(), $tahun, $filters);
     }
 
     /**
@@ -794,115 +731,8 @@ class DashboardController {
      * @return array Grouped by sub kegiatan
      */
     private function getSemesterRekapData(int $tahun, array $filters): array {
-        $pagus = $this->getPagusCache();
-
-        $subKegiatanMap = [];
-        $totals = [
-            'rak_s1' => 0, 'real_s1' => 0, 'sisa_s1' => 0,
-            'rak_s2' => 0, 'real_s2' => 0, 'sisa_s2' => 0,
-            'carry_over' => 0,
-            'total_rekening' => 0,
-            'rekening_dengan_sisa_s1' => 0,
-            'rekening_dengan_sisa_s2' => 0,
-        ];
-
-        foreach ($pagus as $pagu) {
-            if ($pagu['tahun'] != $tahun || !$this->matchesFilters($pagu, $filters)) continue;
-
-            $skid   = $pagu['sub_kegiatan_id'];
-            $rid    = (int) $pagu['rekening_id'];
-            $skNama = $pagu['nama_sub_kegiatan'] ?? 'Unknown';
-            $skKode = $pagu['kode_sub_kegiatan'] ?? '';
-            $rNama  = $pagu['nama_rekening']  ?? 'Unknown';
-            $rKode  = $pagu['kode_rekening']  ?? '';
-
-            // Get RAK per month (cached batch)
-            $raks = $this->getRakByRekeningAndYear($rid, $tahun);
-            $rakS1 = 0; $rakS2 = 0;
-            foreach ($raks as $r) {
-                $b = (int) $r['bulan'];
-                $val = (float) $r['nilai_rak'];
-                if ($b >= 1 && $b <= 6) $rakS1 += $val;
-                elseif ($b >= 7 && $b <= 12) $rakS2 += $val;
-            }
-
-            // Get realisasi per month (cached batch)
-            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
-            $realS1 = 0; $realS2 = 0;
-            foreach ($transaksis as $t) {
-                $b = Transaksi::bulanEfektifRealisasi($t);
-                $val = (float) $t['nilai'];
-                if ($b >= 1 && $b <= 6) $realS1 += $val;
-                elseif ($b >= 7 && $b <= 12) $realS2 += $val;
-            }
-
-            $sisaS1 = $rakS1 - $realS1;
-            $sisaS2 = $rakS2 - $realS2;
-
-            // Carry-over: sisa positif S1 menambah kuota yang tersedia di S2
-            // sisa_s2_efektif = RAK_s2 + max(0, sisa_s1) - realisasi_s2
-            $carryOver = max(0, $sisaS1);
-            $sisaS2Efektif = $rakS2 + $carryOver - $realS2;
-
-            // Skip rekening tanpa RAK sama sekali (tidak relevan)
-            if ($rakS1 == 0 && $rakS2 == 0) continue;
-
-            if (!isset($subKegiatanMap[$skid])) {
-                $subKegiatanMap[$skid] = [
-                    'kode'       => $skKode,
-                    'nama'       => $skNama,
-                    'rekening'   => [],
-                    'rak_s1'     => 0, 'real_s1' => 0, 'sisa_s1' => 0,
-                    'rak_s2'     => 0, 'real_s2' => 0, 'sisa_s2' => 0,
-                    'carry_over' => 0,
-                ];
-            }
-
-            $subKegiatanMap[$skid]['rekening'][$rid] = [
-                'kode'         => $rKode,
-                'nama'         => $rNama,
-                'pagu'         => (float) $pagu['nilai_pagu'],
-                'rak_s1'       => $rakS1,
-                'real_s1'      => $realS1,
-                'sisa_s1'      => $sisaS1,
-                'rak_s2'       => $rakS2,
-                'real_s2'      => $realS2,
-                'sisa_s2'      => $sisaS2Efektif,   // sudah termasuk carry-over dari S1
-                'carry_over'   => $carryOver,        // sisa S1 yang di-carry ke S2
-                'sisa_s2_raw'  => $sisaS2,           // sisa S2 murni tanpa carry-over
-                'sisa_total'   => $sisaS1 + $sisaS2, // arithmetic total
-            ];
-
-            $subKegiatanMap[$skid]['rak_s1']     += $rakS1;
-            $subKegiatanMap[$skid]['real_s1']    += $realS1;
-            $subKegiatanMap[$skid]['sisa_s1']    += $sisaS1;
-            $subKegiatanMap[$skid]['rak_s2']     += $rakS2;
-            $subKegiatanMap[$skid]['real_s2']    += $realS2;
-            $subKegiatanMap[$skid]['sisa_s2']    += $sisaS2Efektif;
-            $subKegiatanMap[$skid]['carry_over'] = ($subKegiatanMap[$skid]['carry_over'] ?? 0) + $carryOver;
-
-            $totals['rak_s1']  += $rakS1;
-            $totals['real_s1'] += $realS1;
-            $totals['sisa_s1'] += $sisaS1;
-            $totals['rak_s2']  += $rakS2;
-            $totals['real_s2'] += $realS2;
-            $totals['sisa_s2'] += $sisaS2Efektif;
-            $totals['carry_over'] = ($totals['carry_over'] ?? 0) + $carryOver;
-            $totals['total_rekening']++;
-            if ($sisaS1 > 0) $totals['rekening_dengan_sisa_s1']++;
-            if ($sisaS2Efektif > 0) $totals['rekening_dengan_sisa_s2']++;
-        }
-
-        // Sort sub kegiatan & rekening by kode
-        uasort($subKegiatanMap, fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        foreach ($subKegiatanMap as &$sk) {
-            uasort($sk['rekening'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        }
-
-        return [
-            'sub_kegiatan' => $subKegiatanMap,
-            'totals'       => $totals,
-        ];
+        // Didelegasikan ke service pusat — angka identik dengan export Excel.
+        return $this->serapanService->semester($this->getPagusCache(), $tahun, $filters);
     }
 
     // ──────────────────────────────────────────────────────────

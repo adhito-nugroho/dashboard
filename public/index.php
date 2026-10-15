@@ -41,39 +41,8 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 }
 
-// Load models and controllers
-require_once __DIR__ . '/../app/Models/Program.php';
-require_once __DIR__ . '/../app/Models/Kegiatan.php';
-require_once __DIR__ . '/../app/Models/SubKegiatan.php';
-require_once __DIR__ . '/../app/Models/Seksi.php';
-require_once __DIR__ . '/../app/Models/Rekening.php';
-require_once __DIR__ . '/../app/Models/Pagu.php';
-require_once __DIR__ . '/../app/Models/PaguRiwayat.php';
-require_once __DIR__ . '/../app/Models/Rak.php';
-require_once __DIR__ . '/../app/Models/Transaksi.php';
-require_once __DIR__ . '/../app/Controllers/ProgramController.php';
-require_once __DIR__ . '/../app/Controllers/KegiatanController.php';
-require_once __DIR__ . '/../app/Controllers/SubKegiatanController.php';
-require_once __DIR__ . '/../app/Controllers/SeksiController.php';
-require_once __DIR__ . '/../app/Controllers/PaguController.php';
-require_once __DIR__ . '/../app/Controllers/RekeningController.php';
-require_once __DIR__ . '/../app/Controllers/RakController.php';
-require_once __DIR__ . '/../app/Controllers/TransaksiController.php';
-require_once __DIR__ . '/../app/Controllers/DashboardController.php';
-require_once __DIR__ . '/../app/Controllers/AuthController.php';
-require_once __DIR__ . '/../app/Controllers/DashboardSeksiController.php';
-require_once __DIR__ . '/../app/Controllers/SeksiTransaksiController.php';
-require_once __DIR__ . '/../app/Controllers/ExcelController.php';
-require_once __DIR__ . '/../app/Models/RincianBiaya.php';
-require_once __DIR__ . '/../app/Controllers/SpjController.php';
-require_once __DIR__ . '/../app/Models/KalibrasiKuitansiElemen.php';
-require_once __DIR__ . '/../app/Models/PrinterKuitansi.php';
-require_once __DIR__ . '/../app/Services/KuitansiPdfService.php';
-require_once __DIR__ . '/../app/Controllers/KuitansiController.php';
-require_once __DIR__ . '/../app/Models/KasBank.php';
-require_once __DIR__ . '/../app/Controllers/KasBankController.php';
-require_once __DIR__ . '/../app/Models/PengajuanGu.php';
-require_once __DIR__ . '/../app/Controllers/PengajuanGuController.php';
+// Catatan: kelas App\* (Models, Controllers, Services) dimuat otomatis via
+// composer autoload (PSR-4 "App\\" -> "app/"). Jangan tambah require manual.
 
 use App\Models\Program;
 use App\Models\Kegiatan;
@@ -133,11 +102,13 @@ try {
     $rekeningController = new RekeningController($rekeningModel, $programModel, $kegiatanModel, $subKegiatanModel);
     $rakController = new RakController($rakModel, $paguModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
     $transaksiController = new TransaksiController($transaksiModel, $seksiModel, $paguModel, $rakModel, $programModel, $kegiatanModel, $subKegiatanModel, $rekeningModel);
-    $dashboardController = new DashboardController($paguModel, $rakModel, $transaksiModel, $seksiModel, $programModel, $kegiatanModel, $subKegiatanModel, $kasBankModel);
+    // Shared reporting service: satu sumber angka serapan untuk dashboard + export Excel.
+    $serapanReportService = new \App\Services\SerapanReportService($db);
+    $dashboardController = new DashboardController($paguModel, $rakModel, $transaksiModel, $seksiModel, $programModel, $kegiatanModel, $subKegiatanModel, $kasBankModel, $serapanReportService);
     $authController = new AuthController();
     $dashboardSeksiController = new DashboardSeksiController();
     $seksiTransaksiController = new SeksiTransaksiController();
-    $excelController = new ExcelController($paguModel, $rakModel, $transaksiModel, $seksiModel);
+    $excelController = new ExcelController($paguModel, $rakModel, $transaksiModel, $seksiModel, $db, $serapanReportService);
     $rincianBiayaModel = new RincianBiaya($db);
     $spjController = new SpjController($rincianBiayaModel);
     $kuitansiController = new KuitansiController($db);

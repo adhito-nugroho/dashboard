@@ -6,6 +6,8 @@ use App\Models\Pagu;
 use App\Models\Rak;
 use App\Models\Transaksi;
 use App\Models\Seksi;
+use App\Core\Request;
+use App\Services\SerapanReportService;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -19,17 +21,40 @@ class ExcelController {
     private Rak $rakModel;
     private Transaksi $transaksiModel;
     private Seksi $seksiModel;
+    private \PDO $db;
+    private SerapanReportService $serapanService;
 
     public function __construct(
         Pagu $paguModel,
         Rak $rakModel,
         Transaksi $transaksiModel,
-        Seksi $seksiModel
+        Seksi $seksiModel,
+        ?\PDO $db = null,
+        ?SerapanReportService $serapanService = null
     ) {
         $this->paguModel = $paguModel;
         $this->rakModel = $rakModel;
         $this->transaksiModel = $transaksiModel;
         $this->seksiModel = $seksiModel;
+        $this->db = $db ?? \Database::getConnection();
+        $this->serapanService = $serapanService ?? new SerapanReportService($this->db);
+    }
+
+    /**
+     * Ambil filter wilayah data (tahun + seksi/program/kegiatan/sub) dari request.
+     * Satu-satunya tempat parsing $_GET untuk export serapan — mudah di-test.
+     *
+     * @return array{0: int, 1: array} [$tahun, $filters]
+     */
+    private function serapanParams(Request $request): array {
+        $tahun = $request->queryInt('tahun', (int) date('Y')) ?? (int) date('Y');
+        $filters = [
+            'seksi_id'        => $request->queryInt('seksi_id'),
+            'program_id'      => $request->queryInt('program_id'),
+            'kegiatan_id'     => $request->queryInt('kegiatan_id'),
+            'sub_kegiatan_id' => $request->queryInt('sub_kegiatan_id'),
+        ];
+        return [$tahun, $filters];
     }
 
     /**
@@ -734,7 +759,8 @@ class ExcelController {
      * Export Serapan per Sub Kegiatan per Bulan to Excel
      * Matches the monthly absorption table displayed on the dashboard.
      */
-    public function exportSerapanBulanan(): void {
+    public function exportSerapanBulanan(?Request $request = null): void {
+        $request ??= Request::fromGlobals();
         $bulanNamesLong = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
                            7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
         $periods = [];
@@ -742,6 +768,7 @@ class ExcelController {
             $periods[$m] = ['label' => $nama, 'months' => [$m]];
         }
         $this->exportSerapanPeriode(
+            $request,
             'SERAPAN PER SUB KEGIATAN DAN REKENING PER BULAN — TAHUN ',
             'Serapan Bulanan',
             'Serapan_Bulanan_CDK_Bojonegoro_',
@@ -754,7 +781,8 @@ class ExcelController {
      * Export Serapan per Sub Kegiatan per Triwulan to Excel.
      * TW I (Jan–Mar), TW II (Apr–Jun), TW III (Jul–Sep), TW IV (Okt–Des).
      */
-    public function exportSerapanTriwulan(): void {
+    public function exportSerapanTriwulan(?Request $request = null): void {
+        $request ??= Request::fromGlobals();
         $periods = [
             1 => ['label' => 'Triwulan I',   'months' => [1, 2, 3]],
             2 => ['label' => 'Triwulan II',  'months' => [4, 5, 6]],
@@ -762,6 +790,7 @@ class ExcelController {
             4 => ['label' => 'Triwulan IV',  'months' => [10, 11, 12]],
         ];
         $this->exportSerapanPeriode(
+            $request,
             'SERAPAN PER SUB KEGIATAN DAN REKENING PER TRIWULAN — TAHUN ',
             'Serapan Triwulan',
             'Serapan_Triwulan_CDK_Bojonegoro_',
@@ -777,21 +806,21 @@ class ExcelController {
      * @param array<int, array{label: string, months: int[]}> $periods Periode 1-indexed.
      */
     private function exportSerapanPeriode(
+        Request $request,
         string $titlePrefix,
         string $sheetTitle,
         string $filePrefix,
         array $periods,
         float $periodColWidth
     ): void {
-        $tahun     = isset($_GET['tahun'])            ? (int) $_GET['tahun']            : (int) date('Y');
-        $filters = [
-            'seksi_id'        => isset($_GET['seksi_id'])        && $_GET['seksi_id']        !== '' ? (int) $_GET['seksi_id']        : null,
-            'program_id'      => isset($_GET['program_id'])      && $_GET['program_id']      !== '' ? (int) $_GET['program_id']      : null,
-            'kegiatan_id'     => isset($_GET['kegiatan_id'])     && $_GET['kegiatan_id']     !== '' ? (int) $_GET['kegiatan_id']     : null,
-            'sub_kegiatan_id' => isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null,
-        ];
+        [$tahun, $filters] = $this->serapanParams($request);
 
-        [$subKegiatanMap, $totals] = $this->buildSerapanPeriodData($tahun, $filters, $periods);
+        [$subKegiatanMap, $totals] = $this->serapanService->absorptionPerPeriod(
+            $this->paguModel->getAll(),
+            $tahun,
+            $filters,
+            $periods
+        );
 
         $nPeriods = count($periods);
         $totalCol = Coordinate::stringFromColumnIndex(3 + $nPeriods);
@@ -945,93 +974,6 @@ class ExcelController {
     }
 
     /**
-     * Build quarterly/monthly absorption data grouped by Sub Kegiatan -> Rekening.
-     * Same logic as the dashboard absorption table, bucketed into $periods.
-     *
-     * @param array<int, array{label: string, months: int[]}> $periods
-     * @return array{0: array, 1: array} [$subKegiatanMap, $totals]
-     */
-    private function buildSerapanPeriodData(int $tahun, array $filters, array $periods): array {
-        $nPeriods = count($periods);
-        $monthToPeriod = [];
-        foreach ($periods as $pIdx => $pDef) {
-            foreach ($pDef['months'] as $m) {
-                $monthToPeriod[$m] = $pIdx;
-            }
-        }
-
-        $pagus          = $this->paguModel->getAll();
-        $subKegiatanMap = [];
-        $totals = [
-            'pagu'      => 0,
-            'realisasi' => 0,
-            'periods'   => array_fill(1, $nPeriods, 0),
-        ];
-
-        foreach ($pagus as $pagu) {
-            if ($pagu['tahun'] != $tahun) continue;
-
-            // Apply filters
-            if ($filters['seksi_id']        !== null && ($pagu['sub_kegiatan_seksi_id'] ?? 0) != $filters['seksi_id'])        continue;
-            if ($filters['program_id']      !== null && ($pagu['program_id'] ?? 0)             != $filters['program_id'])      continue;
-            if ($filters['kegiatan_id']     !== null && ($pagu['kegiatan_id'] ?? 0)             != $filters['kegiatan_id'])     continue;
-            if ($filters['sub_kegiatan_id'] !== null && ($pagu['sub_kegiatan_id'] ?? 0)         != $filters['sub_kegiatan_id']) continue;
-
-            $skid         = (int) $pagu['sub_kegiatan_id'];
-            $rid          = (int) $pagu['rekening_id'];
-            $paguRekening = (float) $pagu['nilai_pagu'];
-
-            if (!isset($subKegiatanMap[$skid])) {
-                $subKegiatanMap[$skid] = [
-                    'kode'      => $pagu['kode_sub_kegiatan'] ?? '',
-                    'nama'      => $pagu['nama_sub_kegiatan'] ?? 'Tidak Diketahui',
-                    'pagu'      => 0,
-                    'realisasi' => 0,
-                    'periods'   => array_fill(1, $nPeriods, 0),
-                    'rekening'  => [],
-                ];
-            }
-
-            $rekeningPeriods = array_fill(1, $nPeriods, 0);
-            $transaksis      = $this->getTransaksiByRekeningAndYear($rid, $tahun);
-            foreach ($transaksis as $t) {
-                $bulan = Transaksi::bulanEfektifRealisasi($t);
-                if (isset($monthToPeriod[$bulan])) {
-                    $rekeningPeriods[$monthToPeriod[$bulan]] += (float) $t['nilai'];
-                }
-            }
-
-            $realisasiRekening = array_sum($rekeningPeriods);
-
-            $subKegiatanMap[$skid]['rekening'][$rid] = [
-                'kode'      => $pagu['kode_rekening'] ?? '',
-                'nama'      => $pagu['nama_rekening'] ?? 'Tidak Diketahui',
-                'pagu'      => $paguRekening,
-                'realisasi' => $realisasiRekening,
-                'periods'   => $rekeningPeriods,
-            ];
-
-            $subKegiatanMap[$skid]['pagu']      += $paguRekening;
-            $subKegiatanMap[$skid]['realisasi'] += $realisasiRekening;
-            $totals['pagu']      += $paguRekening;
-            $totals['realisasi'] += $realisasiRekening;
-
-            for ($p = 1; $p <= $nPeriods; $p++) {
-                $subKegiatanMap[$skid]['periods'][$p] += $rekeningPeriods[$p];
-                $totals['periods'][$p]                += $rekeningPeriods[$p];
-            }
-        }
-
-        uasort($subKegiatanMap, fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        foreach ($subKegiatanMap as &$sk) {
-            uasort($sk['rekening'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        }
-        unset($sk);
-
-        return [$subKegiatanMap, $totals];
-    }
-
-    /**
      * Apply number formats to the Pagu + period + Total columns and
      * percentage format to the % column of a period-absorption row.
      */
@@ -1063,109 +1005,18 @@ class ExcelController {
      * Export Sisa Dana per Semester to Excel.
      * Columns: Sub Kegiatan/Rekening | RAK S1 | Real S1 | Sisa S1 | RAK S2 | Real S2 | Sisa S2 | Total Sisa
      */
-    public function exportSisaSemester(): void {
-        $tahun      = isset($_GET['tahun'])           ? (int) $_GET['tahun']           : (int) date('Y');
-        $seksiId    = isset($_GET['seksi_id'])        && $_GET['seksi_id']        !== '' ? (int) $_GET['seksi_id']        : null;
-        $programId  = isset($_GET['program_id'])      && $_GET['program_id']      !== '' ? (int) $_GET['program_id']      : null;
-        $kegiatanId = isset($_GET['kegiatan_id'])     && $_GET['kegiatan_id']     !== '' ? (int) $_GET['kegiatan_id']     : null;
-        $subKegId   = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
+    public function exportSisaSemester(?Request $request = null): void {
+        $request ??= Request::fromGlobals();
+        [$tahun, $filters] = $this->serapanParams($request);
 
-        // -------------------------------------------------------
-        // 1. Build semester rekap data (mirrors DashboardController::getSemesterRekapData)
-        // -------------------------------------------------------
-        $pagus          = $this->paguModel->getAll();
-        $subKegiatanMap = [];
-        $totals = [
-            'rak_s1'  => 0, 'real_s1' => 0, 'sisa_s1' => 0,
-            'rak_s2'  => 0, 'real_s2' => 0, 'sisa_s2' => 0,
-            'carry_over' => 0,
-        ];
-
-        foreach ($pagus as $pagu) {
-            if ($pagu['tahun'] != $tahun) continue;
-
-            // Apply filters
-            if ($seksiId    !== null && ($pagu['sub_kegiatan_seksi_id'] ?? 0) != $seksiId)    continue;
-            if ($programId  !== null && ($pagu['program_id']            ?? 0) != $programId)  continue;
-            if ($kegiatanId !== null && ($pagu['kegiatan_id']           ?? 0) != $kegiatanId) continue;
-            if ($subKegId   !== null && ($pagu['sub_kegiatan_id']       ?? 0) != $subKegId)   continue;
-
-            $skid   = (int) $pagu['sub_kegiatan_id'];
-            $rid    = (int) $pagu['rekening_id'];
-            $skNama = $pagu['nama_sub_kegiatan'] ?? 'Unknown';
-            $skKode = $pagu['kode_sub_kegiatan'] ?? '';
-            $rNama  = $pagu['nama_rekening']     ?? 'Unknown';
-            $rKode  = $pagu['kode_rekening']     ?? '';
-
-            // RAK per semester (cached batch)
-            $raks  = $this->getRakByRekeningAndYear($rid, $tahun);
-            $rakS1 = 0; $rakS2 = 0;
-            foreach ($raks as $r) {
-                $b   = (int)   $r['bulan'];
-                $val = (float) $r['nilai_rak'];
-                if ($b >= 1 && $b <= 6)       $rakS1 += $val;
-                elseif ($b >= 7 && $b <= 12)  $rakS2 += $val;
-            }
-
-            // Realisasi per semester (cached batch)
-            $transaksis = $this->getTransaksiByRekeningAndYear($rid, $tahun);
-            $realS1 = 0; $realS2 = 0;
-            foreach ($transaksis as $t) {
-                $b   = Transaksi::bulanEfektifRealisasi($t);
-                $val = (float) $t['nilai'];
-                if ($b >= 1 && $b <= 6)       $realS1 += $val;
-                elseif ($b >= 7 && $b <= 12)  $realS2 += $val;
-            }
-
-            // Skip rekening tanpa RAK
-            if ($rakS1 == 0 && $rakS2 == 0) continue;
-
-            $sisaS1        = $rakS1 - $realS1;
-            $sisaS2        = $rakS2 - $realS2;
-            $carryOver     = max(0, $sisaS1);
-            $sisaS2Efektif = $rakS2 + $carryOver - $realS2;
-            $sisaTotal     = $sisaS1 + $sisaS2;
-
-            if (!isset($subKegiatanMap[$skid])) {
-                $subKegiatanMap[$skid] = [
-                    'kode' => $skKode, 'nama' => $skNama,
-                    'rekening'   => [],
-                    'rak_s1'     => 0, 'real_s1' => 0, 'sisa_s1' => 0,
-                    'rak_s2'     => 0, 'real_s2' => 0, 'sisa_s2' => 0,
-                    'carry_over' => 0, 'sisa_total' => 0,
-                ];
-            }
-
-            $subKegiatanMap[$skid]['rekening'][$rid] = [
-                'kode'       => $rKode, 'nama' => $rNama,
-                'rak_s1'     => $rakS1,       'real_s1'    => $realS1,    'sisa_s1'   => $sisaS1,
-                'rak_s2'     => $rakS2,       'real_s2'    => $realS2,    'sisa_s2'   => $sisaS2Efektif,
-                'carry_over' => $carryOver,   'sisa_total' => $sisaTotal,
-            ];
-
-            $subKegiatanMap[$skid]['rak_s1']     += $rakS1;
-            $subKegiatanMap[$skid]['real_s1']    += $realS1;
-            $subKegiatanMap[$skid]['sisa_s1']    += $sisaS1;
-            $subKegiatanMap[$skid]['rak_s2']     += $rakS2;
-            $subKegiatanMap[$skid]['real_s2']    += $realS2;
-            $subKegiatanMap[$skid]['sisa_s2']    += $sisaS2Efektif;
-            $subKegiatanMap[$skid]['carry_over'] += $carryOver;
-            $subKegiatanMap[$skid]['sisa_total'] += $sisaTotal;
-
-            $totals['rak_s1']     += $rakS1;
-            $totals['real_s1']    += $realS1;
-            $totals['sisa_s1']    += $sisaS1;
-            $totals['rak_s2']     += $rakS2;
-            $totals['real_s2']    += $realS2;
-            $totals['sisa_s2']    += $sisaS2Efektif;
-            $totals['carry_over'] += $carryOver;
-        }
-
-        uasort($subKegiatanMap, fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        foreach ($subKegiatanMap as &$sk) {
-            uasort($sk['rekening'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
-        }
-        unset($sk);
+        // 1. Data semester dari service pusat (sama dengan angka dashboard).
+        $data = $this->serapanService->semester(
+            $this->paguModel->getAll(),
+            $tahun,
+            $filters
+        );
+        $subKegiatanMap = $data['sub_kegiatan'];
+        $totals = $data['totals'];
 
         // -------------------------------------------------------
         // 2. Build Spreadsheet
@@ -1396,8 +1247,7 @@ class ExcelController {
 
     private function loadRakByYear(int $tahun): void {
         if (isset($this->rakByYearCache[$tahun])) return;
-        $db = \Database::getConnection();
-        $stmt = $db->prepare("SELECT * FROM rak WHERE tahun = :tahun ORDER BY bulan ASC");
+        $stmt = $this->db->prepare("SELECT * FROM rak WHERE tahun = :tahun ORDER BY bulan ASC");
         $stmt->execute([':tahun' => $tahun]);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $byRekening = [];
@@ -1414,9 +1264,8 @@ class ExcelController {
 
     private function loadTransaksiByYear(int $tahun): void {
         if (isset($this->transaksiByYearCache[$tahun])) return;
-        $db = \Database::getConnection();
         try {
-            $stmt = $db->prepare("
+            $stmt = $this->db->prepare("
                 SELECT * FROM transaksi
                 WHERE YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
                 AND status = 'diverifikasi'
@@ -1425,7 +1274,7 @@ class ExcelController {
             $stmt->execute([':tahun' => $tahun]);
             $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
-            $stmt = $db->prepare("
+            $stmt = $this->db->prepare("
                 SELECT * FROM transaksi 
                 WHERE YEAR(tanggal) = :tahun
                 ORDER BY tanggal DESC

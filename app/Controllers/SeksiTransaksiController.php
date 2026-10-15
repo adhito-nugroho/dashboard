@@ -15,7 +15,6 @@ class SeksiTransaksiController
 
     public function __construct(?Transaksi $transaksiModel = null)
     {
-        require_once __DIR__ . '/../Models/Transaksi.php';
         if ($transaksiModel) {
             $this->transaksiModel = $transaksiModel;
         } else {
@@ -849,7 +848,6 @@ class SeksiTransaksiController
         $this->requireSeksi();
         header('Content-Type: application/json');
         try {
-            require_once __DIR__ . '/../Models/SubKegiatan.php';
             $model = new \App\Models\SubKegiatan(\Database::getConnection());
             $q = trim((string) ($_GET['q'] ?? ''));
             $mode = ($_GET['mode'] ?? 'sub') === 'rekening' ? 'rekening' : 'sub';
@@ -1263,9 +1261,6 @@ class SeksiTransaksiController
             echo 'Transaksi tidak ditemukan atau Anda tidak memiliki akses.';
             exit;
         }
-
-        require_once __DIR__ . '/../../app/Models/RincianBiaya.php';
-        require_once __DIR__ . '/../Services/RincianBiayaExportService.php';
 
         $rincianModel = new \App\Models\RincianBiaya($db);
         $data = $rincianModel->findForTransaksi($transaksi);

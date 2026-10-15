@@ -577,7 +577,6 @@ class SpjController
             $transaksi = $stmt->fetch(\PDO::FETCH_ASSOC) ?: [];
         }
 
-        require_once __DIR__ . '/../Services/RincianBiayaExportService.php';
         $exportService = new \App\Services\RincianBiayaExportService();
         $exportService->download($header, $details, $transaksi);
     }
@@ -592,7 +591,6 @@ class SpjController
     {
         $this->requireLogin();
 
-        require_once __DIR__ . '/../Services/SpdExportService.php';
         $svc = new \App\Services\SpdExportService();
         $data = $svc->buildData($suratTugasId, $nip);
         if ($data === null) {
@@ -637,7 +635,6 @@ class SpjController
             exit;
         }
 
-        require_once __DIR__ . '/../Services/SpdExportService.php';
         $svc = new \App\Services\SpdExportService();
         $data = $svc->buildDataFromTransaksi($trx);
         if ($data === null) {
