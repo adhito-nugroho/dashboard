@@ -564,11 +564,6 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
             <div class="card rounded-4 overflow-hidden">
                 <div class="section-header" style="padding-bottom:0.75rem;">
                     <div><h5 class="section-title"><i class="bi bi-calendar2-month me-2" style="color:var(--primary);"></i>Detail Penyerapan per Bulan</h5><p class="section-subtitle">Tabel rincian RAK (Target) vs Realisasi tiap bulan</p></div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn-export-section" onclick="exportTableToExcel('table-detail-bulan', 'detail-bulan-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export tabel detail penyerapan bulanan ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export Excel
-                        </button>
-                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -762,27 +757,6 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;white-space:nowrap;">
                             <i class="bi bi-wallet2 me-1"></i><?= (int) $absorptionTotals['rekening_count'] ?> Rekening
                         </span>
-                        <?php
-                            $exportParams = http_build_query(array_filter([
-                                'tahun'           => $stats['tahun'],
-                                'seksi_id'        => $filters['seksi_id']        ?? '',
-                                'program_id'      => $filters['program_id']      ?? '',
-                                'kegiatan_id'     => $filters['kegiatan_id']     ?? '',
-                                'sub_kegiatan_id' => $filters['sub_kegiatan_id'] ?? '',
-                            ], fn($v) => $v !== '' && $v !== null));
-                        ?>
-                        <a href="<?= base_url('export/serapan-bulanan') ?>?<?= $exportParams ?>"
-                           class="btn btn-sm btn-export-section"
-                           id="btn-export-serapan-bulanan"
-                           data-bs-toggle="tooltip" data-bs-placement="top" title="Export rincian serapan per rekening ini saja ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
-                        </a>
-                        <a href="<?= base_url('export/serapan-triwulan') ?>?<?= $exportParams ?>"
-                           class="btn btn-sm btn-export-section"
-                           id="btn-export-serapan-triwulan"
-                           data-bs-toggle="tooltip" data-bs-placement="top" title="Export serapan per triwulan (TW I–IV) ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Triwulan
-                        </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -919,21 +893,6 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;">
                             <i class="bi bi-bank me-1"></i><?= $semT['total_rekening'] ?> Rekening
                         </span>
-                        <?php
-                            $exportSisaParams = http_build_query(array_filter([
-                                'tahun'           => $stats['tahun'],
-                                'seksi_id'        => $filters['seksi_id']        ?? '',
-                                'program_id'      => $filters['program_id']      ?? '',
-                                'kegiatan_id'     => $filters['kegiatan_id']     ?? '',
-                                'sub_kegiatan_id' => $filters['sub_kegiatan_id'] ?? '',
-                            ], fn($v) => $v !== '' && $v !== null));
-                        ?>
-                        <a href="<?= base_url('export/sisa-semester') ?>?<?= $exportSisaParams ?>"
-                           class="btn btn-sm btn-export-section"
-                           id="btn-export-sisa-semester"
-                           data-bs-toggle="tooltip" data-bs-placement="top" title="Export rekap sisa dana semester ini saja ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
-                        </a>
                     </div>
                 </div>
 
@@ -1653,9 +1612,6 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;">
                             <i class="bi bi-diagram-3 me-1"></i><?= $totalSubKegiatanDeviasi ?> Sub Kegiatan
                         </span>
-                        <button type="button" class="btn-export-section" onclick="exportDeviasiToExcel('deviasi-rak-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export seluruh daftar deviasi RAK ke Excel">
-                            <i class="bi bi-file-earmark-excel-fill text-success"></i> Export Excel
-                        </button>
                     </div>
                 </div>
 
@@ -1938,9 +1894,6 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
                         <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
                         <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
-                    <button type="button" class="btn-export-section" onclick="exportBreakdownToExcel('breakdown-seksi-<?= $stats['tahun'] ?>.xlsx')" data-bs-toggle="tooltip" data-bs-placement="top" title="Export ringkasan per unit ke Excel">
-                        <i class="bi bi-file-earmark-excel-fill text-success"></i> Export Excel
-                    </button>
                 </div>
                 <div class="card-body" style="padding:0 1.5rem 1.5rem;">
                     <div class="row g-2">
@@ -2022,7 +1975,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
 <!-- ========== Modal Export Excel ========== -->
 <div class="modal fade" id="modalExportExcel" tabindex="-1" aria-labelledby="modalExportLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content rounded-4" style="border:none;box-shadow:0 20px 60px rgba(0,0,0,.15);">
 
       <!-- Header -->
@@ -2033,7 +1986,7 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
           </div>
           <div>
             <h5 class="modal-title mb-0" id="modalExportLabel" style="color:#fff;font-weight:700;font-size:var(--fs-md);">Export Laporan Excel</h5>
-            <p class="mb-0" style="color:rgba(255,255,255,.8);font-size:var(--fs-sm);">Pilih periode realisasi yang akan diekspor</p>
+            <p class="mb-0" style="color:rgba(255,255,255,.8);font-size:var(--fs-sm);">Semua laporan Excel dalam satu tempat — pilih jenisnya</p>
           </div>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity:.8;"></button>
@@ -2044,8 +1997,27 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
         <form id="formExportExcel">
           <div class="row g-3">
 
+            <!-- Jenis Laporan -->
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="exportJenis" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-file-earmark-excel me-1" style="color:#16a34a;"></i>Jenis Laporan</label>
+              <select class="form-select" id="exportJenis" name="jenis">
+                <optgroup label="Laporan (format resmi)">
+                  <option value="laporan">Laporan Realisasi Anggaran</option>
+                  <option value="bulanan">Serapan per Sub Kegiatan per Bulan</option>
+                  <option value="triwulan">Serapan per Sub Kegiatan per Triwulan</option>
+                  <option value="semester">Sisa Dana per Semester</option>
+                  <option value="rak">RAK (Rencana Anggaran Kas)</option>
+                </optgroup>
+                <optgroup label="Tabel halaman ini (langsung unduh)">
+                  <option value="detail-bulan">Detail Penyerapan per Bulan</option>
+                  <option value="deviasi">Deviasi RAK</option>
+                  <option value="breakdown">Ringkasan Serapan per Unit</option>
+                </optgroup>
+              </select>
+            </div>
+
             <!-- Tahun -->
-            <div class="col-6">
+            <div class="col-6" id="exportTahunWrap">
               <label class="form-label fw-semibold" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-calendar-year me-1" style="color:#16a34a;"></i>Tahun</label>
               <select class="form-select" id="exportTahun" name="tahun">
                 <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--): ?>
@@ -2054,8 +2026,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
               </select>
             </div>
 
-            <!-- Bulan Sampai -->
-            <div class="col-6">
+            <!-- Bulan Sampai (khusus Laporan Realisasi) -->
+            <div class="col-6" id="exportBulanWrap">
               <label class="form-label fw-semibold" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-calendar-month me-1" style="color:#16a34a;"></i>Realisasi s/d Bulan</label>
               <select class="form-select" id="exportBulan" name="bulan">
                 <?php
@@ -2068,8 +2040,8 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
               </select>
             </div>
 
-            <!-- Grouping -->
-            <div class="col-12">
+            <!-- Grouping (khusus Laporan Realisasi) -->
+            <div class="col-12" id="exportGroupingWrap">
               <label class="form-label fw-semibold" style="font-size:var(--fs-base);color:#374151;"><i class="bi bi-diagram-3 me-1" style="color:#16a34a;"></i>Pengelompokan Baris</label>
               <div class="d-flex flex-column gap-2">
                 <div class="form-check" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 1rem 0.6rem 2.25rem;">
@@ -2100,6 +2072,48 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
               </select>
             </div>
 
+            <!-- Filter wilayah data (khusus Serapan Bulanan / Triwulan / Sisa Semester) -->
+            <div class="col-12" id="exportFilterWrap" style="display:none;">
+              <div class="row g-3">
+                <div class="col-6">
+                  <label class="form-label fw-semibold" for="exportFSeksi" style="font-size:var(--fs-base);color:#374151;">Seksi</label>
+                  <select class="form-select" id="exportFSeksi">
+                    <option value="">Semua Seksi</option>
+                    <?php foreach(($filterOptions['seksi'] ?? []) as $s): ?>
+                    <option value="<?= (int) $s['id'] ?>" <?= ($filters['seksi_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['nama_seksi']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label fw-semibold" for="exportFProgram" style="font-size:var(--fs-base);color:#374151;">Program</label>
+                  <select class="form-select" id="exportFProgram">
+                    <option value="">Semua Program</option>
+                    <?php foreach(($filterOptions['program'] ?? []) as $p): ?>
+                    <option value="<?= (int) $p['id'] ?>" <?= ($filters['program_id'] ?? '') == $p['id'] ? 'selected' : '' ?>><?= htmlspecialchars(($p['kode_program'] ?? '') . ' - ' . ($p['nama_program'] ?? '')) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label fw-semibold" for="exportFKegiatan" style="font-size:var(--fs-base);color:#374151;">Kegiatan</label>
+                  <select class="form-select" id="exportFKegiatan">
+                    <option value="">Semua Kegiatan</option>
+                    <?php foreach(($filterOptions['kegiatan'] ?? []) as $k): ?>
+                    <option value="<?= (int) $k['id'] ?>" <?= ($filters['kegiatan_id'] ?? '') == $k['id'] ? 'selected' : '' ?>><?= htmlspecialchars(($k['kode_kegiatan'] ?? '') . ' - ' . ($k['nama_kegiatan'] ?? '')) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label fw-semibold" for="exportFSub" style="font-size:var(--fs-base);color:#374151;">Sub Kegiatan</label>
+                  <select class="form-select" id="exportFSub">
+                    <option value="">Semua Sub Kegiatan</option>
+                    <?php foreach(($filterOptions['sub_kegiatan'] ?? []) as $sk): ?>
+                    <option value="<?= (int) $sk['id'] ?>" <?= ($filters['sub_kegiatan_id'] ?? '') == $sk['id'] ? 'selected' : '' ?>><?= htmlspecialchars(($sk['kode_sub_kegiatan'] ?? '') . ' - ' . ($sk['nama_sub_kegiatan'] ?? '')) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <!-- Info box -->
             <div class="col-12">
               <div id="exportInfoBox" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.75rem 1rem;font-size:var(--fs-sm);color:#166534;">
@@ -2126,17 +2140,59 @@ $komparasiRakColor = $targetRakBulanBerjalan <= 0 ? 'secondary' : ($capaianRakBu
 
 <script>
 document.getElementById('btnDownloadExcel').addEventListener('click', function() {
+    var jenis = document.getElementById('exportJenis').value;
     var tahun = document.getElementById('exportTahun').value;
-    var bulan = document.getElementById('exportBulan').value;
-    var groupingEl = document.querySelector('input[name="grouping"]:checked');
-    var grouping = groupingEl ? groupingEl.value : 'program';
-    var seksiEl = document.getElementById('exportSeksi');
-    var seksiId = seksiEl ? seksiEl.value : '';
-    var url   = '<?= base_url('export/laporan') ?>?tahun=' + encodeURIComponent(tahun)
-        + '&bulan=' + encodeURIComponent(bulan)
-        + '&grouping=' + encodeURIComponent(grouping);
-    if (grouping === 'seksi' && seksiId !== '') {
-        url += '&seksi_id=' + encodeURIComponent(seksiId);
+
+    // Laporan tabel halaman ini: langsung unduh via SheetJS (data sesuai filter layar).
+    if (jenis === 'detail-bulan' || jenis === 'deviasi' || jenis === 'breakdown') {
+        if (jenis === 'detail-bulan') {
+            exportTableToExcel('table-detail-bulan', 'detail-bulan-' + tahun + '.xlsx');
+        } else if (jenis === 'deviasi') {
+            exportDeviasiToExcel('deviasi-rak-' + tahun + '.xlsx');
+        } else {
+            exportBreakdownToExcel('breakdown-seksi-' + tahun + '.xlsx');
+        }
+        setTimeout(function() {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('modalExportExcel'));
+            if (modal) modal.hide();
+        }, 500);
+        return;
+    }
+
+    var url = '';
+    if (jenis === 'laporan') {
+        var bulan = document.getElementById('exportBulan').value;
+        var groupingEl = document.querySelector('input[name="grouping"]:checked');
+        var grouping = groupingEl ? groupingEl.value : 'program';
+        var seksiEl = document.getElementById('exportSeksi');
+        var seksiId = seksiEl ? seksiEl.value : '';
+        url = '<?= base_url('export/laporan') ?>?tahun=' + encodeURIComponent(tahun)
+            + '&bulan=' + encodeURIComponent(bulan)
+            + '&grouping=' + encodeURIComponent(grouping);
+        if (grouping === 'seksi' && seksiId !== '') {
+            url += '&seksi_id=' + encodeURIComponent(seksiId);
+        }
+    } else if (jenis === 'rak') {
+        url = '<?= base_url('rak/export') ?>?tahun=' + encodeURIComponent(tahun);
+    } else {
+        // bulanan / triwulan / semester: tahun + filter wilayah data
+        var params = {
+            tahun: tahun,
+            seksi_id: document.getElementById('exportFSeksi').value,
+            program_id: document.getElementById('exportFProgram').value,
+            kegiatan_id: document.getElementById('exportFKegiatan').value,
+            sub_kegiatan_id: document.getElementById('exportFSub').value
+        };
+        var qs = Object.keys(params)
+            .filter(function(k) { return params[k] !== '' && params[k] !== null; })
+            .map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
+            .join('&');
+        var base = jenis === 'bulanan'
+            ? '<?= base_url('export/serapan-bulanan') ?>'
+            : (jenis === 'triwulan'
+                ? '<?= base_url('export/serapan-triwulan') ?>'
+                : '<?= base_url('export/sisa-semester') ?>');
+        url = base + '?' + qs;
     }
     window.location.href = url;
     // Close modal after short delay
@@ -2146,21 +2202,41 @@ document.getElementById('btnDownloadExcel').addEventListener('click', function()
     }, 500);
 });
 
-// Toggle filter seksi + info box sesuai pilihan grouping
+// Toggle blok parameter + info box sesuai jenis laporan & grouping
 (function() {
-    var radioProgram = document.getElementById('exportGroupingProgram');
+    var jenisEl = document.getElementById('exportJenis');
+    var bulanWrap = document.getElementById('exportBulanWrap');
+    var groupingWrap = document.getElementById('exportGroupingWrap');
     var radioSeksi = document.getElementById('exportGroupingSeksi');
     var seksiWrap = document.getElementById('exportSeksiWrap');
+    var filterWrap = document.getElementById('exportFilterWrap');
     var infoBox = document.getElementById('exportInfoBox');
-    var infoProgram = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.';
-    var infoSeksi = 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur <strong>Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening</strong>. Pilih "Semua Seksi" untuk seluruh seksi, atau satu seksi tertentu.';
-    function refreshExportGrouping() {
-        var isSeksi = radioSeksi && radioSeksi.checked;
-        if (seksiWrap) seksiWrap.style.display = isSeksi ? '' : 'none';
-        if (infoBox) infoBox.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>' + (isSeksi ? infoSeksi : infoProgram);
+    var info = {
+        laporan_program: 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur hierarki Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening.',
+        laporan_seksi: 'File Excel akan berisi data realisasi <strong>s/d bulan yang dipilih</strong> untuk tahun yang dipilih, dicatat pada <strong>bulan verifikasi/pembayaran</strong>, dengan struktur <strong>Seksi &rarr; Program &rarr; Kegiatan &rarr; Sub Kegiatan &rarr; Rekening</strong>. Pilih "Semua Seksi" untuk seluruh seksi, atau satu seksi tertentu.',
+        bulanan: 'File Excel berisi <strong>realisasi per bulan (Jan–Des) per rekening</strong> per sub kegiatan untuk tahun yang dipilih, dengan filter wilayah data di atas.',
+        triwulan: 'File Excel berisi <strong>realisasi per triwulan (TW I–IV) per rekening</strong> per sub kegiatan untuk tahun yang dipilih, dengan filter wilayah data di atas.',
+        semester: 'File Excel berisi <strong>sisa dana (RAK &minus; realisasi) per semester</strong> per rekening untuk tahun yang dipilih, dengan filter wilayah data di atas.',
+        rak: 'File Excel berisi <strong>Rencana Anggaran Kas (RAK)</strong> tahun yang dipilih.',
+        'detail-bulan': 'Mengunduh <strong>tabel Detail Penyerapan per Bulan yang tampil di halaman ini</strong> (mengikuti filter layar aktif).',
+        deviasi: 'Mengunduh <strong>daftar Deviasi RAK yang tampil di halaman ini</strong> (mengikuti filter layar aktif).',
+        breakdown: 'Mengunduh <strong>ringkasan serapan per unit yang tampil di halaman ini</strong> (mengikuti filter layar aktif).'
+    };
+    function refreshExportModal() {
+        var jenis = jenisEl ? jenisEl.value : 'laporan';
+        var isLaporan = jenis === 'laporan';
+        var isFiltered = jenis === 'bulanan' || jenis === 'triwulan' || jenis === 'semester';
+        var isSeksiGrouping = isLaporan && radioSeksi && radioSeksi.checked;
+        if (bulanWrap) bulanWrap.style.display = isLaporan ? '' : 'none';
+        if (groupingWrap) groupingWrap.style.display = isLaporan ? '' : 'none';
+        if (seksiWrap) seksiWrap.style.display = isSeksiGrouping ? '' : 'none';
+        if (filterWrap) filterWrap.style.display = isFiltered ? '' : 'none';
+        if (infoBox) infoBox.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>' + (info[isSeksiGrouping ? 'laporan_seksi' : (isLaporan ? 'laporan_program' : jenis)] || info.laporan_program);
     }
-    if (radioProgram) radioProgram.addEventListener('change', refreshExportGrouping);
-    if (radioSeksi) radioSeksi.addEventListener('change', refreshExportGrouping);
+    if (jenisEl) jenisEl.addEventListener('change', refreshExportModal);
+    var radios = document.querySelectorAll('input[name="grouping"]');
+    radios.forEach(function(r) { r.addEventListener('change', refreshExportModal); });
+    refreshExportModal();
 })();
 </script>
 
