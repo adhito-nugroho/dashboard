@@ -51,6 +51,18 @@ class SeksiTransaksiController
         $bulan  = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int)$_GET['bulan'] : null;
         $tahun  = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int)$_GET['tahun'] : null;
         $q      = isset($_GET['q']) ? trim($_GET['q']) : '';
+        // Filter tanggal input ke sistem (created_at)
+        $inputDari   = isset($_GET['input_dari'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_dari']))   ? trim((string) $_GET['input_dari'])   : null;
+        $inputSampai = isset($_GET['input_sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_sampai'])) ? trim((string) $_GET['input_sampai']) : null;
+        if ($inputDari !== null && !strtotime($inputDari)) {
+            $inputDari = null;
+        }
+        if ($inputSampai !== null && !strtotime($inputSampai)) {
+            $inputSampai = null;
+        }
+        if ($inputDari !== null && $inputSampai !== null && $inputDari > $inputSampai) {
+            [$inputDari, $inputSampai] = [$inputSampai, $inputDari];
+        }
 
         $allowedStatus = ['diajukan','diverifikasi','ditolak'];
         if ($status !== '' && !in_array($status, $allowedStatus, true)) $status = '';
@@ -58,18 +70,18 @@ class SeksiTransaksiController
         $perPage = 10;
         $page = max(1, (int)($_GET['page'] ?? 1));
 
-        $total = $this->transaksiModel->countBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null);
+        $total = $this->transaksiModel->countBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null, $inputDari, $inputSampai);
         $totalPages = max(1, (int)ceil($total / $perPage));
         if ($page > $totalPages) $page = $totalPages;
         $offset = ($page - 1) * $perPage;
 
-        $transaksis = $this->transaksiModel->getBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null, $perPage, $offset);
+        $transaksis = $this->transaksiModel->getBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null, $perPage, $offset, $inputDari, $inputSampai);
 
-        $hasFilter = ($status !== '' || $bulan !== null || $tahun !== null || $q !== '');
-        $filters = ['status'=>$status,'bulan'=>$bulan,'tahun'=>$tahun,'q'=>$q];
+        $hasFilter = ($status !== '' || $bulan !== null || $tahun !== null || $q !== '' || $inputDari !== null || $inputSampai !== null);
+        $filters = ['status'=>$status,'bulan'=>$bulan,'tahun'=>$tahun,'q'=>$q,'input_dari'=>$inputDari,'input_sampai'=>$inputSampai];
 
-        // Opsi A: hitung counter per pill hormati bulan/tahun/q (ignore status) — 1 query GROUP BY, bukan N+1
-        $statusCounts = $this->transaksiModel->getStatusCountsBySeksi($userId, $bulan, $tahun, $q ?: null);
+        // Opsi A: hitung counter per pill hormati filter lain (ignore status) — 1 query GROUP BY, bukan N+1
+        $statusCounts = $this->transaksiModel->getStatusCountsBySeksi($userId, $bulan, $tahun, $q ?: null, $inputDari, $inputSampai);
 
         // tahun list untuk dropdown (dari transaksi user)
         $tahunList = [];

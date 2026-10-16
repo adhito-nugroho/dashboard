@@ -23,7 +23,7 @@ class Transaksi
      * @param int|null $subKegiatanId
      * @return array
      */
-    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null): array
+    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null, ?string $inputDari = null, ?string $inputSampai = null): array
     {
         try {
             $conditions = [];
@@ -39,6 +39,17 @@ class Transaksi
             if ($sampai !== null && $sampai !== '') {
                 $conditions[] = "{$tglEfektif} <= :sampai";
                 $params[':sampai'] = $sampai;
+            }
+            // Filter tanggal input ke sistem (created_at; fallback ke tanggal
+            // transaksi bila created_at NULL pada data lama).
+            $tglInput = 'DATE(COALESCE(t.created_at, t.tanggal))';
+            if ($inputDari !== null && $inputDari !== '') {
+                $conditions[] = "{$tglInput} >= :input_dari";
+                $params[':input_dari'] = $inputDari;
+            }
+            if ($inputSampai !== null && $inputSampai !== '') {
+                $conditions[] = "{$tglInput} <= :input_sampai";
+                $params[':input_sampai'] = $inputSampai;
             }
             if ($bulan !== null) {
                 $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
@@ -598,7 +609,7 @@ class Transaksi
      * Get transaksi milik seksi dengan filter & search & pagination (untuk halaman 'Transaksi Saya')
      * Params null = tidak difilter. $q mencari uraian/nomor_bukti (LIKE).
      */
-    public function getBySeksiFiltered(?int $inputBy, ?string $status = null, ?int $bulan = null, ?int $tahun = null, ?string $q = null, ?int $limit = null, ?int $offset = null): array
+    public function getBySeksiFiltered(?int $inputBy, ?string $status = null, ?int $bulan = null, ?int $tahun = null, ?string $q = null, ?int $limit = null, ?int $offset = null, ?string $inputDari = null, ?string $inputSampai = null): array
     {
         try {
             $conditions = [];
@@ -625,6 +636,16 @@ class Transaksi
                 $params[':q_uraian'] = $kw;
                 $params[':q_bukti'] = $kw;
                 $params[':q_penerima'] = $kw;
+            }
+            // Filter tanggal input ke sistem (created_at; fallback ke tanggal transaksi bila NULL).
+            $tglInput = 'DATE(COALESCE(t.created_at, t.tanggal))';
+            if ($inputDari !== null && $inputDari !== '') {
+                $conditions[] = "{$tglInput} >= :input_dari";
+                $params[':input_dari'] = $inputDari;
+            }
+            if ($inputSampai !== null && $inputSampai !== '') {
+                $conditions[] = "{$tglInput} <= :input_sampai";
+                $params[':input_sampai'] = $inputSampai;
             }
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
             $limitSql = '';
@@ -662,7 +683,7 @@ class Transaksi
         }
     }
 
-    public function countBySeksiFiltered(?int $inputBy, ?string $status = null, ?int $bulan = null, ?int $tahun = null, ?string $q = null): int
+    public function countBySeksiFiltered(?int $inputBy, ?string $status = null, ?int $bulan = null, ?int $tahun = null, ?string $q = null, ?string $inputDari = null, ?string $inputSampai = null): int
     {
         try {
             $conditions = [];
@@ -690,6 +711,16 @@ class Transaksi
                 $params[':q_bukti'] = $kw;
                 $params[':q_penerima'] = $kw;
             }
+            // Filter tanggal input ke sistem (created_at; fallback ke tanggal transaksi bila NULL).
+            $tglInput = 'DATE(COALESCE(t.created_at, t.tanggal))';
+            if ($inputDari !== null && $inputDari !== '') {
+                $conditions[] = "{$tglInput} >= :input_dari";
+                $params[':input_dari'] = $inputDari;
+            }
+            if ($inputSampai !== null && $inputSampai !== '') {
+                $conditions[] = "{$tglInput} <= :input_sampai";
+                $params[':input_sampai'] = $inputSampai;
+            }
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
             $stmt = $this->db->prepare("SELECT COUNT(*) FROM transaksi t {$where}");
             foreach ($params as $k => $v) {
@@ -708,7 +739,7 @@ class Transaksi
      * Hitung jumlah per status untuk pill (Opsi A: filter bulan/tahun/q aktif, ignore status).
      * 1 query GROUP BY, tidak N+1. Menghormati workflow.
      */
-    public function getStatusCountsBySeksi(?int $inputBy, ?int $bulan = null, ?int $tahun = null, ?string $q = null): array
+    public function getStatusCountsBySeksi(?int $inputBy, ?int $bulan = null, ?int $tahun = null, ?string $q = null, ?string $inputDari = null, ?string $inputSampai = null): array
     {
         try {
             $conditions = [];
@@ -731,6 +762,16 @@ class Transaksi
                 $params[':q_uraian'] = $kw;
                 $params[':q_bukti'] = $kw;
                 $params[':q_penerima'] = $kw;
+            }
+            // Filter tanggal input ke sistem (created_at; fallback ke tanggal transaksi bila NULL).
+            $tglInput = 'DATE(COALESCE(t.created_at, t.tanggal))';
+            if ($inputDari !== null && $inputDari !== '') {
+                $conditions[] = "{$tglInput} >= :input_dari";
+                $params[':input_dari'] = $inputDari;
+            }
+            if ($inputSampai !== null && $inputSampai !== '') {
+                $conditions[] = "{$tglInput} <= :input_sampai";
+                $params[':input_sampai'] = $inputSampai;
             }
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
             $stmt = $this->db->prepare("SELECT t.status, COUNT(*) as cnt FROM transaksi t {$where} GROUP BY t.status");

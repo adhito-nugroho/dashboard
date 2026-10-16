@@ -19,7 +19,10 @@ $filterSubKegiatanList = $filterSubKegiatanList ?? [];
 $filterStatus          = $filterStatus ?? null;
 $filterDari            = $filterDari ?? null;
 $filterSampai          = $filterSampai ?? null;
+$filterInputDari       = $filterInputDari ?? null;
+$filterInputSampai     = $filterInputSampai ?? null;
 $isPeriodeAktif        = $filterDari !== null || $filterSampai !== null;
+$isInputPeriodeAktif   = $filterInputDari !== null || $filterInputSampai !== null;
 
 $statusLabels = [
     'diajukan'     => ['Menunggu Verifikasi', 'warning'],
@@ -36,11 +39,11 @@ $namaBulan = [
 
 // Build active filter labels
 $activeFilterLabels = [];
+$fmtTgl = function ($ymd) {
+    $ts = strtotime($ymd);
+    return $ts ? date('d/m/Y', $ts) : $ymd;
+};
 if ($isPeriodeAktif) {
-    $fmtTgl = function ($ymd) {
-        $ts = strtotime($ymd);
-        return $ts ? date('d/m/Y', $ts) : $ymd;
-    };
     if ($filterDari !== null && $filterSampai !== null) {
         $activeFilterLabels[] = $filterDari === $filterSampai
             ? 'Tanggal: ' . $fmtTgl($filterDari)
@@ -64,6 +67,17 @@ if ($filterSubKegiatan !== null) {
 }
 if ($filterStatus !== null && isset($statusLabels[$filterStatus])) {
     $activeFilterLabels[] = 'Status: ' . $statusLabels[$filterStatus][0];
+}
+if ($isInputPeriodeAktif) {
+    if ($filterInputDari !== null && $filterInputSampai !== null) {
+        $activeFilterLabels[] = $filterInputDari === $filterInputSampai
+            ? 'Diinput: ' . $fmtTgl($filterInputDari)
+            : 'Diinput: ' . $fmtTgl($filterInputDari) . ' – ' . $fmtTgl($filterInputSampai);
+    } elseif ($filterInputDari !== null) {
+        $activeFilterLabels[] = 'Diinput dari: ' . $fmtTgl($filterInputDari);
+    } else {
+        $activeFilterLabels[] = 'Diinput sampai: ' . $fmtTgl($filterInputSampai);
+    }
 }
 $isFiltered = !empty($activeFilterLabels);
 ?>
@@ -315,6 +329,8 @@ $isFiltered = !empty($activeFilterLabels);
             'sub_kegiatan_id' => $filterSubKegiatan,
             'dari'            => $filterDari,
             'sampai'          => $filterSampai,
+            'input_dari'      => $filterInputDari,
+            'input_sampai'    => $filterInputSampai,
         ];
     ?>
     <div class="ux-status-pills mb-3" role="tablist" aria-label="Filter status transaksi">
@@ -345,7 +361,7 @@ $isFiltered = !empty($activeFilterLabels);
                 <?php endif; ?>
             </div>
             <?php
-                $advancedCount = ($filterSubKegiatan !== null ? 1 : 0) + ($filterDari !== null ? 1 : 0) + ($filterSampai !== null ? 1 : 0);
+                $advancedCount = ($filterSubKegiatan !== null ? 1 : 0) + ($filterDari !== null ? 1 : 0) + ($filterSampai !== null ? 1 : 0) + ($filterInputDari !== null ? 1 : 0) + ($filterInputSampai !== null ? 1 : 0);
                 $advancedOpen = $advancedCount > 0;
             ?>
             <button type="button" class="btn btn-sm btn-outline-secondary ux-filter-toggle"
@@ -446,7 +462,21 @@ $isFiltered = !empty($activeFilterLabels);
 
                     <!-- Preset Periode Cepat -->
                     <div class="row g-2 g-lg-3 align-items-end mt-1">
-                        <div class="col-12">
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="filter-input-dari" class="form-label trx-filter-label" title="Tanggal data diinput ke sistem (created_at)">
+                                <i class="bi bi-cloud-upload text-muted"></i> Diinput Dari
+                            </label>
+                            <input type="date" name="input_dari" id="filter-input-dari" class="form-control form-control-sm"
+                                   value="<?= htmlspecialchars($filterInputDari ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="filter-input-sampai" class="form-label trx-filter-label" title="Tanggal data diinput ke sistem (created_at)">
+                                <i class="bi bi-cloud-upload text-muted"></i> Diinput Sampai
+                            </label>
+                            <input type="date" name="input_sampai" id="filter-input-sampai" class="form-control form-control-sm"
+                                   value="<?= htmlspecialchars($filterInputSampai ?? '') ?>" max="<?= date('Y-m-d') ?>">
+                        </div>
+                        <div class="col-12 col-lg-4">
                             <span class="form-label trx-filter-label d-block">
                                 <i class="bi bi-lightning-charge text-muted"></i> Cepat
                             </span>
@@ -672,6 +702,11 @@ $isFiltered = !empty($activeFilterLabels);
                                     <!-- Tanggal -->
                                     <td>
                                         <span class="fw-medium text-dark"><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></span>
+                                        <?php if (!empty($transaksi['created_at'])): ?>
+                                            <div class="small text-muted" style="font-size:0.72rem;" title="Tanggal data diinput ke sistem">
+                                                <i class="bi bi-cloud-upload me-1"></i>Input <?= date('d/m/Y H:i', strtotime($transaksi['created_at'])) ?>
+                                            </div>
+                                        <?php endif; ?>
                                         <?php if (!empty($transaksi['tanggal_lunas_dibayar'])): ?>
                                             <div class="small text-success" title="Tanggal lunas dibayar">
                                                 <i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($transaksi['tanggal_lunas_dibayar'])) ?>

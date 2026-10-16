@@ -185,7 +185,10 @@ $curStatus = $filters['status'] ?? ($_GET['status'] ?? '');
 $curBulan  = $filters['bulan'] ?? (isset($_GET['bulan']) && $_GET['bulan']!=='' ? (int)$_GET['bulan'] : null);
 $curTahun  = $filters['tahun'] ?? (isset($_GET['tahun']) && $_GET['tahun']!=='' ? (int)$_GET['tahun'] : null);
 $curQ      = $filters['q'] ?? ($_GET['q'] ?? '');
-$hasFilter = $hasFilter ?? ($curStatus!=='' || $curBulan!==null || $curTahun!==null || $curQ!=='');
+$curInputDari   = $filters['input_dari'] ?? ($_GET['input_dari'] ?? '');
+$curInputSampai = $filters['input_sampai'] ?? ($_GET['input_sampai'] ?? '');
+$hasInputFilter = $curInputDari !== '' || $curInputSampai !== '';
+$hasFilter = $hasFilter ?? ($curStatus!=='' || $curBulan!==null || $curTahun!==null || $curQ!=='' || $hasInputFilter);
 $totalFiltered = $pagination['total'] ?? (is_array($transaksis)?count($transaksis):0);
 $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
 ?>
@@ -201,7 +204,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                     $counts = $statusCounts ?? [''=>0,'diajukan'=>0,'diverifikasi'=>0,'ditolak'=>0];
                     foreach ($statusOpts as $val=>$label):
                         $active = ($curStatus === $val) || ($val==='' && $curStatus==='');
-                        $qs = array_filter(['status'=>$val===''?null:$val,'bulan'=>$curBulan,'tahun'=>$curTahun,'q'=>$curQ?:null]);
+                        $qs = array_filter(['status'=>$val===''?null:$val,'bulan'=>$curBulan,'tahun'=>$curTahun,'q'=>$curQ?:null,'input_dari'=>$curInputDari?:null,'input_sampai'=>$curInputSampai?:null]);
                         $href = base_url('seksi/transaksi') . ($qs ? '?' . http_build_query($qs) : '');
                         $cnt = $counts[$val] ?? 0;
                     ?>
@@ -246,6 +249,31 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                 <button type="button" id="btnToggleDensity" class="btn btn-outline-secondary btn-sm flex-shrink-0 fw-semibold" title="Ubah Kerapatan Tampilan (Normal / Compact)">
                     <i class="bi bi-distribute-vertical" id="densityIcon"></i>
                 </button>
+            </div>
+            <div class="col-12">
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none ux-filter-toggle" data-bs-toggle="collapse" data-bs-target="#filterLanjutanSeksi" aria-expanded="<?= $hasInputFilter ? 'true' : 'false' ?>" aria-controls="filterLanjutanSeksi" style="font-size:0.78rem;font-weight:600;">
+                    <i class="bi bi-chevron-down me-1"></i>Filter Lanjutan (Diinput Pada)
+                    <?php if ($hasInputFilter): ?>
+                        <span class="ux-filter-count ms-1"><?= ($curInputDari !== '' ? 1 : 0) + ($curInputSampai !== '' ? 1 : 0) ?></span>
+                    <?php endif; ?>
+                </button>
+                <div class="collapse <?= $hasInputFilter ? 'show' : '' ?>" id="filterLanjutanSeksi">
+                    <div class="row g-2 align-items-end pt-2">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-semibold mb-1" for="inputDari">Diinput Dari</label>
+                            <input type="date" name="input_dari" id="inputDari" value="<?= htmlspecialchars($curInputDari) ?>" class="form-control form-control-sm" max="<?= date('Y-m-d') ?>" title="Tanggal data diinput ke sistem">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-semibold mb-1" for="inputSampai">Diinput Sampai</label>
+                            <input type="date" name="input_sampai" id="inputSampai" value="<?= htmlspecialchars($curInputSampai) ?>" class="form-control form-control-sm" max="<?= date('Y-m-d') ?>" title="Tanggal data diinput ke sistem">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <button type="submit" class="btn btn-primary btn-sm fw-semibold w-100 w-md-auto">
+                                <i class="bi bi-funnel-fill me-1"></i>Terapkan
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </form>
     </div>
@@ -365,6 +393,9 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <tr class="<?= $isSharedSt ? 'st-group-row' : '' ?>" style="<?= $isNewStGroup ? 'border-top: 2px solid #cbd5e1;' : '' ?>">
                             <td class="ps-3" style="<?= $isSharedSt ? 'border-left: 3px solid #6366f1;' : '' ?>">
                                 <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
+                                <?php if (!empty($t['created_at'])): ?>
+                                    <div class="text-muted" style="font-size:0.7rem;" title="Tanggal data diinput ke sistem"><i class="bi bi-cloud-upload me-1"></i>Input <?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></div>
+                                <?php endif; ?>
                                 <small class="font-monospace <?= $status === 'diajukan' ? 'text-warning-emphasis' : 'text-muted' ?>" style="font-size:0.75rem;">
                                     <?= htmlspecialchars($noBukti) ?>
                                     <?php if ($status === 'diajukan' || stripos($noBukti, 'DRAFT') !== false): ?>
@@ -518,6 +549,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <div>
                                 <div class="mc-label">Tanggal / No Bukti</div>
                                 <div class="mc-value fw-semibold"><?= date('d/m/Y', strtotime($t['tanggal'])) ?> <small class="text-muted font-monospace"><?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?></small></div>
+                                <?php if (!empty($t['created_at'])): ?><div class="text-muted" style="font-size:0.7rem;"><i class="bi bi-cloud-upload me-1"></i>Input <?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></div><?php endif; ?>
                                 <?php if (!empty($t['tanggal_lunas_dibayar'])): ?><div class="small text-success" style="font-size:0.72rem;"><i class="bi bi-check-circle me-1"></i>Lunas <?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div><?php endif; ?>
                             </div>
                             <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>

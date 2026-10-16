@@ -68,15 +68,27 @@ class TransaksiController
             if ($filterDari !== null && $filterSampai !== null && $filterDari > $filterSampai) {
                 [$filterDari, $filterSampai] = [$filterSampai, $filterDari];
             }
+            // Filter tanggal input ke sistem (created_at)
+            $filterInputDari   = isset($_GET['input_dari'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_dari']))   ? trim((string) $_GET['input_dari'])   : null;
+            $filterInputSampai = isset($_GET['input_sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_sampai'])) ? trim((string) $_GET['input_sampai']) : null;
+            if ($filterInputDari !== null && !strtotime($filterInputDari)) {
+                $filterInputDari = null;
+            }
+            if ($filterInputSampai !== null && !strtotime($filterInputSampai)) {
+                $filterInputSampai = null;
+            }
+            if ($filterInputDari !== null && $filterInputSampai !== null && $filterInputDari > $filterInputSampai) {
+                [$filterInputDari, $filterInputSampai] = [$filterInputSampai, $filterInputDari];
+            }
 
             // Check if any filter is active
-            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterStatus !== null || $filterDari !== null || $filterSampai !== null;
+            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterStatus !== null || $filterDari !== null || $filterSampai !== null || $filterInputDari !== null || $filterInputSampai !== null;
             // Bila periode tanggal diisi, filter Bulan/Tahun diabaikan (periode lebih spesifik)
             $queryBulan = ($filterDari !== null || $filterSampai !== null) ? null : $filterBulan;
             $queryTahun = ($filterDari !== null || $filterSampai !== null) ? null : $filterTahun;
 
             if ($hasFilter) {
-                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai);
+                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai, $filterInputDari, $filterInputSampai);
             } else {
                 $transaksis = $this->transaksiModel->getAll();
             }
@@ -104,6 +116,8 @@ class TransaksiController
                 'status'          => $filterStatus,
                 'dari'            => $filterDari,
                 'sampai'          => $filterSampai,
+                'input_dari'      => $filterInputDari,
+                'input_sampai'    => $filterInputSampai,
             ], fn($v) => $v !== null);
             $paginationBase = base_url('transaksi') . '?' . http_build_query($queryParams) . '&';
 
