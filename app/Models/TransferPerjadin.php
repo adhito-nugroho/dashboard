@@ -45,22 +45,81 @@ class TransferPerjadin
     }
 
     /**
-     * Daftar transaksi yang sudah dikonfigurasi (transfer_ke terisi atau potongan > 0),
-     * digabung dengan datanya untuk export.
+     * Daftar transaksi yang sudah dikonfigurasi (transfer_ke terisi atau potongan > 0)
+     * untuk satu batch konfigurasi, digabung dengan datanya untuk export.
      *
      * @return array<int, array>
      */
-    public function getConfiguredTransaksi(): array
+    public function getBatchTransaksi(int $batchId): array
     {
-        return $this->db->query("
+        $stmt = $this->db->prepare("
             SELECT t.id, t.tanggal, t.uraian, t.nama_penerima, t.pegawai_nip, t.nilai,
                    t.nomor_surat_tugas, t.surat_tugas_ref_id,
                    c.transfer_ke, c.potongan
             FROM transfer_perjadin c
             JOIN transaksi t ON t.id = c.transaksi_id
-            WHERE (c.transfer_ke <> '' OR c.potongan > 0)
+            WHERE c.batch_id = :batch_id
+              AND (c.transfer_ke <> '' OR c.potongan > 0)
             ORDER BY c.transfer_ke ASC, t.tanggal ASC, t.id ASC
+        ");
+        $stmt->execute([':batch_id' => $batchId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Buat batch konfigurasi bernama. Mengembalikan id batch.
+     */
+    public function createBatch(string $nama, ?int $userId): int
+    {
+        $stmt = $this->db->prepare("INSERT INTO transfer_perjadin_batch (nama, created_by) VALUES (?, ?)");
+        $stmt->execute([$nama, $userId]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Satu batch konfigurasi berdasarkan id.
+     *
+     * @return array{id:int, nama:string, created_by:int|null, created_at:string}|null
+     */
+    public function getBatch(int $batchId): ?array
+    {
+        $stmt = $this->db->prepare("SELECT id, nama, created_by, created_at FROM transfer_perjadin_batch WHERE id = ?");
+        $stmt->execute([$batchId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * Daftar seluruh batch konfigurasi tersimpan beserta ringkasannya.
+     *
+     * @return array<int, array{id:int, nama:string, created_at:string, jml:int, total_nilai:float, total_potongan:float}>
+     */
+    public function getBatches(): array
+    {
+        $rows = $this->db->query("
+            SELECT b.id, b.nama, b.created_at,
+                   COUNT(tp.id) AS jml,
+                   COALESCE(SUM(t.nilai), 0) AS total_nilai,
+                   COALESCE(SUM(tp.potongan), 0) AS total_potongan
+            FROM transfer_perjadin_batch b
+            LEFT JOIN transfer_perjadin tp ON tp.batch_id = b.id
+            LEFT JOIN transaksi t ON t.id = tp.transaksi_id
+            GROUP BY b.id, b.nama, b.created_at
+            ORDER BY b.id DESC
         ")->fetchAll(\PDO::FETCH_ASSOC);
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = [
+                'id' => (int) $r['id'],
+                'nama' => (string) $r['nama'],
+                'created_at' => (string) $r['created_at'],
+                'jml' => (int) $r['jml'],
+                'total_nilai' => (float) $r['total_nilai'],
+                'total_potongan' => (float) $r['total_potongan'],
+            ];
+        }
+        return $out;
     }
 
     /**
@@ -70,14 +129,15 @@ class TransferPerjadin
      * @param array<int, array{transfer_ke:string, potongan:float}> $rows transaksi_id => config
      * @return int jumlah baris tersimpan
      */
-    public function saveBulk(array $rows, ?int $userId): int
+    public function saveBulk(array $rows, ?int $userId, ?int $batchId = null): int
     {
         $this->db->beginTransaction();
         try {
             $upsert = $this->db->prepare("
-                INSERT INTO transfer_perjadin (transaksi_id, transfer_ke, potongan, created_by)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO transfer_perjadin (transaksi_id, batch_id, transfer_ke, potongan, created_by)
+                VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
+                    batch_id    = VALUES(batch_id),
                     transfer_ke = VALUES(transfer_ke),
                     potongan    = VALUES(potongan),
                     updated_at  = NOW()
@@ -98,7 +158,7 @@ class TransferPerjadin
                     continue;
                 }
 
-                $upsert->execute([$transaksiId, $transferKe, $potongan, $userId]);
+                $upsert->execute([$transaksiId, $batchId, $transferKe, $potongan, $userId]);
                 $saved++;
             }
 
@@ -111,13 +171,15 @@ class TransferPerjadin
     }
 
     /**
-     * Daftar transaksi perjalanan dinas untuk ditampilkan (dengan filter opsional).
+     * Daftar transaksi perjalanan dinas yang BELUM masuk konfigurasi mana pun
+     * (dengan filter opsional). Transaksi yang sudah tersimpan di
+     * transfer_perjadin tidak ditampilkan lagi.
      *
      * @return array<int, array>
      */
     public function getTransaksiPerjadin(?int $tahun = null, ?string $inputDari = null, ?string $inputSampai = null, ?int $seksiId = null, string $q = ''): array
     {
-        $conditions = ["t.jenis_transaksi = 'perjalanan_dinas'"];
+        $conditions = ["t.jenis_transaksi = 'perjalanan_dinas'", 'tp.id IS NULL'];
         $params = [];
 
         if ($tahun !== null) {
@@ -150,6 +212,7 @@ class TransferPerjadin
                    t.seksi_id, s.nama_seksi, s.kode_seksi
             FROM transaksi t
             LEFT JOIN seksi s ON s.id = t.seksi_id
+            LEFT JOIN transfer_perjadin tp ON tp.transaksi_id = t.id
             {$where}
             ORDER BY t.tanggal DESC, t.id DESC
             LIMIT 2000

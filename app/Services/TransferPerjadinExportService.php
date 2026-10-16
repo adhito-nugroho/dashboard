@@ -249,6 +249,11 @@ class TransferPerjadinExportService
     {
         $filename = $filename ?: ('Transfer_Perjalanan_Dinas_' . date('Ymd_His') . '.xlsx');
 
+        // Buang sisa output (notice/warning/spasi/BOM) agar biner xlsx tidak korup.
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
@@ -257,5 +262,16 @@ class TransferPerjadinExportService
         $writer = new Xlsx($this->buildSpreadsheet($rows));
         $writer->save('php://output');
         exit;
+    }
+
+    public static function safeFilename(string $s): string
+    {
+        $s = trim($s);
+        $s = preg_replace('/[^\p{L}\p{N}._-]+/u', '_', $s) ?? 'konfigurasi';
+        $s = trim($s, '._');
+        if ($s === '') {
+            $s = 'konfigurasi';
+        }
+        return mb_substr($s, 0, 80);
     }
 }

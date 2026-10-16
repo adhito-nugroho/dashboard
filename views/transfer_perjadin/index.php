@@ -7,6 +7,7 @@ $configMap = $configMap ?? [];
 $stIdByTransaksi = $stIdByTransaksi ?? [];
 $namaListBySt = $namaListBySt ?? [];
 $seksiList = $seksiList ?? [];
+$batches = $batches ?? [];
 $inputDari = $inputDari ?? null;
 $inputSampai = $inputSampai ?? null;
 
@@ -83,21 +84,15 @@ sort($daftarSeksiCepat, SORT_NATURAL | SORT_FLAG_CASE);
                 <i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer Perjalanan Dinas
             </h1>
             <p class="text-muted small mb-0">
-                Berbasis transaksi perjalanan dinas. Isi <strong>Transfer Ke</strong> dan <strong>Potongan</strong> di salah satu baris per Surat Tugas,
-                otomatis berlaku untuk seluruh transaksi pada ST itu; lalu unduh Excel (sheet Detail + Rekap pivot per Transfer Ke).
+                Isi <strong>Transfer Ke</strong> dan <strong>Potongan</strong> di salah satu baris per Surat Tugas (otomatis tersebar ke seluruh transaksi pada ST itu),
+                beri <strong>Nama Konfigurasi</strong>, lalu simpan. Transaksi yang sudah masuk konfigurasi tidak ditampilkan lagi dan bisa diunduh per nama konfigurasi di bawah.
             </p>
         </div>
-        <form method="GET" action="<?= base_url('transfer-perjadin/export') ?>" class="d-flex align-items-center gap-2">
-            <input type="number" name="tahun" class="form-control form-control-sm border" style="width:96px;" value="<?= htmlspecialchars($tahunVal) ?>" placeholder="Tahun" title="Filter tahun (kosongkan = semua)">
-            <button type="submit" class="btn btn-sm btn-success px-3" <?= $configuredCount === 0 ? 'disabled' : '' ?>>
-                <i class="bi bi-file-earmark-excel me-1"></i>Unduh Excel
-            </button>
-        </form>
     </div>
 
     <div class="alert alert-light border shadow-sm rounded-3 py-2 px-3 mb-4 d-flex align-items-center gap-2 flex-wrap" style="font-size:0.85rem;">
         <i class="bi bi-info-circle-fill text-primary"></i>
-        <span>Transaksi perjalanan dinas: <strong><?= count($transaksiList) ?></strong></span>
+        <span>Belum dikonfigurasi: <strong><?= count($transaksiList) ?> transaksi</strong></span>
         <span class="text-muted">·</span>
         <span>Sudah dikonfigurasi transfer: <strong><?= $configuredCount ?> transaksi</strong></span>
         <span class="text-muted">·</span>
@@ -280,12 +275,66 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                 <?php endif; ?>
             </div>
             <?php if (!empty($transaksiList)): ?>
-                <div class="card-footer bg-white py-3 px-4 d-flex justify-content-end gap-2">
+                <div class="card-footer bg-white py-3 px-4 d-flex justify-content-end gap-2 flex-wrap align-items-center">
+                    <input type="text" name="nama_konfigurasi" class="form-control form-control-sm" style="max-width:300px;" placeholder="Nama konfigurasi (mis. Transfer Oktober I)" maxlength="150" required>
                     <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save me-1"></i>Simpan Konfigurasi</button>
                 </div>
             <?php endif; ?>
         </div>
     </form>
+
+    <div class="card border-0 shadow-sm rounded-4 mt-3">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-archive text-success me-2"></i>Konfigurasi Tersimpan</h5>
+                <small class="text-muted">Setiap konfigurasi tersimpan dapat diunduh sebagai Excel (sheet Detail + Rekap).</small>
+            </div>
+            <span class="badge bg-success-subtle text-success border border-success-subtle text-nowrap"><?= count($batches ?? []) ?> konfigurasi</span>
+        </div>
+        <div class="card-body p-0">
+            <?php if (empty($batches)): ?>
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox d-block mb-2 opacity-50"></i>
+                    Belum ada konfigurasi tersimpan.
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table align-top mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4 small text-muted align-top text-nowrap" style="width:52px;">No</th>
+                                <th class="small align-top" style="min-width:200px;">Nama Konfigurasi</th>
+                                <th class="small align-top text-nowrap" style="width:150px;">Disimpan</th>
+                                <th class="text-end small align-top text-nowrap" style="width:120px;">Transaksi</th>
+                                <th class="text-end small align-top text-nowrap" style="width:150px;">Total Bersih</th>
+                                <th class="text-end pe-4 small align-top text-nowrap" style="width:130px;">Unduh</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php $nb = 0; ?>
+                            <?php foreach ($batches as $b):
+                                $nb++;
+                                $bersihBatch = (float) $b['total_nilai'] - (float) $b['total_potongan'];
+                                ?>
+                                <tr>
+                                    <td class="ps-4 align-top text-muted small"><?= $nb ?></td>
+                                    <td class="align-top fw-semibold text-dark"><?= htmlspecialchars((string) $b['nama']) ?></td>
+                                    <td class="align-top text-muted small text-nowrap"><?= htmlspecialchars($fmtTanggalID(substr((string) $b['created_at'], 0, 10)) . ' ' . substr((string) $b['created_at'], 11, 5)) ?></td>
+                                    <td class="align-top text-end font-monospace text-nowrap"><?= (int) $b['jml'] ?></td>
+                                    <td class="align-top text-end font-monospace fw-medium text-nowrap">Rp <?= number_format($bersihBatch, 0, ',', '.') ?></td>
+                                    <td class="align-top text-end pe-4">
+                                        <a href="<?= base_url('transfer-perjadin/export') ?>?batch_id=<?= (int) $b['id'] ?>" class="btn btn-sm btn-success text-nowrap">
+                                            <i class="bi bi-file-earmark-excel me-1"></i>Unduh
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>
 
 <?php foreach ($namaListBySt as $stId => $daftarNama): ?>

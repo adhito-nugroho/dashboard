@@ -16,10 +16,12 @@ use App\Services\TransferPerjadinExportService;
  * Modul Transfer Perjalanan Dinas (admin/bendahara only) — berbasis TRANSAKSI.
  *
  * Alur:
- *   /transfer-perjadin          → index()  : daftar transaksi perjalanan dinas +
- *                                            input Transfer Ke & Potongan (massal)
- *   /transfer-perjadin/save     → save()   : simpan konfigurasi (POST)
- *   /transfer-perjadin/export   → export() : unduh Excel (Detail + Rekap pivot)
+ *   /transfer-perjadin          → index()  : daftar transaksi BELUM dikonfigurasi +
+ *                                            input Transfer Ke & Potongan (massal) +
+ *                                            daftar konfigurasi tersimpan
+ *   /transfer-perjadin/save     → save()   : simpan konfigurasi bernama / batch (POST)
+ *   /transfer-perjadin/export   → export() : unduh Excel per batch (?batch_id=) :
+ *                                            Detail + Rekap pivot
  *
  * Penerimaan (gross) = transaksi.nilai. Penerimaan bersih = nilai - potongan.
  */
@@ -67,6 +69,7 @@ class TransferPerjadinController
 
         $transaksiList = $this->model->getTransaksiPerjadin($tahun, $inputDari, $inputSampai, $seksiId, $q);
         $configMap = $this->model->getConfigMap();
+        $batches = $this->model->getBatches();
 
         // Saran "Transfer Ke" dibatasi ke pegawai peserta Surat Tugas pada transaksi tsb.
         [$stIdByTransaksi, $namaListBySt] = $this->buildTransferKeLists($transaksiList);
@@ -98,6 +101,7 @@ class TransferPerjadinController
 
         $ids = array_unique(array_merge(array_keys($transferKeInput), array_keys($potonganInput)));
         $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $namaBatch = trim((string) ($_POST['nama_konfigurasi'] ?? ''));
 
         $rows = [];
         foreach ($ids as $id) {
@@ -111,14 +115,43 @@ class TransferPerjadinController
             ];
         }
 
+        $adaIsi = false;
+        foreach ($rows as $cfg) {
+            if (trim((string) $cfg['transfer_ke']) !== '' || (float) $cfg['potongan'] > 0) {
+                $adaIsi = true;
+                break;
+            }
+        }
+        if (!$adaIsi) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'info', 'Tidak ada yang disimpan: isi Transfer Ke atau Potongan terlebih dahulu.');
+        }
+        if ($namaBatch === '') {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Isi Nama Konfigurasi terlebih dahulu sebelum menyimpan.');
+        }
+        if (mb_strlen($namaBatch) > 150) {
+            $namaBatch = mb_substr($namaBatch, 0, 150);
+        }
+
         // Resolusi Surat Tugas tiap transaksi, lalu validasi & propagasi per ST.
         [$stByTrx, $participants] = $this->resolveStContext($rows);
         $diabaikan = $this->filterInvalidTransferKe($rows, $stByTrx, $participants);
         $propagated = $this->propagateWithinSt($rows, $stByTrx);
 
         try {
-            $saved = $this->model->saveBulk($rows, $userId);
-            $message = 'Konfigurasi transfer tersimpan (' . $saved . ' transaksi dikonfigurasi).';
+            try {
+                $batchId = $this->model->createBatch($namaBatch, $userId);
+            } catch (\PDOException $e) {
+                if (($e->getCode() ?? '') === '23000') {
+                    $this->redirectWithMessage(
+                        base_url('transfer-perjadin'),
+                        'error',
+                        'Nama konfigurasi "' . $namaBatch . '" sudah dipakai. Gunakan nama lain.'
+                    );
+                }
+                throw $e;
+            }
+            $saved = $this->model->saveBulk($rows, $userId, $batchId);
+            $message = 'Konfigurasi "' . $namaBatch . '" tersimpan (' . $saved . ' transaksi). Silakan unduh pada daftar konfigurasi tersimpan.';
             if ($propagated > 0) {
                 $message .= ' ' . $propagated . ' baris lain pada Surat Tugas yang sama otomatis disamakan.';
             }
@@ -144,17 +177,21 @@ class TransferPerjadinController
     {
         $this->requireAdmin();
 
-        $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : null;
+        $batchId = isset($_GET['batch_id']) ? (int) $_GET['batch_id'] : 0;
+        if ($batchId <= 0) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Pilih konfigurasi yang akan diunduh pada daftar konfigurasi tersimpan.');
+            return;
+        }
 
-        $configured = $this->model->getConfiguredTransaksi();
+        $batch = $this->model->getBatch($batchId);
+        if ($batch === null) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi tidak ditemukan.');
+            return;
+        }
+
+        $configured = $this->model->getBatchTransaksi($batchId);
         $rows = [];
         foreach ($configured as $c) {
-            if ($tahun !== null) {
-                $mulai = (string) ($c['tanggal'] ?? '');
-                if ((int) date('Y', strtotime($mulai)) !== $tahun) {
-                    continue;
-                }
-            }
             $rows[] = [
                 'uraian' => (string) ($c['uraian'] ?? ''),
                 'nama' => (string) ($c['nama_penerima'] ?? ''),
@@ -165,12 +202,14 @@ class TransferPerjadinController
         }
 
         if ($rows === []) {
-            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Belum ada transaksi yang dikonfigurasi transfernya.');
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi "' . $batch['nama'] . '" belum berisi transaksi.');
             return;
         }
 
-        $suffix = $tahun !== null ? '_' . $tahun : '';
-        (new TransferPerjadinExportService())->download($rows, 'Transfer_Perjalanan_Dinas' . $suffix . '_' . date('Ymd_His') . '.xlsx');
+        $filename = 'Transfer_Perjalanan_Dinas_'
+            . TransferPerjadinExportService::safeFilename((string) $batch['nama'])
+            . '_' . date('Ymd_His') . '.xlsx';
+        (new TransferPerjadinExportService())->download($rows, $filename);
     }
 
     // ──────────────────────────────────────────────────────────
