@@ -258,7 +258,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                     <i class="bi bi-search me-1"></i>Cari
                 </button>
                 <a href="<?= base_url('seksi/transaksi') ?>" id="resetFilterBtn" class="btn btn-outline-secondary btn-sm flex-shrink-0" style="<?= $hasFilter?'':'display:none;' ?>" title="Reset semua filter ke awal"><i class="bi bi-x-circle me-1"></i>Reset</a>
-                <button type="button" id="btnToggleDensity" class="btn btn-outline-secondary btn-sm flex-shrink-0 fw-semibold" title="Ubah Kerapatan Tampilan (Normal / Compact)">
+                <button type="button" id="btnToggleDensity" class="btn btn-outline-secondary btn-sm flex-shrink-0 fw-semibold" data-bs-toggle="tooltip" data-bs-placement="top" title="Ubah Kerapatan Tampilan (Normal / Compact)">
                     <i class="bi bi-distribute-vertical" id="densityIcon"></i>
                 </button>
             </div>
@@ -278,6 +278,12 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <div class="col-6 col-md-3">
                             <label class="form-label small fw-semibold mb-1" for="inputSampai">Diinput Sampai</label>
                             <input type="date" name="input_sampai" id="inputSampai" value="<?= htmlspecialchars($curInputSampai) ?>" class="form-control form-control-sm" max="<?= date('Y-m-d') ?>" title="Tanggal data diinput ke sistem">
+                        </div>
+                        <div class="col-12 col-md-6 d-flex align-items-end gap-2 flex-wrap">
+                            <span class="form-text text-muted small mb-1">Isi tanggal lalu tekan <strong>Cari</strong> atau Enter.</span>
+                            <button type="button" id="btnClearInputDate" class="btn btn-sm btn-light border text-secondary mb-1" title="Kosongkan kedua tanggal input lalu terapkan">
+                                <i class="bi bi-eraser me-1"></i>Kosongkan Tanggal
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -361,7 +367,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <th style="width:18%;">Sub Kegiatan</th>
                             <th style="width:16%;">Rekening</th>
                             <th style="width:24%;">Uraian & Penerima</th>
-                            <th class="text-end text-nowrap" style="width:12%;">Nilai (Rp)</th>
+                            <th class="text-end text-nowrap pe-4" style="width:12%;">Nilai (Rp)</th>
                             <th class="text-center" style="width:9%;">Status</th>
                             <th class="text-center pe-3" style="width:11%; min-width:145px;">Aksi</th>
                         </tr>
@@ -422,10 +428,10 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                 <small class="text-muted font-monospace" style="font-size:0.75rem;"><?= htmlspecialchars($t['kode_sub_kegiatan'] ?? '') ?></small>
                             </td>
                             <td>
-                                <div class="fw-semibold text-dark text-truncate" style="max-width:180px;font-size:0.825rem;" title="<?= htmlspecialchars($t['nama_rekening'] ?? '') ?>">
+                                <div class="fw-semibold text-dark text-truncate" style="max-width:220px;font-size:0.825rem;" title="<?= htmlspecialchars($t['nama_rekening'] ?? '') ?>">
                                     <?= htmlspecialchars($t['nama_rekening'] ?? '-') ?>
                                 </div>
-                                <small class="font-monospace d-block text-truncate" style="font-size:0.75rem;color:#94a3b8;max-width:180px;" title="<?= htmlspecialchars($t['kode_rekening'] ?? '') ?>">
+                                <small class="font-monospace d-block text-truncate" style="font-size:0.75rem;color:#94a3b8;max-width:220px;" title="<?= htmlspecialchars($t['kode_rekening'] ?? '') ?>">
                                     <?= htmlspecialchars($t['kode_rekening'] ?? '') ?>
                                 </small>
                             </td>
@@ -446,7 +452,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <div class="uraian-text text-dark fw-medium flex-grow-1 uraian-clamp ux-clamp-2" id="su-<?= $t['id'] ?>" style="font-size:0.85rem;word-break:break-word;white-space:normal;">
                                         <?= htmlspecialchars($uraianFull) ?>
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" title="Salin uraian">
+                                    <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" data-bs-toggle="tooltip" data-bs-placement="top" title="Salin uraian">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
@@ -469,16 +475,18 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     </div>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-end text-nowrap fw-bold text-dark">
+                            <td class="text-end text-nowrap fw-bold text-dark pe-4">
                                 Rp <?= number_format($t['nilai'], 0, ',', '.') ?>
                             </td>
                             <td class="text-center">
-                                <span style="font-size:0.75rem;font-weight:700;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $badge[2] ?>;color:<?= $badge[3] ?>;border:1px solid <?= $badge[4] ?>;white-space:nowrap;">
-                                    <?= $badge[0] ?>
-                                </span>
-                                <?php if ($status === 'diverifikasi' && !empty($t['tanggal_lunas_dibayar'])): ?>
-                                    <div class="small text-success mt-1" style="font-size:0.72rem;" title="Tanggal lunas dibayar"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div>
-                                <?php endif; ?>
+                                <div class="d-flex flex-column align-items-center justify-content-center">
+                                    <span style="font-size:0.75rem;font-weight:700;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $badge[2] ?>;color:<?= $badge[3] ?>;border:1px solid <?= $badge[4] ?>;white-space:nowrap;">
+                                        <?= $badge[0] ?>
+                                    </span>
+                                    <?php if ($status === 'diverifikasi' && !empty($t['tanggal_lunas_dibayar'])): ?>
+                                        <div class="small text-success mt-1" style="font-size:0.72rem;" data-bs-toggle="tooltip" data-bs-placement="top" title="Diverifikasi pada <?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?>"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div>
+                                    <?php endif; ?>
+                                </div>
                                 <?php if ($status === 'ditolak' && !empty($t['catatan_verifikasi'])): ?>
                                     <div class="mt-1">
                                         <button type="button" class="btn btn-link p-0 text-danger" style="font-size:0.75rem;text-decoration:none;" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>">
@@ -510,7 +518,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                         </span>
                                     <?php endif; ?>
                                     <?php if ($bolehEdit): ?>
-                                        <span class="vr mx-1 align-self-stretch" style="opacity:.35;" aria-hidden="true"></span>
+                                        <span class="vr mx-1 my-auto" style="height:24px;opacity:.25;" aria-hidden="true"></span>
                                     <?php endif; ?>
 
                                     <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
@@ -581,7 +589,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             </div>
                             <div class="text-end flex-shrink-0">
                                 <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
-                                <?php if ($status === 'diverifikasi' && !empty($t['tanggal_lunas_dibayar'])): ?><div class="small text-success mt-1" style="font-size:0.7rem;"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div><?php endif; ?>
+                                <?php if ($status === 'diverifikasi' && !empty($t['tanggal_lunas_dibayar'])): ?><div class="small text-success mt-1" style="font-size:0.7rem;" data-bs-toggle="tooltip" data-bs-placement="top" title="Diverifikasi pada <?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?>"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div><?php endif; ?>
                             </div>
                         </div>
                         <?php if($jenisInfo2): ?><span class="jenis-chip <?= $jenisInfo2[1] ?> mb-2 d-inline-block"><?= $jenisInfo2[0] ?></span><?php endif; ?>
@@ -598,7 +606,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <div class="uraian-text text-dark fw-medium flex-grow-1 uraian-clamp ux-clamp-2" id="sum-<?= $t['id'] ?>" style="font-size:0.875rem;word-break:break-word;white-space:normal;">
                                 <?= htmlspecialchars($t['uraian']) ?>
                             </div>
-                            <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" title="Salin uraian">
+                            <button type="button" class="btn btn-sm btn-light border p-1 px-1.5 btn-copy-uraian flex-shrink-0" data-bs-toggle="tooltip" data-bs-placement="top" title="Salin uraian">
                                 <i class="bi bi-clipboard"></i>
                             </button>
                         </div>
@@ -621,9 +629,9 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <?php endif; ?>
                         <div class="d-flex gap-2 mt-3 align-items-center">
                             <?php if($bolehEdit): ?>
-                                <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill" title="Edit Transaksi"><i class="bi bi-pencil me-1"></i>Edit</a>
+                                <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill" data-bs-toggle="tooltip" title="Edit Transaksi"><i class="bi bi-pencil me-1"></i>Edit</a>
                                 <form method="POST" action="<?= base_url('seksi/transaksi/delete/'.$t['id']) ?>" class="flex-fill" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100" title="Hapus Transaksi"><i class="bi bi-trash me-1"></i>Hapus</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100" data-bs-toggle="tooltip" title="Hapus Transaksi"><i class="bi bi-trash me-1"></i>Hapus</button>
                                 </form>
                             <?php else: ?>
                                 <span class="badge bg-light text-secondary border-0 px-2 py-2" title="Terkunci (sudah diverifikasi)"><i class="bi bi-lock-fill me-1"></i>Terkunci</span>
@@ -631,21 +639,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                 <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
                                    class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   title="Unduh Excel Rincian Biaya SPPD">
+                                   data-bs-toggle="tooltip" title="Unduh Excel Rincian Biaya SPPD">
                                     <i class="bi bi-file-earmark-excel me-1"></i>Excel
                                 </a>
                             <?php endif; ?>
                             <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
                                target="_blank" rel="noopener"
                                class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                               title="Unduh / Pratinjau PDF Kuitansi (215x165mm)">
+                               data-bs-toggle="tooltip" title="Unduh / Pratinjau PDF Kuitansi (215x165mm)">
                                 <i class="bi bi-printer me-1"></i>Kuitansi
                             </a>
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                 <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
                                    target="_blank" rel="noopener"
                                    class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
+                                   data-bs-toggle="tooltip" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                     <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
                                 </a>
                             <?php endif; ?>
@@ -786,14 +794,21 @@ document.addEventListener('DOMContentLoaded', function(){
             if (txTable) txTable.classList.add('table-compact');
             if (mobileContainer) mobileContainer.classList.add('table-compact');
             if (densityIcon) densityIcon.className = 'bi bi-list-ul';
-            if (densityBtn) densityBtn.title = 'Ubah ke Mode Normal (Renggang)';
+            if (densityBtn) setDensityTip('Ubah ke Mode Normal (Renggang)');
         } else {
             if (txTable) txTable.classList.remove('table-compact');
             if (mobileContainer) mobileContainer.classList.remove('table-compact');
             if (densityIcon) densityIcon.className = 'bi bi-distribute-vertical';
-            if (densityBtn) densityBtn.title = 'Ubah ke Mode Compact (Rapat)';
+            if (densityBtn) setDensityTip('Ubah ke Mode Compact (Rapat)');
         }
         localStorage.setItem('seksi_tx_density', mode);
+    }
+
+    // Sinkron teks tooltip Bootstrap (data-bs-original-title) + title native
+    function setDensityTip(text) {
+        if (!densityBtn) return;
+        densityBtn.title = text;
+        densityBtn.setAttribute('data-bs-original-title', text);
     }
 
     const savedDensity = localStorage.getItem('seksi_tx_density') || 'normal';
@@ -813,15 +828,28 @@ document.addEventListener('DOMContentLoaded', function(){
         var textEl = btn.parentElement ? btn.parentElement.querySelector('.uraian-text') : null;
         var text = textEl ? textEl.innerText.trim() : '';
         if (!text) return;
-        function done(ok) {
+        function done(ok, btn) {
             var icon = btn.querySelector('i');
+            function tip(text, show) {
+                try {
+                    if (typeof bootstrap === 'undefined') return;
+                    var inst = bootstrap.Tooltip.getInstance(btn) || new bootstrap.Tooltip(btn);
+                    btn.setAttribute('data-bs-original-title', text);
+                    if (inst.setContent) inst.setContent({ '.tooltip-inner': text });
+                    if (show) inst.show(); else inst.hide();
+                } catch (e) {}
+            }
             if (ok && icon) {
                 icon.className = 'bi bi-check-lg text-success';
-                setTimeout(function() { icon.className = 'bi bi-clipboard'; }, 1500);
+                tip('Tersalin!', true);
+                setTimeout(function() {
+                    icon.className = 'bi bi-clipboard';
+                    tip('Salin uraian', false);
+                }, 1500);
             }
         }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(function() { done(true); }, function() { done(false); });
+            navigator.clipboard.writeText(text).then(function() { done(true, btn); }, function() { done(false, btn); });
         } else {
             // Fallback browser lama / non-HTTPS
             var ta = document.createElement('textarea');
@@ -830,8 +858,8 @@ document.addEventListener('DOMContentLoaded', function(){
             ta.style.opacity = '0';
             document.body.appendChild(ta);
             ta.select();
-            try { done(document.execCommand('copy')); }
-            catch (err) { done(false); }
+            try { done(document.execCommand('copy'), btn); }
+            catch (err) { done(false, btn); }
             document.body.removeChild(ta);
         }
     });
@@ -848,6 +876,18 @@ document.addEventListener('DOMContentLoaded', function(){
             var url = <?= json_encode(base_url('seksi/transaksi/bku')) ?>;
             url += '?bulan=' + encodeURIComponent(selBulan) + '&tahun=' + encodeURIComponent(selTahun);
             window.location.href = url;
+        });
+    }
+
+    // Kosongkan Tanggal (Filter Lanjutan): kosongkan kedua input lalu terapkan
+    var btnClearDate = document.getElementById('btnClearInputDate');
+    if (btnClearDate && form) {
+        btnClearDate.addEventListener('click', function() {
+            var d1 = document.getElementById('inputDari');
+            var d2 = document.getElementById('inputSampai');
+            if (d1) d1.value = '';
+            if (d2) d2.value = '';
+            form.submit();
         });
     }
 
