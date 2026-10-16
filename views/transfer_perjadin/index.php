@@ -44,8 +44,8 @@ $tahunVal = (string) ($tahun ?? date('Y'));
                 <i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer Perjalanan Dinas
             </h1>
             <p class="text-muted small mb-0">
-                Berbasis transaksi perjalanan dinas. Isi <strong>Transfer Ke</strong> dan <strong>Potongan</strong> per transaksi,
-                lalu unduh Excel (sheet Detail + Rekap pivot per Transfer Ke).
+                Berbasis transaksi perjalanan dinas. Isi <strong>Transfer Ke</strong> dan <strong>Potongan</strong> di salah satu baris per Surat Tugas,
+                otomatis berlaku untuk seluruh transaksi pada ST itu; lalu unduh Excel (sheet Detail + Rekap pivot per Transfer Ke).
             </p>
         </div>
         <form method="GET" action="<?= base_url('transfer-perjadin/export') ?>" class="d-flex align-items-center gap-2">
@@ -105,7 +105,7 @@ $tahunVal = (string) ($tahun ?? date('Y'));
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-list-check text-success me-2"></i>Daftar Transaksi Perjalanan Dinas</h5>
-                    <small class="text-muted">Transfer Ke diisi nama penerima transfer; Potongan memotong nilai transaksi.</small>
+                    <small class="text-muted">Cukup isi sekali per Surat Tugas — Transfer Ke &amp; Potongan otomatis tersebar ke semua baris ST yang sama. Potongan berlaku per orang.</small>
                 </div>
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" id="badgeBersih">
                     Total bersih: Rp <?= number_format($totalBersih, 0, ',', '.') ?>
@@ -140,8 +140,9 @@ $tahunVal = (string) ($tahun ?? date('Y'));
                                     $transferKe = (string) ($cfg['transfer_ke'] ?? '');
                                     $potongan = (float) ($cfg['potongan'] ?? 0);
                                     $isConfigured = $transferKe !== '' || $potongan > 0;
+                                    $stRow = (int) ($stIdByTransaksi[$tid] ?? 0);
                                     ?>
-                                    <tr data-nilai="<?= $nilai ?>" class="<?= $isConfigured ? 'table-success-subtle' : '' ?>">
+                                    <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" class="<?= $isConfigured ? 'table-success-subtle' : '' ?>">
                                         <td class="ps-4 text-muted small text-nowrap"><?= htmlspecialchars((string) ($t['tanggal'] ?? '-')) ?></td>
                                         <td>
                                             <div class="text-dark" style="font-size:.85rem;white-space:pre-wrap;"><?= htmlspecialchars((string) ($t['uraian'] ?? '-')) ?></div>
@@ -153,7 +154,6 @@ $tahunVal = (string) ($tahun ?? date('Y'));
                                         <td class="text-muted small"><?= htmlspecialchars((string) ($t['kode_seksi'] ?? '-')) ?></td>
                                         <td class="text-end font-monospace">Rp <?= number_format($nilai, 0, ',', '.') ?></td>
                                         <td>
-                                            <?php $stRow = (int) ($stIdByTransaksi[$tid] ?? 0); ?>
                                             <input type="text" class="form-control form-control-sm input-transfer-ke"
                                                 name="transfer_ke[<?= $tid ?>]" list="listKe_<?= $stRow ?>"
                                                 value="<?= htmlspecialchars($transferKe) ?>" placeholder="Nama penerima transfer">
@@ -235,10 +235,29 @@ $tahunVal = (string) ($tahun ?? date('Y'));
         set('badgeBersih', 'Total bersih: ' + rp(totalBersih));
     }
 
+    // Satu Surat Tugas = satu Transfer Ke & satu Potongan per orang.
+    // Nilai yang diisi pada satu baris disebarkan ke baris lain pada ST yang sama.
+    function syncSt(tr, selector, value) {
+        const st = tr.dataset.st;
+        if (!st || st === '0') return;
+        form.querySelectorAll('#tabelTransaksi tbody tr[data-st="' + st + '"]').forEach((other) => {
+            if (other === tr) return;
+            const inp = other.querySelector(selector);
+            if (inp) inp.value = value;
+        });
+    }
+
+    form.querySelectorAll('.input-transfer-ke').forEach((input) => {
+        input.addEventListener('input', function () {
+            syncSt(this.closest('tr'), '.input-transfer-ke', this.value);
+        });
+    });
+
     form.querySelectorAll('.input-potongan').forEach((input) => {
         input.addEventListener('input', function () {
             const digits = this.value.replace(/[^0-9]/g, '');
             this.value = digits === '' ? '' : Number(digits).toLocaleString('id-ID');
+            syncSt(this.closest('tr'), '.input-potongan', this.value);
             recalc();
         });
     });

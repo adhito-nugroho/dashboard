@@ -110,12 +110,17 @@ class TransferPerjadinController
             ];
         }
 
-        // Transfer Ke hanya boleh pegawai peserta Surat Tugas pada transaksi tsb.
-        $diabaikan = $this->filterInvalidTransferKe($rows);
+        // Resolusi Surat Tugas tiap transaksi, lalu validasi & propagasi per ST.
+        [$stByTrx, $participants] = $this->resolveStContext($rows);
+        $diabaikan = $this->filterInvalidTransferKe($rows, $stByTrx, $participants);
+        $propagated = $this->propagateWithinSt($rows, $stByTrx);
 
         try {
             $saved = $this->model->saveBulk($rows, $userId);
             $message = 'Konfigurasi transfer tersimpan (' . $saved . ' transaksi dikonfigurasi).';
+            if ($propagated > 0) {
+                $message .= ' ' . $propagated . ' baris lain pada Surat Tugas yang sama otomatis disamakan.';
+            }
             if ($diabaikan > 0) {
                 $message .= ' ' . $diabaikan . ' nama Transfer Ke diabaikan karena bukan pegawai pada Surat Tugas transaksi tersebut.';
             }
@@ -271,22 +276,14 @@ class TransferPerjadinController
     }
 
     /**
-     * Kosongkan transfer_ke yang bukan pegawai pada ST transaksi bersangkutan.
-     * Bila ST tidak punya data peserta, nilai dibiarkan (tidak dapat divalidasi).
+     * Resolusi Surat Tugas per transaksi + daftar peserta per ST.
      *
      * @param array<int, array{transfer_ke:string, potongan:float}> $rows
-     * @return int jumlah yang diabaikan
+     * @return array{0: array<int,int>, 1: array<int, string[]>}
      */
-    private function filterInvalidTransferKe(array &$rows): int
+    private function resolveStContext(array $rows): array
     {
-        if ($rows === []) {
-            return 0;
-        }
-
         $refs = $this->model->getTransaksiStRefs(array_keys($rows));
-        if ($refs === []) {
-            return 0;
-        }
 
         $nomors = [];
         foreach ($refs as $r) {
@@ -305,8 +302,23 @@ class TransferPerjadinController
                 $stIds[$st] = true;
             }
         }
+
         $participants = $this->model->getPegawaiNamesBySuratTugas(array_keys($stIds));
 
+        return [$stByTrx, $participants];
+    }
+
+    /**
+     * Kosongkan transfer_ke yang bukan pegawai pada ST transaksi bersangkutan.
+     * Bila ST tidak punya data peserta, nilai dibiarkan (tidak dapat divalidasi).
+     *
+     * @param array<int, array{transfer_ke:string, potongan:float}> $rows
+     * @param array<int,int> $stByTrx
+     * @param array<int, string[]> $participants
+     * @return int jumlah yang diabaikan
+     */
+    private function filterInvalidTransferKe(array &$rows, array $stByTrx, array $participants): int
+    {
         $cleared = 0;
         foreach ($rows as $id => $cfg) {
             $ke = trim((string) $cfg['transfer_ke']);
@@ -326,8 +338,54 @@ class TransferPerjadinController
                 $cleared++;
             }
         }
-
         return $cleared;
+    }
+
+    /**
+     * Dalam satu Surat Tugas, Transfer Ke & Potongan cukup diisi sekali:
+     * nilai yang terisi disebarkan ke baris lain (yang masih kosong) pada ST yang sama.
+     *
+     * @param array<int, array{transfer_ke:string, potongan:float}> $rows
+     * @param array<int,int> $stByTrx
+     * @return int jumlah baris yang diisi otomatis
+     */
+    private function propagateWithinSt(array &$rows, array $stByTrx): int
+    {
+        $groups = [];
+        foreach ($rows as $id => $cfg) {
+            $st = $stByTrx[(int) $id] ?? 0;
+            if ($st > 0) {
+                $groups[$st][] = (int) $id;
+            }
+        }
+
+        $filled = 0;
+        foreach ($groups as $ids) {
+            $sourceKe = '';
+            $sourcePot = 0.0;
+            foreach ($ids as $id) {
+                if ($sourceKe === '' && trim((string) $rows[$id]['transfer_ke']) !== '') {
+                    $sourceKe = trim((string) $rows[$id]['transfer_ke']);
+                }
+                if ($sourcePot <= 0 && (float) $rows[$id]['potongan'] > 0) {
+                    $sourcePot = (float) $rows[$id]['potongan'];
+                }
+            }
+            if ($sourceKe === '' && $sourcePot <= 0) {
+                continue;
+            }
+            foreach ($ids as $id) {
+                if (trim((string) $rows[$id]['transfer_ke']) === '' && $sourceKe !== '') {
+                    $rows[$id]['transfer_ke'] = $sourceKe;
+                    $filled++;
+                }
+                if ((float) $rows[$id]['potongan'] <= 0 && $sourcePot > 0) {
+                    $rows[$id]['potongan'] = $sourcePot;
+                    $filled++;
+                }
+            }
+        }
+        return $filled;
     }
 
     private function normNama(string $s): string
