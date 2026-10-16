@@ -48,11 +48,21 @@
 }
 /* Visual Grouping Surat Tugas Rombongan */
 .st-group-row {
-    background-color: #fafbff;
+    background-color: #f6faf7;
 }
 .st-group-row:hover {
-    background-color: #f1f5f9;
+    background-color: #eef4ef;
 }
+/* Tema hijau halaman: override aksen bersama */
+.ux-filter-toggle { color: #1b4332; }
+.ux-expand-btn { color: #166534; }
+.pagination .page-item.active .page-link {
+    background-color: #1b4332;
+    border-color: #1b4332;
+    color: #fff;
+}
+.pagination .page-link { color: #1b4332; }
+.pagination .page-link:hover { color: #14532d; }
 .filter-pill {
     border-radius: 999px;
     font-size: 0.8rem;
@@ -68,12 +78,12 @@
     transition: all 0.15s;
 }
 .filter-pill.active {
-    background: #4f46e5;
+    background: #1b4332;
     color: #fff;
-    border-color: #4f46e5;
-    box-shadow: 0 2px 6px rgba(79,70,229,0.25);
+    border-color: #1b4332;
+    box-shadow: 0 2px 6px rgba(27,67,50,0.25);
 }
-.filter-pill:hover { text-decoration: none; border-color: #4f46e5; color: #4f46e5; }
+.filter-pill:hover { text-decoration: none; border-color: #1b4332; color: #1b4332; }
 .filter-pill.active:hover { color: #fff; }
 .filter-pill .count-badge {
     background: #f1f5f9;
@@ -169,14 +179,19 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
     <div>
-        <h3 style="font-weight:800;color:#0f172a;letter-spacing:-0.02em;margin-bottom:0.25rem;">
-            <i class="bi bi-receipt me-2 text-primary"></i>Transaksi Saya
-        </h3>
+            <h3 style="font-weight:800;color:#0f172a;letter-spacing:-0.02em;margin-bottom:0.25rem;">
+                <i class="bi bi-receipt me-2" style="color:#1b4332;"></i>Transaksi Saya
+            </h3>
         <p class="text-muted mb-0" style="font-size:0.875rem;">Daftar transaksi anggaran yang diajukan oleh seksi Anda.</p>
     </div>
-    <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-cta px-3 py-2 fw-semibold">
-        <i class="bi bi-plus-circle me-1"></i> Tambah Transaksi
-    </a>
+    <div class="d-flex gap-2 align-items-center flex-shrink-0">
+        <button type="button" id="btnUnduhBku" class="btn btn-outline-success btn-sm fw-semibold px-3 py-2" style="border-radius:8px;" title="Unduh BKU bulan & tahun yang aktif">
+            <i class="bi bi-file-earmark-excel me-1"></i>BKU
+        </button>
+        <a href="<?= base_url('seksi/transaksi/create') ?>" class="btn btn-cta px-3 py-2 fw-semibold">
+            <i class="bi bi-plus-circle me-1"></i> Tambah Transaksi
+        </a>
+    </div>
 </div>
 
 <?php
@@ -212,7 +227,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                     <?php endforeach; ?>
                     <input type="hidden" name="status" value="<?= htmlspecialchars($curStatus) ?>">
                 </div>
-                <a href="<?= base_url('seksi/transaksi') ?>" id="resetFilterBtn" class="btn btn-outline-secondary btn-sm flex-shrink-0" style="<?= $hasFilter?'':'display:none;' ?>" title="Reset semua filter"><i class="bi bi-x-circle me-1"></i>Reset Filter</a>
             </div>
             <div class="col-md-3 col-6 filter-month-year">
                 <label class="form-label small fw-semibold mb-1">Bulan</label>
@@ -236,16 +250,14 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                 <label class="form-label small fw-semibold mb-1">Cari uraian / no bukti</label>
                 <div class="search-wrap">
                     <input type="text" name="q" id="qInput" value="<?= htmlspecialchars($curQ) ?>" class="form-control form-control-sm pe-4" placeholder="Ketik uraian atau nomor bukti..." autocomplete="off">
-                    <button type="button" id="qClear" class="search-clear <?= $curQ!==''?'visible':'' ?>" aria-label="Clear"><i class="bi bi-x-circle-fill"></i></button>
+                    <button type="button" id="qClear" class="search-clear <?= $curQ!==''?'visible':'' ?>" aria-label="Clear" title="Bersihkan pencarian"><i class="bi bi-x-circle-fill"></i></button>
                 </div>
             </div>
             <div class="col-md-2 col-12 d-flex gap-2 btn-col filter-search-row">
-                <button type="submit" class="btn btn-outline-primary btn-sm flex-fill fw-semibold" style="border-color:#4f46e5;color:#4f46e5;background:transparent;">
+                <button type="submit" class="btn btn-sm flex-fill fw-semibold" style="background:#1b4332;border-color:#1b4332;color:#fff;" title="Terapkan filter bulan, tahun, dan pencarian">
                     <i class="bi bi-search me-1"></i>Cari
                 </button>
-                <button type="button" id="btnUnduhBku" class="btn btn-outline-success btn-sm flex-shrink-0 fw-semibold" title="Unduh BKU bulan &amp; tahun yang aktif">
-                    <i class="bi bi-file-earmark-excel me-1"></i>BKU
-                </button>
+                <a href="<?= base_url('seksi/transaksi') ?>" id="resetFilterBtn" class="btn btn-outline-secondary btn-sm flex-shrink-0" style="<?= $hasFilter?'':'display:none;' ?>" title="Reset semua filter ke awal"><i class="bi bi-x-circle me-1"></i>Reset</a>
                 <button type="button" id="btnToggleDensity" class="btn btn-outline-secondary btn-sm flex-shrink-0 fw-semibold" title="Ubah Kerapatan Tampilan (Normal / Compact)">
                     <i class="bi bi-distribute-vertical" id="densityIcon"></i>
                 </button>
@@ -266,11 +278,6 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <div class="col-6 col-md-3">
                             <label class="form-label small fw-semibold mb-1" for="inputSampai">Diinput Sampai</label>
                             <input type="date" name="input_sampai" id="inputSampai" value="<?= htmlspecialchars($curInputSampai) ?>" class="form-control form-control-sm" max="<?= date('Y-m-d') ?>" title="Tanggal data diinput ke sistem">
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <button type="submit" class="btn btn-primary btn-sm fw-semibold w-100 w-md-auto">
-                                <i class="bi bi-funnel-fill me-1"></i>Terapkan
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -354,7 +361,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             <th style="width:18%;">Sub Kegiatan</th>
                             <th style="width:16%;">Rekening</th>
                             <th style="width:24%;">Uraian & Penerima</th>
-                            <th class="text-end" style="width:12%;">Nilai (Rp)</th>
+                            <th class="text-end text-nowrap" style="width:12%;">Nilai (Rp)</th>
                             <th class="text-center" style="width:9%;">Status</th>
                             <th class="text-center pe-3" style="width:11%; min-width:145px;">Aksi</th>
                         </tr>
@@ -389,21 +396,25 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                             $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
                             $isNewStGroup = ($isSharedSt && $noST !== $prevSt);
                             $prevSt = $noST;
+                            // Aksen border kiri konsisten dgn status baris
+                            $rowBorderColor = match ($status) {
+                                'diajukan' => '#f59e0b',
+                                'diverifikasi' => '#16a34a',
+                                'ditolak' => '#dc2626',
+                                default => '#cbd5e1',
+                            };
                         ?>
                         <tr class="<?= $isSharedSt ? 'st-group-row' : '' ?>" style="<?= $isNewStGroup ? 'border-top: 2px solid #cbd5e1;' : '' ?>">
-                            <td class="ps-3" style="<?= $isSharedSt ? 'border-left: 3px solid #6366f1;' : '' ?>">
+                            <td class="ps-3" style="border-left: 3px solid <?= $rowBorderColor ?>;">
                                 <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
-                                <?php if (!empty($t['created_at'])): ?>
-                                    <div class="text-muted" style="font-size:0.7rem;" title="Tanggal data diinput ke sistem"><i class="bi bi-cloud-upload me-1"></i>Input <?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></div>
-                                <?php endif; ?>
-                                <small class="font-monospace <?= $status === 'diajukan' ? 'text-warning-emphasis' : 'text-muted' ?>" style="font-size:0.75rem;">
+                                <div class="font-monospace text-secondary" style="font-size:0.75rem;">
                                     <?= htmlspecialchars($noBukti) ?>
                                     <?php if ($status === 'diajukan' || stripos($noBukti, 'DRAFT') !== false): ?>
-                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.62rem;padding:0 3px;">Draft</span>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border-0" style="font-size:0.62rem;padding:0 3px;">Draft</span>
                                     <?php endif; ?>
-                                </small>
-                                <?php if (!empty($t['tanggal_lunas_dibayar'])): ?>
-                                    <div class="small text-success" style="font-size:0.72rem;" title="Tanggal lunas dibayar"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div>
+                                </div>
+                                <?php if (!empty($t['created_at'])): ?>
+                                    <div class="text-muted small text-nowrap" style="font-size:0.7rem;" title="Tanggal data diinput ke sistem">Diinput: <?= date('d/m/y H:i', strtotime($t['created_at'])) ?></div>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -458,13 +469,16 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     </div>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-end fw-bold text-dark">
+                            <td class="text-end text-nowrap fw-bold text-dark">
                                 Rp <?= number_format($t['nilai'], 0, ',', '.') ?>
                             </td>
                             <td class="text-center">
                                 <span style="font-size:0.75rem;font-weight:700;padding:0.3rem 0.65rem;border-radius:999px;background:<?= $badge[2] ?>;color:<?= $badge[3] ?>;border:1px solid <?= $badge[4] ?>;white-space:nowrap;">
                                     <?= $badge[0] ?>
                                 </span>
+                                <?php if ($status === 'diverifikasi' && !empty($t['tanggal_lunas_dibayar'])): ?>
+                                    <div class="small text-success mt-1" style="font-size:0.72rem;" title="Tanggal lunas dibayar"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div>
+                                <?php endif; ?>
                                 <?php if ($status === 'ditolak' && !empty($t['catatan_verifikasi'])): ?>
                                     <div class="mt-1">
                                         <button type="button" class="btn btn-link p-0 text-danger" style="font-size:0.75rem;text-decoration:none;" data-bs-toggle="modal" data-bs-target="#modalTolak-<?= $t['id'] ?>">
@@ -478,34 +492,37 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <?php if ($bolehEdit): ?>
                                         <a href="<?= base_url('seksi/transaksi/edit/' . $t['id']) ?>"
                                            class="btn btn-outline-primary btn-action-icon"
-                                           title="Edit Transaksi">
+                                           data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Transaksi">
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                         <form method="POST" action="<?= base_url('seksi/transaksi/delete/' . $t['id']) ?>"
                                               class="d-inline m-0 p-0"
                                               onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                            <button type="submit" class="btn btn-outline-danger btn-action-icon" title="Hapus Transaksi">
+                                            <button type="submit" class="btn btn-outline-danger btn-action-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Hapus Transaksi">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
                                     <?php else: ?>
-                                        <span class="badge bg-light text-muted border d-inline-flex align-items-center py-1 px-2"
-                                              style="font-size:0.75rem;height:32px;"
+                                        <span class="badge bg-light text-secondary border-0 px-2 py-2"
+                                              style="font-size:0.75rem;"
                                               title="Terkunci (sudah diverifikasi)">
                                             <i class="bi bi-lock-fill me-1"></i>Terkunci
                                         </span>
+                                    <?php endif; ?>
+                                    <?php if ($bolehEdit): ?>
+                                        <span class="vr mx-1 align-self-stretch" style="opacity:.35;" aria-hidden="true"></span>
                                     <?php endif; ?>
 
                                     <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                         <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
                                            class="btn btn-outline-success btn-action-icon"
-                                           title="Unduh Excel Rincian Biaya SPPD">
+                                           data-bs-toggle="tooltip" data-bs-placement="top" title="Unduh Excel Rincian Biaya SPPD">
                                             <i class="bi bi-file-earmark-excel"></i>
                                         </a>
                                         <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
                                            target="_blank" rel="noopener"
                                            class="btn btn-outline-success btn-action-icon"
-                                           title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
+                                           data-bs-toggle="tooltip" data-bs-placement="top" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                             <i class="bi bi-file-earmark-text"></i>
                                         </a>
                                     <?php elseif ($bolehEdit): ?>
@@ -515,7 +532,7 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                     <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"
                                        target="_blank" rel="noopener"
                                        class="btn btn-outline-success btn-action-icon"
-                                       title="Unduh / Pratinjau PDF Kuitansi (215x165mm)">
+                                       data-bs-toggle="tooltip" data-bs-placement="top" title="Unduh / Pratinjau PDF Kuitansi (215x165mm)">
                                         <i class="bi bi-printer"></i>
                                     </a>
                                 </div>
@@ -543,16 +560,29 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         $jenisInfo2 = $jenisMap2[$jv] ?? null;
                         $noST = trim((string)($t['nomor_surat_tugas'] ?? ''));
                         $isSharedSt = ($noST !== '' && ($stCounts[$noST] ?? 0) >= 2);
+                        $noBuktiM = $t['nomor_bukti'] ?? '-';
+                        $isDraftM = ($status === 'diajukan' || stripos((string)($t['nomor_bukti'] ?? ''), 'DRAFT') !== false);
+                        $rowBorderColorM = match ($status) {
+                            'diajukan' => '#f59e0b',
+                            'diverifikasi' => '#16a34a',
+                            'ditolak' => '#dc2626',
+                            default => '#cbd5e1',
+                        };
                     ?>
-                    <div class="mobile-tx-card" style="<?= $isSharedSt ? 'border-left: 4px solid #6366f1;' : '' ?>">
+                    <div class="mobile-tx-card" style="border-left: 4px solid <?= $rowBorderColorM ?>;">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <div class="mc-label">Tanggal / No Bukti</div>
-                                <div class="mc-value fw-semibold"><?= date('d/m/Y', strtotime($t['tanggal'])) ?> <small class="text-muted font-monospace"><?= htmlspecialchars($t['nomor_bukti'] ?? '-') ?></small></div>
-                                <?php if (!empty($t['created_at'])): ?><div class="text-muted" style="font-size:0.7rem;"><i class="bi bi-cloud-upload me-1"></i>Input <?= date('d/m/Y H:i', strtotime($t['created_at'])) ?></div><?php endif; ?>
-                                <?php if (!empty($t['tanggal_lunas_dibayar'])): ?><div class="small text-success" style="font-size:0.72rem;"><i class="bi bi-check-circle me-1"></i>Lunas <?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div><?php endif; ?>
+                                <div class="mc-value fw-semibold"><?= date('d/m/Y', strtotime($t['tanggal'])) ?></div>
+                                <div class="font-monospace text-secondary" style="font-size:0.75rem;"><?= htmlspecialchars($noBuktiM) ?>
+                                    <?php if ($isDraftM): ?> <span class="badge bg-secondary bg-opacity-10 text-secondary border-0" style="font-size:0.62rem;padding:0 3px;">Draft</span><?php endif; ?>
+                                </div>
+                                <?php if (!empty($t['created_at'])): ?><div class="text-muted small text-nowrap" style="font-size:0.7rem;">Diinput: <?= date('d/m/y H:i', strtotime($t['created_at'])) ?></div><?php endif; ?>
                             </div>
-                            <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
+                            <div class="text-end flex-shrink-0">
+                                <span style="font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;border-radius:999px;background:<?= $badge[1] ?>;color:<?= $badge[2] ?>;border:1px solid <?= $badge[3] ?>;"><?= $badge[0] ?></span>
+                                <?php if ($status === 'diverifikasi' && !empty($t['tanggal_lunas_dibayar'])): ?><div class="small text-success mt-1" style="font-size:0.7rem;"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($t['tanggal_lunas_dibayar'])) ?></div><?php endif; ?>
+                            </div>
                         </div>
                         <?php if($jenisInfo2): ?><span class="jenis-chip <?= $jenisInfo2[1] ?> mb-2 d-inline-block"><?= $jenisInfo2[0] ?></span><?php endif; ?>
                         <?php if(($t['sumber_dana'] ?? 'UP') === 'LS'): ?><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle mb-2 d-inline-block" style="font-size:0.65rem;" title="Dibayar langsung Bank Jatim Kas Daerah — tidak mengurangi kas">LS</span><?php endif; ?>
@@ -591,12 +621,12 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                         <?php endif; ?>
                         <div class="d-flex gap-2 mt-3 align-items-center">
                             <?php if($bolehEdit): ?>
-                                <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill"><i class="bi bi-pencil me-1"></i>Edit</a>
+                                <a href="<?= base_url('seksi/transaksi/edit/'.$t['id']) ?>" class="btn btn-sm btn-outline-primary flex-fill" title="Edit Transaksi"><i class="bi bi-pencil me-1"></i>Edit</a>
                                 <form method="POST" action="<?= base_url('seksi/transaksi/delete/'.$t['id']) ?>" class="flex-fill" onsubmit="return confirm('Apakah Anda yakin ingin menghapus transaksi ini?')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1"></i>Hapus</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100" title="Hapus Transaksi"><i class="bi bi-trash me-1"></i>Hapus</button>
                                 </form>
                             <?php else: ?>
-                                <span class="text-muted small d-inline-flex align-items-center ms-auto"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
+                                <span class="badge bg-light text-secondary border-0 px-2 py-2" title="Terkunci (sudah diverifikasi)"><i class="bi bi-lock-fill me-1"></i>Terkunci</span>
                             <?php endif; ?>
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                 <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
@@ -818,6 +848,13 @@ document.addEventListener('DOMContentLoaded', function(){
             var url = <?= json_encode(base_url('seksi/transaksi/bku')) ?>;
             url += '?bulan=' + encodeURIComponent(selBulan) + '&tahun=' + encodeURIComponent(selTahun);
             window.location.href = url;
+        });
+    }
+
+    // Aktifkan tooltip Bootstrap pada tombol ikon aksi
+    if (typeof bootstrap !== 'undefined') {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+            try { bootstrap.Tooltip.getOrCreateInstance(el); } catch (e) {}
         });
     }
 
