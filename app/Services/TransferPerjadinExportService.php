@@ -20,8 +20,10 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *   - Sheet "Detail" : rincian per transaksi (sesuai data mentah yang dipivot).
  *                      Kolom: uraian | nama | penerimaan | transfer ke |
  *                             potongan | penerimaan bersih.
- *   - Sheet "Rekap"  : pivot ringkas, satu baris per Transfer Ke.
- *                      Kolom: Transfer Ke | Jumlah Transaksi | Penerimaan |
+ *   - Sheet "Rekap"  : hierarki per Transfer Ke. Tiap koordinator tampil
+ *                      sebagai baris subtotal, diikuti baris-baris anggotanya
+ *                      (siapa saja yang harus menerima dari koordinator tsb).
+ *                      Kolom: No | Nama | Uraian | Jml Transaksi | Penerimaan |
  *                             Potongan | Penerimaan Bersih + Grand Total.
  *
  * Penerimaan (gross) = transaksi.nilai. Penerimaan bersih = nilai - potongan.
@@ -52,11 +54,11 @@ class TransferPerjadinExportService
     }
 
     /**
-     * Pivot: kelompokkan baris per Transfer Ke.
+     * Kelompokkan baris per Transfer Ke beserta anggotanya.
      *
-     * @return array<int, array{label:string, count:int, penerimaan:float, potongan:float, bersih:float}>
+     * @return array<int, array{label:string, count:int, penerimaan:float, potongan:float, bersih:float, members:array<int, array>}>
      */
-    public function pivotByTransferKe(array $rows): array
+    public function groupByTransferKe(array $rows): array
     {
         $groups = [];
         foreach ($rows as $r) {
@@ -66,7 +68,7 @@ class TransferPerjadinExportService
             }
             $key = self::normNama($label);
             if (!isset($groups[$key])) {
-                $groups[$key] = ['label' => $label, 'count' => 0, 'penerimaan' => 0.0, 'potongan' => 0.0, 'bersih' => 0.0];
+                $groups[$key] = ['label' => $label, 'count' => 0, 'penerimaan' => 0.0, 'potongan' => 0.0, 'bersih' => 0.0, 'members' => []];
             }
             $nilai = (float) ($r['nilai'] ?? 0);
             $potongan = (float) ($r['potongan'] ?? 0);
@@ -74,6 +76,7 @@ class TransferPerjadinExportService
             $groups[$key]['penerimaan'] += $nilai;
             $groups[$key]['potongan'] += $potongan;
             $groups[$key]['bersih'] += ($nilai - $potongan);
+            $groups[$key]['members'][] = $r;
         }
 
         uksort($groups, function (string $a, string $b): int {
@@ -88,29 +91,49 @@ class TransferPerjadinExportService
         return array_values($groups);
     }
 
+    /**
+     * Pivot: kelompokkan baris per Transfer Ke.
+     *
+     * @return array<int, array{label:string, count:int, penerimaan:float, potongan:float, bersih:float}>
+     */
+    public function pivotByTransferKe(array $rows): array
+    {
+        $out = [];
+        foreach ($this->groupByTransferKe($rows) as $g) {
+            $out[] = [
+                'label' => $g['label'],
+                'count' => $g['count'],
+                'penerimaan' => $g['penerimaan'],
+                'potongan' => $g['potongan'],
+                'bersih' => $g['bersih'],
+            ];
+        }
+        return $out;
+    }
+
     private function buildRekapSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $rows): void
     {
         $sheet->setTitle('Rekap');
 
-        $sheet->mergeCells('A1:E1');
+        $sheet->mergeCells('A1:G1');
         $sheet->setCellValue('A1', 'REKAP TRANSFER PERJALANAN DINAS');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('FFFFFF');
         $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::HEADER_FILL);
         $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getRowDimension(1)->setRowHeight(24);
 
-        $sheet->mergeCells('A2:E2');
+        $sheet->mergeCells('A2:G2');
         $sheet->setCellValue('A2', 'Cabang Dinas Kehutanan Wilayah Bojonegoro');
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        $sheet->mergeCells('A3:E3');
-        $sheet->setCellValue('A3', 'Dicetak: ' . date('d/m/Y H:i') . ' WIB');
+        $sheet->mergeCells('A3:G3');
+        $sheet->setCellValue('A3', 'Dicetak: ' . date('d/m/Y H:i') . ' WIB — Setiap koordinator wajib meneruskan ke anggota di bawah namanya');
         $sheet->getStyle('A3')->getFont()->setSize(9)->getColor()->setRGB('64748B');
         $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $headerRow = 5;
-        $this->writeHeader($sheet, $headerRow, ['Transfer Ke', 'Jumlah Transaksi', 'Penerimaan', 'Potongan', 'Penerimaan Bersih']);
+        $this->writeHeader($sheet, $headerRow, ['No', 'Nama', 'Uraian', 'Jml Transaksi', 'Penerimaan', 'Potongan', 'Penerimaan Bersih']);
 
         $row = $headerRow + 1;
         $grandCount = 0;
@@ -118,46 +141,76 @@ class TransferPerjadinExportService
         $grandPotongan = 0.0;
         $grandBersih = 0.0;
 
-        foreach ($this->pivotByTransferKe($rows) as $g) {
-            $sheet->setCellValue('A' . $row, $g['label']);
-            $sheet->setCellValue('B' . $row, $g['count']);
-            $sheet->setCellValue('C' . $row, $g['penerimaan']);
-            $sheet->setCellValue('D' . $row, $g['potongan']);
-            $sheet->setCellValue('E' . $row, $g['bersih']);
-            $this->applyCurrency($sheet, 'C' . $row);
-            $this->applyCurrency($sheet, 'D' . $row);
-            $this->applyCurrency($sheet, 'E' . $row);
-            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $this->applyThinBorders($sheet, 'A' . $row . ':E' . $row);
-
-            $grandCount += $g['count'];
-            $grandPenerimaan += $g['penerimaan'];
-            $grandPotongan += $g['potongan'];
-            $grandBersih += $g['bersih'];
-            $row++;
-        }
-
+        $groups = $this->groupByTransferKe($rows);
         if ($rows === []) {
-            $sheet->mergeCells('A' . $row . ':E' . $row);
+            $sheet->mergeCells('A' . $row . ':G' . $row);
             $sheet->setCellValue('A' . $row, 'Belum ada transaksi perjalanan dinas yang dikonfigurasi transfernya.');
             $sheet->getStyle('A' . $row)->getFont()->setItalic(true)->getColor()->setRGB('64748B');
             $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         } else {
-            $sheet->setCellValue('A' . $row, 'GRAND TOTAL');
-            $sheet->setCellValue('B' . $row, $grandCount);
-            $sheet->setCellValue('C' . $row, $grandPenerimaan);
-            $sheet->setCellValue('D' . $row, $grandPotongan);
-            $sheet->setCellValue('E' . $row, $grandBersih);
-            $this->applyCurrency($sheet, 'C' . $row);
-            $this->applyCurrency($sheet, 'D' . $row);
+            $no = 0;
+            foreach ($groups as $g) {
+                $no++;
+                // Baris koordinator: subtotal per Transfer Ke.
+                $sheet->setCellValue('A' . $row, $no);
+                $sheet->setCellValue('B' . $row, $g['label']);
+                $sheet->setCellValue('C' . $row, $g['count'] . ' transaksi');
+                $sheet->setCellValue('D' . $row, $g['count']);
+                $sheet->setCellValue('E' . $row, $g['penerimaan']);
+                $sheet->setCellValue('F' . $row, $g['potongan']);
+                $sheet->setCellValue('G' . $row, $g['bersih']);
+                $this->applyCurrency($sheet, 'E' . $row);
+                $this->applyCurrency($sheet, 'F' . $row);
+                $this->applyCurrency($sheet, 'G' . $row);
+                $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('A' . $row . ':G' . $row)->getFont()->setBold(true);
+                $sheet->getStyle('A' . $row . ':G' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D8F3DC');
+                $this->applyThinBorders($sheet, 'A' . $row . ':G' . $row);
+                $row++;
+
+                // Baris anggota: siapa saja yang harus menerima dari koordinator di atas.
+                foreach ($g['members'] as $m) {
+                    $nilai = (float) ($m['nilai'] ?? 0);
+                    $potongan = (float) ($m['potongan'] ?? 0);
+                    $sheet->setCellValue('A' . $row, '>');
+                    $sheet->setCellValue('B' . $row, (string) ($m['nama'] ?? ''));
+                    $sheet->setCellValue('C' . $row, (string) ($m['uraian'] ?? ''));
+                    $sheet->setCellValue('D' . $row, 1);
+                    $sheet->setCellValue('E' . $row, $nilai);
+                    $sheet->setCellValue('F' . $row, $potongan);
+                    $sheet->setCellValue('G' . $row, $nilai - $potongan);
+                    $this->applyCurrency($sheet, 'E' . $row);
+                    $this->applyCurrency($sheet, 'F' . $row);
+                    $this->applyCurrency($sheet, 'G' . $row);
+                    $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle('C' . $row)->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+                    $this->applyThinBorders($sheet, 'A' . $row . ':G' . $row);
+                    $row++;
+                }
+
+                $grandCount += $g['count'];
+                $grandPenerimaan += $g['penerimaan'];
+                $grandPotongan += $g['potongan'];
+                $grandBersih += $g['bersih'];
+            }
+
+            $sheet->setCellValue('B' . $row, 'GRAND TOTAL');
+            $sheet->setCellValue('D' . $row, $grandCount);
+            $sheet->setCellValue('E' . $row, $grandPenerimaan);
+            $sheet->setCellValue('F' . $row, $grandPotongan);
+            $sheet->setCellValue('G' . $row, $grandBersih);
             $this->applyCurrency($sheet, 'E' . $row);
-            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('A' . $row . ':E' . $row)->getFont()->setBold(true);
-            $sheet->getStyle('A' . $row . ':E' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::TOTAL_FILL);
-            $this->applyThinBorders($sheet, 'A' . $row . ':E' . $row);
+            $this->applyCurrency($sheet, 'F' . $row);
+            $this->applyCurrency($sheet, 'G' . $row);
+            $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A' . $row . ':G' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $row . ':G' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::TOTAL_FILL);
+            $this->applyThinBorders($sheet, 'A' . $row . ':G' . $row);
         }
 
-        foreach (['A' => 34, 'B' => 18, 'C' => 18, 'D' => 15, 'E' => 20] as $col => $width) {
+        foreach (['A' => 6, 'B' => 32, 'C' => 52, 'D' => 14, 'E' => 18, 'F' => 15, 'G' => 20] as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
         $sheet->freezePane('A' . ($headerRow + 1));
