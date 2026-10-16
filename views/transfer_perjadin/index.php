@@ -4,7 +4,8 @@ $flashType = $_SESSION['flash_type'] ?? 'info';
 unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 
 $configMap = $configMap ?? [];
-$namaSuggestions = $namaSuggestions ?? [];
+$stIdByTransaksi = $stIdByTransaksi ?? [];
+$namaListBySt = $namaListBySt ?? [];
 $seksiList = $seksiList ?? [];
 
 $namaBulanMap = [
@@ -152,9 +153,13 @@ $tahunVal = (string) ($tahun ?? date('Y'));
                                         <td class="text-muted small"><?= htmlspecialchars((string) ($t['kode_seksi'] ?? '-')) ?></td>
                                         <td class="text-end font-monospace">Rp <?= number_format($nilai, 0, ',', '.') ?></td>
                                         <td>
+                                            <?php $stRow = (int) ($stIdByTransaksi[$tid] ?? 0); ?>
                                             <input type="text" class="form-control form-control-sm input-transfer-ke"
-                                                name="transfer_ke[<?= $tid ?>]" list="namaTransferKe"
+                                                name="transfer_ke[<?= $tid ?>]" list="listKe_<?= $stRow ?>"
                                                 value="<?= htmlspecialchars($transferKe) ?>" placeholder="Nama penerima transfer">
+                                            <?php if ($stRow <= 0): ?>
+                                                <small class="text-warning-emphasis" style="font-size:.68rem;"><i class="bi bi-exclamation-triangle me-1"></i>ST transaksi tidak ditemukan</small>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <div class="input-group input-group-sm justify-content-end" style="max-width:150px;margin-left:auto;">
@@ -191,11 +196,14 @@ $tahunVal = (string) ($tahun ?? date('Y'));
     </form>
 </div>
 
-<datalist id="namaTransferKe">
-    <?php foreach ($namaSuggestions as $nama): ?>
-        <option value="<?= htmlspecialchars($nama, ENT_QUOTES) ?>"></option>
-    <?php endforeach; ?>
-</datalist>
+<?php foreach ($namaListBySt as $stId => $daftarNama): ?>
+    <?php if (empty($daftarNama)) continue; ?>
+    <datalist id="listKe_<?= (int) $stId ?>">
+        <?php foreach ($daftarNama as $nama): ?>
+            <option value="<?= htmlspecialchars($nama, ENT_QUOTES) ?>"></option>
+        <?php endforeach; ?>
+    </datalist>
+<?php endforeach; ?>
 
 <script>
 (function () {

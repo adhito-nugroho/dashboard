@@ -66,7 +66,10 @@ class TransferPerjadinController
 
         $transaksiList = $this->model->getTransaksiPerjadin($tahun, $bulan, $seksiId, $q);
         $configMap = $this->model->getConfigMap();
-        $namaSuggestions = $this->model->getTransferKeSuggestions();
+
+        // Saran "Transfer Ke" dibatasi ke pegawai peserta Surat Tugas pada transaksi tsb.
+        [$stIdByTransaksi, $namaListBySt] = $this->buildTransferKeLists($transaksiList);
+
         $seksiList = $this->seksiModel->getAll();
 
         $pageTitle = 'Transfer Perjalanan Dinas';
@@ -107,12 +110,19 @@ class TransferPerjadinController
             ];
         }
 
+        // Transfer Ke hanya boleh pegawai peserta Surat Tugas pada transaksi tsb.
+        $diabaikan = $this->filterInvalidTransferKe($rows);
+
         try {
             $saved = $this->model->saveBulk($rows, $userId);
+            $message = 'Konfigurasi transfer tersimpan (' . $saved . ' transaksi dikonfigurasi).';
+            if ($diabaikan > 0) {
+                $message .= ' ' . $diabaikan . ' nama Transfer Ke diabaikan karena bukan pegawai pada Surat Tugas transaksi tersebut.';
+            }
             $this->redirectWithMessage(
                 base_url('transfer-perjadin'),
-                'success',
-                'Konfigurasi transfer tersimpan (' . $saved . ' transaksi dikonfigurasi).'
+                $diabaikan > 0 ? 'info' : 'success',
+                $message
             );
         } catch (\Throwable $e) {
             error_log('TransferPerjadinController::save error: ' . $e->getMessage());
@@ -193,5 +203,139 @@ class TransferPerjadinController
         $_SESSION['flash_type'] = $type;
         header('Location: ' . $url);
         exit;
+    }
+
+    /**
+     * Bangun peta id-transaksi => id Surat Tugas dan id-ST => daftar nama peserta.
+     *
+     * @return array{0: array<int,int>, 1: array<int, string[]>}
+     */
+    private function buildTransferKeLists(array $transaksiList): array
+    {
+        $stIds = [];
+        $nomors = [];
+        foreach ($transaksiList as $t) {
+            $rid = (int) ($t['surat_tugas_ref_id'] ?? 0);
+            if ($rid > 0) {
+                $stIds[$rid] = true;
+                continue;
+            }
+            $n = trim((string) ($t['nomor_surat_tugas'] ?? ''));
+            if ($n !== '') {
+                $nomors[$n] = true;
+            }
+        }
+
+        $nomorToSt = $this->model->resolveSuratTugasIdsByNomor(array_keys($nomors));
+
+        $stIdByTransaksi = [];
+        foreach ($transaksiList as $t) {
+            $tid = (int) $t['id'];
+            $rid = (int) ($t['surat_tugas_ref_id'] ?? 0);
+            if ($rid <= 0) {
+                $n = trim((string) ($t['nomor_surat_tugas'] ?? ''));
+                $rid = (int) ($nomorToSt[$n] ?? 0);
+            }
+            $stIdByTransaksi[$tid] = $rid;
+            if ($rid > 0) {
+                $stIds[$rid] = true;
+            }
+        }
+
+        $participants = $this->model->getPegawaiNamesBySuratTugas(array_keys($stIds));
+
+        $sets = [];
+        foreach ($participants as $st => $names) {
+            foreach ($names as $n) {
+                $sets[(int) $st][$n] = true;
+            }
+        }
+        // Pastikan penerima transaksi sendiri tetap muncul (mis. ST belum punya peserta).
+        foreach ($transaksiList as $t) {
+            $tid = (int) $t['id'];
+            $st = $stIdByTransaksi[$tid] ?? 0;
+            $nama = trim((string) ($t['nama_penerima'] ?? ''));
+            if ($nama !== '') {
+                $sets[$st][$nama] = true;
+            }
+        }
+
+        $namaListBySt = [];
+        foreach ($sets as $st => $set) {
+            $list = array_keys($set);
+            sort($list, SORT_NATURAL | SORT_FLAG_CASE);
+            $namaListBySt[(int) $st] = $list;
+        }
+
+        return [$stIdByTransaksi, $namaListBySt];
+    }
+
+    /**
+     * Kosongkan transfer_ke yang bukan pegawai pada ST transaksi bersangkutan.
+     * Bila ST tidak punya data peserta, nilai dibiarkan (tidak dapat divalidasi).
+     *
+     * @param array<int, array{transfer_ke:string, potongan:float}> $rows
+     * @return int jumlah yang diabaikan
+     */
+    private function filterInvalidTransferKe(array &$rows): int
+    {
+        if ($rows === []) {
+            return 0;
+        }
+
+        $refs = $this->model->getTransaksiStRefs(array_keys($rows));
+        if ($refs === []) {
+            return 0;
+        }
+
+        $nomors = [];
+        foreach ($refs as $r) {
+            if ($r['ref'] <= 0 && $r['nomor'] !== '') {
+                $nomors[$r['nomor']] = true;
+            }
+        }
+        $nomorToSt = $this->model->resolveSuratTugasIdsByNomor(array_keys($nomors));
+
+        $stByTrx = [];
+        $stIds = [];
+        foreach ($refs as $id => $r) {
+            $st = $r['ref'] > 0 ? $r['ref'] : (int) ($nomorToSt[$r['nomor']] ?? 0);
+            $stByTrx[(int) $id] = $st;
+            if ($st > 0) {
+                $stIds[$st] = true;
+            }
+        }
+        $participants = $this->model->getPegawaiNamesBySuratTugas(array_keys($stIds));
+
+        $cleared = 0;
+        foreach ($rows as $id => $cfg) {
+            $ke = trim((string) $cfg['transfer_ke']);
+            if ($ke === '') {
+                continue;
+            }
+            $names = $participants[$stByTrx[(int) $id] ?? 0] ?? [];
+            if ($names === []) {
+                continue;
+            }
+            $allowed = [];
+            foreach ($names as $n) {
+                $allowed[$this->normNama($n)] = true;
+            }
+            if (!isset($allowed[$this->normNama($ke)])) {
+                $rows[$id]['transfer_ke'] = '';
+                $cleared++;
+            }
+        }
+
+        return $cleared;
+    }
+
+    private function normNama(string $s): string
+    {
+        $s = strtoupper(trim($s));
+        $s = preg_replace('/\s+/', ' ', $s) ?? $s;
+        $s = preg_replace('/\s*,\s*/', ',', $s) ?? $s;
+        $s = str_replace('.', '', $s);
+        return trim($s, " ,");
     }
 }

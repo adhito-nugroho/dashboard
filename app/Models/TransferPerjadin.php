@@ -158,46 +158,126 @@ class TransferPerjadin
     }
 
     /**
-     * Daftar nama untuk saran "Transfer Ke": gabungan pegawai (db_surat_tugas)
-     * dan nama_penerima yang pernah dipakai pada transaksi perjalanan dinas.
+     * Ambil referensi Surat Tugas dari sekumpulan id transaksi.
      *
-     * @return string[]
+     * @param int[] $ids
+     * @return array<int, array{ref:int, nomor:string}>
      */
-    public function getTransferKeSuggestions(): array
+    public function getTransaksiStRefs(array $ids): array
     {
-        $names = [];
-
-        $rows = $this->db->query("
-            SELECT DISTINCT nama_penerima
-            FROM transaksi
-            WHERE jenis_transaksi = 'perjalanan_dinas'
-              AND nama_penerima IS NOT NULL AND nama_penerima <> ''
-        ")->fetchAll(\PDO::FETCH_COLUMN);
-        foreach ($rows as $n) {
-            $names[trim((string) $n)] = true;
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn(int $i): bool => $i > 0)));
+        if ($ids === []) {
+            return [];
         }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare("
+            SELECT id, surat_tugas_ref_id, nomor_surat_tugas
+            FROM transaksi WHERE id IN ($ph)
+        ");
+        $stmt->execute($ids);
 
+        $map = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+            $map[(int) $r['id']] = [
+                'ref' => (int) $r['surat_tugas_ref_id'],
+                'nomor' => trim((string) $r['nomor_surat_tugas']),
+            ];
+        }
+        return $map;
+    }
+
+    /**
+     * Cari id Surat Tugas dari nomor suratnya (cocok persis).
+     *
+     * @param string[] $nomors
+     * @return array<string, int> nomor => id
+     */
+    public function resolveSuratTugasIdsByNomor(array $nomors): array
+    {
+        $nomors = array_values(array_unique(array_filter(array_map('trim', $nomors), static fn(string $n): bool => $n !== '')));
+        if ($nomors === []) {
+            return [];
+        }
+        $pdo = $this->suratTugasConnection();
+        if ($pdo === null) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($nomors), '?'));
+        try {
+            $stmt = $pdo->prepare("SELECT id, nomor_surat FROM surat_tugas WHERE nomor_surat IN ($ph)");
+            $stmt->execute($nomors);
+            $map = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+                $map[(string) $r['nomor_surat']] = (int) $r['id'];
+            }
+            return $map;
+        } catch (\Throwable $e) {
+            error_log('TransferPerjadin::resolveSuratTugasIdsByNomor error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Daftar nama pegawai peserta untuk sekumpulan id Surat Tugas.
+     *
+     * @param int[] $stIds
+     * @return array<int, string[]> st_id => daftar nama
+     */
+    public function getPegawaiNamesBySuratTugas(array $stIds): array
+    {
+        $stIds = array_values(array_unique(array_filter(array_map('intval', $stIds), static fn(int $i): bool => $i > 0)));
+        if ($stIds === []) {
+            return [];
+        }
+        $pdo = $this->suratTugasConnection();
+        if ($pdo === null) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($stIds), '?'));
+        try {
+            $stmt = $pdo->prepare("
+                SELECT pt.id_surat_tugas AS st_id, COALESCE(p.nama, pt.nip) AS nama
+                FROM pegawai_tugas pt
+                LEFT JOIN pegawai p ON (
+                    p.nip = pt.nip
+                    OR REPLACE(p.nip, ' ', '') = REPLACE(pt.nip, ' ', '')
+                )
+                WHERE pt.id_surat_tugas IN ($ph)
+                ORDER BY pt.id_surat_tugas, pt.urutan
+            ");
+            $stmt->execute($stIds);
+
+            $sets = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+                $nama = trim((string) $r['nama']);
+                if ($nama === '') {
+                    continue;
+                }
+                $sets[(int) $r['st_id']][$nama] = true;
+            }
+
+            $out = [];
+            foreach ($sets as $st => $set) {
+                $list = array_keys($set);
+                sort($list, SORT_NATURAL | SORT_FLAG_CASE);
+                $out[(int) $st] = $list;
+            }
+            return $out;
+        } catch (\Throwable $e) {
+            error_log('TransferPerjadin::getPegawaiNamesBySuratTugas error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function suratTugasConnection(): ?\PDO
+    {
         $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
         if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
             require_once $cfg;
         }
-        if (class_exists('DatabaseSuratTugas')) {
-            $pdo = \DatabaseSuratTugas::getConnection();
-            if ($pdo !== null) {
-                try {
-                    $rows = $pdo->query("SELECT DISTINCT nama FROM pegawai WHERE nama IS NOT NULL AND nama <> ''")
-                        ->fetchAll(\PDO::FETCH_COLUMN);
-                    foreach ($rows as $n) {
-                        $names[trim((string) $n)] = true;
-                    }
-                } catch (\Throwable $e) {
-                    // abaikan; saran saja
-                }
-            }
+        if (!class_exists('DatabaseSuratTugas')) {
+            return null;
         }
-
-        $out = array_keys($names);
-        sort($out, SORT_NATURAL | SORT_FLAG_CASE);
-        return $out;
+        return \DatabaseSuratTugas::getConnection();
     }
 }
