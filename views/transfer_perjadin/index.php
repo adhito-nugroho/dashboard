@@ -7,12 +7,8 @@ $configMap = $configMap ?? [];
 $stIdByTransaksi = $stIdByTransaksi ?? [];
 $namaListBySt = $namaListBySt ?? [];
 $seksiList = $seksiList ?? [];
-
-$namaBulanMap = [
-    1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-    5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-    9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
-];
+$inputDari = $inputDari ?? null;
+$inputSampai = $inputSampai ?? null;
 
 $totalNilai = 0.0;
 $totalPotongan = 0.0;
@@ -115,13 +111,12 @@ sort($daftarSeksiCepat, SORT_NATURAL | SORT_FLAG_CASE);
                 <input type="number" name="tahun" class="form-control form-control-sm" style="width:110px;" value="<?= htmlspecialchars($tahunVal) ?>">
             </div>
             <div>
-                <label class="form-label small text-muted mb-1">Bulan</label>
-                <select name="bulan" class="form-select form-select-sm" style="width:150px;">
-                    <option value="">Semua</option>
-                    <?php foreach ($namaBulanMap as $num => $nm): ?>
-                        <option value="<?= $num ?>" <?= ((int) ($bulan ?? 0) === $num) ? 'selected' : '' ?>><?= $nm ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <label class="form-label small text-muted mb-1">Diinput Dari</label>
+                <input type="date" name="input_dari" class="form-control form-control-sm" style="width:150px;" value="<?= htmlspecialchars((string) ($inputDari ?? '')) ?>">
+            </div>
+            <div>
+                <label class="form-label small text-muted mb-1">Diinput Sampai</label>
+                <input type="date" name="input_sampai" class="form-control form-control-sm" style="width:150px;" value="<?= htmlspecialchars((string) ($inputSampai ?? '')) ?>">
             </div>
             <div>
                 <label class="form-label small text-muted mb-1">Seksi</label>

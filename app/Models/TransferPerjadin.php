@@ -115,7 +115,7 @@ class TransferPerjadin
      *
      * @return array<int, array>
      */
-    public function getTransaksiPerjadin(?int $tahun = null, ?int $bulan = null, ?int $seksiId = null, string $q = ''): array
+    public function getTransaksiPerjadin(?int $tahun = null, ?string $inputDari = null, ?string $inputSampai = null, ?int $seksiId = null, string $q = ''): array
     {
         $conditions = ["t.jenis_transaksi = 'perjalanan_dinas'"];
         $params = [];
@@ -124,9 +124,13 @@ class TransferPerjadin
             $conditions[] = 'YEAR(t.tanggal) = :tahun';
             $params[':tahun'] = $tahun;
         }
-        if ($bulan !== null) {
-            $conditions[] = 'MONTH(t.tanggal) = :bulan';
-            $params[':bulan'] = $bulan;
+        if ($inputDari !== null) {
+            $conditions[] = 'DATE(t.created_at) >= :input_dari';
+            $params[':input_dari'] = $inputDari;
+        }
+        if ($inputSampai !== null) {
+            $conditions[] = 'DATE(t.created_at) <= :input_sampai';
+            $params[':input_sampai'] = $inputSampai;
         }
         if ($seksiId !== null) {
             $conditions[] = 't.seksi_id = :seksi_id';

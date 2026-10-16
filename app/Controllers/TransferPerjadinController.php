@@ -60,11 +60,12 @@ class TransferPerjadinController
         $this->requireAdmin();
 
         $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y');
-        $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
+        $inputDari = isset($_GET['input_dari']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_dari'])) ? trim((string) $_GET['input_dari']) : null;
+        $inputSampai = isset($_GET['input_sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_sampai'])) ? trim((string) $_GET['input_sampai']) : null;
         $seksiId = isset($_GET['seksi_id']) && $_GET['seksi_id'] !== '' ? (int) $_GET['seksi_id'] : null;
         $q = trim((string) ($_GET['q'] ?? ''));
 
-        $transaksiList = $this->model->getTransaksiPerjadin($tahun, $bulan, $seksiId, $q);
+        $transaksiList = $this->model->getTransaksiPerjadin($tahun, $inputDari, $inputSampai, $seksiId, $q);
         $configMap = $this->model->getConfigMap();
 
         // Saran "Transfer Ke" dibatasi ke pegawai peserta Surat Tugas pada transaksi tsb.
