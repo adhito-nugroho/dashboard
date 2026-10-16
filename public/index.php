@@ -73,6 +73,8 @@ use App\Controllers\KuitansiController;
 use App\Controllers\KasBankController;
 use App\Models\PengajuanGu;
 use App\Controllers\PengajuanGuController;
+use App\Models\TransferPerjadin;
+use App\Controllers\TransferPerjadinController;
 
 try {
     // Get database connection
@@ -115,6 +117,8 @@ try {
     $kasBankController = new KasBankController($kasBankModel, $transaksiModel);
     $pengajuanGuModel = new PengajuanGu($db);
     $pengajuanGuController = new PengajuanGuController($pengajuanGuModel, $kasBankModel);
+    $transferPerjadinModel = new TransferPerjadin($db);
+    $transferPerjadinController = new TransferPerjadinController($transferPerjadinModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -400,6 +404,12 @@ try {
         ['POST', '#^/pengajuan-gu/cairkan/(\d+)$#', fn($m) => $pengajuanGuController->cairkan((int) $m[1])],
         ['POST', '#^/pengajuan-gu/batalkan/(\d+)$#', fn($m) => $pengajuanGuController->batalkan((int) $m[1])],
         ['POST', '#^/pengajuan-gu/lepas/(\d+)/(\d+)$#', fn($m) => $pengajuanGuController->lepas((int) $m[1], (int) $m[2])],
+
+        // Transfer Perjalanan Dinas (admin only)
+        ['ANY', '/transfer-perjadin', fn($m) => $transferPerjadinController->index()],
+        ['ANY', '#^/transfer-perjadin/atur/(\d+)$#', fn($m) => $transferPerjadinController->atur((int) $m[1])],
+        ['POST', '/transfer-perjadin/save', fn($m) => $transferPerjadinController->save()],
+        ['GET', '/transfer-perjadin/export', fn($m) => $transferPerjadinController->export()],
     ];
 
     // ---- Dispatcher: first match wins ----

@@ -115,6 +115,13 @@
                                     <span>Pengajuan GU (SPJ)</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'transfer_perjadin') ? 'active' : '' ?>"
+                                    href="<?= base_url('transfer-perjadin') ?>">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span>Transfer Perjalanan Dinas</span>
+                                </a>
+                            </li>
 
                             <li class="nav-divider"></li>
                             <li class="nav-group-label">Master Data</li>
