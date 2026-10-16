@@ -1217,6 +1217,18 @@ class TransaksiController
         $filterStatus      = isset($_GET['status'])          && $_GET['status']          !== '' ? $_GET['status']               : null;
         $filterSeksi       = isset($_GET['seksi_id'])        && $_GET['seksi_id']        !== '' ? (int) $_GET['seksi_id']        : null;
 
+        // Filter tanggal input (created_at) — mengikuti filter "Diinput" di halaman Transaksi
+        $filterInputDari   = isset($_GET['input_dari'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_dari']))   && strtotime(trim((string) $_GET['input_dari']))   ? trim((string) $_GET['input_dari'])   : null;
+        $filterInputSampai = isset($_GET['input_sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['input_sampai'])) && strtotime(trim((string) $_GET['input_sampai'])) ? trim((string) $_GET['input_sampai']) : null;
+        if ($filterInputDari !== null && $filterInputSampai !== null && $filterInputDari > $filterInputSampai) {
+            [$filterInputDari, $filterInputSampai] = [$filterInputSampai, $filterInputDari];
+        }
+        // Pencarian kata kunci (uraian / nomor bukti / penerima)
+        $filterQ = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+        if ($filterQ === '') {
+            $filterQ = null;
+        }
+
         $db = \Database::getConnection();
 
         // ── Bangun query dinamis ───────────────────────────────────────────
@@ -1260,6 +1272,26 @@ class TransaksiController
             $params[':seksi_id'] = $filterSeksi;
         }
 
+        // Filter tanggal input ke sistem (created_at; fallback tanggal transaksi)
+        $tglInput = 'DATE(COALESCE(t.created_at, t.tanggal))';
+        if ($filterInputDari !== null) {
+            $conditions[] = "{$tglInput} >= :input_dari";
+            $params[':input_dari'] = $filterInputDari;
+        }
+        if ($filterInputSampai !== null) {
+            $conditions[] = "{$tglInput} <= :input_sampai";
+            $params[':input_sampai'] = $filterInputSampai;
+        }
+
+        // Pencarian kata kunci (uraian / nomor bukti / penerima)
+        if ($filterQ !== null) {
+            $conditions[] = '(t.uraian LIKE :q_uraian OR t.nomor_bukti LIKE :q_bukti OR t.nama_penerima LIKE :q_penerima)';
+            $kw = '%' . $filterQ . '%';
+            $params[':q_uraian'] = $kw;
+            $params[':q_bukti'] = $kw;
+            $params[':q_penerima'] = $kw;
+        }
+
         $where = 'WHERE ' . implode(' AND ', $conditions);
 
         $stmt = $db->prepare("
@@ -1289,7 +1321,7 @@ class TransaksiController
 
         // Ambil mutasi penerimaan kas/bank jika tidak memfilter sub_kegiatan/kegiatan spesifik
         $kasRows = [];
-        if ($filterSubKegiatan === null && $filterKegiatan === null && $filterSeksi === null && $filterStatus !== 'ditolak') {
+        if ($filterSubKegiatan === null && $filterKegiatan === null && $filterSeksi === null && $filterInputDari === null && $filterInputSampai === null && $filterQ === null && $filterStatus !== 'ditolak') {
             if ($modePeriode) {
                 $kasConditions = ["(status = 'cair' OR status IS NULL)"];
                 $kasParams = [];

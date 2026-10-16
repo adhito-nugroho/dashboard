@@ -1540,6 +1540,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const statusEl = document.querySelector('.ux-status-pill.active');
             const status = statusEl ? (statusEl.dataset.status || '') : '';
             if (status) params.set('status', status);
+            // Filter "Diinput" (created_at) & pencarian kata kunci — ikut sesuai filter aktif
+            const inputDariEl = document.getElementById('filter-input-dari');
+            const inputSampaiEl = document.getElementById('filter-input-sampai');
+            if (inputDariEl && inputDariEl.value) params.set('input_dari', inputDariEl.value);
+            if (inputSampaiEl && inputSampaiEl.value) params.set('input_sampai', inputSampaiEl.value);
+            const qEl = document.getElementById('filter-q');
+            if (qEl && qEl.value.trim() !== '') params.set('q', qEl.value.trim());
             window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
         });
     }
