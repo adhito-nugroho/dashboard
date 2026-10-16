@@ -11,101 +11,84 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
- * Service export Excel "Transfer Perjalanan Dinas".
+ * Service export Excel "Transfer Perjalanan Dinas" — berbasis transaksi.
  *
- * Menghasilkan satu file berisi beberapa Surat Tugas sekaligus:
- *   - Sheet "Rekap"  : pivot dikelompokkan per penerima transfer (Transfer Ke),
- *                      dengan subtotal per kelompok + grand total.
- *                      Kolom: Transfer Ke | Nama Peserta | Penerimaan |
- *                             Potongan | Penerimaan Bersih.
- *   - Sheet "Detail" : rincian per transaksi (uraian) yang menyusun angka rekap.
+ * Input: daftar baris transaksi perjalanan dinas yang sudah dikonfigurasi
+ * (uraian, nama, nilai, transfer_ke, potongan).
+ *
+ * Output satu file berisi:
+ *   - Sheet "Detail" : rincian per transaksi (sesuai data mentah yang dipivot).
  *                      Kolom: uraian | nama | penerimaan | transfer ke |
  *                             potongan | penerimaan bersih.
+ *   - Sheet "Rekap"  : pivot ringkas, satu baris per Transfer Ke.
+ *                      Kolom: Transfer Ke | Jumlah Transaksi | Penerimaan |
+ *                             Potongan | Penerimaan Bersih + Grand Total.
  *
- * Penerimaan (gross) = jumlah transaksi perjalanan dinas pegawai. Potongan =
- * input manual admin. Penerimaan bersih = penerimaan - potongan.
+ * Penerimaan (gross) = transaksi.nilai. Penerimaan bersih = nilai - potongan.
  */
 class TransferPerjadinExportService
 {
     private const HEADER_FILL = '1B4332';
-    private const GROUP_FILL  = 'D8F3DC';
-    private const SUBTOTAL_FILL = 'EDF6F0';
     private const TOTAL_FILL  = 'B7E4C7';
-
-    // ──────────────────────────────────────────────────────────
-    // Pencocokan pegawai <-> transaksi
-    // ──────────────────────────────────────────────────────────
-
-    public static function normNip(?string $s): string
-    {
-        return preg_replace('/[^0-9]/', '', (string) $s) ?? '';
-    }
+    private const CURRENCY    = '#,##0';
 
     public static function normNama(?string $s): string
     {
         $s = strtoupper(trim((string) $s));
         $s = preg_replace('/\s+/', ' ', $s) ?? $s;
-        $s = preg_replace('/[^A-Z0-9 ]/', '', $s) ?? $s;
         return trim($s);
     }
 
     /**
-     * Ambil baris transaksi yang cocok dengan satu pegawai:
-     * NIP ternormalisasi sama, atau nama sama, atau salah satu mengandung
-     * yang lain (min. 5 karakter, untuk toleransi gelar/singkatan).
-     *
-     * @param array<int, array> $trxRows
-     * @return array<int, array>
+     * @param array<int, array{uraian?:string, nama?:string, nilai?:float, transfer_ke?:string, potongan?:float}> $rows
      */
-    public static function matchLinesForPegawai(array $trxRows, string $nip, string $nama): array
-    {
-        $nn = self::normNip($nip);
-        $nm = self::normNama($nama);
-        $out = [];
-
-        foreach ($trxRows as $t) {
-            $tn = self::normNip($t['pegawai_nip'] ?? '');
-            if ($nn !== '' && $tn !== '' && $nn === $tn) {
-                $out[] = $t;
-                continue;
-            }
-
-            $tm = self::normNama($t['nama_penerima'] ?? '');
-            if ($nm === '' || $tm === '') {
-                continue;
-            }
-            if ($nm === $tm) {
-                $out[] = $t;
-                continue;
-            }
-            if (mb_strlen($nm) >= 5 && (str_contains($tm, $nm) || str_contains($nm, $tm))) {
-                $out[] = $t;
-            }
-        }
-
-        return $out;
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // SPREADSHEET
-    // ──────────────────────────────────────────────────────────
-
-    /**
-     * @param array<int, array{st:array, pegawai:array}> $stRows
-     */
-    public function buildSpreadsheet(array $stRows): Spreadsheet
+    public function buildSpreadsheet(array $rows): Spreadsheet
     {
         $spreadsheet = new Spreadsheet();
-
-        $this->buildRekapSheet($spreadsheet->getActiveSheet(), $stRows);
-        $detail = $spreadsheet->createSheet();
-        $this->buildDetailSheet($detail, $stRows);
-
+        $this->buildRekapSheet($spreadsheet->getActiveSheet(), $rows);
+        $this->buildDetailSheet($spreadsheet->createSheet(), $rows);
         $spreadsheet->setActiveSheetIndex(0);
         return $spreadsheet;
     }
 
-    private function buildRekapSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $stRows): void
+    /**
+     * Pivot: kelompokkan baris per Transfer Ke.
+     *
+     * @return array<int, array{label:string, count:int, penerimaan:float, potongan:float, bersih:float}>
+     */
+    public function pivotByTransferKe(array $rows): array
+    {
+        $groups = [];
+        foreach ($rows as $r) {
+            $label = trim((string) ($r['transfer_ke'] ?? ''));
+            if ($label === '') {
+                $label = '(Belum ditentukan)';
+            }
+            $key = self::normNama($label);
+            if (!isset($groups[$key])) {
+                $groups[$key] = ['label' => $label, 'count' => 0, 'penerimaan' => 0.0, 'potongan' => 0.0, 'bersih' => 0.0];
+            }
+            $nilai = (float) ($r['nilai'] ?? 0);
+            $potongan = (float) ($r['potongan'] ?? 0);
+            $groups[$key]['count']++;
+            $groups[$key]['penerimaan'] += $nilai;
+            $groups[$key]['potongan'] += $potongan;
+            $groups[$key]['bersih'] += ($nilai - $potongan);
+        }
+
+        uksort($groups, function (string $a, string $b): int {
+            $aEmpty = $a === self::normNama('(Belum ditentukan)');
+            $bEmpty = $b === self::normNama('(Belum ditentukan)');
+            if ($aEmpty !== $bEmpty) {
+                return $aEmpty ? 1 : -1;
+            }
+            return strcmp($a, $b);
+        });
+
+        return array_values($groups);
+    }
+
+    private function buildRekapSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $rows): void
     {
         $sheet->setTitle('Rekap');
 
@@ -127,91 +110,60 @@ class TransferPerjadinExportService
         $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $headerRow = 5;
-        $headers = ['Transfer Ke', 'Nama Peserta', 'Penerimaan', 'Potongan', 'Penerimaan Bersih'];
-        $this->writeHeader($sheet, $headerRow, $headers);
-
-        $groups = $this->groupByTransferKe($stRows);
+        $this->writeHeader($sheet, $headerRow, ['Transfer Ke', 'Jumlah Transaksi', 'Penerimaan', 'Potongan', 'Penerimaan Bersih']);
 
         $row = $headerRow + 1;
+        $grandCount = 0;
         $grandPenerimaan = 0.0;
         $grandPotongan = 0.0;
         $grandBersih = 0.0;
 
-        foreach ($groups as $group) {
-            $groupStart = $row;
-            $gPenerimaan = 0.0;
-            $gPotongan = 0.0;
-            $gBersih = 0.0;
-            $firstInGroup = true;
-
-            foreach ($group['rows'] as $p) {
-                $sheet->setCellValue('A' . $row, $firstInGroup ? $group['label'] : '');
-                $sheet->setCellValue('B' . $row, (string) $p['nama']);
-                $sheet->setCellValue('C' . $row, (float) $p['penerimaan']);
-                $sheet->setCellValue('D' . $row, (float) $p['potongan']);
-                $sheet->setCellValue('E' . $row, (float) $p['bersih']);
-                $this->applyCurrency($sheet, 'C' . $row);
-                $this->applyCurrency($sheet, 'D' . $row);
-                $this->applyCurrency($sheet, 'E' . $row);
-                if ($firstInGroup) {
-                    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-                    $sheet->getStyle('A' . $row)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
-                }
-                $this->applyThinBorders($sheet, 'A' . $row . ':E' . $row);
-
-                $gPenerimaan += (float) $p['penerimaan'];
-                $gPotongan += (float) $p['potongan'];
-                $gBersih += (float) $p['bersih'];
-                $firstInGroup = false;
-                $row++;
-            }
-
-            // Subtotal per kelompok
-            $sheet->setCellValue('A' . $row, 'Subtotal');
-            $sheet->setCellValue('B' . $row, $group['label']);
-            $sheet->setCellValue('C' . $row, $gPenerimaan);
-            $sheet->setCellValue('D' . $row, $gPotongan);
-            $sheet->setCellValue('E' . $row, $gBersih);
+        foreach ($this->pivotByTransferKe($rows) as $g) {
+            $sheet->setCellValue('A' . $row, $g['label']);
+            $sheet->setCellValue('B' . $row, $g['count']);
+            $sheet->setCellValue('C' . $row, $g['penerimaan']);
+            $sheet->setCellValue('D' . $row, $g['potongan']);
+            $sheet->setCellValue('E' . $row, $g['bersih']);
             $this->applyCurrency($sheet, 'C' . $row);
             $this->applyCurrency($sheet, 'D' . $row);
             $this->applyCurrency($sheet, 'E' . $row);
-            $sheet->getStyle('A' . $row . ':E' . $row)->getFont()->setBold(true)->setItalic(true);
-            $sheet->getStyle('A' . $row . ':E' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::SUBTOTAL_FILL);
+            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $this->applyThinBorders($sheet, 'A' . $row . ':E' . $row);
 
-            $grandPenerimaan += $gPenerimaan;
-            $grandPotongan += $gPotongan;
-            $grandBersih += $gBersih;
+            $grandCount += $g['count'];
+            $grandPenerimaan += $g['penerimaan'];
+            $grandPotongan += $g['potongan'];
+            $grandBersih += $g['bersih'];
             $row++;
         }
 
-        if ($groups === []) {
+        if ($rows === []) {
             $sheet->mergeCells('A' . $row . ':E' . $row);
-            $sheet->setCellValue('A' . $row, 'Belum ada Surat Tugas yang dikonfigurasi transfernya.');
+            $sheet->setCellValue('A' . $row, 'Belum ada transaksi perjalanan dinas yang dikonfigurasi transfernya.');
             $sheet->getStyle('A' . $row)->getFont()->setItalic(true)->getColor()->setRGB('64748B');
             $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $row++;
         } else {
-            $sheet->mergeCells('A' . $row . ':B' . $row);
             $sheet->setCellValue('A' . $row, 'GRAND TOTAL');
+            $sheet->setCellValue('B' . $row, $grandCount);
             $sheet->setCellValue('C' . $row, $grandPenerimaan);
             $sheet->setCellValue('D' . $row, $grandPotongan);
             $sheet->setCellValue('E' . $row, $grandBersih);
             $this->applyCurrency($sheet, 'C' . $row);
             $this->applyCurrency($sheet, 'D' . $row);
             $this->applyCurrency($sheet, 'E' . $row);
+            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('A' . $row . ':E' . $row)->getFont()->setBold(true);
             $sheet->getStyle('A' . $row . ':E' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::TOTAL_FILL);
             $this->applyThinBorders($sheet, 'A' . $row . ':E' . $row);
         }
 
-        foreach (['A' => 30, 'B' => 34, 'C' => 16, 'D' => 14, 'E' => 18] as $col => $width) {
+        foreach (['A' => 34, 'B' => 18, 'C' => 18, 'D' => 15, 'E' => 20] as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
         $sheet->freezePane('A' . ($headerRow + 1));
     }
 
-    private function buildDetailSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $stRows): void
+    private function buildDetailSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $rows): void
     {
         $sheet->setTitle('Detail');
 
@@ -223,124 +175,43 @@ class TransferPerjadinExportService
         $sheet->getRowDimension(1)->setRowHeight(24);
 
         $sheet->mergeCells('A2:F2');
-        $sheet->setCellValue('A2', 'Rincian uraian transaksi perjalanan dinas penyusun angka rekap');
+        $sheet->setCellValue('A2', 'Rincian transaksi perjalanan dinas penyusun angka rekap');
         $sheet->getStyle('A2')->getFont()->setSize(10)->getColor()->setRGB('64748B');
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $headerRow = 4;
-        $headers = ['Uraian', 'Nama', 'Penerimaan', 'Transfer Ke', 'Potongan', 'Penerimaan Bersih'];
-        $this->writeHeader($sheet, $headerRow, $headers);
+        $this->writeHeader($sheet, $headerRow, ['Uraian', 'Nama', 'Penerimaan', 'Transfer Ke', 'Potongan', 'Penerimaan Bersih']);
 
         $row = $headerRow + 1;
-
-        foreach ($stRows as $s) {
-            $keLabel = '-';
-            foreach ($s['pegawai'] as $p) {
-                if (!empty($p['is_transfer_ke'])) {
-                    $keLabel = (string) $p['nama'];
-                    break;
-                }
-            }
-
-            foreach ($s['pegawai'] as $p) {
-                $lines = $p['lines'] ?? [];
-                $nama = (string) $p['nama'];
-
-                if ($lines === []) {
-                    $sheet->setCellValue('A' . $row, '(belum ada transaksi perjalanan dinas)');
-                    $sheet->setCellValue('B' . $row, $nama);
-                    $sheet->setCellValue('C' . $row, 0);
-                    $sheet->setCellValue('D' . $row, $keLabel);
-                    $sheet->setCellValue('E' . $row, (float) $p['potongan']);
-                    $sheet->setCellValue('F' . $row, (float) $p['bersih']);
-                    $this->styleDetailRow($sheet, $row);
-                    $row++;
-                    continue;
-                }
-
-                $first = true;
-                foreach ($lines as $l) {
-                    $sheet->setCellValue('A' . $row, (string) ($l['uraian'] ?? ''));
-                    $sheet->setCellValue('B' . $row, $nama);
-                    $sheet->setCellValue('C' . $row, (float) ($l['nilai'] ?? 0));
-                    $sheet->setCellValue('D' . $row, $first ? $keLabel : '');
-                    $sheet->setCellValue('E' . $row, $first ? (float) $p['potongan'] : 0);
-                    $sheet->setCellValue('F' . $row, $first ? (float) $p['bersih'] : '');
-                    $this->styleDetailRow($sheet, $row);
-                    $first = false;
-                    $row++;
-                }
-            }
+        foreach ($rows as $r) {
+            $nilai = (float) ($r['nilai'] ?? 0);
+            $potongan = (float) ($r['potongan'] ?? 0);
+            $ke = trim((string) ($r['transfer_ke'] ?? ''));
+            $sheet->setCellValue('A' . $row, (string) ($r['uraian'] ?? ''));
+            $sheet->setCellValue('B' . $row, (string) ($r['nama'] ?? ''));
+            $sheet->setCellValue('C' . $row, $nilai);
+            $sheet->setCellValue('D' . $row, $ke !== '' ? $ke : '-');
+            $sheet->setCellValue('E' . $row, $potongan);
+            $sheet->setCellValue('F' . $row, $nilai - $potongan);
+            $this->applyCurrency($sheet, 'C' . $row);
+            $this->applyCurrency($sheet, 'E' . $row);
+            $this->applyCurrency($sheet, 'F' . $row);
+            $sheet->getStyle('A' . $row)->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+            $this->applyThinBorders($sheet, 'A' . $row . ':F' . $row);
+            $row++;
         }
 
-        if ($row === $headerRow + 1) {
+        if ($rows === []) {
             $sheet->mergeCells('A' . $row . ':F' . $row);
             $sheet->setCellValue('A' . $row, 'Belum ada data.');
             $sheet->getStyle('A' . $row)->getFont()->setItalic(true)->getColor()->setRGB('64748B');
             $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
 
-        foreach (['A' => 52, 'B' => 28, 'C' => 16, 'D' => 30, 'E' => 14, 'F' => 18] as $col => $width) {
+        foreach (['A' => 55, 'B' => 28, 'C' => 16, 'D' => 30, 'E' => 14, 'F' => 18] as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
         $sheet->freezePane('A' . ($headerRow + 1));
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // HELPERS
-    // ──────────────────────────────────────────────────────────
-
-    /**
-     * Kelompokkan baris pegawai per penerima transfer (Transfer Ke).
-     * Surat Tugas tanpa penerima transfer masuk kelompok "(Belum ditentukan)".
-     *
-     * @return array<int, array{label:string, rows:array}>
-     */
-    private function groupByTransferKe(array $stRows): array
-    {
-        $groups = [];
-
-        foreach ($stRows as $s) {
-            $keLabel = '(Belum ditentukan)';
-            foreach ($s['pegawai'] as $p) {
-                if (!empty($p['is_transfer_ke'])) {
-                    $keLabel = (string) $p['nama'];
-                    break;
-                }
-            }
-            $key = self::normNama($keLabel);
-            if (!isset($groups[$key])) {
-                $groups[$key] = ['label' => $keLabel, 'rows' => []];
-            }
-            foreach ($s['pegawai'] as $p) {
-                $groups[$key]['rows'][] = $p;
-            }
-        }
-
-        // Urutkan: kelompok "(Belum ditentukan)" paling bawah, sisanya alfabetis.
-        uksort($groups, function (string $a, string $b): int {
-            $aEmpty = $a === self::normNama('(Belum ditentukan)');
-            $bEmpty = $b === self::normNama('(Belum ditentukan)');
-            if ($aEmpty !== $bEmpty) {
-                return $aEmpty ? 1 : -1;
-            }
-            return strcmp($a, $b);
-        });
-
-        // Dalam kelompok: penerima transfer dulu, lalu nama.
-        foreach ($groups as &$g) {
-            usort($g['rows'], function (array $x, array $y): int {
-                $xk = !empty($x['is_transfer_ke']) ? 0 : 1;
-                $yk = !empty($y['is_transfer_ke']) ? 0 : 1;
-                if ($xk !== $yk) {
-                    return $xk <=> $yk;
-                }
-                return strcmp((string) $x['nama'], (string) $y['nama']);
-            });
-        }
-        unset($g);
-
-        return array_values($groups);
     }
 
     private function writeHeader(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $headerRow, array $headers): void
@@ -359,18 +230,9 @@ class TransferPerjadinExportService
         $this->applyThinBorders($sheet, 'A' . $headerRow . ':' . $lastCol . $headerRow);
     }
 
-    private function styleDetailRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row): void
-    {
-        $this->applyCurrency($sheet, 'C' . $row);
-        $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('A' . $row)->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
-        $this->applyThinBorders($sheet, 'A' . $row . ':F' . $row);
-    }
-
     private function applyCurrency(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, string $cell): void
     {
-        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle($cell)->getNumberFormat()->setFormatCode(self::CURRENCY);
         $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }
 
@@ -380,14 +242,10 @@ class TransferPerjadinExportService
             ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D1D5DB');
     }
 
-    // ──────────────────────────────────────────────────────────
-    // OUTPUT
-    // ──────────────────────────────────────────────────────────
-
     /**
-     * @param array<int, array{st:array, pegawai:array}> $stRows
+     * @param array<int, array> $rows
      */
-    public function download(array $stRows, ?string $filename = null): void
+    public function download(array $rows, ?string $filename = null): void
     {
         $filename = $filename ?: ('Transfer_Perjalanan_Dinas_' . date('Ymd_His') . '.xlsx');
 
@@ -396,7 +254,7 @@ class TransferPerjadinExportService
         header('Cache-Control: max-age=0');
         header('Pragma: public');
 
-        $writer = new Xlsx($this->buildSpreadsheet($stRows));
+        $writer = new Xlsx($this->buildSpreadsheet($rows));
         $writer->save('php://output');
         exit;
     }

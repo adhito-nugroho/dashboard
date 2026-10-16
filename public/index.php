@@ -118,7 +118,7 @@ try {
     $pengajuanGuModel = new PengajuanGu($db);
     $pengajuanGuController = new PengajuanGuController($pengajuanGuModel, $kasBankModel);
     $transferPerjadinModel = new TransferPerjadin($db);
-    $transferPerjadinController = new TransferPerjadinController($transferPerjadinModel);
+    $transferPerjadinController = new TransferPerjadinController($transferPerjadinModel, $seksiModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -405,9 +405,8 @@ try {
         ['POST', '#^/pengajuan-gu/batalkan/(\d+)$#', fn($m) => $pengajuanGuController->batalkan((int) $m[1])],
         ['POST', '#^/pengajuan-gu/lepas/(\d+)/(\d+)$#', fn($m) => $pengajuanGuController->lepas((int) $m[1], (int) $m[2])],
 
-        // Transfer Perjalanan Dinas (admin only)
+        // Transfer Perjalanan Dinas (admin only) — berbasis transaksi
         ['ANY', '/transfer-perjadin', fn($m) => $transferPerjadinController->index()],
-        ['ANY', '#^/transfer-perjadin/atur/(\d+)$#', fn($m) => $transferPerjadinController->atur((int) $m[1])],
         ['POST', '/transfer-perjadin/save', fn($m) => $transferPerjadinController->save()],
         ['GET', '/transfer-perjadin/export', fn($m) => $transferPerjadinController->export()],
     ];
