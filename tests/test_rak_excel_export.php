@@ -53,9 +53,9 @@ assert($spreadsheet instanceof \PhpOffice\PhpSpreadsheet\Spreadsheet, 'Output bu
 
 $sheet = $spreadsheet->getActiveSheet();
 assert($sheet->getCell('A1')->getValue() === 'RENCANA ANGGARAN KAS (RAK)', 'Judul cell A1 harus RENCANA ANGGARAN KAS (RAK)');
-assert($sheet->getCell('A5')->getValue() === 'No', 'Header A5 harus No');
-assert($sheet->getCell('B5')->getValue() === 'Kode Rekening', 'Header B5 harus Kode Rekening');
-assert($sheet->getCell('H5')->getValue() === 'Jan', 'Header H5 harus Jan');
-assert($sheet->getCell('T5')->getValue() === 'Total (Rp)', 'Header T5 harus Total (Rp)');
+assert($sheet->getCell('A5')->getValue() === 'PROGRAM / KEGIATAN / SUB KEGIATAN / REKENING', 'Header A5 harus hierarki program');
+assert($sheet->getCell('B5')->getValue() === 'Januari', 'Header B5 harus Januari');
+assert($sheet->getCell('M5')->getValue() === 'Desember', 'Header M5 harus Desember');
+assert($sheet->getCell('N5')->getValue() === 'TOTAL RAK', 'Header N5 harus TOTAL RAK');
 
 echo "✓ Test RAK Excel Export berhasil!\n";

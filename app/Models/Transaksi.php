@@ -23,7 +23,7 @@ class Transaksi
      * @param int|null $subKegiatanId
      * @return array
      */
-    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null, ?string $inputDari = null, ?string $inputSampai = null, ?string $q = null): array
+    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null, ?string $inputDari = null, ?string $inputSampai = null, ?string $q = null, ?int $seksiId = null): array
     {
         try {
             $conditions = [];
@@ -70,6 +70,10 @@ class Transaksi
             if ($status !== null && $status !== '') {
                 $conditions[] = 't.status = :status';
                 $params[':status'] = $status;
+            }
+            if ($seksiId !== null) {
+                $conditions[] = 's.id = :seksi_id';
+                $params[':seksi_id'] = $seksiId;
             }
             if ($subKegiatanId !== null) {
                 $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';

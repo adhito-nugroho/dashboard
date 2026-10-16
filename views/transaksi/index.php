@@ -14,8 +14,10 @@ $filterBulan        = $filterBulan ?? null;
 $filterTahun        = $filterTahun ?? (int) date('Y');
 $filterKegiatan     = $filterKegiatan ?? null;
 $filterSubKegiatan  = $filterSubKegiatan ?? null;
+$filterSeksi        = $filterSeksi ?? null;
 $filterKegiatanList    = $filterKegiatanList ?? [];
 $filterSubKegiatanList = $filterSubKegiatanList ?? [];
+$filterSeksiList       = $filterSeksiList ?? [];
 $filterStatus          = $filterStatus ?? null;
 $filterDari            = $filterDari ?? null;
 $filterSampai          = $filterSampai ?? null;
@@ -65,6 +67,11 @@ if ($filterSubKegiatan !== null) {
 } elseif ($filterKegiatan !== null) {
     foreach ($filterKegiatanList as $kg) {
         if ($kg['id'] == $filterKegiatan) { $activeFilterLabels[] = $kg['kode_kegiatan'] . ' ' . $kg['nama_kegiatan']; break; }
+    }
+}
+if ($filterSeksi !== null) {
+    foreach ($filterSeksiList as $sx) {
+        if ($sx['id'] == $filterSeksi) { $activeFilterLabels[] = 'Seksi: ' . $sx['nama_seksi']; break; }
     }
 }
 if ($filterStatus !== null && isset($statusLabels[$filterStatus])) {
@@ -354,6 +361,7 @@ $isFiltered = !empty($activeFilterLabels);
             'tahun'           => $filterTahun,
             'kegiatan_id'     => $filterKegiatan,
             'sub_kegiatan_id' => $filterSubKegiatan,
+            'seksi_id'        => $filterSeksi,
             'dari'            => $filterDari,
             'sampai'          => $filterSampai,
             'input_dari'      => $filterInputDari,
@@ -444,6 +452,21 @@ $isFiltered = !empty($activeFilterLabels);
                             <?php foreach ($filterKegiatanList as $kg): ?>
                                 <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Seksi -->
+                    <div class="col-12 col-sm-6 col-lg">
+                        <label for="filter-seksi" class="form-label trx-filter-label">
+                            <i class="bi bi-people text-muted"></i> Seksi
+                        </label>
+                        <select name="seksi_id" id="filter-seksi" class="form-select form-select-sm">
+                            <option value="">-- Semua Seksi --</option>
+                            <?php foreach ($filterSeksiList as $sx): ?>
+                                <option value="<?= $sx['id'] ?>" <?= $filterSeksi == $sx['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars(($sx['kode_seksi'] ?? '') . ' - ' . $sx['nama_seksi']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -1444,6 +1467,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (keg) params.set('kegiatan_id', keg);
             const subKeg = document.getElementById('filter-sub-kegiatan').value;
             if (subKeg) params.set('sub_kegiatan_id', subKeg);
+            const seksiEl = document.getElementById('filter-seksi');
+            if (seksiEl && seksiEl.value) params.set('seksi_id', seksiEl.value);
             const statusEl = document.querySelector('.ux-status-pill.active');
             const status = statusEl ? (statusEl.dataset.status || '') : '';
             if (status) params.set('status', status);

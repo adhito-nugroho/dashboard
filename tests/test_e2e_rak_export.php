@@ -52,8 +52,8 @@ $loadedSpreadsheet = $reader->load($tmpFile);
 $loadedSheet = $loadedSpreadsheet->getActiveSheet();
 
 assert($loadedSheet->getTitle() === 'RAK', 'Title sheet harus RAK');
-assert($loadedSheet->getCell('A1')->getValue() === 'RENCANA ANGGARAN KAS (RAK)', 'Judul A1 harus cocok');
-assert(str_contains((string)$loadedSheet->getCell('A2')->getValue(), 'Tahun: 2026'), 'A2 harus memuat Tahun: 2026');
+assert(str_starts_with((string)$loadedSheet->getCell('A1')->getValue(), 'RENCANA ANGGARAN KAS (RAK)'), 'Judul A1 harus cocok');
+assert(str_contains((string)$loadedSheet->getCell('A3')->getValue(), 'Tahun: 2026'), 'A3 harus memuat Tahun: 2026');
 
 @unlink($tmpFile);
 

@@ -54,6 +54,7 @@ class TransaksiController
             $filterTahun      = isset($_GET['tahun'])          && $_GET['tahun']          !== '' ? (int) $_GET['tahun']          : (int) date('Y');
             $filterKegiatan   = isset($_GET['kegiatan_id'])    && $_GET['kegiatan_id']    !== '' ? (int) $_GET['kegiatan_id']    : null;
             $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
+            $filterSeksi        = isset($_GET['seksi_id']) && $_GET['seksi_id'] !== '' ? (int) $_GET['seksi_id'] : null;
             $filterStatus      = isset($_GET['status']) && $_GET['status'] !== '' ? $_GET['status'] : null;
             // Filter periode tanggal (format YYYY-MM-DD, tanggal efektif realisasi)
             $filterDari   = isset($_GET['dari'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['dari']))   ? trim((string) $_GET['dari'])   : null;
@@ -82,7 +83,7 @@ class TransaksiController
             }
 
             // Check if any filter is active
-            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterStatus !== null || $filterDari !== null || $filterSampai !== null || $filterInputDari !== null || $filterInputSampai !== null;
+            $hasFilter = $filterBulan !== null || $filterKegiatan !== null || $filterSubKegiatan !== null || $filterSeksi !== null || $filterStatus !== null || $filterDari !== null || $filterSampai !== null || $filterInputDari !== null || $filterInputSampai !== null;
             // Bila periode tanggal diisi, filter Bulan/Tahun diabaikan (periode lebih spesifik)
             $queryBulan = ($filterDari !== null || $filterSampai !== null) ? null : $filterBulan;
             $queryTahun = ($filterDari !== null || $filterSampai !== null) ? null : $filterTahun;
@@ -93,7 +94,7 @@ class TransaksiController
             }
 
             if ($hasFilter) {
-                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai, $filterInputDari, $filterInputSampai, $filterQ ?: null);
+                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai, $filterInputDari, $filterInputSampai, $filterQ ?: null, $filterSeksi);
             } else {
                 $transaksis = $this->transaksiModel->getAll();
             }
@@ -101,6 +102,7 @@ class TransaksiController
             // Load kegiatan & sub_kegiatan for filter dropdowns
             $filterKegiatanList    = $this->kegiatanModel->getAll();
             $filterSubKegiatanList = $this->subKegiatanModel->getAll();
+            $filterSeksiList       = $this->seksiModel->getAll();
 
             $perPage = 10;
             $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
@@ -118,6 +120,7 @@ class TransaksiController
                 'tahun'           => $queryTahun,
                 'kegiatan_id'     => $filterKegiatan,
                 'sub_kegiatan_id' => $filterSubKegiatan,
+                'seksi_id'        => $filterSeksi,
                 'status'          => $filterStatus,
                 'dari'            => $filterDari,
                 'sampai'          => $filterSampai,
@@ -1206,6 +1209,7 @@ class TransaksiController
         $filterKegiatan    = isset($_GET['kegiatan_id'])    && $_GET['kegiatan_id']    !== '' ? (int) $_GET['kegiatan_id']    : null;
         $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
         $filterStatus      = isset($_GET['status'])          && $_GET['status']          !== '' ? $_GET['status']               : null;
+        $filterSeksi       = isset($_GET['seksi_id'])        && $_GET['seksi_id']        !== '' ? (int) $_GET['seksi_id']        : null;
 
         $db = \Database::getConnection();
 
@@ -1245,6 +1249,11 @@ class TransaksiController
             $params[':status'] = $filterStatus;
         }
 
+        if ($filterSeksi !== null) {
+            $conditions[] = 's.id = :seksi_id';
+            $params[':seksi_id'] = $filterSeksi;
+        }
+
         $where = 'WHERE ' . implode(' AND ', $conditions);
 
         $stmt = $db->prepare("
@@ -1274,7 +1283,7 @@ class TransaksiController
 
         // Ambil mutasi penerimaan kas/bank jika tidak memfilter sub_kegiatan/kegiatan spesifik
         $kasRows = [];
-        if ($filterSubKegiatan === null && $filterKegiatan === null && $filterStatus !== 'ditolak') {
+        if ($filterSubKegiatan === null && $filterKegiatan === null && $filterSeksi === null && $filterStatus !== 'ditolak') {
             if ($modePeriode) {
                 $kasConditions = ["(status = 'cair' OR status IS NULL)"];
                 $kasParams = [];

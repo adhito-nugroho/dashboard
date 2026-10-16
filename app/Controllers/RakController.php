@@ -15,6 +15,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Font;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class RakController {
     private Rak $rakModel;
@@ -528,48 +529,135 @@ class RakController {
 
         include __DIR__ . '/../../views/layout.php';
     }
-    
     /**
      * Membangun objek Spreadsheet RAK berdasarkan filter.
+     * Susunan hierarki seperti Laporan Realisasi:
+     * PROGRAM -> KEGIATAN -> SUB KEGIATAN -> REKENING,
+     * dengan kolom bulanan Jan..Des + Total RAK.
      */
     public function buildSpreadsheet(?int $filterTahun = null, ?int $filterKegiatan = null, ?int $filterSubKegiatan = null): Spreadsheet {
         $raksFlat = $this->rakModel->getWithFilters($filterTahun, $filterKegiatan, $filterSubKegiatan);
 
-        // Group by rekening_id + tahun
-        $groupedRak = [];
+        // Group: Program -> Kegiatan -> Sub Kegiatan -> Rekening
+        $hierarchy = [];
         foreach ($raksFlat as $rak) {
-            $key = $rak['rekening_id'] . '_' . $rak['tahun'];
-            if (!isset($groupedRak[$key])) {
-                $groupedRak[$key] = [
-                    'rekening_id'       => $rak['rekening_id'],
-                    'tahun'             => $rak['tahun'],
-                    'kode_rekening'     => $rak['kode_rekening'],
-                    'nama_rekening'     => $rak['nama_rekening'],
-                    'kode_program'      => $rak['kode_program'] ?? '',
-                    'nama_program'      => $rak['nama_program'] ?? '',
-                    'kode_kegiatan'     => $rak['kode_kegiatan'] ?? '',
-                    'nama_kegiatan'     => $rak['nama_kegiatan'] ?? '',
-                    'kode_sub_kegiatan' => $rak['kode_sub_kegiatan'] ?? '',
-                    'nama_sub_kegiatan' => $rak['nama_sub_kegiatan'] ?? '',
-                    'months'            => array_fill(1, 12, 0),
-                    'total'             => 0
+            $pKey = $rak['kode_program'] ?? '';
+            $kid  = (int) ($rak['kegiatan_id'] ?? 0);
+            $skid = (int) ($rak['sub_kegiatan_id'] ?? 0);
+            $rid  = (int) $rak['rekening_id'];
+            $bulan = (int) $rak['bulan'];
+            $val   = (float) $rak['nilai_rak'];
+
+            if (!isset($hierarchy[$pKey])) {
+                $hierarchy[$pKey] = [
+                    'kode'    => $rak['kode_program'] ?? '',
+                    'nama'    => $rak['nama_program'] ?? 'Tidak Diketahui',
+                    'months'  => array_fill(1, 12, 0),
+                    'total'   => 0,
+                    'children' => [],
                 ];
             }
-            $groupedRak[$key]['months'][$rak['bulan']] = (float) $rak['nilai_rak'];
-            $groupedRak[$key]['total'] += (float) $rak['nilai_rak'];
+            if (!isset($hierarchy[$pKey]['children'][$kid])) {
+                $hierarchy[$pKey]['children'][$kid] = [
+                    'kode'    => $rak['kode_kegiatan'] ?? '',
+                    'nama'    => $rak['nama_kegiatan'] ?? 'Tidak Diketahui',
+                    'months'  => array_fill(1, 12, 0),
+                    'total'   => 0,
+                    'children' => [],
+                ];
+            }
+            if (!isset($hierarchy[$pKey]['children'][$kid]['children'][$skid])) {
+                $hierarchy[$pKey]['children'][$kid]['children'][$skid] = [
+                    'kode'    => $rak['kode_sub_kegiatan'] ?? '',
+                    'nama'    => $rak['nama_sub_kegiatan'] ?? 'Tidak Diketahui',
+                    'months'  => array_fill(1, 12, 0),
+                    'total'   => 0,
+                    'children' => [],
+                ];
+            }
+            if (!isset($hierarchy[$pKey]['children'][$kid]['children'][$skid]['children'][$rid])) {
+                $hierarchy[$pKey]['children'][$kid]['children'][$skid]['children'][$rid] = [
+                    'kode'   => $rak['kode_rekening'] ?? '',
+                    'nama'   => $rak['nama_rekening'] ?? 'Tidak Diketahui',
+                    'months' => array_fill(1, 12, 0),
+                    'total'  => 0,
+                ];
+            }
+
+            $rekNode = &$hierarchy[$pKey]['children'][$kid]['children'][$skid]['children'][$rid];
+            if ($bulan >= 1 && $bulan <= 12) {
+                $rekNode['months'][$bulan] += $val;
+            }
+            $rekNode['total'] += $val;
+            unset($rekNode);
+
+            if ($bulan >= 1 && $bulan <= 12) {
+                $hierarchy[$pKey]['children'][$kid]['children'][$skid]['months'][$bulan] += $val;
+            }
+            $hierarchy[$pKey]['children'][$kid]['children'][$skid]['total'] += $val;
+
+            if ($bulan >= 1 && $bulan <= 12) {
+                $hierarchy[$pKey]['children'][$kid]['months'][$bulan] += $val;
+            }
+            $hierarchy[$pKey]['children'][$kid]['total'] += $val;
+
+            if ($bulan >= 1 && $bulan <= 12) {
+                $hierarchy[$pKey]['months'][$bulan] += $val;
+            }
+            $hierarchy[$pKey]['total'] += $val;
         }
-        $groupedRak = array_values($groupedRak);
+        unset($pKey, $kid, $skid, $rid);
+
+        // Sort per level by kode (query sudah terurut, pengaman bila filter parsial)
+        uasort($hierarchy, fn($a, $b) => strcmp($a['kode'], $b['kode']));
+        foreach ($hierarchy as &$progNode) {
+            uasort($progNode['children'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
+            foreach ($progNode['children'] as &$kegNode) {
+                uasort($kegNode['children'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
+                foreach ($kegNode['children'] as &$skNode) {
+                    uasort($skNode['children'], fn($a, $b) => strcmp($a['kode'], $b['kode']));
+                }
+                unset($skNode);
+            }
+            unset($kegNode);
+        }
+        unset($progNode);
+
+        $bulanNamesLong = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
+                           7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
+        $lastCol = 'N'; // A = hierarki, B..M = Jan..Des, N = Total RAK
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('RAK');
 
-        // 1. Header Metadata
-        $sheet->setCellValue('A1', 'RENCANA ANGGARAN KAS (RAK)');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        // ---- Column widths ----
+        $sheet->getColumnDimension('A')->setWidth(55);
+        for ($m = 1; $m <= 12; $m++) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex(1 + $m))->setWidth(15);
+        }
+        $sheet->getColumnDimension($lastCol)->setWidth(20);
 
-        $filterInfo = [];
-        $filterInfo[] = 'Tahun: ' . ($filterTahun !== null ? $filterTahun : 'Semua');
+        // ---- Row 1: Title ----
+        $sheet->mergeCells("A1:{$lastCol}1");
+        $sheet->setCellValue('A1', 'RENCANA ANGGARAN KAS (RAK)' . ($filterTahun !== null ? ' — TAHUN ' . $filterTahun : ''));
+        $sheet->getStyle('A1')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 14, 'color' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        // ---- Row 2: Subtitle ----
+        $sheet->mergeCells("A2:{$lastCol}2");
+        $sheet->setCellValue('A2', 'CDK WILAYAH BOJONEGORO');
+        $sheet->getStyle('A2')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 11, 'color' => ['rgb' => '374151']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(2)->setRowHeight(20);
+
+        // ---- Row 3: Filter info ----
+        $filterInfo = ['Tahun: ' . ($filterTahun !== null ? $filterTahun : 'Semua')];
         if ($filterKegiatan !== null) {
             $keg = $this->kegiatanModel->getById($filterKegiatan);
             if ($keg) $filterInfo[] = 'Kegiatan: ' . ($keg['kode_kegiatan'] . ' - ' . $keg['nama_kegiatan']);
@@ -578,124 +666,155 @@ class RakController {
             $subKeg = $this->subKegiatanModel->getById($filterSubKegiatan);
             if ($subKeg) $filterInfo[] = 'Sub Kegiatan: ' . ($subKeg['kode_sub_kegiatan'] . ' - ' . $subKeg['nama_sub_kegiatan']);
         }
-        $sheet->setCellValue('A2', implode(' | ', $filterInfo));
-        $sheet->getStyle('A2')->getFont()->setItalic(true)->setSize(10);
-        $sheet->setCellValue('A3', 'Diunduh pada: ' . date('d/m/Y H:i:s'));
-        $sheet->getStyle('A3')->getFont()->setSize(9)->getColor()->setRGB('666666');
+        $filterInfo[] = 'Diunduh pada: ' . date('d/m/Y H:i:s');
+        $sheet->mergeCells("A3:{$lastCol}3");
+        $sheet->setCellValue('A3', implode(' | ', $filterInfo));
+        $sheet->getStyle('A3')->applyFromArray([
+            'font'      => ['italic' => true, 'size' => 9, 'color' => ['rgb' => '64748B']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(3)->setRowHeight(16);
 
-        // 2. Table Headers (Row 5)
-        $headers = [
-            'A5' => 'No',
-            'B5' => 'Kode Rekening',
-            'C5' => 'Nama Rekening',
-            'D5' => 'Program',
-            'E5' => 'Kegiatan',
-            'F5' => 'Sub Kegiatan',
-            'G5' => 'Tahun',
-            'H5' => 'Jan',
-            'I5' => 'Feb',
-            'J5' => 'Mar',
-            'K5' => 'Apr',
-            'L5' => 'Mei',
-            'M5' => 'Jun',
-            'N5' => 'Jul',
-            'O5' => 'Agu',
-            'P5' => 'Sep',
-            'Q5' => 'Okt',
-            'R5' => 'Nov',
-            'S5' => 'Des',
-            'T5' => 'Total (Rp)'
-        ];
+        // ---- Row 4: spacer ----
+        $sheet->getRowDimension(4)->setRowHeight(6);
 
-        foreach ($headers as $cell => $val) {
-            $sheet->setCellValue($cell, $val);
+        // ---- Row 5: Column headers ----
+        $sheet->setCellValue('A5', 'PROGRAM / KEGIATAN / SUB KEGIATAN / REKENING');
+        for ($m = 1; $m <= 12; $m++) {
+            $colLetter = Coordinate::stringFromColumnIndex(1 + $m); // B..M
+            $sheet->setCellValue("{$colLetter}5", $bulanNamesLong[$m]);
         }
+        $sheet->setCellValue("{$lastCol}5", 'TOTAL RAK');
 
         $headerStyle = [
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'font'      => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0369A1']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]]
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '075985']]],
         ];
-        $sheet->getStyle('A5:T5')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(5)->setRowHeight(26);
+        $sheet->getStyle("A5:{$lastCol}5")->applyFromArray($headerStyle);
+        $sheet->getRowDimension(5)->setRowHeight(22);
 
-        // 3. Data Rows
-        $row = 6;
+        // ---- Row 6 onwards: hierarchy ----
+        $currentRow = 6;
         $numFmt = '#,##0';
-        $no = 1;
+        $progRows = []; // baris level program (untuk total bawah)
 
-        if (empty($groupedRak)) {
-            $sheet->setCellValue("A{$row}", 'Tidak ada data RAK sesuai filter yang dipilih');
-            $sheet->mergeCells("A{$row}:T{$row}");
-            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("A{$row}:T{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CCCCCC');
-            $row++;
-        } else {
-            $monthCols = [
-                1 => 'H', 2 => 'I', 3 => 'J', 4 => 'K', 5 => 'L', 6 => 'M',
-                7 => 'N', 8 => 'O', 9 => 'P', 10 => 'Q', 11 => 'R', 12 => 'S'
-            ];
+        if (empty($hierarchy)) {
+            $sheet->setCellValue("A{$currentRow}", 'Tidak ada data RAK sesuai filter yang dipilih');
+            $sheet->mergeCells("A{$currentRow}:{$lastCol}{$currentRow}");
+            $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('CCCCCC');
+            $currentRow++;
+        }
 
-            foreach ($groupedRak as $item) {
-                $sheet->setCellValue("A{$row}", $no++);
-                $sheet->setCellValueExplicit("B{$row}", $item['kode_rekening'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                $sheet->setCellValue("C{$row}", $item['nama_rekening']);
-                $sheet->setCellValue("D{$row}", $item['kode_program'] . ' - ' . $item['nama_program']);
-                $sheet->setCellValue("E{$row}", $item['kode_kegiatan'] . ' - ' . $item['nama_kegiatan']);
-                $sheet->setCellValue("F{$row}", $item['kode_sub_kegiatan'] . ' - ' . $item['nama_sub_kegiatan']);
-                $sheet->setCellValue("G{$row}", $item['tahun']);
+        foreach ($hierarchy as $progNode) {
+            $progRows[] = $currentRow;
+            $this->writeRakRow($sheet, $currentRow, $progNode, 'program', $numFmt);
+            $currentRow++;
 
-                for ($m = 1; $m <= 12; $m++) {
-                    $colIndex = $monthCols[$m];
-                    $sheet->setCellValue("{$colIndex}{$row}", $item['months'][$m]);
-                    $sheet->getStyle("{$colIndex}{$row}")->getNumberFormat()->setFormatCode($numFmt);
+            foreach ($progNode['children'] as $kegNode) {
+                $this->writeRakRow($sheet, $currentRow, $kegNode, 'kegiatan', $numFmt);
+                $currentRow++;
+
+                foreach ($kegNode['children'] as $skNode) {
+                    $this->writeRakRow($sheet, $currentRow, $skNode, 'sub_kegiatan', $numFmt);
+                    $currentRow++;
+
+                    foreach ($skNode['children'] as $rekNode) {
+                        $this->writeRakRow($sheet, $currentRow, $rekNode, 'rekening', $numFmt);
+                        $currentRow++;
+                    }
                 }
-
-                $sheet->setCellValue("T{$row}", "=SUM(H{$row}:S{$row})");
-                $sheet->getStyle("T{$row}")->getNumberFormat()->setFormatCode($numFmt);
-
-                // Alignments & border
-                $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle("H{$row}:T{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                $sheet->getStyle("A{$row}:T{$row}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('D1D5DB');
-
-                $row++;
             }
+        }
 
-            // 4. Grand Total Row
-            $sheet->setCellValue("A{$row}", 'TOTAL KESELURUHAN');
-            $sheet->mergeCells("A{$row}:G{$row}");
-            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-            $lastDataRow = $row - 1;
+        // ---- Total row: SUM hanya dari baris level program ----
+        $sheet->setCellValue("A{$currentRow}", 'TOTAL KESELURUHAN');
+        if (!empty($progRows)) {
             for ($m = 1; $m <= 12; $m++) {
-                $colIndex = $monthCols[$m];
-                $sheet->setCellValue("{$colIndex}{$row}", "=SUM({$colIndex}6:{$colIndex}{$lastDataRow})");
-                $sheet->getStyle("{$colIndex}{$row}")->getNumberFormat()->setFormatCode($numFmt);
-                $sheet->getStyle("{$colIndex}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $colLetter = Coordinate::stringFromColumnIndex(1 + $m);
+                $refs = array_map(fn($r) => "{$colLetter}{$r}", $progRows);
+                $sheet->setCellValue("{$colLetter}{$currentRow}", '=' . implode('+', $refs));
+                $sheet->getStyle("{$colLetter}{$currentRow}")->getNumberFormat()->setFormatCode($numFmt);
+                $sheet->getStyle("{$colLetter}{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             }
-            $sheet->setCellValue("T{$row}", "=SUM(T6:T{$lastDataRow})");
-            $sheet->getStyle("T{$row}")->getNumberFormat()->setFormatCode($numFmt);
-            $sheet->getStyle("T{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-            $totalStyle = [
-                'font' => ['bold' => true, 'color' => ['rgb' => '1E293B']],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FEF08A']],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '94A3B8']]]
-            ];
-            $sheet->getStyle("A{$row}:T{$row}")->applyFromArray($totalStyle);
-            $sheet->getRowDimension($row)->setRowHeight(22);
+            $refsTotal = array_map(fn($r) => "{$lastCol}{$r}", $progRows);
+            $sheet->setCellValue("{$lastCol}{$currentRow}", '=' . implode('+', $refsTotal));
+        } else {
+            for ($m = 1; $m <= 12; $m++) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex(1 + $m) . $currentRow, 0);
+            }
+            $sheet->setCellValue("{$lastCol}{$currentRow}", 0);
         }
+        $sheet->getStyle("{$lastCol}{$currentRow}")->getNumberFormat()->setFormatCode($numFmt);
+        $sheet->getStyle("{$lastCol}{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
-        // Auto width for columns A to T
-        foreach (range('A', 'T') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
+        $totalStyle = [
+            'font'      => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'FFFFFF']]],
+        ];
+        $sheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray($totalStyle);
+        $sheet->getRowDimension($currentRow)->setRowHeight(20);
+
+        // ---- Freeze header ----
+        $sheet->freezePane('A6');
 
         return $spreadsheet;
+    }
+
+    /**
+     * Tulis satu baris hierarki RAK (indentasi + warna per level,
+     * selaras dengan gaya Laporan Realisasi).
+     */
+    private function writeRakRow(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $row,
+        array $node,
+        string $type,
+        string $numFmt
+    ): void {
+        $indent = match($type) {
+            'program'      => '',
+            'kegiatan'     => '  ',
+            'sub_kegiatan' => '    ',
+            'rekening'     => '      ',
+            default        => '',
+        };
+
+        $label = $indent . ($node['kode'] ? $node['kode'] . '   ' : '') . $node['nama'];
+
+        $sheet->setCellValue("A{$row}", $label);
+        for ($m = 1; $m <= 12; $m++) {
+            $colLetter = Coordinate::stringFromColumnIndex(1 + $m); // B..M
+            $sheet->setCellValue("{$colLetter}{$row}", $node['months'][$m] ?? 0);
+            $sheet->getStyle("{$colLetter}{$row}")->getNumberFormat()->setFormatCode($numFmt);
+            $sheet->getStyle("{$colLetter}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        }
+        $sheet->setCellValue("N{$row}", $node['total'] ?? 0);
+        $sheet->getStyle("N{$row}")->getNumberFormat()->setFormatCode($numFmt);
+        $sheet->getStyle("N{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        $bgColor = match($type) {
+            'program'      => 'D6E4F0',  // Light blue - Program
+            'kegiatan'     => 'E8F5E9',  // Light green - Kegiatan
+            'sub_kegiatan' => 'FFF9E6',  // Light yellow - Sub Kegiatan
+            'rekening'     => 'FFFFFF',  // White - Rekening
+            default        => 'FFFFFF',
+        };
+
+        $bold = in_array($type, ['program', 'kegiatan']);
+        $fontSize = $type === 'program' ? 10 : 9;
+
+        $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
+            'font'      => ['bold' => $bold, 'size' => $fontSize, 'color' => ['rgb' => '000000']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bgColor]],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'CCCCCC']]],
+        ]);
+        $sheet->getRowDimension($row)->setRowHeight(18);
     }
 
     /**
