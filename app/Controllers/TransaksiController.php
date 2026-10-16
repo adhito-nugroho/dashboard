@@ -86,9 +86,14 @@ class TransaksiController
             // Bila periode tanggal diisi, filter Bulan/Tahun diabaikan (periode lebih spesifik)
             $queryBulan = ($filterDari !== null || $filterSampai !== null) ? null : $filterBulan;
             $queryTahun = ($filterDari !== null || $filterSampai !== null) ? null : $filterTahun;
+            // Pencarian kata kunci (opsional, tidak mengubah perilaku bila kosong)
+            $filterQ = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+            if ($filterQ !== '') {
+                $hasFilter = true;
+            }
 
             if ($hasFilter) {
-                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai, $filterInputDari, $filterInputSampai);
+                $transaksis = $this->transaksiModel->getWithFilters($queryBulan, $queryTahun, $filterKegiatan, $filterSubKegiatan, $filterStatus, $filterDari, $filterSampai, $filterInputDari, $filterInputSampai, $filterQ ?: null);
             } else {
                 $transaksis = $this->transaksiModel->getAll();
             }
@@ -118,6 +123,7 @@ class TransaksiController
                 'sampai'          => $filterSampai,
                 'input_dari'      => $filterInputDari,
                 'input_sampai'    => $filterInputSampai,
+                'q'               => $filterQ !== '' ? $filterQ : null,
             ], fn($v) => $v !== null);
             $paginationBase = base_url('transaksi') . '?' . http_build_query($queryParams) . '&';
 
@@ -128,6 +134,9 @@ class TransaksiController
                 'totalPages' => $totalPages,
                 'baseUrl'    => rtrim($paginationBase, '&'),
             ];
+
+            // Counter per status untuk badge pill (1 query GROUP BY per tahun aktif)
+            $statusCounts = $this->transaksiModel->getCountByStatus($filterTahun);
 
             $pageTitle  = 'Transaksi';
             $activePage = 'transaksi';

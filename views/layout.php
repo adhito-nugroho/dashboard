@@ -203,9 +203,10 @@
                                 <i class="bi bi-list"></i>
                             </button>
                         <?php endif; ?>
-                        <img src="<?= base_url('images/logo_jatim.png') ?>" alt="Logo Jatim"
-                            style="height:35px; width:auto; margin-right:12px;"
-                            class="<?= $hideSidebar ? '' : 'ms-2 ms-md-0' ?>">
+                        <?php if ($hideSidebar): ?>
+                            <img src="<?= base_url('images/logo_jatim.png') ?>" alt="Logo Jatim"
+                                style="height:35px; width:auto; margin-right:12px;">
+                        <?php endif; ?>
                         <h5 class="mb-0 fw-bold" style="color:#1e293b;">
                             <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?></h5>
                     </div>

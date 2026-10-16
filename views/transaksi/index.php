@@ -21,6 +21,8 @@ $filterDari            = $filterDari ?? null;
 $filterSampai          = $filterSampai ?? null;
 $filterInputDari       = $filterInputDari ?? null;
 $filterInputSampai     = $filterInputSampai ?? null;
+$filterQ               = $filterQ ?? null;
+$statusCounts          = $statusCounts ?? [];
 $isPeriodeAktif        = $filterDari !== null || $filterSampai !== null;
 $isInputPeriodeAktif   = $filterInputDari !== null || $filterInputSampai !== null;
 
@@ -67,6 +69,9 @@ if ($filterSubKegiatan !== null) {
 }
 if ($filterStatus !== null && isset($statusLabels[$filterStatus])) {
     $activeFilterLabels[] = 'Status: ' . $statusLabels[$filterStatus][0];
+}
+if ($filterQ !== null && $filterQ !== '') {
+    $activeFilterLabels[] = 'Cari: "' . $filterQ . '"';
 }
 if ($isInputPeriodeAktif) {
     if ($filterInputDari !== null && $filterInputSampai !== null) {
@@ -284,6 +289,18 @@ $isFiltered = !empty($activeFilterLabels);
     border: 1px solid #e2e8f0;
     border-radius: 10px;
 }
+.ux-status-pill .ux-filter-count { background: #f1f5f9; color: #334155; }
+.ux-status-pill.active .ux-filter-count { background: rgba(255,255,255,.25); color: #fff; }
+.ux-status-pills .ux-status-pill { border-color: #e2e8f0; }
+.ux-status-pills .ux-status-pill.active { background: #1b4332; border-color: #1b4332; }
+.ux-expand-btn { color: #166534; }
+.pagination .page-item.active .page-link {
+    background-color: #1b4332;
+    border-color: #1b4332;
+    color: #fff;
+}
+.pagination .page-link { color: #1b4332; }
+.pagination .page-link:hover { color: #14532d; }
 </style>
 
 <div class="transaksi-page-container">
@@ -302,7 +319,7 @@ $isFiltered = !empty($activeFilterLabels);
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3 border-bottom">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="trx-title-chip">
+                <span class="trx-title-chip" style="background:#eaf5ec;color:#1b4332;">
                     <i class="bi bi-receipt-cutoff"></i>
                 </span>
                 <h1 class="trx-page-title">Data Transaksi</h1>
@@ -312,6 +329,10 @@ $isFiltered = !empty($activeFilterLabels);
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter yang aktif">
+                <i class="bi bi-file-earmark-excel"></i>
+                <span>Unduh BKU</span>
+            </button>
             <a href="<?= base_url('transaksi/create') ?>" class="btn btn-cta px-3 py-2 shadow-sm" title="Input transaksi baru">
                 <i class="bi bi-plus-lg"></i>
                 <span>Input Transaksi (Batch)</span>
@@ -322,6 +343,12 @@ $isFiltered = !empty($activeFilterLabels);
     <!-- Tab Filter Status (akses tercepat, tepat di bawah judul) -->
     <?php
         $statusPillDefs = ['' => 'Semua', 'diajukan' => 'Menunggu Verifikasi', 'diverifikasi' => 'Diverifikasi', 'ditolak' => 'Ditolak'];
+        $statusPillCounts = [
+            ''             => (int) ($statusCounts['all']['count'] ?? 0),
+            'diajukan'     => (int) ($statusCounts['diajukan']['count'] ?? 0),
+            'diverifikasi' => (int) ($statusCounts['diverifikasi']['count'] ?? 0),
+            'ditolak'      => (int) ($statusCounts['ditolak']['count'] ?? 0),
+        ];
         $statusPillBase = [
             'bulan'           => $filterBulan,
             'tahun'           => $filterTahun,
@@ -331,6 +358,7 @@ $isFiltered = !empty($activeFilterLabels);
             'sampai'          => $filterSampai,
             'input_dari'      => $filterInputDari,
             'input_sampai'    => $filterInputSampai,
+            'q'               => $filterQ,
         ];
     ?>
     <div class="ux-status-pills mb-3" role="tablist" aria-label="Filter status transaksi">
@@ -344,6 +372,7 @@ $isFiltered = !empty($activeFilterLabels);
                data-status="<?= htmlspecialchars($stVal) ?>"
                class="ux-status-pill <?= $pillActive ? 'active' : '' ?>">
                 <?= htmlspecialchars($stLabel) ?>
+                <span class="ux-filter-count" title="Jumlah transaksi tahun <?= $filterTahun ?>"><?= $statusPillCounts[$stVal] ?? 0 ?></span>
             </a>
         <?php endforeach; ?>
     </div>
@@ -352,7 +381,7 @@ $isFiltered = !empty($activeFilterLabels);
     <div class="card filter-card border-0 shadow-sm mb-4">
         <div class="card-header trx-filter-head d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
-                <span class="text-primary"><i class="bi bi-funnel-fill"></i></span>
+                <span style="color:#1b4332;"><i class="bi bi-funnel-fill"></i></span>
                 <span class="trx-filter-title">Filter Data Transaksi</span>
                 <?php if ($isFiltered): ?>
                     <span class="trx-filter-count">
@@ -418,6 +447,16 @@ $isFiltered = !empty($activeFilterLabels);
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+
+                    <!-- Cari kata kunci -->
+                    <div class="col-12 col-sm-6 col-lg">
+                        <label for="filter-q" class="form-label trx-filter-label">
+                            <i class="bi bi-search text-muted"></i> Cari Uraian / No. Bukti / Penerima
+                        </label>
+                        <input type="search" name="q" id="filter-q" class="form-control form-control-sm"
+                               value="<?= htmlspecialchars($filterQ ?? '') ?>"
+                               placeholder="Ketik kata kunci..." autocomplete="off">
                     </div>
                 </div>
 
@@ -519,11 +558,7 @@ $isFiltered = !empty($activeFilterLabels);
                             <i class="bi bi-arrow-counterclockwise"></i>
                             <span>Reset</span>
                         </a>
-                        <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 px-3 fw-medium" id="btn-unduh-bku" title="Unduh BKU gabungan seluruh kantor sesuai filter yang aktif">
-                            <i class="bi bi-file-earmark-excel"></i>
-                            <span>Unduh BKU</span>
-                        </button>
-                        <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 px-3 fw-semibold shadow-sm" id="btn-filter">
+                        <button type="submit" class="btn btn-sm btn-cta d-inline-flex align-items-center gap-1 px-3 fw-semibold" id="btn-filter">
                             <i class="bi bi-funnel-fill"></i>
                             <span>Terapkan Filter</span>
                         </button>
@@ -677,7 +712,7 @@ $isFiltered = !empty($activeFilterLabels);
                                 <th width="8%">Tanggal</th>
                                 <th width="10%">Seksi</th>
                                 <th width="36%">Uraian</th>
-                                <th width="13%" class="text-end">Nilai (Rp)</th>
+                                <th width="13%" class="text-end text-nowrap pe-3">Nilai (Rp)</th>
                                 <th width="10%">Nomor Bukti</th>
                                 <th width="11%" class="text-center">Status</th>
                                 <th width="9%" class="text-center">Aksi</th>
@@ -703,18 +738,7 @@ $isFiltered = !empty($activeFilterLabels);
                                     <td>
                                         <span class="fw-medium text-dark"><?= date('d/m/Y', strtotime($transaksi['tanggal'])) ?></span>
                                         <?php if (!empty($transaksi['created_at'])): ?>
-                                            <div class="small text-muted" style="font-size:0.72rem;" title="Tanggal data diinput ke sistem">
-                                                <i class="bi bi-cloud-upload me-1"></i>Input <?= date('d/m/Y H:i', strtotime($transaksi['created_at'])) ?>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($transaksi['tanggal_lunas_dibayar'])): ?>
-                                            <div class="small text-success" title="Tanggal lunas dibayar">
-                                                <i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($transaksi['tanggal_lunas_dibayar'])) ?>
-                                            </div>
-                                        <?php elseif (!empty($transaksi['diverifikasi_at'])): ?>
-                                            <div class="small text-success" title="Tanggal diverifikasi">
-                                                <i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($transaksi['diverifikasi_at'])) ?>
-                                            </div>
+                                            <div class="small text-muted text-nowrap" style="font-size:0.72rem;" title="Tanggal data diinput ke sistem">Diinput: <?= date('d/m/y H:i', strtotime($transaksi['created_at'])) ?></div>
                                         <?php endif; ?>
                                     </td>
 
@@ -745,10 +769,10 @@ $isFiltered = !empty($activeFilterLabels);
                                         </div>
                                     </td>
 
-                                    <!-- Nilai (Right-aligned, tabular font) -->
-                                    <td class="text-end">
+                                    <!-- Nilai (Right-aligned, tabular font, 1 baris) -->
+                                    <td class="text-end text-nowrap pe-3">
                                         <span class="fw-bold text-dark font-monospace" style="font-size: 0.9rem;">
-                                            Rp <?= number_format($transaksi['nilai'], 0, ',', '.') ?>
+                                            Rp&nbsp;<?= number_format($transaksi['nilai'], 0, ',', '.') ?>
                                         </span>
                                     </td>
 
@@ -758,7 +782,7 @@ $isFiltered = !empty($activeFilterLabels);
                                             <i class="bi bi-receipt opacity-50"></i>
                                             <span><?= htmlspecialchars($transaksi['nomor_bukti'] ?: '-') ?></span>
                                             <?php if ($st === 'diajukan' || stripos((string)($transaksi['nomor_bukti'] ?? ''), 'DRAFT') !== false): ?>
-                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.65rem;padding:1px 4px;">Draft</span>
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border-0" style="font-size:0.65rem;padding:1px 4px;">Draft</span>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -780,6 +804,12 @@ $isFiltered = !empty($activeFilterLabels);
                                                 <i class="bi bi-check-circle-fill"></i>
                                                 <span>Terverifikasi</span>
                                             </span>
+                                            <?php
+                                                $tglVerif = $transaksi['tanggal_lunas_dibayar'] ?? ($transaksi['diverifikasi_at'] ?? null);
+                                            ?>
+                                            <?php if (!empty($tglVerif)): ?>
+                                                <div class="small text-success mt-1" data-bs-toggle="tooltip" title="Tanggal verifikasi"><i class="bi bi-check-circle me-1"></i><?= date('d/m/Y', strtotime($tglVerif)) ?></div>
+                                            <?php endif; ?>
                                         <?php elseif ($st === 'ditolak'): ?>
                                             <span class="badge-status badge-status-ditolak">
                                                 <i class="bi bi-x-circle-fill"></i>
@@ -852,12 +882,6 @@ $isFiltered = !empty($activeFilterLabels);
                                                    title="Lihat Detail Transaksi">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" 
-                                                   class="btn-action btn-action-edit" 
-                                                   data-bs-toggle="tooltip" 
-                                                   title="Edit Transaksi">
-                                                    <i class="bi bi-pencil"></i>
-                                                </a>
                                                 <a href="<?= base_url('kuitansi/cetak/' . $transaksi['id']) ?>"
                                                    target="_blank" rel="noopener"
                                                    class="btn-action btn-action-print"
@@ -874,23 +898,6 @@ $isFiltered = !empty($activeFilterLabels);
                                                     <i class="bi bi-file-earmark-text"></i>
                                                 </a>
                                                 <?php endif; ?>
-                                                <?php if (($transaksi['status'] ?? '') === 'diverifikasi'): ?>
-                                                <button type="button"
-                                                        class="btn-action btn-action-edit btn-edit-lunas"
-                                                        data-id="<?= $transaksi['id'] ?>"
-                                                        data-tanggal="<?= htmlspecialchars($transaksi['tanggal_lunas_dibayar'] ?? '') ?>"
-                                                        data-bs-toggle="tooltip"
-                                                        title="Edit Tanggal Lunas Dibayar">
-                                                    <i class="bi bi-calendar-check"></i>
-                                                </button>
-                                                <button type="button"
-                                                        class="btn-action btn-action-undo btn-batal-verifikasi"
-                                                        data-id="<?= $transaksi['id'] ?>"
-                                                        data-bs-toggle="tooltip"
-                                                        title="Batalkan Verifikasi (kembali diajukan)">
-                                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                                </button>
-                                                <?php endif; ?>
                                                 <button type="button"
                                                         class="btn-action btn-action-more trx-more-btn"
                                                         aria-expanded="false"
@@ -900,6 +907,29 @@ $isFiltered = !empty($activeFilterLabels);
                                                     <i class="bi bi-three-dots"></i>
                                                 </button>
                                                 <span class="trx-more-pane">
+                                                    <a href="<?= base_url('transaksi/edit/' . $transaksi['id']) ?>" 
+                                                       class="btn-action btn-action-edit" 
+                                                       data-bs-toggle="tooltip" 
+                                                       title="Edit Transaksi">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                    <?php if (($transaksi['status'] ?? '') === 'diverifikasi'): ?>
+                                                    <button type="button"
+                                                            class="btn-action btn-action-edit btn-edit-lunas"
+                                                            data-id="<?= $transaksi['id'] ?>"
+                                                            data-tanggal="<?= htmlspecialchars($transaksi['tanggal_lunas_dibayar'] ?? '') ?>"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Edit Tanggal Lunas Dibayar">
+                                                        <i class="bi bi-calendar-check"></i>
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn-action btn-action-undo btn-batal-verifikasi"
+                                                            data-id="<?= $transaksi['id'] ?>"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Batalkan Verifikasi (kembali diajukan)">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                    <?php endif; ?>
                                                     <a href="<?= base_url('transaksi/delete/' . $transaksi['id']) ?>"
                                                        class="btn-action btn-action-delete"
                                                        data-bs-toggle="tooltip"
@@ -952,8 +982,8 @@ $isFiltered = !empty($activeFilterLabels);
                                         }
                                     ?>:
                                 </td>
-                                <td class="text-end py-3 fw-bold text-dark font-monospace" style="font-size: 0.95rem;">
-                                    Rp <?= number_format($totalNilai, 0, ',', '.') ?>
+                                <td class="text-end text-nowrap py-3 fw-bold text-dark font-monospace" style="font-size: 0.95rem;">
+                                    Rp&nbsp;<?= number_format($totalNilai, 0, ',', '.') ?>
                                 </td>
                                 <td colspan="3"></td>
                             </tr>
@@ -974,11 +1004,34 @@ $isFiltered = !empty($activeFilterLabels);
                                         <i class="bi bi-chevron-left"></i>
                                     </a>
                                 </li>
-                                <?php for ($p = 1; $p <= $pagination['totalPages']; $p++): ?>
-                                    <li class="page-item <?= $p == $pagination['page'] ? 'active' : '' ?>">
-                                        <a class="page-link" href="<?= $pagination['baseUrl'] . '&page=' . $p ?>"><?= $p ?></a>
-                                    </li>
-                                <?php endfor; ?>
+                                <?php
+                                    // Pagination truncated: tampilkan maksimal 7 nomor (1 … jendela … N)
+                                    $pgTotal = $pagination['totalPages'];
+                                    $pgCur = $pagination['page'];
+                                    $pgNums = [];
+                                    if ($pgTotal <= 7) {
+                                        $pgNums = range(1, $pgTotal);
+                                    } else {
+                                        $pgNums = [1];
+                                        $lo = max(2, $pgCur - 2);
+                                        $hi = min($pgTotal - 1, $pgCur + 2);
+                                        if ($pgCur <= 3) { $lo = 2; $hi = 5; }
+                                        if ($pgCur >= $pgTotal - 2) { $lo = $pgTotal - 4; $hi = $pgTotal - 1; }
+                                        if ($lo > 2) $pgNums[] = '…';
+                                        for ($p = $lo; $p <= $hi; $p++) $pgNums[] = $p;
+                                        if ($hi < $pgTotal - 1) $pgNums[] = '…';
+                                        $pgNums[] = $pgTotal;
+                                    }
+                                    foreach ($pgNums as $p):
+                                ?>
+                                    <?php if ($p === '…'): ?>
+                                        <li class="page-item disabled" aria-hidden="true"><span class="page-link">…</span></li>
+                                    <?php else: ?>
+                                        <li class="page-item <?= $p == $pagination['page'] ? 'active' : '' ?>" <?= $p == $pagination['page'] ? 'aria-current="page"' : '' ?>>
+                                            <a class="page-link" href="<?= $pagination['baseUrl'] . '&page=' . $p ?>"><?= $p ?></a>
+                                        </li>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
                                 <li class="page-item <?= $pagination['page'] >= $pagination['totalPages'] ? 'disabled' : '' ?>">
                                     <a class="page-link" href="<?= $pagination['page'] >= $pagination['totalPages'] ? '#' : $pagination['baseUrl'] . '&page=' . ($pagination['page'] + 1) ?>" aria-label="Berikutnya">
                                         <i class="bi bi-chevron-right"></i>

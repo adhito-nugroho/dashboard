@@ -23,7 +23,7 @@ class Transaksi
      * @param int|null $subKegiatanId
      * @return array
      */
-    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null, ?string $inputDari = null, ?string $inputSampai = null): array
+    public function getWithFilters(?int $bulan = null, ?int $tahun = null, ?int $kegiatanId = null, ?int $subKegiatanId = null, ?string $status = null, ?string $dari = null, ?string $sampai = null, ?string $inputDari = null, ?string $inputSampai = null, ?string $q = null): array
     {
         try {
             $conditions = [];
@@ -50,6 +50,14 @@ class Transaksi
             if ($inputSampai !== null && $inputSampai !== '') {
                 $conditions[] = "{$tglInput} <= :input_sampai";
                 $params[':input_sampai'] = $inputSampai;
+            }
+            // Pencarian kata kunci (uraian / nomor bukti / penerima). Opsional.
+            if ($q !== null && trim($q) !== '') {
+                $conditions[] = '(t.uraian LIKE :q_uraian OR t.nomor_bukti LIKE :q_bukti OR t.nama_penerima LIKE :q_penerima)';
+                $kw = '%' . trim($q) . '%';
+                $params[':q_uraian'] = $kw;
+                $params[':q_bukti'] = $kw;
+                $params[':q_penerima'] = $kw;
             }
             if ($bulan !== null) {
                 $conditions[] = 'MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan';
