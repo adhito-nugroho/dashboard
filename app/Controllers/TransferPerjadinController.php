@@ -209,7 +209,12 @@ class TransferPerjadinController
         $filename = 'Transfer_Perjalanan_Dinas_'
             . TransferPerjadinExportService::safeFilename((string) $batch['nama'])
             . '_' . date('Ymd_His') . '.xlsx';
-        (new TransferPerjadinExportService())->download($rows, $filename);
+        try {
+            (new TransferPerjadinExportService())->download($rows, $filename);
+        } catch (\Throwable $e) {
+            error_log('TransferPerjadinController::export error: ' . $e->getMessage());
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Gagal membuat file Excel. Silakan coba lagi.');
+        }
     }
 
     // ──────────────────────────────────────────────────────────

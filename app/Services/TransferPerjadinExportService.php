@@ -249,18 +249,54 @@ class TransferPerjadinExportService
     {
         $filename = $filename ?: ('Transfer_Perjalanan_Dinas_' . date('Ymd_His') . '.xlsx');
 
-        // Buang sisa output (notice/warning/spasi/BOM) agar biner xlsx tidak korup.
+        // Jangan biarkan notice/warning/deprecation bocor ke dalam biner.
+        ini_set('display_errors', '0');
+        @ini_set('zlib.output_compression', '0');
+
+        // Buang sisa output buffer (spasi/BOM/echo nyasar sebelum unduhan).
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
 
+        // Bangun file ke memori dulu (belum ada byte dikirim ke browser),
+        // sekaligus menampung output nyasar selama build agar bisa dibuang.
+        $tmp = fopen('php://memory', 'w+b');
+        if ($tmp === false) {
+            throw new \RuntimeException('Gagal menyiapkan buffer unduhan.');
+        }
+        ob_start();
+        try {
+            $writer = new Xlsx($this->buildSpreadsheet($rows));
+            $writer->save($tmp);
+        } finally {
+            $junk = (string) ob_get_clean();
+            if ($junk !== '') {
+                error_log('TransferPerjadinExportService: membuang ' . strlen($junk) . ' byte output nyasar saat build Excel.');
+            }
+        }
+
+        // Validasi: file xlsx harus arsip ZIP (magic "PK"). Kalau bukan,
+        // lempar error agar controller menampilkan pesan — bukan file korup.
+        rewind($tmp);
+        $magic = (string) fread($tmp, 2);
+        $stat = fstat($tmp);
+        $size = is_array($stat) ? (int) ($stat['size'] ?? 0) : 0;
+        if ($magic !== 'PK' || $size <= 0) {
+            fclose($tmp);
+            throw new \RuntimeException('Berkas Excel gagal dibuat (bukan arsip ZIP valid).');
+        }
+        rewind($tmp);
+
+        header('Content-Description: File Transfer');
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
+        header('Content-Transfer-Encoding: binary');
+        header('Content-Length: ' . $size);
+        header('Cache-Control: max-age=0, must-revalidate');
         header('Pragma: public');
 
-        $writer = new Xlsx($this->buildSpreadsheet($rows));
-        $writer->save('php://output');
+        fpassthru($tmp);
+        fclose($tmp);
         exit;
     }
 
