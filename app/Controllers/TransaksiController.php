@@ -107,6 +107,12 @@ class TransaksiController
             $perPage = 10;
             $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
             $total = count($transaksis);
+            // Agregat seluruh hasil filter (sebelum dipotong per halaman)
+            $filteredCount = $total;
+            $filteredTotalNilai = 0.0;
+            foreach ($transaksis as $row) {
+                $filteredTotalNilai += (float) ($row['nilai'] ?? 0);
+            }
             $totalPages = max(1, (int) ceil($total / $perPage));
             if ($page > $totalPages) {
                 $page = $totalPages;

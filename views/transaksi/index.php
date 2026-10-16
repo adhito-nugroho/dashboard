@@ -25,6 +25,8 @@ $filterInputDari       = $filterInputDari ?? null;
 $filterInputSampai     = $filterInputSampai ?? null;
 $filterQ               = $filterQ ?? null;
 $statusCounts          = $statusCounts ?? [];
+$filteredCount         = $filteredCount ?? (int) ($pagination['total'] ?? 0);
+$filteredTotalNilai    = $filteredTotalNilai ?? null;
 $isPeriodeAktif        = $filterDari !== null || $filterSampai !== null;
 $isInputPeriodeAktif   = $filterInputDari !== null || $filterInputSampai !== null;
 
@@ -308,6 +310,46 @@ $isFiltered = !empty($activeFilterLabels);
 }
 .pagination .page-link { color: #1b4332; }
 .pagination .page-link:hover { color: #14532d; }
+
+/* Ringkasan agregat hasil filter */
+.trx-summary { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+.trx-summary-card {
+    flex: 1 1 220px;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #1b4332;
+    border-radius: 12px;
+    padding: .7rem .95rem;
+    box-shadow: 0 .125rem .25rem rgba(15, 23, 42, .04);
+}
+.trx-summary-card.accent { border-left-color: #10b981; }
+.trx-summary-icon {
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    background: #eaf5ec; color: #1b4332;
+    font-size: 1.05rem; flex-shrink: 0;
+}
+.trx-summary-icon.green { background: #e7f7ee; color: #0f7a4d; }
+.trx-summary-label {
+    display: block;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #64748b;
+    font-weight: 700;
+}
+.trx-summary-value {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.25;
+}
+.trx-summary-value .unit { font-size: .75rem; font-weight: 600; color: #94a3b8; }
 </style>
 
 <div class="transaksi-page-container">
@@ -689,6 +731,32 @@ $isFiltered = !empty($activeFilterLabels);
         </div>
     </div>
 
+    <!-- Ringkasan agregat hasil filter (seluruh data, bukan per halaman) -->
+    <?php if (!empty($transaksis)):
+        $sumFiltered = $filteredTotalNilai;
+        if ($sumFiltered === null) {
+            $sumFiltered = 0.0;
+            foreach ($transaksis as $tRow) { $sumFiltered += (float) ($tRow['nilai'] ?? 0); }
+        }
+    ?>
+    <div class="trx-summary" role="status" aria-label="Ringkasan transaksi sesuai filter">
+        <div class="trx-summary-card">
+            <span class="trx-summary-icon"><i class="bi bi-list-check"></i></span>
+            <div>
+                <span class="trx-summary-label">Total Transaksi (Filter)</span>
+                <span class="trx-summary-value"><?= number_format((int) $filteredCount, 0, ',', '.') ?> <span class="unit">transaksi</span></span>
+            </div>
+        </div>
+        <div class="trx-summary-card accent">
+            <span class="trx-summary-icon green"><i class="bi bi-cash-stack"></i></span>
+            <div>
+                <span class="trx-summary-label">Total Nilai (Filter)</span>
+                <span class="trx-summary-value">Rp&nbsp;<?= number_format($sumFiltered, 0, ',', '.') ?></span>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Transactions Table Card -->
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
         <div class="card-body p-0">
@@ -997,13 +1065,8 @@ $isFiltered = !empty($activeFilterLabels);
                         <tfoot class="table-light">
                             <tr>
                                 <td colspan="5" class="text-end py-3 fw-bold text-secondary">
-                                    Total Nilai<?php
-                                        if ($isPeriodeAktif) {
-                                            echo ' (' . htmlspecialchars($filterDari ?? '…') . ' s/d ' . htmlspecialchars($filterSampai ?? '…') . ')';
-                                        } elseif ($filterBulan !== null) {
-                                            echo ' (' . $namaBulan[$filterBulan] . ' ' . $filterTahun . ')';
-                                        }
-                                    ?>:
+                                    Subtotal Halaman Ini
+                                    <span class="fw-normal text-muted">(<?= count($transaksis) ?> transaksi)</span>:
                                 </td>
                                 <td class="text-end text-nowrap py-3 fw-bold text-dark font-monospace" style="font-size: 0.95rem;">
                                     Rp&nbsp;<?= number_format($totalNilai, 0, ',', '.') ?>
@@ -1018,7 +1081,12 @@ $isFiltered = !empty($activeFilterLabels);
                 <?php if (!empty($pagination) && $pagination['totalPages'] > 1): ?>
                     <div class="card-footer bg-white border-top py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="trx-page-info">
-                            Menampilkan halaman <strong class="text-dark"><?= $pagination['page'] ?></strong> dari <strong class="text-dark"><?= $pagination['totalPages'] ?></strong> (Total <strong class="text-dark"><?= $pagination['total'] ?></strong> transaksi)
+                            <?php
+                                $pgOffset = ($pagination['page'] - 1) * $pagination['perPage'];
+                                $pgFrom = $pgOffset + 1;
+                                $pgTo = min($pagination['total'], $pgOffset + $pagination['perPage']);
+                            ?>
+                            Menampilkan <strong class="text-dark"><?= $pgFrom ?>–<?= $pgTo ?></strong> dari <strong class="text-dark"><?= $pagination['total'] ?></strong> transaksi
                         </div>
                         <nav>
                             <ul class="pagination pagination-sm mb-0">
