@@ -92,26 +92,32 @@ class TransferPerjadinController
 
         $transferKeInput = $_POST['transfer_ke'] ?? [];
         $potonganInput = $_POST['potongan'] ?? [];
-        $pilihInput = $_POST['pilih'] ?? [];
+        $pilihStInput = $_POST['pilih_st'] ?? [];
+        $stItemsInput = $_POST['st_items'] ?? [];
         if (!is_array($transferKeInput)) {
             $transferKeInput = [];
         }
         if (!is_array($potonganInput)) {
             $potonganInput = [];
         }
-        if (!is_array($pilihInput)) {
-            $pilihInput = [];
+        if (!is_array($pilihStInput)) {
+            $pilihStInput = [];
+        }
+        if (!is_array($stItemsInput)) {
+            $stItemsInput = [];
         }
 
-        // Hanya transaksi yang dicentang (dipilih) admin yang diproses.
+        // Hanya transaksi pada Surat Tugas (grup) yang dicentang yang diproses.
         $ids = [];
-        foreach ($pilihInput as $id => $v) {
+        foreach ($pilihStInput as $groupKey => $v) {
             if ($v === '' || $v === '0' || $v === null || $v === false) {
                 continue;
             }
-            $id = (int) $id;
-            if ($id > 0) {
-                $ids[$id] = true;
+            foreach (explode(',', (string) ($stItemsInput[$groupKey] ?? '')) as $id) {
+                $id = (int) trim($id);
+                if ($id > 0) {
+                    $ids[$id] = true;
+                }
             }
         }
         $ids = array_keys($ids);
@@ -127,7 +133,7 @@ class TransferPerjadinController
         }
 
         if ($rows === []) {
-            $this->redirectWithMessage(base_url('transfer-perjadin'), 'info', 'Pilih minimal satu transaksi yang akan dikonfigurasi transfernya.');
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'info', 'Pilih minimal satu Surat Tugas yang akan dikonfigurasi transfernya.');
         }
 
         $adaIsi = false;
