@@ -327,8 +327,7 @@ foreach ($pendingBySeksi as $ps) {
                                 <?php foreach ($recentPending as $trx): ?>
                                 <tr>
                                     <td class="align-middle text-nowrap">
-                                        <span class="fw-medium text-dark"><?= date('d/m', strtotime($trx['tanggal'])) ?></span>
-                                        <span class="text-muted" style="font-size:var(--fs-xs);">/<?= date('Y', strtotime($trx['tanggal'])) ?></span>
+                                        <span class="fw-medium text-dark"><?= date('d', strtotime($trx['tanggal'])) . ' ' . ($bulanNames[(int) date('n', strtotime($trx['tanggal']))] ?? date('M', strtotime($trx['tanggal']))) . ' ' . date('Y', strtotime($trx['tanggal'])) ?></span>
                                     </td>
                                     <td class="align-middle">
                                         <span style="font-size:var(--fs-sm);font-weight:700;color:var(--gray-700);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
@@ -365,12 +364,16 @@ foreach ($pendingBySeksi as $ps) {
                                             <button type="button" 
                                                     class="quick-action-btn quick-action-btn--verify btn-dash-verif"
                                                     data-id="<?= $trx['id'] ?>"
+                                                    data-nomor="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>"
+                                                    data-nilai="Rp <?= number_format((float)$trx['nilai'], 0, ',', '.') ?>"
                                                     title="Verifikasi">
                                                 <i class="bi bi-check-lg"></i>
                                             </button>
                                             <button type="button" 
                                                     class="quick-action-btn quick-action-btn--reject btn-dash-tolak"
                                                     data-id="<?= $trx['id'] ?>"
+                                                    data-nomor="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>"
+                                                    data-nilai="Rp <?= number_format((float)$trx['nilai'], 0, ',', '.') ?>"
                                                     title="Tolak">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
@@ -460,13 +463,15 @@ foreach ($pendingBySeksi as $ps) {
                                 <a href="<?= base_url('transaksi/show/' . (int)$act['id']) ?>" class="admin-feed-link" style="color:inherit;text-decoration:none;display:flex;gap:0.5rem;align-items:flex-start;flex:1;min-width:0;" title="Lihat Detail Transaksi">
                                     <div class="admin-timeline__text">
                                         <strong><?= htmlspecialchars($act['kode_seksi']) ?></strong>
-                                        <?= $verb ?>
+                                        <span class="badge <?= $isVerified ? 'text-success-emphasis bg-success-subtle border border-success-subtle' : 'text-danger-emphasis bg-danger-subtle border border-danger-subtle' ?>" style="font-size:0.62rem;vertical-align:-1px;">
+                                            <i class="bi <?= $isVerified ? 'bi-check-circle-fill' : 'bi-x-circle-fill' ?> me-1"></i><?= $isVerified ? 'Terverifikasi' : 'Ditolak' ?>
+                                        </span>
                                         <span style="color:var(--gray-800);font-weight:600;"><?= formatRp((float)$act['nilai']) ?></span>
                                         <?php if ($feedUraian !== ''): ?>
                                             <span class="d-block text-truncate" style="color:var(--gray-500);font-weight:400;max-width:100%;" title="<?= htmlspecialchars($feedPrefix . ($act['uraian'] ?? '')) ?>"><?= htmlspecialchars($feedPrefix . $feedUraian) ?></span>
                                         <?php endif; ?>
                                     </div>
-                                    <div class="admin-timeline__time" <?= $feedTs ? 'title="' . date('d M Y, H:i', $feedTs) . '"' : '' ?>><?= timeAgo($act['diverifikasi_at']) ?></div>
+                                    <div class="admin-timeline__time" <?= $feedTs ? 'title="' . date('d', $feedTs) . ' ' . ($bulanNames[(int) date('n', $feedTs)] ?? date('M', $feedTs)) . ' ' . date('Y, H:i', $feedTs) . '"' : '' ?>><?= $feedTs ? date('d', $feedTs) . ' ' . ($bulanNames[(int) date('n', $feedTs)] ?? date('M', $feedTs)) . ' ' . date('H:i', $feedTs) : '' ?></div>
                                 </a>
                             </li>
                             <?php endforeach; ?>
@@ -481,12 +486,12 @@ foreach ($pendingBySeksi as $ps) {
     <div class="row g-3 animate-fade-in-up" style="animation-delay:0.15s;">
         <!-- Pending per Seksi -->
         <div class="col-12 col-lg-4">
-            <div class="admin-panel h-100">
+            <div class="admin-panel">
                 <div class="admin-panel__header">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
                     Pending per Seksi
                 </div>
-                <div class="admin-panel__body">
+                <div class="admin-panel__body" style="max-height:360px;overflow-y:auto;">
                     <?php if (empty($pendingBySeksi)): ?>
                         <div class="text-center d-flex align-items-center justify-content-center gap-2" style="padding:0.75rem 1rem;max-height:80px;color:var(--gray-400);font-size:var(--fs-sm);">
                             <i class="bi bi-check-circle" style="font-size:1rem;opacity:0.5;"></i>
@@ -496,8 +501,11 @@ foreach ($pendingBySeksi as $ps) {
                         <?php foreach ($pendingBySeksi as $ps):
                             $pct = $maxPendingSeksi > 0 ? ((int)$ps['cnt'] / $maxPendingSeksi) * 100 : 0;
                         ?>
-                        <div class="seksi-bar-row">
-                            <div class="seksi-bar-label"><?= htmlspecialchars($ps['kode_seksi']) ?></div>
+                        <div class="seksi-bar-row" title="<?= htmlspecialchars(($ps['nama_seksi'] ?? '') . ' — ' . (int)$ps['cnt'] . ' transaksi pending — ' . formatRp((float)$ps['total_nilai'])) ?>">
+                            <div class="seksi-bar-info">
+                                <span class="seksi-bar-label"><?= htmlspecialchars($ps['kode_seksi']) ?></span>
+                                <span class="seksi-bar-name"><?= htmlspecialchars($ps['nama_seksi'] ?? '') ?></span>
+                            </div>
                             <div class="seksi-bar-track">
                                 <div class="seksi-bar-fill" style="width:<?= max(8, $pct) ?>%;">
                                     <span><?= (int)$ps['cnt'] ?></span>
@@ -541,6 +549,16 @@ foreach ($pendingBySeksi as $ps) {
                 <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-3">
+                <div class="rounded-3 border p-2 mb-3" style="background:var(--gray-50);border-color:var(--gray-200) !important;">
+                    <div class="d-flex justify-content-between gap-2" style="font-size:var(--fs-sm);">
+                        <span class="text-muted">No. Dokumen</span>
+                        <span class="fw-semibold text-dark text-end" id="tolakNomor">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between gap-2 mt-1" style="font-size:var(--fs-sm);">
+                        <span class="text-muted">Nilai</span>
+                        <span class="fw-bold text-dark" id="tolakNilai">—</span>
+                    </div>
+                </div>
                 <label for="dashCatatan" class="form-label" style="font-size:var(--fs-sm);font-weight:600;color:var(--gray-600);">Alasan Penolakan</label>
                 <textarea id="dashCatatan" name="catatan_verifikasi" class="form-control form-control-sm" rows="3" placeholder="Tuliskan alasan..." required style="font-size:var(--fs-sm);"></textarea>
             </div>
@@ -552,6 +570,35 @@ foreach ($pendingBySeksi as $ps) {
     </div>
 </div>
 
+<!-- Modal Verifikasi (Dashboard) -->
+<div class="modal fade" id="modalDashVerif" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header py-2" style="background:var(--status-success-bg);border-bottom:1px solid var(--status-success-border);">
+                <h6 class="modal-title fw-bold" style="color:var(--success);font-size:var(--fs-base);"><i class="bi bi-check-circle me-2"></i>Verifikasi Transaksi</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="rounded-3 border p-2 mb-2" style="background:var(--gray-50);border-color:var(--gray-200) !important;">
+                    <div class="d-flex justify-content-between gap-2" style="font-size:var(--fs-sm);">
+                        <span class="text-muted">No. Dokumen</span>
+                        <span class="fw-semibold text-dark text-end" id="verifNomor">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between gap-2 mt-1" style="font-size:var(--fs-sm);">
+                        <span class="text-muted">Nilai</span>
+                        <span class="fw-bold text-dark" id="verifNilai">—</span>
+                    </div>
+                </div>
+                <p class="mb-0 text-muted" style="font-size:var(--fs-sm);">Setujui transaksi ini?</p>
+            </div>
+            <div class="modal-footer py-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-sm btn-success" id="verifConfirm">Verifikasi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
@@ -559,29 +606,56 @@ foreach ($pendingBySeksi as $ps) {
 (function() {
     'use strict';
 
-    // ── Quick Actions: Verify ──
+    // ── Quick Actions: Verify (konfirmasi via modal, tampil no. dokumen + nilai) ──
+    let verifyId = null;
+    const modalVerif   = document.getElementById('modalDashVerif');
+    const verifNomorEl = document.getElementById('verifNomor');
+    const verifNilaiEl = document.getElementById('verifNilai');
+
+    function submitVerifikasi(id) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = BASE_URL + 'transaksi/verifikasi/' + id;
+        form.style.display = 'none';
+        document.body.appendChild(form);
+        form.submit();
+    }
+
     document.querySelectorAll('.btn-dash-verif').forEach(btn => {
         btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            if (!confirm('Verifikasi transaksi #' + id + '?')) return;
-
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = BASE_URL + 'transaksi/verifikasi/' + id;
-            form.style.display = 'none';
-            document.body.appendChild(form);
-            form.submit();
+            verifyId = this.dataset.id;
+            const nomor = this.dataset.nomor || '—';
+            const nilai = this.dataset.nilai || '—';
+            if (!modalVerif) {
+                if (!confirm('Verifikasi transaksi ' + (nomor !== '—' ? nomor : '#' + verifyId) + ' (' + nilai + ')?')) return;
+                submitVerifikasi(verifyId);
+                return;
+            }
+            if (verifNomorEl) verifNomorEl.textContent = nomor;
+            if (verifNilaiEl) verifNilaiEl.textContent = nilai;
+            new bootstrap.Modal(modalVerif).show();
         });
     });
 
-    // ── Quick Actions: Reject ──
+    const verifConfirmBtn = document.getElementById('verifConfirm');
+    if (verifConfirmBtn) {
+        verifConfirmBtn.addEventListener('click', function() {
+            if (verifyId) submitVerifikasi(verifyId);
+        });
+    }
+
+    // ── Quick Actions: Reject (info no. dokumen + nilai) ──
     let rejectId = null;
-    const modalTolak = document.getElementById('modalDashTolak');
-    const formTolak  = document.getElementById('formDashTolak');
+    const modalTolak   = document.getElementById('modalDashTolak');
+    const formTolak    = document.getElementById('formDashTolak');
+    const tolakNomorEl = document.getElementById('tolakNomor');
+    const tolakNilaiEl = document.getElementById('tolakNilai');
 
     document.querySelectorAll('.btn-dash-tolak').forEach(btn => {
         btn.addEventListener('click', function() {
             rejectId = this.dataset.id;
+            if (tolakNomorEl) tolakNomorEl.textContent = this.dataset.nomor || '—';
+            if (tolakNilaiEl) tolakNilaiEl.textContent = this.dataset.nilai || '—';
             formTolak.action = BASE_URL + 'transaksi/tolak/' + rejectId;
             new bootstrap.Modal(modalTolak).show();
         });
@@ -647,6 +721,7 @@ foreach ($pendingBySeksi as $ps) {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                font: { family: 'Inter' },
                 plugins: {
                     legend: {
                         position: 'top',
@@ -688,6 +763,12 @@ foreach ($pendingBySeksi as $ps) {
                     },
                     y: {
                         beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Jumlah Transaksi',
+                            color: '#64748b',
+                            font: { size: 11, family: 'Inter', weight: '600' }
+                        },
                         ticks: {
                             maxTicksLimit: 6,
                             precision: 0,
@@ -720,6 +801,10 @@ foreach ($pendingBySeksi as $ps) {
             trendChart.data.datasets.forEach(ds => {
                 ds.data = src[seriesKey(ds.label)] || [];
             });
+            const yScale = trendChart.options.scales && trendChart.options.scales.y;
+            if (yScale && yScale.title) {
+                yScale.title.text = (mode === 'value' ? 'Nilai (Rp)' : 'Jumlah Transaksi');
+            }
             trendChart.update();
             if (trendTitleEl) {
                 trendTitleEl.innerHTML = '<i class="bi bi-graph-up" style="color:var(--primary);"></i> '

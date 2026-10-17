@@ -377,7 +377,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--gray-400);
+    color: var(--gray-600);
     margin-top: 0.15rem;
 }
 
@@ -575,6 +575,27 @@ body {
 
 .seksi-bar-row:last-child {
     margin-bottom: 0;
+}
+
+.seksi-bar-info {
+    width: 92px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.seksi-bar-info .seksi-bar-label {
+    width: auto;
+    text-align: left;
+}
+
+.seksi-bar-name {
+    font-size: 0.6rem;
+    color: var(--gray-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .seksi-bar-label {
