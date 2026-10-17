@@ -85,6 +85,106 @@ foreach ($pendingBySeksi as $ps) {
         </div>
     </div>
 
+    <!-- Antrian Verifikasi (dipindah ke atas, full-width) -->
+    <div class="mb-4 animate-fade-in-up" style="animation-delay:0.02s;">
+        <div class="admin-queue">
+                <div class="admin-queue__header">
+                    <div class="admin-queue__title">
+                        <i class="bi bi-inbox" style="color:var(--warning);"></i>
+                        Antrian Verifikasi
+                        <?php if ($pendingCount > 0): ?>
+                            <span class="admin-queue__count"><?= $pendingCount ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <a href="<?= base_url('transaksi') ?>?status=diajukan" class="btn btn-sm btn-outline-secondary px-3" style="font-size:var(--fs-sm);border-radius:var(--radius-full);">
+                        Lihat Semua <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+
+                <?php if (empty($recentPending)): ?>
+                    <div class="admin-queue__empty" style="padding:0.75rem 1rem;max-height:80px;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                        <i class="bi bi-check-circle" style="font-size:1rem;display:inline;margin:0;opacity:0.5;"></i>
+                        <span style="font-size:var(--fs-sm);font-weight:600;color:var(--gray-500);">Tidak ada transaksi menunggu verifikasi.</span>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="text-nowrap">Tanggal</th>
+                                    <th>Seksi</th>
+                                    <th>Rekening</th>
+                                    <th class="text-nowrap">No. Dokumen</th>
+                                    <th style="min-width:180px;width:30%;">Uraian</th>
+                                    <th class="text-end text-nowrap">Nilai</th>
+                                    <th class="text-center text-nowrap col-aksi" style="width:124px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($recentPending as $trx): ?>
+                                <tr>
+                                    <td class="align-middle text-nowrap">
+                                        <span class="fw-medium text-dark"><?= date('d', strtotime($trx['tanggal'])) . ' ' . ($bulanNames[(int) date('n', strtotime($trx['tanggal']))] ?? date('M', strtotime($trx['tanggal']))) . ' ' . date('Y', strtotime($trx['tanggal'])) ?></span>
+                                    </td>
+                                    <td class="align-middle">
+                                        <span style="font-size:var(--fs-sm);font-weight:700;color:var(--gray-700);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
+                                            <?= htmlspecialchars($trx['kode_seksi']) ?>
+                                        </span>
+                                    </td>
+                                    <td class="align-middle">
+                                        <span style="font-family:monospace;font-size:var(--fs-sm);color:var(--gray-600);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
+                                            <?= htmlspecialchars($trx['kode_rekening']) ?>
+                                        </span>
+                                    </td>
+                                    <td class="align-middle text-nowrap">
+                                        <span style="font-family:monospace;font-size:var(--fs-sm);color:var(--gray-600);" title="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>">
+                                            <?= htmlspecialchars(trim((string)($trx['nomor_bukti'] ?? '')) !== '' ? $trx['nomor_bukti'] : '—') ?>
+                                        </span>
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="uraian-truncate" title="<?= htmlspecialchars($trx['uraian']) ?>">
+                                            <?= htmlspecialchars($trx['uraian']) ?>
+                                        </div>
+                                    </td>
+                                    <td class="align-middle text-end text-nowrap">
+                                        <span class="fw-bold text-dark" style="font-family:monospace;font-size:var(--fs-base);">
+                                            <?= number_format($trx['nilai'], 0, ',', '.') ?>
+                                        </span>
+                                    </td>
+                                    <td class="align-middle text-center col-aksi">
+                                        <div class="d-inline-flex align-items-center justify-content-center gap-2">
+                                            <a href="<?= base_url('transaksi/show/' . $trx['id']) ?>" 
+                                               class="quick-action-btn quick-action-btn--view"
+                                               title="Detail">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <button type="button" 
+                                                    class="quick-action-btn quick-action-btn--verify btn-dash-verif"
+                                                    data-id="<?= $trx['id'] ?>"
+                                                    data-nomor="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>"
+                                                    data-nilai="Rp <?= number_format((float)$trx['nilai'], 0, ',', '.') ?>"
+                                                    title="Verifikasi">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="quick-action-btn quick-action-btn--reject btn-dash-tolak"
+                                                    data-id="<?= $trx['id'] ?>"
+                                                    data-nomor="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>"
+                                                    data-nilai="Rp <?= number_format((float)$trx['nilai'], 0, ',', '.') ?>"
+                                                    title="Tolak">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+    </div>
+
     <!-- BARIS 1 (baru) — Serapan Anggaran -->
     <?php
         $stTotal = $serapanTotal ?? ['pagu' => 0, 'realisasi' => 0, 'sisa' => 0, 'persen' => 0];
@@ -286,112 +386,11 @@ foreach ($pendingBySeksi as $ps) {
         -->
     </div>
 
-    <!-- Row 2: Queue + Side Panel -->
-    <div class="row g-3 mb-4 animate-fade-in-up" style="animation-delay:0.1s;">
-        <!-- Left: Verification Queue -->
-        <div class="col-12 col-xl-8">
-            <div class="admin-queue">
-                <div class="admin-queue__header">
-                    <div class="admin-queue__title">
-                        <i class="bi bi-inbox" style="color:var(--warning);"></i>
-                        Antrian Verifikasi
-                        <?php if ($pendingCount > 0): ?>
-                            <span class="admin-queue__count"><?= $pendingCount ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <a href="<?= base_url('transaksi') ?>?status=diajukan" class="btn btn-sm btn-outline-secondary px-3" style="font-size:var(--fs-sm);border-radius:var(--radius-full);">
-                        Lihat Semua <i class="bi bi-arrow-right ms-1"></i>
-                    </a>
-                </div>
-
-                <?php if (empty($recentPending)): ?>
-                    <div class="admin-queue__empty" style="padding:0.75rem 1rem;max-height:80px;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
-                        <i class="bi bi-check-circle" style="font-size:1rem;display:inline;margin:0;opacity:0.5;"></i>
-                        <span style="font-size:var(--fs-sm);font-weight:600;color:var(--gray-500);">Tidak ada transaksi menunggu verifikasi.</span>
-                    </div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th class="text-nowrap">Tanggal</th>
-                                    <th>Seksi</th>
-                                    <th>Rekening</th>
-                                    <th class="text-nowrap">No. Dokumen</th>
-                                    <th style="min-width:180px;width:30%;">Uraian</th>
-                                    <th class="text-end text-nowrap">Nilai</th>
-                                    <th class="text-center text-nowrap col-aksi" style="width:124px;">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($recentPending as $trx): ?>
-                                <tr>
-                                    <td class="align-middle text-nowrap">
-                                        <span class="fw-medium text-dark"><?= date('d', strtotime($trx['tanggal'])) . ' ' . ($bulanNames[(int) date('n', strtotime($trx['tanggal']))] ?? date('M', strtotime($trx['tanggal']))) . ' ' . date('Y', strtotime($trx['tanggal'])) ?></span>
-                                    </td>
-                                    <td class="align-middle">
-                                        <span style="font-size:var(--fs-sm);font-weight:700;color:var(--gray-700);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
-                                            <?= htmlspecialchars($trx['kode_seksi']) ?>
-                                        </span>
-                                    </td>
-                                    <td class="align-middle">
-                                        <span style="font-family:monospace;font-size:var(--fs-sm);color:var(--gray-600);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
-                                            <?= htmlspecialchars($trx['kode_rekening']) ?>
-                                        </span>
-                                    </td>
-                                    <td class="align-middle text-nowrap">
-                                        <span style="font-family:monospace;font-size:var(--fs-sm);color:var(--gray-600);" title="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>">
-                                            <?= htmlspecialchars(trim((string)($trx['nomor_bukti'] ?? '')) !== '' ? $trx['nomor_bukti'] : '—') ?>
-                                        </span>
-                                    </td>
-                                    <td class="align-middle">
-                                        <div class="uraian-truncate" title="<?= htmlspecialchars($trx['uraian']) ?>">
-                                            <?= htmlspecialchars($trx['uraian']) ?>
-                                        </div>
-                                    </td>
-                                    <td class="align-middle text-end text-nowrap">
-                                        <span class="fw-bold text-dark" style="font-family:monospace;font-size:var(--fs-base);">
-                                            <?= number_format($trx['nilai'], 0, ',', '.') ?>
-                                        </span>
-                                    </td>
-                                    <td class="align-middle text-center col-aksi">
-                                        <div class="d-inline-flex align-items-center justify-content-center gap-2">
-                                            <a href="<?= base_url('transaksi/show/' . $trx['id']) ?>" 
-                                               class="quick-action-btn quick-action-btn--view"
-                                               title="Detail">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            <button type="button" 
-                                                    class="quick-action-btn quick-action-btn--verify btn-dash-verif"
-                                                    data-id="<?= $trx['id'] ?>"
-                                                    data-nomor="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>"
-                                                    data-nilai="Rp <?= number_format((float)$trx['nilai'], 0, ',', '.') ?>"
-                                                    title="Verifikasi">
-                                                <i class="bi bi-check-lg"></i>
-                                            </button>
-                                            <button type="button" 
-                                                    class="quick-action-btn quick-action-btn--reject btn-dash-tolak"
-                                                    data-id="<?= $trx['id'] ?>"
-                                                    data-nomor="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>"
-                                                    data-nilai="Rp <?= number_format((float)$trx['nilai'], 0, ',', '.') ?>"
-                                                    title="Tolak">
-                                                <i class="bi bi-x-lg"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Right: Side Panels -->
-        <div class="col-12 col-xl-4">
+    <!-- Row 2: Serapan per Seksi + Aktivitas Terkini -->
+    <div class="row g-3 mb-4 animate-fade-in-up" style="animation-delay:0.05s;">
+        <div class="col-12 col-lg-6">
             <!-- Serapan per Seksi (posisi menggantikan Pending per Seksi) -->
-            <div class="admin-panel mb-3">
+            <div class="admin-panel h-100">
                 <div class="admin-panel__header">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
                     Serapan per Seksi
@@ -431,9 +430,10 @@ foreach ($pendingBySeksi as $ps) {
                     <?php endif; ?>
                 </div>
             </div>
-
+        </div>
+        <div class="col-12 col-lg-6">
             <!-- Aktivitas Terkini -->
-            <div class="admin-panel">
+            <div class="admin-panel h-100">
                 <div class="admin-panel__header">
                     <i class="bi bi-clock-history" style="color:var(--primary);"></i>
                     Aktivitas Terkini
