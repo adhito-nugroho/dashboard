@@ -90,7 +90,7 @@ foreach ($pendingBySeksi as $ps) {
         $stBarColor = $stOver ? '#dc2626' : '#1b2f23';
     ?>
     <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 p-md-4 bg-white animate-fade-in-up" style="border: 1px solid #e2e8f0 !important;">
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
             <div>
                 <span class="badge fw-semibold" style="font-size:0.7rem;background:#eef2ff;color:var(--primary);border:1px solid #c7d2fe;">
                     SERAPAN ANGGARAN <?= $tahun ?>
@@ -99,10 +99,19 @@ foreach ($pendingBySeksi as $ps) {
                     <?= number_format($stTotal['persen'], 2) ?>%
                 </div>
             </div>
-            <div class="text-end small">
-                <div class="text-muted">Realisasi <strong class="font-monospace text-dark">Rp <?= number_format($stTotal['realisasi'], 0, ',', '.') ?></strong></div>
-                <div class="text-muted">dari Pagu <strong class="font-monospace text-dark">Rp <?= number_format($stTotal['pagu'], 0, ',', '.') ?></strong></div>
-                <div class="mt-1">Sisa Pagu <strong class="font-monospace" style="color:<?= $stOver ? '#dc2626' : 'var(--success)' ?>;">Rp <?= number_format($stTotal['sisa'], 0, ',', '.') ?></strong></div>
+            <div class="d-flex flex-wrap gap-2">
+                <div class="px-3 py-2 rounded-3 border" style="background:#f8fafc;border-color:#e2e8f0 !important;min-width:150px;">
+                    <div class="text-muted" style="font-size:0.7rem;">Realisasi</div>
+                    <div class="fw-bold font-monospace text-dark" style="font-size:0.95rem;">Rp <?= number_format($stTotal['realisasi'], 0, ',', '.') ?></div>
+                </div>
+                <div class="px-3 py-2 rounded-3 border" style="background:#eef2ff;border-color:#c7d2fe !important;min-width:150px;">
+                    <div class="text-muted" style="font-size:0.7rem;">Pagu Anggaran</div>
+                    <div class="fw-bold font-monospace text-dark" style="font-size:0.95rem;">Rp <?= number_format($stTotal['pagu'], 0, ',', '.') ?></div>
+                </div>
+                <div class="px-3 py-2 rounded-3 border" style="background:<?= $stOver ? '#fef2f2' : '#f0fdf4' ?>;border-color:<?= $stOver ? '#fecaca' : '#bbf7d0' ?> !important;min-width:150px;">
+                    <div class="text-muted" style="font-size:0.7rem;">Sisa Pagu</div>
+                    <div class="fw-bold font-monospace" style="font-size:0.95rem;color:<?= $stOver ? '#dc2626' : 'var(--success)' ?>;">Rp <?= number_format($stTotal['sisa'], 0, ',', '.') ?></div>
+                </div>
             </div>
         </div>
         <div class="progress" style="height:10px;border-radius:6px;background:#eef1f8;">
@@ -113,67 +122,76 @@ foreach ($pendingBySeksi as $ps) {
     <!-- Widget Saldo Kas/Bank (UP/GU) -->
     <?php if (!empty($kasRingkasan)): ?>
     <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 bg-white animate-fade-in-up" style="border: 1px solid #e2e8f0 !important;">
-        <div class="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center gap-3">
-            <!-- Saldo Utama -->
-            <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+        <!-- Baris atas: label periode (kiri) + tombol Kelola (kanan) -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold" style="font-size:0.7rem;">
+                    KAS & BANK (UP/GU)
+                </span>
+                <span class="text-muted small">Periode <?= date('F Y') ?></span>
+            </div>
+            <a href="<?= base_url('kas-bank') ?>" class="btn btn-primary btn-sm fw-semibold px-3 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2">
+                <i class="bi bi-arrow-right-circle"></i>
+                <span>Kelola Kas & GU</span>
+            </a>
+        </div>
+
+        <!-- Baris utama: saldo (kiri) + 3 metrik sejajar sama tinggi (kanan) -->
+        <div class="row g-3 align-items-stretch">
+            <div class="col-12 col-xl-5 d-flex align-items-center gap-3">
+                <div class="p-3 rounded-4 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
                     <i class="bi bi-bank2 fs-4"></i>
                 </div>
                 <div>
                     <div class="d-flex align-items-center gap-2 mb-0.5">
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold" style="font-size:0.7rem;">
-                            KAS & BANK (UP/GU)
-                        </span>
-                        <span class="text-muted small">Periode <?= date('F Y') ?></span>
-                    </div>
-                    <div class="d-flex align-items-baseline gap-2">
-                        <div class="h3 fw-bold mb-0 font-monospace text-dark" style="white-space:nowrap;font-size:clamp(1.1rem, 1.1rem + 1vw, 1.75rem);">
-                            Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
-                        </div>
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style="font-size:0.7rem;">
                             <i class="bi bi-check-circle me-1"></i>Saldo Kas Riil
                         </span>
                     </div>
+                    <div class="h3 fw-bold mb-0 font-monospace text-dark" style="white-space:nowrap;font-size:clamp(1.1rem, 1.1rem + 1vw, 1.75rem);">
+                        Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
+                    </div>
                 </div>
             </div>
 
-            <!-- Mini Metrik Berwarna Jelas & Kontras Tinggi -->
-            <div class="d-flex align-items-center gap-2 flex-wrap ms-auto ms-xl-0">
-                <!-- GU Menunggu Cair -->
-                <div class="px-3 py-2 rounded-3 border" style="background: #fffbeb; border-color: #fde68a !important;">
-                    <div class="text-xs fw-semibold text-warning-emphasis" style="font-size:0.72rem;">
-                        <i class="bi bi-hourglass-split me-1"></i>GU Menunggu Cair (SPJ Lalu):
+            <div class="col-12 col-xl-7">
+                <div class="row row-cols-1 row-cols-sm-3 g-2 h-100">
+                    <!-- GU Menunggu Cair -->
+                    <div class="col d-flex">
+                        <div class="w-100 h-100 px-3 py-2 rounded-3 border" style="background: #fffbeb; border-color: #fde68a !important;">
+                            <div class="text-xs fw-semibold text-warning-emphasis" style="font-size:0.72rem;">
+                                <i class="bi bi-hourglass-split me-1"></i>GU Menunggu Cair (SPJ Lalu):
+                            </div>
+                            <div class="fw-bold font-monospace text-warning-emphasis fs-6 mb-0 mt-1">
+                                Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?>
+                            </div>
+                        </div>
                     </div>
-                    <div class="fw-bold font-monospace text-warning-emphasis fs-6 mb-0">
-                        Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?>
+
+                    <!-- Belanja Siap GU -->
+                    <div class="col d-flex">
+                        <div class="w-100 h-100 px-3 py-2 rounded-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
+                            <div class="text-xs fw-semibold" style="color: #475569; font-size:0.72rem;">
+                                <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>Belanja Bulan Ini (Siap GU):
+                            </div>
+                            <div class="fw-bold font-monospace fs-6 mb-0 mt-1" style="color: #334155;">
+                                Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proyeksi Kas Setelah Cair -->
+                    <div class="col d-flex">
+                        <div class="w-100 h-100 px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;" title="Saldo Kas Riil + GU yang menunggu pencairan">
+                            <div class="text-xs fw-semibold text-success" style="font-size:0.72rem;">
+                                <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Proyeksi Setelah GU Cair:
+                            </div>
+                            <div class="fw-bold font-monospace text-success fs-6 mb-0 mt-1">
+                                Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Belanja Siap GU -->
-                <div class="px-3 py-2 rounded-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
-                    <div class="text-xs fw-semibold" style="color: #475569; font-size:0.72rem;">
-                        <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>Belanja Bulan Ini (Siap GU):
-                    </div>
-                    <div class="fw-bold font-monospace fs-6 mb-0" style="color: #334155;">
-                        Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?>
-                    </div>
-                </div>
-
-                <!-- Proyeksi Kas Setelah Cair -->
-                <div class="px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;" title="Saldo Kas Riil + GU yang menunggu pencairan">
-                    <div class="text-xs fw-semibold text-success" style="font-size:0.72rem;">
-                        <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Proyeksi Setelah GU Cair:
-                    </div>
-                    <div class="fw-bold font-monospace text-success fs-6 mb-0">
-                        Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?>
-                    </div>
-                </div>
-
-                <!-- Tombol Kelola -->
-                <a href="<?= base_url('kas-bank') ?>" class="btn btn-primary btn-sm fw-semibold px-3 py-2 rounded-3 shadow-sm ms-xl-2 d-inline-flex align-items-center gap-2">
-                    <i class="bi bi-arrow-right-circle"></i>
-                    <span>Kelola Kas & GU</span>
-                </a>
             </div>
         </div>
     </div>
@@ -272,9 +290,9 @@ foreach ($pendingBySeksi as $ps) {
                                     <th>Tanggal</th>
                                     <th>Seksi</th>
                                     <th>Rekening</th>
-                                    <th>Uraian</th>
+                                    <th style="min-width:260px;width:42%;">Uraian</th>
                                     <th class="text-end">Nilai</th>
-                                    <th class="text-center" style="width:100px;">Aksi</th>
+                                    <th class="text-center" style="width:124px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -305,7 +323,7 @@ foreach ($pendingBySeksi as $ps) {
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <div class="d-inline-flex align-items-center justify-content-center gap-2">
                                             <a href="<?= base_url('transaksi/show/' . $trx['id']) ?>" 
                                                class="quick-action-btn quick-action-btn--view"
                                                title="Detail">
@@ -332,36 +350,6 @@ foreach ($pendingBySeksi as $ps) {
                     </div>
                 <?php endif; ?>
             </div>
-
-            <!-- Pending per Seksi (dipindah ke bawah Antrian Verifikasi, isi utuh) -->
-            <div class="admin-panel mt-3">
-                <div class="admin-panel__header">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
-                    Pending per Seksi
-                </div>
-                <div class="admin-panel__body">
-                    <?php if (empty($pendingBySeksi)): ?>
-                        <div class="text-center d-flex align-items-center justify-content-center gap-2" style="padding:0.75rem 1rem;max-height:80px;color:var(--gray-400);font-size:var(--fs-sm);">
-                            <i class="bi bi-check-circle" style="font-size:1rem;opacity:0.5;"></i>
-                            <span>Tidak ada transaksi pending.</span>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($pendingBySeksi as $ps):
-                            $pct = $maxPendingSeksi > 0 ? ((int)$ps['cnt'] / $maxPendingSeksi) * 100 : 0;
-                        ?>
-                        <div class="seksi-bar-row">
-                            <div class="seksi-bar-label"><?= htmlspecialchars($ps['kode_seksi']) ?></div>
-                            <div class="seksi-bar-track">
-                                <div class="seksi-bar-fill" style="width:<?= max(8, $pct) ?>%;">
-                                    <span><?= (int)$ps['cnt'] ?></span>
-                                </div>
-                            </div>
-                            <div class="seksi-bar-value"><?= formatRp((float)$ps['total_nilai']) ?></div>
-                        </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
         </div>
 
         <!-- Right: Side Panels -->
@@ -382,22 +370,26 @@ foreach ($pendingBySeksi as $ps) {
                     <?php else: ?>
                         <?php foreach ($spList as $sp):
                             $spPct = (float) ($sp['persen'] ?? 0);
-                            $spW = max(6, (int) min(100, $spPct));
+                            $spW = max(4, (int) min(100, $spPct));
                             $isYatim = ((int) ($sp['id'] ?? 0)) === 0;
                             $spBar = ((float) ($sp['pagu'] ?? 0)) <= 0 ? '#94a3b8' : ($spPct > 100 ? '#dc2626' : '#1b2f23');
+                            $spPctClass = $isYatim ? 'seksi-meter__pct--warn' : ($spPct > 100 ? 'seksi-meter__pct--over' : '');
                             $spTip = htmlspecialchars(($sp['nama_seksi'] ?? '') . ' — Rp ' . number_format((float) ($sp['realisasi'] ?? 0), 0, ',', '.') . ' dari Rp ' . number_format((float) ($sp['pagu'] ?? 0), 0, ',', '.') . ' (' . number_format($spPct, 2) . '%)');
                             if ($isYatim) {
                                 $spTip .= ' — transaksi/pagu yang rantainya putus (tidak masuk seksi mana pun)';
                             }
                         ?>
-                        <div class="seksi-bar-row" title="<?= $spTip ?>">
-                            <div class="seksi-bar-label" style="width:48px;" title="<?= htmlspecialchars($sp['nama_seksi'] ?? '') ?>"><?= htmlspecialchars($sp['kode_seksi']) ?></div>
-                            <div class="seksi-bar-track">
-                                <div class="seksi-bar-fill" style="width:<?= $spW ?>%;background:<?= $isYatim ? '#f59e0b' : $spBar ?>;">
-                                    <span><?= number_format($spPct, 1) ?>%</span>
+                        <div class="seksi-meter" title="<?= $spTip ?>">
+                            <div class="seksi-meter__top">
+                                <div class="seksi-meter__name">
+                                    <span class="seksi-meter__code" title="<?= htmlspecialchars($sp['nama_seksi'] ?? '') ?>"><?= htmlspecialchars($sp['kode_seksi']) ?></span>
+                                    <span class="seksi-meter__pct <?= $spPctClass ?>"><?= number_format($spPct, 1) ?>%</span>
                                 </div>
+                                <div class="seksi-meter__value"><?= formatRp((float) ($sp['realisasi'] ?? 0)) ?></div>
                             </div>
-                            <div class="seksi-bar-value" style="width:110px;"><?= formatRp((float) ($sp['realisasi'] ?? 0)) ?></div>
+                            <div class="seksi-meter__track">
+                                <div class="seksi-meter__fill" style="width:<?= $spW ?>%;background:<?= $isYatim ? '#f59e0b' : $spBar ?>;"></div>
+                            </div>
                         </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -451,20 +443,57 @@ foreach ($pendingBySeksi as $ps) {
         </div>
     </div>
 
-    <!-- Row 3: Monthly Trend -->
-    <div class="admin-trend animate-fade-in-up" style="animation-delay:0.15s;">
-        <div class="admin-trend__header">
-            <span id="trendTitle">
-                <i class="bi bi-graph-up" style="color:var(--primary);"></i>
-                Tren Transaksi Bulanan <?= $tahun ?> (jumlah transaksi)
-            </span>
-            <span class="btn-group btn-group-sm ms-auto" role="group" aria-label="Mode chart">
-                <button type="button" class="btn btn-outline-secondary active" id="trendModeCount" aria-pressed="true">Jumlah Transaksi</button>
-                <button type="button" class="btn btn-outline-secondary" id="trendModeValue" aria-pressed="false">Nilai (Rp)</button>
-            </span>
+    <!-- Row 3: Pending per Seksi + Monthly Trend -->
+    <div class="row g-3 animate-fade-in-up" style="animation-delay:0.15s;">
+        <!-- Pending per Seksi -->
+        <div class="col-12 col-lg-4">
+            <div class="admin-panel h-100">
+                <div class="admin-panel__header">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-7"/></svg>
+                    Pending per Seksi
+                </div>
+                <div class="admin-panel__body">
+                    <?php if (empty($pendingBySeksi)): ?>
+                        <div class="text-center d-flex align-items-center justify-content-center gap-2" style="padding:0.75rem 1rem;max-height:80px;color:var(--gray-400);font-size:var(--fs-sm);">
+                            <i class="bi bi-check-circle" style="font-size:1rem;opacity:0.5;"></i>
+                            <span>Tidak ada transaksi pending.</span>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($pendingBySeksi as $ps):
+                            $pct = $maxPendingSeksi > 0 ? ((int)$ps['cnt'] / $maxPendingSeksi) * 100 : 0;
+                        ?>
+                        <div class="seksi-bar-row">
+                            <div class="seksi-bar-label"><?= htmlspecialchars($ps['kode_seksi']) ?></div>
+                            <div class="seksi-bar-track">
+                                <div class="seksi-bar-fill" style="width:<?= max(8, $pct) ?>%;">
+                                    <span><?= (int)$ps['cnt'] ?></span>
+                                </div>
+                            </div>
+                            <div class="seksi-bar-value"><?= formatRp((float)$ps['total_nilai']) ?></div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-        <div class="admin-trend__body">
-            <canvas id="adminTrendChart" height="85"></canvas>
+
+        <!-- Monthly Trend -->
+        <div class="col-12 col-lg-8">
+            <div class="admin-trend h-100">
+                <div class="admin-trend__header">
+                    <span id="trendTitle">
+                        <i class="bi bi-graph-up" style="color:var(--primary);"></i>
+                        Tren Transaksi Bulanan <?= $tahun ?> (jumlah transaksi)
+                    </span>
+                    <span class="btn-group btn-group-sm ms-auto" role="group" aria-label="Mode chart">
+                        <button type="button" class="btn btn-outline-secondary active" id="trendModeCount" aria-pressed="true">Jumlah Transaksi</button>
+                        <button type="button" class="btn btn-outline-secondary" id="trendModeValue" aria-pressed="false">Nilai (Rp)</button>
+                    </span>
+                </div>
+                <div class="admin-trend__body">
+                    <canvas id="adminTrendChart" height="85"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>

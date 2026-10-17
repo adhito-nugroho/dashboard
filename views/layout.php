@@ -214,8 +214,33 @@
                             <img src="<?= base_url('images/logo_jatim.png') ?>" alt="Logo Jatim"
                                 style="height:35px; width:auto; margin-right:12px;">
                         <?php endif; ?>
-                        <h5 class="mb-0 fw-bold" style="color:#1e293b;">
-                            <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?></h5>
+                        <?php
+                            // Top bar Dashboard Admin: tampilkan breadcrumb ringan + tanggal hari ini
+                            // (menghindari duplikasi teks "Dashboard Admin" dengan judul utama halaman).
+                            $isAdminDashHeader = (isset($activePage) && $activePage === 'dashboard') && !empty($_SESSION['is_admin']);
+                            if ($isAdminDashHeader) {
+                                $hariMapId  = ['Sun' => 'Minggu', 'Mon' => 'Senin', 'Tue' => 'Selasa', 'Wed' => 'Rabu', 'Thu' => 'Kamis', 'Fri' => 'Jumat', 'Sat' => 'Sabtu'];
+                                $bulanMapId = [1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'];
+                                $tanggalId  = ($hariMapId[date('D')] ?? '') . ', ' . (int) date('j') . ' ' . ($bulanMapId[(int) date('n')] ?? '') . ' ' . date('Y');
+                            }
+                        ?>
+                        <?php if ($isAdminDashHeader): ?>
+                            <div style="line-height:1.25;min-width:0;">
+                                <nav class="d-flex align-items-center gap-1" aria-label="breadcrumb" style="font-size:var(--fs-sm);color:var(--gray-400);">
+                                    <i class="bi bi-house-door"></i>
+                                    <span>Beranda</span>
+                                    <span style="opacity:0.6;">/</span>
+                                    <span class="fw-semibold" style="color:#1e293b;">Dashboard Admin</span>
+                                </nav>
+                                <div class="d-none d-sm-flex align-items-center gap-1 mt-1" style="font-size:var(--fs-xs);color:var(--gray-400);">
+                                    <i class="bi bi-calendar3"></i>
+                                    <span><?= htmlspecialchars($tanggalId) ?></span>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <h5 class="mb-0 fw-bold" style="color:#1e293b;">
+                                <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?></h5>
+                        <?php endif; ?>
                     </div>
                     <div class="header-actions">
                         <?php

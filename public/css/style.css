@@ -602,6 +602,86 @@ body {
     font-family: 'Inter', monospace;
 }
 
+/* Serapan per Seksi — meter (persentase di luar bar agar tidak terpotong) */
+.seksi-meter {
+    margin-bottom: 0.85rem;
+}
+
+.seksi-meter:last-child {
+    margin-bottom: 0;
+}
+
+.seksi-meter__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.seksi-meter__name {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.seksi-meter__code {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--gray-700);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.seksi-meter__pct {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #1b2f23;
+    background: #e7f0ea;
+    border: 1px solid #cfe3d8;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.seksi-meter__pct--over {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.seksi-meter__pct--warn {
+    color: #b45309;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.seksi-meter__value {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--gray-700);
+    font-family: 'Inter', monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.seksi-meter__track {
+    height: 10px;
+    background: var(--gray-100);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.seksi-meter__fill {
+    height: 100%;
+    border-radius: 9999px;
+    min-width: 4px;
+    transition: width 0.6s ease;
+}
+
 /* Timeline */
 .admin-timeline {
     list-style: none;
@@ -644,6 +724,9 @@ body {
     color: var(--gray-600);
     line-height: 1.4;
     flex: 1;
+    min-width: 0;
+    padding-right: 0.25rem;
+    overflow-wrap: anywhere;
 }
 
 .admin-timeline__text strong {
@@ -685,13 +768,15 @@ body {
 /* Uraian truncation in admin table */
 .uraian-truncate {
     display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
-    line-height: 1.4;
+    white-space: normal;
+    max-width: 340px;
+    line-height: 1.35;
+    font-size: 0.85rem;
 }
 
 /* Fade-in animation */
