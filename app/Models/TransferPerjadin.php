@@ -15,6 +15,13 @@ namespace App\Models;
  */
 class TransferPerjadin
 {
+    /**
+     * Fitur transfer perjalanan dinas mulai berlaku Oktober 2026. Transaksi yang
+     * diinput sebelum tanggal ini dianggap sudah punya file konfigurasi sendiri
+     * sehingga tidak lagi ditampilkan pada daftar.
+     */
+    public const FEATURE_START = '2026-10-01';
+
     private \PDO $db;
 
     public function __construct(\PDO $db)
@@ -172,15 +179,22 @@ class TransferPerjadin
 
     /**
      * Daftar transaksi perjalanan dinas yang BELUM masuk konfigurasi mana pun
-     * (dengan filter opsional). Transaksi yang sudah tersimpan di
+     * (dengan filter opsional). Hanya transaksi berstatus 'diverifikasi' dan
+     * diinput sejak FEATURE_START (Oktober 2026) yang ditampilkan; yang lain
+     * dianggap sudah punya file konfigurasi. Transaksi yang sudah tersimpan di
      * transfer_perjadin tidak ditampilkan lagi.
      *
      * @return array<int, array>
      */
     public function getTransaksiPerjadin(?int $tahun = null, ?string $inputDari = null, ?string $inputSampai = null, ?int $seksiId = null, string $q = ''): array
     {
-        $conditions = ["t.jenis_transaksi = 'perjalanan_dinas'", 'tp.id IS NULL'];
-        $params = [];
+        $conditions = [
+            "t.jenis_transaksi = 'perjalanan_dinas'",
+            'tp.id IS NULL',
+            "t.status = 'diverifikasi'",
+            'DATE(t.created_at) >= :feature_start',
+        ];
+        $params = [':feature_start' => self::FEATURE_START];
 
         if ($tahun !== null) {
             $conditions[] = 'YEAR(t.tanggal) = :tahun';

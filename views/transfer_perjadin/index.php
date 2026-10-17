@@ -86,6 +86,7 @@ sort($daftarSeksiCepat, SORT_NATURAL | SORT_FLAG_CASE);
             <p class="text-muted small mb-0">
                 Isi <strong>Transfer Ke</strong> dan <strong>Potongan</strong> di salah satu baris per Surat Tugas (otomatis tersebar ke seluruh transaksi pada ST itu),
                 beri <strong>Nama Konfigurasi</strong>, lalu simpan. Transaksi yang sudah masuk konfigurasi tidak ditampilkan lagi dan bisa diunduh per nama konfigurasi di bawah.
+                Hanya transaksi berstatus <strong>diverifikasi</strong> yang diinput mulai <strong>Oktober 2026</strong> yang tampil; yang diinput sebelumnya dianggap sudah punya file konfigurasi.
             </p>
         </div>
     </div>
