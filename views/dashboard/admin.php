@@ -26,6 +26,8 @@ function timeAgo(string $datetime): string {
 }
 
 $bulanNames = [1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'Mei',6=>'Jun',7=>'Jul',8=>'Agu',9=>'Sep',10=>'Okt',11=>'Nov',12=>'Des'];
+$bulanNamesFull = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
+$periodeBulan = ($bulanNamesFull[(int) date('n')] ?? date('F')) . ' ' . date('Y');
 $maxPendingSeksi = 0;
 foreach ($pendingBySeksi as $ps) {
     if ((int) $ps['cnt'] > $maxPendingSeksi) $maxPendingSeksi = (int) $ps['cnt'];
@@ -128,7 +130,7 @@ foreach ($pendingBySeksi as $ps) {
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold" style="font-size:0.7rem;">
                     KAS & BANK (UP/GU)
                 </span>
-                <span class="text-muted small">Periode <?= date('F Y') ?></span>
+                <span class="text-muted small">Periode <?= htmlspecialchars($periodeBulan) ?></span>
             </div>
             <a href="<?= base_url('kas-bank') ?>" class="btn btn-primary btn-sm fw-semibold px-3 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2">
                 <i class="bi bi-arrow-right-circle"></i>
@@ -287,42 +289,42 @@ foreach ($pendingBySeksi as $ps) {
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Tanggal</th>
+                                    <th class="text-nowrap">Tanggal</th>
                                     <th>Seksi</th>
                                     <th>Rekening</th>
                                     <th style="min-width:260px;width:42%;">Uraian</th>
-                                    <th class="text-end">Nilai</th>
-                                    <th class="text-center" style="width:124px;">Aksi</th>
+                                    <th class="text-end text-nowrap">Nilai</th>
+                                    <th class="text-center text-nowrap" style="width:124px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($recentPending as $trx): ?>
                                 <tr>
-                                    <td>
+                                    <td class="align-middle text-nowrap">
                                         <span class="fw-medium text-dark"><?= date('d/m', strtotime($trx['tanggal'])) ?></span>
                                         <span class="text-muted" style="font-size:var(--fs-xs);">/<?= date('Y', strtotime($trx['tanggal'])) ?></span>
                                     </td>
-                                    <td>
+                                    <td class="align-middle">
                                         <span style="font-size:var(--fs-sm);font-weight:700;color:var(--gray-700);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
                                             <?= htmlspecialchars($trx['kode_seksi']) ?>
                                         </span>
                                     </td>
-                                    <td>
+                                    <td class="align-middle">
                                         <span style="font-family:monospace;font-size:var(--fs-sm);color:var(--gray-600);background:var(--gray-50);border:1px solid var(--gray-200);padding:1px 6px;border-radius:4px;">
                                             <?= htmlspecialchars($trx['kode_rekening']) ?>
                                         </span>
                                     </td>
-                                    <td>
+                                    <td class="align-middle">
                                         <div class="uraian-truncate" title="<?= htmlspecialchars($trx['uraian']) ?>">
                                             <?= htmlspecialchars($trx['uraian']) ?>
                                         </div>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="align-middle text-end text-nowrap">
                                         <span class="fw-bold text-dark" style="font-family:monospace;font-size:var(--fs-base);">
                                             <?= number_format($trx['nilai'], 0, ',', '.') ?>
                                         </span>
                                     </td>
-                                    <td class="text-center">
+                                    <td class="align-middle text-center">
                                         <div class="d-inline-flex align-items-center justify-content-center gap-2">
                                             <a href="<?= base_url('transaksi/show/' . $trx['id']) ?>" 
                                                class="quick-action-btn quick-action-btn--view"
@@ -420,6 +422,7 @@ foreach ($pendingBySeksi as $ps) {
                                     $feedUraian = substr($feedUraian, 0, 60) . '…';
                                 }
                                 $feedTs = strtotime($act['diverifikasi_at'] ?? '');
+                                $feedPrefix = trim((string)($act['nomor_bukti'] ?? '')) !== '' ? '[' . $act['nomor_bukti'] . '] ' : '';
                             ?>
                             <li class="admin-timeline__item">
                                 <div class="admin-timeline__dot admin-timeline__dot--<?= $icon ?>"></div>
@@ -429,7 +432,7 @@ foreach ($pendingBySeksi as $ps) {
                                         <?= $verb ?>
                                         <span style="color:var(--gray-800);font-weight:600;"><?= formatRp((float)$act['nilai']) ?></span>
                                         <?php if ($feedUraian !== ''): ?>
-                                            <span class="d-block text-truncate" style="color:var(--gray-500);font-weight:400;max-width:100%;" title="<?= htmlspecialchars(trim(($act['nomor_bukti'] ?? '') !== '' ? '[' . $act['nomor_bukti'] . '] ' : '') . ($act['uraian'] ?? '')) ?>"><?= htmlspecialchars(trim(($act['nomor_bukti'] ?? '') !== '' ? '[' . $act['nomor_bukti'] . '] ' : '') . $feedUraian) ?></span>
+                                            <span class="d-block text-truncate" style="color:var(--gray-500);font-weight:400;max-width:100%;" title="<?= htmlspecialchars($feedPrefix . ($act['uraian'] ?? '')) ?>"><?= htmlspecialchars($feedPrefix . $feedUraian) ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="admin-timeline__time" <?= $feedTs ? 'title="' . date('d M Y, H:i', $feedTs) . '"' : '' ?>><?= timeAgo($act['diverifikasi_at']) ?></div>
