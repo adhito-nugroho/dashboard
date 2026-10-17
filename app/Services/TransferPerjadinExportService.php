@@ -24,8 +24,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *                      tampil sebagai baris subtotal, diikuti baris-baris
  *                      anggotanya (siapa saja yang harus menerima dari
  *                      koordinator tsb), ditutup baris Grand Total.
- *                      Kolom: Row Labels | Sum of penerimaan | Sum of potongan |
- *                             Sum of penerimaan bersih.
+ *                      Kolom: Nama Penerima | Penerimaan | Potongan |
+ *                             Penerimaan Bersih.
  *
  * Penerimaan (gross) = transaksi.nilai. Penerimaan bersih = nilai - potongan.
  */
@@ -134,7 +134,7 @@ class TransferPerjadinExportService
         $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $headerRow = 5;
-        $this->writeHeader($sheet, $headerRow, ['Row Labels', 'Sum of penerimaan', 'Sum of potongan', 'Sum of penerimaan bersih']);
+        $this->writeHeader($sheet, $headerRow, ['Nama Penerima', 'Penerimaan', 'Potongan', 'Penerimaan Bersih']);
 
         $row = $headerRow + 1;
         $grandPenerimaan = 0.0;
