@@ -77,7 +77,15 @@ class TransferPerjadinExportService
             $groups[$key]['penerimaan'] += $nilai;
             $groups[$key]['potongan'] += $potongan;
             $groups[$key]['bersih'] += ($nilai - $potongan);
-            $groups[$key]['members'][] = $r;
+
+            $mNama = (string) ($r['nama'] ?? '');
+            $mKey = self::normNama($mNama);
+            if (!isset($groups[$key]['members'][$mKey])) {
+                $groups[$key]['members'][$mKey] = ['nama' => $mNama, 'penerimaan' => 0.0, 'potongan' => 0.0, 'bersih' => 0.0];
+            }
+            $groups[$key]['members'][$mKey]['penerimaan'] += $nilai;
+            $groups[$key]['members'][$mKey]['potongan'] += $potongan;
+            $groups[$key]['members'][$mKey]['bersih'] += ($nilai - $potongan);
         }
 
         uksort($groups, function (string $a, string $b): int {
@@ -88,6 +96,12 @@ class TransferPerjadinExportService
             }
             return strcmp($a, $b);
         });
+
+        foreach ($groups as &$g) {
+            ksort($g['members']);
+            $g['members'] = array_values($g['members']);
+        }
+        unset($g);
 
         return array_values($groups);
     }
@@ -164,12 +178,10 @@ class TransferPerjadinExportService
 
                 // Baris anggota: siapa saja yang harus menerima dari koordinator di atas.
                 foreach ($g['members'] as $m) {
-                    $nilai = (float) ($m['nilai'] ?? 0);
-                    $potongan = (float) ($m['potongan'] ?? 0);
                     $sheet->setCellValue('A' . $row, (string) ($m['nama'] ?? ''));
-                    $sheet->setCellValue('B' . $row, $nilai);
-                    $sheet->setCellValue('C' . $row, $potongan);
-                    $sheet->setCellValue('D' . $row, $nilai - $potongan);
+                    $sheet->setCellValue('B' . $row, $m['penerimaan']);
+                    $sheet->setCellValue('C' . $row, $m['potongan']);
+                    $sheet->setCellValue('D' . $row, $m['bersih']);
                     $this->applyCurrency($sheet, 'B' . $row);
                     $this->applyCurrency($sheet, 'C' . $row);
                     $this->applyCurrency($sheet, 'D' . $row);
