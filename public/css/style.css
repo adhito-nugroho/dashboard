@@ -453,6 +453,28 @@ body {
     background: #fefce8;
 }
 
+/* Kolom Aksi menempel di kanan agar tombol selalu terlihat utuh */
+.admin-queue table thead th.col-aksi,
+.admin-queue table tbody td.col-aksi {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+}
+
+.admin-queue table thead th.col-aksi {
+    background: var(--gray-50);
+    z-index: 3;
+}
+
+.admin-queue table tbody td.col-aksi {
+    background: #fff;
+    box-shadow: -8px 0 8px -8px rgba(15, 23, 42, 0.15);
+}
+
+.admin-queue table tbody tr:hover td.col-aksi {
+    background: #fefce8;
+}
+
 .admin-queue__empty {
     text-align: center;
     padding: 2.5rem 1rem;

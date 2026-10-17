@@ -167,6 +167,9 @@ foreach ($pendingBySeksi as $ps) {
                             <div class="fw-bold font-monospace text-warning-emphasis fs-6 mb-0 mt-1">
                                 Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?>
                             </div>
+                            <div class="text-muted mt-1" style="font-size:0.65rem;">
+                                <i class="bi bi-plus-circle me-1"></i>menambah proyeksi
+                            </div>
                         </div>
                     </div>
 
@@ -179,6 +182,9 @@ foreach ($pendingBySeksi as $ps) {
                             <div class="fw-bold font-monospace fs-6 mb-0 mt-1" style="color: #334155;">
                                 Rp <?= number_format($kasRingkasan['belanja_siap_gu'], 0, ',', '.') ?>
                             </div>
+                            <div class="text-muted mt-1" style="font-size:0.65rem;">
+                                <i class="bi bi-dash-circle me-1"></i>belum termasuk proyeksi
+                            </div>
                         </div>
                     </div>
 
@@ -186,7 +192,7 @@ foreach ($pendingBySeksi as $ps) {
                     <div class="col d-flex">
                         <div class="w-100 h-100 px-3 py-2 rounded-3 border" style="background: #f0fdf4; border-color: #bbf7d0 !important;" title="Saldo Kas Riil + GU yang menunggu pencairan">
                             <div class="text-xs fw-semibold text-success" style="font-size:0.72rem;">
-                                <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Proyeksi Setelah GU Cair:
+                                <svg class="me-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Hasil Proyeksi:
                             </div>
                             <div class="fw-bold font-monospace text-success fs-6 mb-0 mt-1">
                                 Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?>
@@ -194,6 +200,25 @@ foreach ($pendingBySeksi as $ps) {
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Rumus proyeksi (angka dari variabel yang sama seperti sebelumnya, TIDAK diubah) -->
+        <div class="mt-3 pt-3 border-top">
+            <div class="d-flex flex-wrap align-items-center gap-2 font-monospace" style="font-size:0.8rem;">
+                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold" style="font-size:0.68rem;">
+                    <i class="bi bi-graph-up-arrow me-1"></i>Proyeksi
+                </span>
+                <span class="text-muted">Saldo Kas</span>
+                <strong class="text-dark">Rp <?= number_format($kasRingkasan['saldo_kas_saat_ini'], 0, ',', '.') ?></strong>
+                <span class="text-muted">+</span>
+                <span class="text-muted">GU Menunggu Cair</span>
+                <strong class="text-warning-emphasis">Rp <?= number_format($kasRingkasan['gu_menunggu_cair'], 0, ',', '.') ?></strong>
+                <span class="text-muted">=</span>
+                <strong class="text-success">Proyeksi Rp <?= number_format($kasRingkasan['proyeksi_kas_setelah_cair'], 0, ',', '.') ?></strong>
+            </div>
+            <div class="text-muted mt-1" style="font-size:0.66rem;">
+                <i class="bi bi-info-circle me-1"></i>jika SPJ diajukan dan cair
             </div>
         </div>
     </div>
@@ -292,9 +317,10 @@ foreach ($pendingBySeksi as $ps) {
                                     <th class="text-nowrap">Tanggal</th>
                                     <th>Seksi</th>
                                     <th>Rekening</th>
-                                    <th style="min-width:260px;width:42%;">Uraian</th>
+                                    <th class="text-nowrap">No. Dokumen</th>
+                                    <th style="min-width:180px;width:30%;">Uraian</th>
                                     <th class="text-end text-nowrap">Nilai</th>
-                                    <th class="text-center text-nowrap" style="width:124px;">Aksi</th>
+                                    <th class="text-center text-nowrap col-aksi" style="width:124px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -314,6 +340,11 @@ foreach ($pendingBySeksi as $ps) {
                                             <?= htmlspecialchars($trx['kode_rekening']) ?>
                                         </span>
                                     </td>
+                                    <td class="align-middle text-nowrap">
+                                        <span style="font-family:monospace;font-size:var(--fs-sm);color:var(--gray-600);" title="<?= htmlspecialchars($trx['nomor_bukti'] ?? '') ?>">
+                                            <?= htmlspecialchars(trim((string)($trx['nomor_bukti'] ?? '')) !== '' ? $trx['nomor_bukti'] : '—') ?>
+                                        </span>
+                                    </td>
                                     <td class="align-middle">
                                         <div class="uraian-truncate" title="<?= htmlspecialchars($trx['uraian']) ?>">
                                             <?= htmlspecialchars($trx['uraian']) ?>
@@ -324,7 +355,7 @@ foreach ($pendingBySeksi as $ps) {
                                             <?= number_format($trx['nilai'], 0, ',', '.') ?>
                                         </span>
                                     </td>
-                                    <td class="align-middle text-center">
+                                    <td class="align-middle text-center col-aksi">
                                         <div class="d-inline-flex align-items-center justify-content-center gap-2">
                                             <a href="<?= base_url('transaksi/show/' . $trx['id']) ?>" 
                                                class="quick-action-btn quick-action-btn--view"
