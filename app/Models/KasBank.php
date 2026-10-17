@@ -18,7 +18,9 @@ class KasBank
     }
 
     /**
-     * Ambil semua transaksi mutasi kas/bank pada bulan & tahun tertentu
+     * Ambil semua transaksi mutasi kas/bank pada bulan & tahun tertentu.
+     * Basis bulan = tanggal efektif kas (COALESCE(tanggal_cair, tanggal)),
+     * sama seperti BKU & ringkasan saldo, bukan bulan input pengajuan.
      */
     public function getByPeriode(int $bulan, int $tahun): array
     {
@@ -27,8 +29,9 @@ class KasBank
                 SELECT k.*, u.username AS created_by_name
                 FROM kas_bank k
                 LEFT JOIN users u ON k.created_by = u.id
-                WHERE k.bulan = :bulan AND k.tahun = :tahun
-                ORDER BY k.tanggal ASC, k.id ASC
+                WHERE MONTH(COALESCE(k.tanggal_cair, k.tanggal)) = :bulan
+                  AND YEAR(COALESCE(k.tanggal_cair, k.tanggal)) = :tahun
+                ORDER BY COALESCE(k.tanggal_cair, k.tanggal) ASC, k.id ASC
             ");
             $stmt->execute([':bulan' => $bulan, ':tahun' => $tahun]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -315,11 +318,15 @@ class KasBank
     public function getRingkasan(int $bulan, int $tahun, float $plafondUp = self::DEFAULT_PLAFOND_UP): array
     {
         try {
-            // 1. Rincian penerimaan CAIR periode berjalan (untuk tabel & badge)
+            // 1. Rincian penerimaan CAIR periode berjalan (untuk tabel & badge).
+            //    Basis bulan = tanggal efektif kas (COALESCE(tanggal_cair, tanggal)),
+            //    konsisten dengan getByPeriode, BKU, dan sumber saldo dashboard.
             $stmtCair = $this->db->prepare("
                 SELECT jenis, SUM(nominal) as total
                 FROM kas_bank
-                WHERE bulan = :bulan AND tahun = :tahun AND status = 'cair'
+                WHERE MONTH(COALESCE(tanggal_cair, tanggal)) = :bulan
+                  AND YEAR(COALESCE(tanggal_cair, tanggal)) = :tahun
+                  AND status = 'cair'
                 GROUP BY jenis
             ");
             $stmtCair->execute([':bulan' => $bulan, ':tahun' => $tahun]);

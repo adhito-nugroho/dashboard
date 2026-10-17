@@ -1323,7 +1323,7 @@ class TransaksiController
         $kasRows = [];
         if ($filterSubKegiatan === null && $filterKegiatan === null && $filterSeksi === null && $filterInputDari === null && $filterInputSampai === null && $filterQ === null && $filterStatus !== 'ditolak') {
             if ($modePeriode) {
-                $kasConditions = ["(status = 'cair' OR status IS NULL)"];
+                $kasConditions = ["status = 'cair'"];
                 $kasParams = [];
                 if ($dari !== null) {
                     $kasConditions[] = 'DATE(COALESCE(tanggal_cair, tanggal)) >= :dari';
@@ -1360,10 +1360,10 @@ class TransaksiController
                         keterangan,
                         nominal
                     FROM kas_bank
-                    WHERE bulan = :bulan
-                      AND tahun = :tahun
-                      AND (status = 'cair' OR status IS NULL)
-                    ORDER BY tanggal ASC, id ASC
+                    WHERE MONTH(COALESCE(tanggal_cair, tanggal)) = :bulan
+                      AND YEAR(COALESCE(tanggal_cair, tanggal))  = :tahun
+                      AND status = 'cair'
+                    ORDER BY COALESCE(tanggal_cair, tanggal) ASC, id ASC
                 ");
                 $stmtKas->execute([':bulan' => $bulan, ':tahun' => $tahun]);
             }
