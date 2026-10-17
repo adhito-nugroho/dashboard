@@ -145,7 +145,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div class="min-w-0">
                     <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-list-check text-success me-2"></i>Daftar Transaksi Perjalanan Dinas</h5>
-                    <small class="text-muted">Centang <strong>Surat Tugas</strong> yang ingin dikonfigurasi (boleh sebagian ST saja). Cukup isi sekali per Surat Tugas — Transfer Ke &amp; Potongan otomatis tersebar ke semua baris ST yang sama. Potongan berlaku per orang.</small>
+                    <small class="text-muted">Centang <strong>Surat Tugas</strong> yang ingin dikonfigurasi (boleh sebagian ST saja). Isi Transfer Ke sekali per ST → otomatis tersebar. Bila ada penerima berbeda dalam satu ST, ubah nama pada baris itu (otomatis ditandai <strong>beda</strong>); klik badge <strong>beda</strong> untuk menggabung kembali ke nilai acuan ST. Potongan berlaku per orang.</small>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                     <span id="stSyncHint" class="badge bg-success-subtle text-success border border-success-subtle text-nowrap d-none" role="status"></span>
@@ -239,7 +239,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                         $stRow = (int) ($stIdByTransaksi[$tid] ?? 0);
                                         $seksiRow = (string) ($t['kode_seksi'] ?? '');
                                         ?>
-                                        <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiRow) ?>" class="st-item <?= $isConfigured ? 'table-success-subtle' : '' ?>">
+                                        <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiRow) ?>" data-ke-acuan="0" data-ke-detached="0" class="st-item <?= $isConfigured ? 'table-success-subtle' : '' ?>">
                                             <td class="ps-4 align-top text-muted small text-nowrap" style="width:52px;"><?= $no ?><?php if ($isConfigured): ?> <i class="bi bi-check-circle-fill text-success" title="Sudah dikonfigurasi"></i><?php endif; ?></td>
                                             <td class="align-top text-dark cell-nama"><?= htmlspecialchars((string) ($t['nama_penerima'] ?? '-')) ?></td>
                                             <td class="align-top text-end text-nowrap font-monospace fw-medium">Rp <?= number_format($nilai, 0, ',', '.') ?></td>
@@ -248,6 +248,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                                     style="min-width:190px;max-width:230px;"
                                                     name="transfer_ke[<?= $tid ?>]" list="listKe_<?= $stRow ?>"
                                                     value="<?= htmlspecialchars($transferKe) ?>" placeholder="Nama penerima transfer">
+                                                <span class="ke-badge d-inline-block mt-1" style="font-size:.68rem;"></span>
                                                 <?php if ($stRow <= 0): ?>
                                                     <small class="text-warning-emphasis" style="font-size:.68rem;"><i class="bi bi-exclamation-triangle me-1"></i>ST transaksi tidak ditemukan</small>
                                                 <?php endif; ?>
@@ -384,8 +385,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         set('badgeBersih', 'Total bersih: ' + rp(totalBersih));
     }
 
-    // Satu Surat Tugas = satu Transfer Ke & satu Potongan per orang.
-    // Nilai yang diisi pada satu baris disebarkan ke baris lain pada ST yang sama.
+    // Satu Surat Tugas = satu Potongan per orang (selalu disebar).
     function syncSt(tr, selector, value) {
         const st = tr.dataset.st;
         if (!st || st === '0') return;
@@ -393,6 +393,80 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             if (other === tr) return;
             const inp = other.querySelector(selector);
             if (inp) inp.value = value;
+        });
+    }
+
+    // ── Transfer Ke: sebar otomatis per ST + pisah otomatis (kasus khusus) ──
+    // Baris "acuan" mengendalikan nilai seluruh ST. Mengubah baris lain menjadi
+    // nama berbeda membuat baris itu "terpisah" (tidak ikut sebar/tertimpa).
+    // Kosongkan baris terpisah untuk menggabung kembali. Potongan tidak terpengaruh.
+    const normKe = (s) => (s || '').toUpperCase().replace(/\./g, '').replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ').replace(/^[ ,]+|[ ,]+$/g, '');
+    const keInput = (tr) => tr.querySelector('.input-transfer-ke');
+    const keVal = (tr) => { const i = keInput(tr); return i ? i.value.trim() : ''; };
+    function stRows(tr) {
+        const st = tr.dataset.st;
+        if (st && st !== '0') {
+            return Array.from(form.querySelectorAll('#tabelTransaksi tbody tr.st-item[data-st="' + st + '"]'));
+        }
+        const g = tr.getAttribute('data-group');
+        return Array.from(form.querySelectorAll('#tabelTransaksi tbody tr.st-item[data-group="' + g + '"]'));
+    }
+    function acuanOf(rows) {
+        return rows.find((r) => r.dataset.keAcuan === '1' && keVal(r) !== '') || null;
+    }
+    function setBadge(tr, rows) {
+        const el = tr.querySelector('.ke-badge');
+        if (!el) return;
+        if (rows.length <= 1) { el.innerHTML = ''; return; }
+        if (tr.dataset.keDetached === '1') {
+            el.innerHTML = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ke-rejoin" role="button" title="Klik untuk samakan dengan acuan ST">beda — klik untuk gabung</span>';
+        } else if (tr.dataset.keAcuan === '1') {
+            el.innerHTML = '<span class="text-muted">acuan ST (mengubah baris ini menyamakan seluruh ST)</span>';
+        } else {
+            el.innerHTML = '';
+        }
+    }
+    function refreshBadges(rows) { rows.forEach((r) => setBadge(r, rows)); }
+    function applyKe(tr) {
+        const rows = stRows(tr);
+        const val = keVal(tr);
+        const acuan = acuanOf(rows);
+        if (acuan && acuan !== tr) {
+            if (val === '' || normKe(val) === normKe(keVal(acuan))) {
+                tr.dataset.keDetached = '0';
+                tr.dataset.keAcuan = '0';
+                if (val === '') { const i = keInput(tr); if (i) i.value = keVal(acuan); }
+            } else {
+                tr.dataset.keDetached = '1';
+                tr.dataset.keAcuan = '0';
+            }
+        } else {
+            tr.dataset.keAcuan = '1';
+            tr.dataset.keDetached = '0';
+            rows.forEach((r) => {
+                if (r === tr || r.dataset.keDetached === '1') return;
+                const i = keInput(r); if (i) i.value = val;
+            });
+        }
+        refreshBadges(rows);
+    }
+    function initKe() {
+        const groups = {};
+        form.querySelectorAll('#tabelTransaksi tbody tr.st-item').forEach((tr) => {
+            const st = tr.dataset.st;
+            const k = (st && st !== '0') ? 'st:' + st : 'g:' + tr.getAttribute('data-group');
+            (groups[k] = groups[k] || []).push(tr);
+        });
+        Object.values(groups).forEach((rows) => {
+            let acuan = null, gv = '';
+            rows.forEach((r) => { if (!acuan && keVal(r) !== '') { acuan = r; gv = keVal(r); } });
+            rows.forEach((r) => {
+                const v = keVal(r);
+                if (r === acuan) { r.dataset.keAcuan = '1'; r.dataset.keDetached = '0'; }
+                else if (v !== '' && normKe(v) !== normKe(gv)) { r.dataset.keDetached = '1'; r.dataset.keAcuan = '0'; }
+                else { r.dataset.keDetached = '0'; r.dataset.keAcuan = '0'; }
+            });
+            refreshBadges(rows);
         });
     }
 
@@ -434,10 +508,25 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
 
     form.querySelectorAll('.input-transfer-ke').forEach((input) => {
         input.addEventListener('input', function () {
-            syncSt(this.closest('tr'), '.input-transfer-ke', this.value);
+            applyKe(this.closest('tr'));
             setGroupChecked(this.closest('tr'));
             syncHeaderPilih();
         });
+    });
+
+    // Klik badge "beda" untuk menggabung kembali ke nilai acuan ST.
+    form.addEventListener('click', function (e) {
+        const b = e.target.closest ? e.target.closest('.ke-rejoin') : null;
+        if (!b) return;
+        e.preventDefault();
+        const tr = b.closest('tr');
+        if (!tr) return;
+        const rows = stRows(tr);
+        const acuan = acuanOf(rows);
+        if (acuan) { const i = keInput(tr); if (i) i.value = keVal(acuan); }
+        tr.dataset.keDetached = '0';
+        tr.dataset.keAcuan = '0';
+        refreshBadges(rows);
     });
 
     form.querySelectorAll('.input-potongan').forEach((input) => {
@@ -451,6 +540,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         });
     });
 
+    initKe();
     syncHeaderPilih();
     recalc();
 })();
