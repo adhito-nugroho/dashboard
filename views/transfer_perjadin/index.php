@@ -145,7 +145,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div class="min-w-0">
                     <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-list-check text-success me-2"></i>Daftar Transaksi Perjalanan Dinas</h5>
-                    <small class="text-muted">Cukup isi sekali per Surat Tugas — Transfer Ke &amp; Potongan otomatis tersebar ke semua baris ST yang sama. Potongan berlaku per orang.</small>
+                    <small class="text-muted">Centang transaksi yang ingin dikonfigurasi (boleh sebagian saja). Cukup isi sekali per Surat Tugas — Transfer Ke &amp; Potongan otomatis tersebar ke semua baris ST yang sama. Potongan berlaku per orang.</small>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                     <span id="stSyncHint" class="badge bg-success-subtle text-success border border-success-subtle text-nowrap d-none" role="status"></span>
@@ -184,7 +184,10 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                         <table class="table align-top mb-0" id="tabelTransaksi">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-4 small text-muted align-top text-nowrap" style="width:52px;">No</th>
+                                    <th class="ps-4 small text-muted align-top text-nowrap" style="width:44px;">
+                                        <input type="checkbox" class="form-check-input" id="pilihSemua" checked title="Pilih / lepas semua">
+                                    </th>
+                                    <th class="small text-muted align-top text-nowrap" style="width:52px;">No</th>
                                     <th class="small align-top" style="min-width:150px;">Nama Penerima</th>
                                     <th class="text-end small align-top text-nowrap" style="width:128px;">Nilai</th>
                                     <th class="small align-top" style="min-width:190px;max-width:230px;">Transfer Ke</th>
@@ -204,7 +207,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                     $uraianG = trim((string) $g['uraian']) !== '' ? (string) $g['uraian'] : '-';
                                     ?>
                                     <tr class="st-group-header table-light border-top border-2" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiG) ?>">
-                                        <td colspan="6" class="ps-4 py-2 align-top">
+                                        <td colspan="7" class="ps-4 py-2 align-top">
                                             <div class="d-flex flex-wrap align-items-center gap-2">
                                                 <?php if ($stG > 0): ?>
                                                     <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold text-nowrap st-nomor"><?= htmlspecialchars($badgeST) ?></span>
@@ -233,7 +236,10 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                         $seksiRow = (string) ($t['kode_seksi'] ?? '');
                                         ?>
                                         <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiRow) ?>" class="st-item <?= $isConfigured ? 'table-success-subtle' : '' ?>">
-                                            <td class="ps-4 align-top text-muted small text-nowrap" style="width:52px;"><?= $no ?><?php if ($isConfigured): ?> <i class="bi bi-check-circle-fill text-success" title="Sudah dikonfigurasi"></i><?php endif; ?></td>
+                                            <td class="ps-4 align-top">
+                                                <input type="checkbox" class="form-check-input input-pilih" name="pilih[<?= $tid ?>]" value="1" checked aria-label="Pilih transaksi">
+                                            </td>
+                                            <td class="align-top text-muted small text-nowrap" style="width:52px;"><?= $no ?><?php if ($isConfigured): ?> <i class="bi bi-check-circle-fill text-success" title="Sudah dikonfigurasi"></i><?php endif; ?></td>
                                             <td class="align-top text-dark cell-nama"><?= htmlspecialchars((string) ($t['nama_penerima'] ?? '-')) ?></td>
                                             <td class="align-top text-end text-nowrap font-monospace fw-medium">Rp <?= number_format($nilai, 0, ',', '.') ?></td>
                                             <td class="align-top">
@@ -259,12 +265,12 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                     <?php endforeach; ?>
                                 <?php endforeach; ?>
                                 <tr id="barisKosongCari" class="d-none">
-                                    <td colspan="6" class="text-center text-muted py-4"><i class="bi bi-search me-1"></i>Tidak ada baris yang cocok dengan pencarian cepat.</td>
+                                    <td colspan="7" class="text-center text-muted py-4"><i class="bi bi-search me-1"></i>Tidak ada baris yang cocok dengan pencarian cepat.</td>
                                 </tr>
                             </tbody>
                             <tfoot class="table-light">
                                 <tr class="fw-bold">
-                                    <td class="ps-4 align-top" colspan="2">TOTAL</td>
+                                    <td class="ps-4 align-top" colspan="3">TOTAL</td>
                                     <td class="text-end font-monospace align-top text-nowrap" id="totalNilai">Rp <?= number_format($totalNilai, 0, ',', '.') ?></td>
                                     <td class="align-top"></td>
                                     <td class="text-end font-monospace align-top text-nowrap" id="totalPotongan">Rp <?= number_format($totalPotongan, 0, ',', '.') ?></td>
@@ -389,9 +395,48 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         });
     }
 
+    // Pilih transaksi: hanya baris tercentang yang disimpan. Mengisi/sebar
+    // pada satu ST otomatis mencentang baris ST tsb.
+    const pilihSemua = document.getElementById('pilihSemua');
+    const pickOf = (tr) => tr.querySelector('.input-pilih');
+    function setStChecked(tr) {
+        const st = tr.dataset.st;
+        if (st && st !== '0') {
+            form.querySelectorAll('#tabelTransaksi tbody tr.st-item[data-st="' + st + '"]').forEach((other) => {
+                const c = pickOf(other); if (c) c.checked = true;
+            });
+            return;
+        }
+        const c = pickOf(tr); if (c) c.checked = true;
+    }
+    function syncHeaderPilih() {
+        if (!pilihSemua) return;
+        const vis = Array.from(form.querySelectorAll('#tabelTransaksi tbody tr.st-item'))
+            .filter((tr) => !tr.classList.contains('d-none'));
+        const checked = vis.filter((tr) => { const c = pickOf(tr); return c && c.checked; }).length;
+        pilihSemua.checked = vis.length > 0 && checked === vis.length;
+        pilihSemua.indeterminate = checked > 0 && checked < vis.length;
+    }
+    if (pilihSemua) {
+        pilihSemua.addEventListener('change', function () {
+            form.querySelectorAll('#tabelTransaksi tbody tr.st-item').forEach((tr) => {
+                if (tr.classList.contains('d-none')) return;
+                const c = pickOf(tr); if (c) c.checked = this.checked;
+            });
+            syncHeaderPilih();
+        });
+    }
+    form.addEventListener('change', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('input-pilih')) {
+            syncHeaderPilih();
+        }
+    });
+
     form.querySelectorAll('.input-transfer-ke').forEach((input) => {
         input.addEventListener('input', function () {
             syncSt(this.closest('tr'), '.input-transfer-ke', this.value);
+            setStChecked(this.closest('tr'));
+            syncHeaderPilih();
         });
     });
 
@@ -400,10 +445,13 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             const digits = this.value.replace(/[^0-9]/g, '');
             this.value = digits === '' ? '' : Number(digits).toLocaleString('id-ID');
             syncSt(this.closest('tr'), '.input-potongan', this.value);
+            setStChecked(this.closest('tr'));
+            syncHeaderPilih();
             recalc();
         });
     });
 
+    syncHeaderPilih();
     recalc();
 })();
 </script>

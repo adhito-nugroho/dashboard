@@ -92,27 +92,42 @@ class TransferPerjadinController
 
         $transferKeInput = $_POST['transfer_ke'] ?? [];
         $potonganInput = $_POST['potongan'] ?? [];
+        $pilihInput = $_POST['pilih'] ?? [];
         if (!is_array($transferKeInput)) {
             $transferKeInput = [];
         }
         if (!is_array($potonganInput)) {
             $potonganInput = [];
         }
+        if (!is_array($pilihInput)) {
+            $pilihInput = [];
+        }
 
-        $ids = array_unique(array_merge(array_keys($transferKeInput), array_keys($potonganInput)));
+        // Hanya transaksi yang dicentang (dipilih) admin yang diproses.
+        $ids = [];
+        foreach ($pilihInput as $id => $v) {
+            if ($v === '' || $v === '0' || $v === null || $v === false) {
+                continue;
+            }
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+        $ids = array_keys($ids);
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $namaBatch = trim((string) ($_POST['nama_konfigurasi'] ?? ''));
 
         $rows = [];
         foreach ($ids as $id) {
-            $id = (int) $id;
-            if ($id <= 0) {
-                continue;
-            }
             $rows[$id] = [
                 'transfer_ke' => trim((string) ($transferKeInput[$id] ?? '')),
                 'potongan' => $this->parseRupiah($potonganInput[$id] ?? 0),
             ];
+        }
+
+        if ($rows === []) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'info', 'Pilih minimal satu transaksi yang akan dikonfigurasi transfernya.');
         }
 
         $adaIsi = false;
