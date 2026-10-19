@@ -32,8 +32,9 @@ $tanggal = static function (?string $value): string {
     border-color: #1f4e79 !important;
 }
 .lpj-table td { vertical-align: middle; }
-.lpj-hier { background: #f2f2f2 !important; font-weight: 600; }
-.lpj-rek { background: #fde9d9 !important; }
+.lpj-hier { background: #ffffff !important; font-weight: 700; }
+.lpj-rek-a { background: #fce4d6 !important; }
+.lpj-rek-b { background: #f8cbad !important; }
 .lpj-num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
 .lpj-total { background: #d9e1f2 !important; font-weight: 800; }
 .lpj-total td { border-top: 2px solid #000 !important; border-bottom: 3px double #000 !important; }
@@ -43,7 +44,7 @@ $tanggal = static function (?string $value): string {
     .container-fluid { padding: 0 !important; }
     .card { border: 0 !important; box-shadow: none !important; }
     .card-body { padding: 0 !important; }
-    .lpj-table { font-size: 9pt; }
+    .lpj-table { font-size: 9pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .lpj-table thead { display: table-header-group; }
     .lpj-table tr { page-break-inside: avoid; }
     @page { size: A4 landscape; margin: 10mm; }
@@ -129,6 +130,7 @@ $tanggal = static function (?string $value): string {
                                 </td>
                             </tr>
                         <?php else: ?>
+                            <?php $rekIndex = 0; ?>
                             <?php foreach ($rows as $node): ?>
                                 <?php if (($node['type'] ?? '') !== 'rekening'): ?>
                                     <?php
@@ -138,7 +140,8 @@ $tanggal = static function (?string $value): string {
                                         <td colspan="6"><?= htmlspecialchars($label) ?></td>
                                     </tr>
                                 <?php else: ?>
-                                    <tr class="lpj-rek">
+                                    <?php $rekClass = $rekIndex % 2 === 0 ? 'lpj-rek-a' : 'lpj-rek-b'; $rekIndex++; ?>
+                                    <tr class="<?= $rekClass ?>">
                                         <td class="font-monospace"><?= htmlspecialchars((string) ($node['kode'] ?? '')) ?></td>
                                         <td><?= htmlspecialchars((string) ($node['nama'] ?? '')) ?></td>
                                         <td class="lpj-num"><?= $rupiah((float) ($node['pagu'] ?? 0)) ?></td>

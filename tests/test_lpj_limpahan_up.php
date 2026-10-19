@@ -124,6 +124,22 @@ try {
     check($sheet->getCell('C6')->getValue() === 'Jumlah Anggaran', 'Header jumlah anggaran sesuai.');
     check($sheet->getCell('A' . $sheet->getHighestRow())->getValue() === 'TOTAL', 'Baris TOTAL ada paling bawah.');
 
+    $accountCodes = array_map(static fn(array $row): string => (string) $row['kode'], $rekRows);
+    $accountRows = [];
+    for ($r = 7; $r < $sheet->getHighestRow(); $r++) {
+        if (in_array((string) $sheet->getCell('A' . $r)->getValue(), $accountCodes, true)) {
+            $accountRows[] = $r;
+        }
+    }
+    check(count($accountRows) >= 2, 'Ada minimal dua baris rekening untuk uji warna.');
+    $fillA = $sheet->getStyle('A' . $accountRows[0])->getFill()->getStartColor()->getRGB();
+    $fillB = $sheet->getStyle('A' . $accountRows[1])->getFill()->getStartColor()->getRGB();
+    check($fillA !== $fillB, 'Baris rekening memakai warna bergantian (variasi warna).');
+    check(
+        in_array($fillA, ['FCE4D6', 'F8CBAD'], true) && in_array($fillB, ['FCE4D6', 'F8CBAD'], true),
+        'Warna baris rekening memakai palet peach.'
+    );
+
     echo PHP_EOL . "SEMUA TEST LPJ LIMPAHAN UP LULUS.\n";
 } catch (Throwable $e) {
     fwrite(STDERR, $e->getMessage() . PHP_EOL);

@@ -53,8 +53,14 @@ class LpjLimpahanUpExportService
         $this->writeTableHeader($sheet, $headerRow);
 
         $row = $headerRow + 1;
+        $rekIndex = 0;
         foreach ($report['rows'] ?? [] as $node) {
-            $this->writeNode($sheet, $row, $node);
+            $variant = 0;
+            if (($node['type'] ?? '') === 'rekening') {
+                $variant = $rekIndex % 2;
+                $rekIndex++;
+            }
+            $this->writeNode($sheet, $row, $node, $variant);
             $row++;
         }
 
@@ -177,7 +183,7 @@ class LpjLimpahanUpExportService
     /**
      * @param array<string,mixed> $node
      */
-    private function writeNode(Worksheet $sheet, int $row, array $node): void
+    private function writeNode(Worksheet $sheet, int $row, array $node, int $variant = 0): void
     {
         $type = (string) ($node['type'] ?? '');
         $label = trim((string) ($node['kode'] ?? '') . ' - ' . (string) ($node['nama'] ?? ''), ' -');
@@ -187,7 +193,7 @@ class LpjLimpahanUpExportService
             $sheet->setCellValue('A' . $row, $label);
             $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray([
                 'font' => ['bold' => true, 'size' => 9],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F2F2F2']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '999999']]],
             ]);
@@ -203,9 +209,10 @@ class LpjLimpahanUpExportService
         $sheet->setCellValue('E' . $row, (float) ($node['akumulasi'] ?? 0));
         $sheet->setCellValue('F' . $row, (float) ($node['sisa'] ?? 0));
 
+        $fillColor = $variant === 0 ? 'FCE4D6' : 'F8CBAD';
         $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray([
             'font' => ['size' => 9],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDE9D9']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $fillColor]],
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '999999']]],
         ]);
