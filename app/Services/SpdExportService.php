@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Core\Instance;
+use App\Repositories\PerjadinRepository;
+use App\Repositories\SuratTugasRepository;
+
 /**
  * Service untuk dokumen SPD (Surat Perjalanan Dinas, PDF) — kelengkapan SPJ
  * perjalanan dinas, melengkapi Kuitansi & Rincian Biaya.
@@ -23,8 +27,21 @@ namespace App\Services;
 class SpdExportService
 {
     public const AKUN_DEFAULT = '5.1.02.04.01.0001';
-    public const INSTANSI = 'Cabang Dinas Kehutanan Wilayah Bojonegoro';
-    public const TEMPAT_BERANGKAT = 'Bojonegoro';
+
+    // Alias identitas instansi (sumber tunggal: App\Core\Instance).
+    public const INSTANSI = Instance::INSTANSI;
+    public const TEMPAT_BERANGKAT = Instance::TEMPAT_BERANGKAT;
+
+    private SuratTugasRepository $suratTugas;
+    private PerjadinRepository $perjadin;
+
+    public function __construct(
+        ?SuratTugasRepository $suratTugas = null,
+        ?PerjadinRepository $perjadin = null
+    ) {
+        $this->suratTugas = $suratTugas ?? new SuratTugasRepository();
+        $this->perjadin = $perjadin ?? new PerjadinRepository();
+    }
 
     /**
      * Logo kop: versi kecil (30KB) agar file unduhan tetap ringan.
@@ -49,50 +66,13 @@ class SpdExportService
      */
     public function buildData(int $suratTugasId, string $nip): ?array
     {
-        $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
-        if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
-            require_once $cfg;
-        }
-        if (!class_exists('DatabaseSuratTugas')) {
-            return null;
-        }
-        $pdo = \DatabaseSuratTugas::getConnection();
-        if ($pdo === null) {
+        $st = $this->suratTugas->find($suratTugasId);
+        if ($st === null) {
             return null;
         }
 
-        try {
-            $stStmt = $pdo->prepare('
-                SELECT id, nomor_surat, tanggal_surat, untuk, kota_tujuan,
-                       tanggal_mulai, tanggal_selesai
-                FROM surat_tugas WHERE id = ? LIMIT 1
-            ');
-            $stStmt->execute([$suratTugasId]);
-            $st = $stStmt->fetch(\PDO::FETCH_ASSOC);
-            if (!$st) {
-                return null;
-            }
-
-            $pegStmt = $pdo->prepare('
-                SELECT COALESCE(p.nip, pt.nip) AS nip,
-                       COALESCE(p.nama, pt.nip) AS nama,
-                       p.pangkat, p.jabatan
-                FROM pegawai_tugas pt
-                LEFT JOIN pegawai p ON (
-                    p.nip = pt.nip
-                    OR REPLACE(p.nip, \' \', \'\') = REPLACE(pt.nip, \' \', \'\')
-                )
-                WHERE pt.id_surat_tugas = ?
-                  AND (pt.nip = ? OR REPLACE(pt.nip, \' \', \'\') = REPLACE(?, \' \', \'\'))
-                LIMIT 1
-            ');
-            $pegStmt->execute([$suratTugasId, $nip, $nip]);
-            $peg = $pegStmt->fetch(\PDO::FETCH_ASSOC);
-            if (!$peg) {
-                return null;
-            }
-        } catch (\Throwable $e) {
-            error_log('SpdExportService::buildData ST error: ' . $e->getMessage());
+        $peg = $this->suratTugas->findPegawai($suratTugasId, $nip);
+        if ($peg === null) {
             return null;
         }
 
@@ -104,7 +84,7 @@ class SpdExportService
         // Cari transaksi perjalanan dinas terkait (untuk akun + lokasi tujuan).
         $akun = self::AKUN_DEFAULT;
         $lokasi = '';
-        $trx = $this->findTransaksi($suratTugasId, (string) $st['nomor_surat'], (string) $peg['nip'], (string) $peg['nama']);
+        $trx = $this->perjadin->findSpdAccount($suratTugasId, (string) $st['nomor_surat'], (string) $peg['nip'], (string) $peg['nama']);
         if ($trx !== null) {
             if (!empty($trx['kode_rekening'])) {
                 $akun = trim((string) $trx['kode_rekening']);
@@ -120,8 +100,8 @@ class SpdExportService
         $tglSelesai = (string) $st['tanggal_selesai'] !== '' ? (string) $st['tanggal_selesai'] : $tglMulai;
         $lama = max(1, (int) round((strtotime($tglSelesai) - strtotime($tglMulai)) / 86400) + 1);
 
-        $kpaNama = trim((string) ($_ENV['KPA_NAMA'] ?? getenv('KPA_NAMA') ?: 'Endang Handayani, S.P., M.Si'));
-        $kpaNip = preg_replace('/[^0-9]/', '', (string) ($_ENV['KPA_NIP'] ?? getenv('KPA_NIP') ?: '197603282000032003'));
+        $kpaNama = Instance::kpaNama();
+        $kpaNip = Instance::kpaNip();
 
         return [
             'kpa_nama_full' => $kpaNama,
@@ -179,74 +159,7 @@ class SpdExportService
      */
     public function resolveStIdByNomor(string $nomor): ?int
     {
-        $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
-        if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
-            require_once $cfg;
-        }
-        if (!class_exists('DatabaseSuratTugas')) {
-            return null;
-        }
-        $pdo = \DatabaseSuratTugas::getConnection();
-        if ($pdo === null) {
-            return null;
-        }
-        try {
-            $stmt = $pdo->prepare('SELECT id FROM surat_tugas WHERE nomor_surat = ? LIMIT 1');
-            $stmt->execute([$nomor]);
-            $id = $stmt->fetchColumn();
-            if ($id !== false) {
-                return (int) $id;
-            }
-            $stmt = $pdo->prepare('SELECT id FROM surat_tugas WHERE nomor_surat LIKE ? ORDER BY id DESC LIMIT 1');
-            $stmt->execute(['%' . $nomor . '%']);
-            $id = $stmt->fetchColumn();
-            return $id !== false ? (int) $id : null;
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Cari transaksi perjalanan dinas untuk (ST + pegawai) guna mengambil
-     * kode rekening (akun) dan lokasi kegiatan (tempat tujuan).
-     */
-    private function findTransaksi(int $stId, string $nomorSurat, string $nip, string $nama): ?array
-    {
-        try {
-            $cfg = __DIR__ . '/../../config/database.php';
-            if (!class_exists('Database') && is_file($cfg)) {
-                require_once $cfg;
-            }
-            if (!class_exists('Database')) {
-                return null;
-            }
-            $db = \Database::getConnection();
-
-            $sql = '
-                SELECT t.lokasi_kegiatan, r.kode_rekening
-                FROM transaksi t
-                LEFT JOIN rekening r ON r.id = t.rekening_id
-                WHERE t.jenis_transaksi = \'perjalanan_dinas\'
-                  AND (t.surat_tugas_ref_id = :st
-                       OR t.nomor_surat_tugas = :no)
-                  AND (REPLACE(t.pegawai_nip, \' \', \'\') = REPLACE(:nip, \' \', \'\')
-                       OR t.nama_penerima = :nama
-                       OR t.nama_penerima LIKE :nama_like)
-                ORDER BY t.id DESC LIMIT 1
-            ';
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':st' => $stId,
-                ':no' => $nomorSurat,
-                ':nip' => $nip,
-                ':nama' => $nama,
-                ':nama_like' => '%' . $nama . '%',
-            ]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-            return $row ?: null;
-        } catch (\Throwable $e) {
-            return null;
-        }
+        return $this->suratTugas->resolveIdByNomor($nomor);
     }
 
     /**
@@ -288,47 +201,7 @@ class SpdExportService
      */
     public function kotaTujuanKosongMap(array $suratTugasIds): array
     {
-        $ids = [];
-        foreach ($suratTugasIds as $id) {
-            $id = (int) $id;
-            if ($id > 0) {
-                $ids[$id] = $id;
-            }
-        }
-        if (!$ids) {
-            return [];
-        }
-
-        $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
-        if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
-            require_once $cfg;
-        }
-        if (!class_exists('DatabaseSuratTugas')) {
-            return [];
-        }
-        $pdo = \DatabaseSuratTugas::getConnection();
-        if ($pdo === null) {
-            return [];
-        }
-
-        try {
-            $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $stmt = $pdo->prepare("
-                SELECT id, kota_tujuan
-                FROM surat_tugas
-                WHERE id IN ({$placeholders})
-            ");
-            $stmt->execute(array_values($ids));
-
-            $map = [];
-            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
-                $map[(int) $row['id']] = trim((string) ($row['kota_tujuan'] ?? '')) === '';
-            }
-            return $map;
-        } catch (\Throwable $e) {
-            error_log('SpdExportService::kotaTujuanKosongMap error: ' . $e->getMessage());
-            return [];
-        }
+        return $this->suratTugas->kotaTujuanKosongMap($suratTugasIds);
     }
 
     /**

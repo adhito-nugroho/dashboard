@@ -899,10 +899,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
             
-            // Debug: log jumlah rows yang akan dikirim
-            console.log('Jumlah rows yang akan dikirim:', validRowCount);
-            console.log('Pagus data to submit:', pagusData);
-            
             // Submit using FormData to ensure all data is sent
             const formData = new FormData();
             formData.append('program_id', batchProgramSelect.value);

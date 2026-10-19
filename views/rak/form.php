@@ -423,14 +423,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (programId) {
             kegiatanSelect.disabled = false;
-            console.log('Fetching kegiatans for program:', programId);
             fetch(`${BASE_URL}pagu/get-kegiatans?program_id=${programId}`)
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    console.log('Kegiatans data:', data);
                     if (data && data.length > 0) {
                         data.forEach(kegiatan => {
                             const option = document.createElement('option');
@@ -462,11 +457,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (kegiatanId) {
             subKegiatanSelect.disabled = false;
-            console.log('Fetching sub kegiatans for kegiatan:', kegiatanId);
             fetch(`${BASE_URL}pagu/get-sub-kegiatans?kegiatan_id=${kegiatanId}`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Sub Kegiatans data:', data);
                     if (data && data.length > 0) {
                         data.forEach(subKegiatan => {
                             const option = document.createElement('option');
@@ -496,11 +489,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (subKegiatanId) {
             rekeningSelect.disabled = false;
-            console.log('Fetching rekenings for sub kegiatan:', subKegiatanId);
             fetch(`${BASE_URL}pagu/get-rekenings?sub_kegiatan_id=${subKegiatanId}`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Rekenings data:', data);
                     if (data && data.length > 0) {
                         data.forEach(rekening => {
                             const option = document.createElement('option');

@@ -3,10 +3,11 @@
 namespace App\Controllers;
 
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../config/database_surat_tugas.php';
 require_once __DIR__ . '/../../config/helpers.php';
 
 use App\Models\RincianBiaya;
+use App\Repositories\SuratTugasRepository;
+use App\Services\RincianBiayaInputService;
 
 /**
  * Controller modul SPJ Rincian Biaya Perjalanan Dinas.
@@ -25,10 +26,17 @@ use App\Models\RincianBiaya;
 class SpjController
 {
     private RincianBiaya $model;
+    private SuratTugasRepository $suratTugas;
+    private RincianBiayaInputService $input;
 
-    public function __construct(RincianBiaya $model)
-    {
+    public function __construct(
+        RincianBiaya $model,
+        ?SuratTugasRepository $suratTugas = null,
+        ?RincianBiayaInputService $input = null
+    ) {
         $this->model = $model;
+        $this->suratTugas = $suratTugas ?? new SuratTugasRepository();
+        $this->input = $input ?? new RincianBiayaInputService();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -67,54 +75,17 @@ class SpjController
     {
         $this->requireLogin();
 
-        $pdo = \DatabaseSuratTugas::getConnection();
         $suratTugasList = [];
         $stError = null;
 
-        if (!$pdo) {
+        if (!$this->suratTugas->isAvailable()) {
             $stError = 'Koneksi ke database Surat Tugas tidak tersedia.';
         } else {
-            try {
-                $q     = trim($_GET['q']     ?? '');
-                $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
-                $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y');
-
-                $conditions = [];
-                $params     = [];
-
-                if ($q !== '') {
-                    $conditions[] = '(nomor_surat LIKE :kw_no OR untuk LIKE :kw_untuk)';
-                    $kw = '%' . $q . '%';
-                    $params[':kw_no'] = $kw;
-                    $params[':kw_untuk'] = $kw;
-                }
-                if ($bulan !== null) {
-                    $conditions[] = 'MONTH(tanggal_mulai) = :bulan';
-                    $params[':bulan'] = $bulan;
-                }
-                $conditions[] = 'YEAR(tanggal_mulai) = :tahun';
-                $params[':tahun'] = $tahun;
-
-                $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
-
-                $stmt = $pdo->prepare("
-                    SELECT id, nomor_surat, tanggal_surat, untuk,
-                           tanggal_mulai, tanggal_selesai, dasar_surat,
-                           kota_tujuan
-                    FROM surat_tugas
-                    {$where}
-                    ORDER BY tanggal_mulai DESC, id DESC
-                    LIMIT 100
-                ");
-                foreach ($params as $k => $v) {
-                    $stmt->bindValue($k, $v, is_int($v) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
-                }
-                $stmt->execute();
-                $suratTugasList = $stmt->fetchAll();
-            } catch (\Throwable $e) {
-                error_log('SpjController::index ST query error: ' . $e->getMessage());
-                $stError = 'Gagal memuat daftar Surat Tugas. Silakan coba beberapa saat lagi.';
-            }
+            $suratTugasList = $this->suratTugas->list([
+                'q'     => trim($_GET['q'] ?? ''),
+                'bulan' => $_GET['bulan'] ?? null,
+                'tahun' => $_GET['tahun'] ?? null,
+            ]);
         }
 
         $pageTitle  = 'SPJ Perjalanan Dinas';
@@ -131,53 +102,19 @@ class SpjController
     {
         $this->requireLogin();
 
-        $pdo = \DatabaseSuratTugas::getConnection();
         $suratTugas = null;
         $pegawaiList = [];
         $stError = null;
 
-        if (!$pdo) {
+        if (!$this->suratTugas->isAvailable()) {
             $stError = 'Koneksi ke database Surat Tugas tidak tersedia.';
         } else {
-            try {
-                // Ambil header ST
-                $stStmt = $pdo->prepare("
-                    SELECT id, nomor_surat, tanggal_surat, untuk,
-                           tanggal_mulai, tanggal_selesai, dasar_surat,
-                           kota_tujuan
-                    FROM surat_tugas WHERE id = ? LIMIT 1
-                ");
-                $stStmt->execute([$suratTugasId]);
-                $suratTugas = $stStmt->fetch();
-
-                if (!$suratTugas) {
-                    $this->redirectWithMessage(base_url('spj'), 'error', 'Surat Tugas tidak ditemukan.');
-                    return;
-                }
-
-                // Ambil daftar pegawai dalam ST
-                $pegStmt = $pdo->prepare("
-                    SELECT
-                        pt.nip AS pt_nip,
-                        COALESCE(p.nip, pt.nip)           AS nip,
-                        COALESCE(p.nama, pt.nip, 'Pegawai') AS nama,
-                        p.pangkat,
-                        p.jabatan,
-                        pt.urutan
-                    FROM pegawai_tugas pt
-                    LEFT JOIN pegawai p ON (
-                        p.nip = pt.nip
-                        OR REPLACE(p.nip, ' ', '') = REPLACE(pt.nip, ' ', '')
-                    )
-                    WHERE pt.id_surat_tugas = ?
-                    ORDER BY pt.urutan ASC, p.nama ASC
-                ");
-                $pegStmt->execute([$suratTugasId]);
-                $pegawaiList = $pegStmt->fetchAll();
-            } catch (\Throwable $e) {
-                error_log('SpjController::detail query error: ' . $e->getMessage());
-                $stError = 'Gagal memuat data pegawai: ' . $e->getMessage();
+            $suratTugas = $this->suratTugas->find($suratTugasId);
+            if (!$suratTugas) {
+                $this->redirectWithMessage(base_url('spj'), 'error', 'Surat Tugas tidak ditemukan.');
+                return;
             }
+            $pegawaiList = $this->suratTugas->pegawaiList($suratTugasId);
         }
 
         // Cek rincian biaya yang sudah ada untuk ST ini
@@ -225,7 +162,7 @@ class SpjController
         }
 
         $rincian  = null;   // mode create
-        $details  = $this->defaultKomponen();
+        $details  = $this->input->defaultKomponen();
         $errors   = [];
 
         $pageTitle  = 'Isi Rincian Biaya — ' . ($pegawai['nama'] ?? $nip);
@@ -247,7 +184,10 @@ class SpjController
         $userId       = (int) ($_SESSION['user_id'] ?? 0);
 
         [$suratTugas, $pegawai, $stError] = $this->fetchStAndPegawai($suratTugasId, $nip);
-        [$errors, $details, $header] = $this->validatePost($_POST);
+        $parsed = $this->input->parse($_POST);
+        $errors = $parsed['errors'];
+        $details = $parsed['details'];
+        $header = $parsed['header'];
 
         if (!$suratTugas && !$stError) {
             $errors[] = 'Surat Tugas tidak valid.';
@@ -349,7 +289,10 @@ class SpjController
             return;
         }
 
-        [$errors, $details, $header] = $this->validatePost($_POST);
+        $parsed = $this->input->parse($_POST);
+        $errors = $parsed['errors'];
+        $details = $parsed['details'];
+        $header = $parsed['header'];
 
         if (!empty($errors)) {
             $rincian    = $data['header'];
@@ -422,43 +365,14 @@ class SpjController
      */
     private function fetchStAndPegawai(int $stId, string $nip): array
     {
-        $pdo = \DatabaseSuratTugas::getConnection();
-        if (!$pdo) {
+        if (!$this->suratTugas->isAvailable()) {
             return [null, null, 'Koneksi ke database Surat Tugas tidak tersedia.'];
         }
-        try {
-            $stStmt = $pdo->prepare("
-                SELECT id, nomor_surat, tanggal_surat, untuk,
-                       tanggal_mulai, tanggal_selesai, dasar_surat,
-                       kota_tujuan
-                FROM surat_tugas WHERE id = ? LIMIT 1
-            ");
-            $stStmt->execute([$stId]);
-            $st = $stStmt->fetch();
 
-            $pegStmt = $pdo->prepare("
-                SELECT
-                    COALESCE(p.nip, pt.nip)             AS nip,
-                    COALESCE(p.nama, pt.nip, 'Pegawai') AS nama,
-                    p.pangkat,
-                    p.jabatan
-                FROM pegawai_tugas pt
-                LEFT JOIN pegawai p ON (
-                    p.nip = pt.nip
-                    OR REPLACE(p.nip, ' ', '') = REPLACE(pt.nip, ' ', '')
-                )
-                WHERE pt.id_surat_tugas = ?
-                  AND (pt.nip = ? OR REPLACE(pt.nip, ' ', '') = REPLACE(?, ' ', ''))
-                LIMIT 1
-            ");
-            $pegStmt->execute([$stId, $nip, $nip]);
-            $peg = $pegStmt->fetch() ?: null;
+        $st  = $this->suratTugas->find($stId);
+        $peg = $this->suratTugas->findPegawai($stId, $nip);
 
-            return [$st ?: null, $peg, null];
-        } catch (\Throwable $e) {
-            error_log('SpjController::fetchStAndPegawai error: ' . $e->getMessage());
-            return [null, null, 'Gagal memuat data: ' . $e->getMessage()];
-        }
+        return [$st, $peg, null];
     }
 
     /**
@@ -466,92 +380,7 @@ class SpjController
      */
     private function fetchStOnly(int $stId): ?array
     {
-        $pdo = \DatabaseSuratTugas::getConnection();
-        if (!$pdo) return null;
-        try {
-            $stmt = $pdo->prepare("
-                SELECT id, nomor_surat, tanggal_surat, untuk,
-                       tanggal_mulai, tanggal_selesai
-                FROM surat_tugas WHERE id = ? LIMIT 1
-            ");
-            $stmt->execute([$stId]);
-            $row = $stmt->fetch();
-            return $row ?: null;
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Validasi POST dan kembalikan [$errors, $details, $header].
-     */
-    private function validatePost(array $post): array
-    {
-        $errors  = [];
-        $details = [];
-
-        $ditetapkan   = (float) str_replace(['.', ','], ['', '.'], $post['ditetapkan_sejumlah'] ?? '0');
-        $dibayar      = (float) str_replace(['.', ','], ['', '.'], $post['dibayar_semula']      ?? '0');
-        $tempatTgl    = trim($post['tempat_tanggal'] ?? '') ?: null;
-
-        // Validasi detail komponen
-        $komponenList = $post['komponen'] ?? [];
-        if (empty($komponenList) || !is_array($komponenList)) {
-            $errors[] = 'Minimal harus ada satu baris komponen biaya.';
-        } else {
-            $adaIsiValid = false;
-            foreach ($komponenList as $i => $k) {
-                $nama = trim($k['nama_komponen'] ?? '');
-                if ($nama === '') continue; // skip baris kosong
-
-                $harga     = (float) str_replace(['.', ','], ['', '.'], $k['harga_satuan'] ?? '0');
-                $hari      = isset($k['jumlah_hari']) && $k['jumlah_hari'] !== '' ? (float) $k['jumlah_hari'] : null;
-                $jumlahRaw = str_replace(['.', ','], ['', '.'], $k['jumlah'] ?? '0');
-                $jumlah    = (float) $jumlahRaw;
-
-                if ($harga <= 0) {
-                    $errors[] = "Baris " . ($i + 1) . " ($nama): Harga satuan harus lebih dari 0.";
-                    continue;
-                }
-                if ($jumlah <= 0) {
-                    // Hitung ulang dari harga * hari
-                    $jumlah = $hari !== null ? $harga * $hari : $harga;
-                }
-
-                $details[] = [
-                    'nama_komponen' => $nama,
-                    'harga_satuan'  => $harga,
-                    'jumlah_hari'   => $hari,
-                    'jumlah'        => $jumlah,
-                    'keterangan'    => trim($k['keterangan'] ?? '') ?: null,
-                ];
-                $adaIsiValid = true;
-            }
-            if (!$adaIsiValid && empty($errors)) {
-                $errors[] = 'Minimal harus ada satu baris komponen biaya yang terisi.';
-            }
-        }
-
-        $header = [
-            'ditetapkan_sejumlah' => $ditetapkan,
-            'dibayar_semula'      => $dibayar,
-            'tempat_tanggal'      => $tempatTgl,
-        ];
-
-        return [$errors, $details, $header];
-    }
-
-    /**
-     * Komponen default untuk form baru.
-     */
-    private function defaultKomponen(): array
-    {
-        return [
-            ['nama_komponen' => 'Uang Harian',  'harga_satuan' => 0, 'jumlah_hari' => 1, 'jumlah' => 0, 'keterangan' => ''],
-            ['nama_komponen' => 'BBM',           'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-            ['nama_komponen' => 'Tol',           'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-            ['nama_komponen' => 'Hotel',         'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-        ];
+        return $this->suratTugas->find($stId);
     }
 
     /**
@@ -676,41 +505,17 @@ class SpjController
     private function renderKotaTujuanKosong(string $message, string $backUrl): void
     {
         http_response_code(422);
-        $message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
-        $backUrl = htmlspecialchars($backUrl, ENT_QUOTES, 'UTF-8');
-        echo <<<HTML
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kota Tujuan Belum Diisi</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-</head>
-<body class="bg-light">
-    <div class="container py-5" style="max-width:640px;">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4 text-center">
-                <div class="mb-3 text-warning" style="font-size:3rem;line-height:1;">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                </div>
-                <h4 class="fw-bold mb-2">Kota Tujuan Belum Diisi</h4>
-                <p class="text-muted mb-4">{$message}</p>
-                <div class="alert alert-warning text-start small mb-4">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Field <strong>Kota Tujuan</strong> diisi pada aplikasi Surat Tugas.
-                    Setelah dilengkapi, buka kembali pratinjau SPD PDF ini.
-                </div>
-                <a href="{$backUrl}" class="btn btn-primary">
-                    <i class="bi bi-arrow-left me-1"></i>Kembali
-                </a>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
+
+        $noticeTitle     = 'Kota Tujuan Belum Diisi';
+        $noticeMessage   = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+        $noticeVariant   = 'warning';
+        $noticeHint      = '<i class="bi bi-info-circle me-1"></i>'
+            . 'Field <strong>Kota Tujuan</strong> diisi pada aplikasi Surat Tugas. '
+            . 'Setelah dilengkapi, buka kembali pratinjau SPD PDF ini.';
+        $noticeBackUrl   = $backUrl;
+        $noticeBackLabel = 'Kembali';
+
+        include __DIR__ . '/../../views/shared/standalone_notice.php';
         exit;
     }
 

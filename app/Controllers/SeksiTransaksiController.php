@@ -1540,31 +1540,11 @@ class SeksiTransaksiController
      */
     private function buildKotaTujuanKosongMap(array $transaksis): array
     {
-        $stIds = [];
-        foreach ($transaksis as $row) {
-            if (($row['jenis_transaksi'] ?? '') === 'perjalanan_dinas' && !empty($row['surat_tugas_ref_id'])) {
-                $stIds[] = (int) $row['surat_tugas_ref_id'];
-            }
-        }
-        if (!$stIds) {
-            return [];
-        }
-
         try {
-            $svc = new \App\Services\SpdExportService();
-            $stKosong = $svc->kotaTujuanKosongMap($stIds);
+            return (new \App\Repositories\SuratTugasRepository())->kotaTujuanKosongMapForTransaksi($transaksis);
         } catch (\Throwable $e) {
             return [];
         }
-
-        $map = [];
-        foreach ($transaksis as $row) {
-            $refId = (int) ($row['surat_tugas_ref_id'] ?? 0);
-            if ($refId > 0 && array_key_exists($refId, $stKosong)) {
-                $map[(int) $row['id']] = $stKosong[$refId];
-            }
-        }
-        return $map;
     }
 
     private function redirectWithMessage(string $url, string $type, string $message): void

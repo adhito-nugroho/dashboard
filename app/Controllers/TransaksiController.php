@@ -582,13 +582,6 @@ class TransaksiController
                 session_start();
             }
 
-            error_log("Updating transaksi ID {$id} with data: " . json_encode($_POST));
-
-            // Debug: Check if we have all necessary data
-            error_log("Debug - POST data: " . json_encode($_POST));
-            error_log("Debug - ID: " . $id);
-            error_log("Debug - Rekening: " . json_encode($rekening));
-
             // Execute update
             $result = $this->transaksiModel->update(
                 $id,
@@ -611,9 +604,6 @@ class TransaksiController
                 }
                 $lunasResult = $this->transaksiModel->updateTanggalLunas($id, $rawLunas === '' ? null : $rawLunas);
             }
-
-            // Debug: Check update result
-            error_log("Debug - Update result: " . ($result ? 'success' : 'failed'));
 
             // Cek apakah update berhasil (salah satu ada perubahan)
             if (!$result && !$lunasResult) {
@@ -1171,31 +1161,11 @@ class TransaksiController
      */
     private function buildKotaTujuanKosongMap(array $transaksis): array
     {
-        $stIds = [];
-        foreach ($transaksis as $row) {
-            if (($row['jenis_transaksi'] ?? '') === 'perjalanan_dinas' && !empty($row['surat_tugas_ref_id'])) {
-                $stIds[] = (int) $row['surat_tugas_ref_id'];
-            }
-        }
-        if (!$stIds) {
-            return [];
-        }
-
         try {
-            $svc = new \App\Services\SpdExportService();
-            $stKosong = $svc->kotaTujuanKosongMap($stIds);
+            return (new \App\Repositories\SuratTugasRepository())->kotaTujuanKosongMapForTransaksi($transaksis);
         } catch (\Throwable $e) {
             return [];
         }
-
-        $map = [];
-        foreach ($transaksis as $row) {
-            $refId = (int) ($row['surat_tugas_ref_id'] ?? 0);
-            if ($refId > 0 && array_key_exists($refId, $stKosong)) {
-                $map[(int) $row['id']] = $stKosong[$refId];
-            }
-        }
-        return $map;
     }
 
     /**
