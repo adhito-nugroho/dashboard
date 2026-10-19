@@ -1187,6 +1187,9 @@ class TransaksiController
      *   dari keduanya wajib diisi pada mode ini.
      * - Mode bulanan: bila tanpa `dari`/`sampai`, filter Bulan & Tahun wajib.
      * - Filter Kegiatan/SubKegiatan/Status bersifat opsional pada kedua mode.
+     * - Bila filter tanggal input (`input_dari`) aktif, saldo awal dihitung s/d
+     *   H-1 tanggal input sehingga kolom Saldo mencerminkan kas pada tanggal itu
+     *   (selaras dengan dashboard), bukan saldo awal bulan.
      * - Urut nomor_bukti ASC (natural numeric sort).
      * - Kolom Tanggal menggunakan tanggal verifikasi (tanggal_lunas_dibayar / diverifikasi_at).
      * - Kolom: No, Tanggal, Seksi, Uraian, No Bukti, Pengeluaran (Rp), Saldo (Rp), Status.
@@ -1502,10 +1505,16 @@ class TransaksiController
         }
         // Mode periode tanpa tanggal awal (hanya `sampai`) dianggap sejak awal
         // pembukuan sehingga tidak ada saldo awal yang disisipkan.
-        $bisaSaldoAwal = !$modePeriode || $dari !== null;
+        $bisaSaldoAwal = !$modePeriode || $dari !== null || $filterInputDari !== null;
         if (!$adaSaldoAwalBulanIni && $filterSubKegiatan === null && $filterKegiatan === null && $bisaSaldoAwal) {
             $kasBankModel = new \App\Models\KasBank($db);
-            if ($modePeriode) {
+            // Bila difilter tanggal input, saldo awal harus posisi H-1 tanggal
+            // input (bukan awal bulan) agar saldo pada baris hasil filter
+            // mencerminkan kas pada tanggal tersebut dan sama dengan dashboard.
+            if ($filterInputDari !== null) {
+                $awalPeriode    = $filterInputDari;
+                $akhirBulanLalu = date('Y-m-d', strtotime($filterInputDari . ' -1 day'));
+            } elseif ($modePeriode) {
                 $awalPeriode    = $dari;
                 $akhirBulanLalu = date('Y-m-d', strtotime($dari . ' -1 day'));
             } else {
@@ -1513,9 +1522,39 @@ class TransaksiController
                 $akhirBulanLalu = date('Y-m-d', strtotime($awalPeriode . ' -1 day'));
             }
             $saldoAwalPeriode = $kasBankModel->getSaldoPerTanggal($akhirBulanLalu);
+            if ($filterInputDari !== null && $bkuItems !== []) {
+                // Saldo baris terakhir harus sama dengan posisi kas riil pada
+                // tanggal transaksi (sumber: KasBank), bukan hanya saldo awal
+                // + baris yang lolos filter. Selisih transaksi yang tidak ikut
+                // filter diserap ke saldo awal agar total tetap konsisten.
+                $tanggalAcuan = null;
+                foreach ($bkuItems as $item) {
+                    $tgl = (string) ($item['tanggal_sort'] ?? '');
+                    if ($tgl === '' || $tgl === '9999-12-31') {
+                        continue;
+                    }
+                    if ($tanggalAcuan === null || $tgl > $tanggalAcuan) {
+                        $tanggalAcuan = $tgl;
+                    }
+                }
+                if ($tanggalAcuan !== null) {
+                    $nettoTampil = 0.0;
+                    foreach ($bkuItems as $item) {
+                        if (($item['jenis'] ?? '') === 'saldo_awal') {
+                            continue;
+                        }
+                        if ($item['type'] === 'penerimaan') {
+                            $nettoTampil += (float) ($item['penerimaan'] ?? 0);
+                        } elseif (($item['status'] ?? '') === 'diverifikasi') {
+                            $nettoTampil -= (float) ($item['pengeluaran'] ?? 0);
+                        }
+                    }
+                    $saldoAwalPeriode = $kasBankModel->getSaldoPerTanggal($tanggalAcuan) - $nettoTampil;
+                }
+            }
             if (abs($saldoAwalPeriode) > 0.005) {
                 $tsLalu = strtotime($akhirBulanLalu);
-                $labelLalu = $modePeriode
+                $labelLalu = ($filterInputDari !== null || $modePeriode)
                     ? date('d/m/Y', $tsLalu)
                     : (($namaBulanMap[(int) date('n', $tsLalu)] ?? '') . ' ' . date('Y', $tsLalu));
                 if ($saldoAwalPeriode >= 0) {
@@ -1644,7 +1683,7 @@ class TransaksiController
                 $saldo           += $penerimaan;
                 $totalPenerimaan += $penerimaan;
             } else {
-                if ($statusKey === 'diverifikasi') {
+                if ($statusKey === 'diverifikasi' || ($item['jenis'] ?? '') === 'saldo_awal') {
                     $saldo            -= $pengeluaran;
                     $totalPengeluaran += $pengeluaran;
                 }
