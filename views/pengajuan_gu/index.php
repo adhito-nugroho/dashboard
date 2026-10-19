@@ -32,8 +32,9 @@ $laporanUrl = base_url('pengajuan-gu/laporan') . ($laporanQuery !== [] ? '?' . h
                 <i class="bi bi-send-check text-primary me-2"></i>Pengajuan SPJ ke GU
             </h1>
             <p class="text-muted small mb-0">
-                Pilih sendiri transaksi yang belum di-SPJ-kan (bisa banyak sekaligus) untuk dimintakan Ganti Uang ke Kasda.
-                Nominal GU otomatis = jumlah transaksi terpilih.
+                Pilih sendiri transaksi mulai 1 Oktober 2026 yang belum di-SPJ-kan (bisa banyak sekaligus) untuk dimintakan
+                Ganti Uang ke Kasda. Transaksi sebelum tanggal tersebut dianggap sudah di-SPJ-kan. Nominal GU otomatis =
+                jumlah transaksi terpilih.
             </p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -67,7 +68,7 @@ $laporanUrl = base_url('pengajuan-gu/laporan') . ($laporanQuery !== [] ? '?' . h
 
     <div class="alert alert-light border shadow-sm rounded-3 py-2 px-3 mb-4 d-flex align-items-center gap-2 flex-wrap" style="font-size:0.85rem;">
         <i class="bi bi-info-circle-fill text-primary"></i>
-        <span>Total belum di-SPJ-kan (semua waktu): <strong class="font-monospace">Rp <?= number_format($totalBelumSpj, 0, ',', '.') ?></strong></span>
+        <span>Total belum di-SPJ-kan (sejak 1 Okt 2026): <strong class="font-monospace">Rp <?= number_format($totalBelumSpj, 0, ',', '.') ?></strong></span>
         <span class="text-muted">·</span>
         <span>Siap diajukan pada filter ini: <strong class="font-monospace"><?= count($siapList) ?> transaksi (Rp <?= number_format($totalSiap, 0, ',', '.') ?>)</strong></span>
     </div>
@@ -79,7 +80,7 @@ $laporanUrl = base_url('pengajuan-gu/laporan') . ($laporanQuery !== [] ? '?' . h
                 <h5 class="card-title fw-bold mb-0 text-dark">
                     <i class="bi bi-list-check text-success me-2"></i>Transaksi Siap di-SPJ-kan
                 </h5>
-                <small class="text-muted">Hanya yang terverifikasi, dana UP, dan belum tercakup pengajuan mana pun</small>
+                <small class="text-muted">Hanya yang terverifikasi, dana UP, belum tercakup pengajuan mana pun, dan tanggal bayar mulai 1 Oktober 2026</small>
             </div>
             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 font-monospace" id="badgeTerpilih">
                 Terpilih: 0 (Rp 0)

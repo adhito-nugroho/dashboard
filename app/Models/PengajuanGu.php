@@ -19,6 +19,13 @@ use PDOException;
  */
 class PengajuanGu
 {
+    /**
+     * Tanggal mulai fitur Pengajuan SPJ ke GU.
+     * Transaksi dengan tanggal efektif sebelum tanggal ini dianggap sudah
+     * di-SPJ-kan di luar sistem dan tidak ditampilkan sebagai siap diajukan.
+     */
+    public const SPJ_GU_MULAI = '2026-10-01';
+
     private PDO $db;
 
     public function __construct(PDO $db)
@@ -28,8 +35,9 @@ class PengajuanGu
 
     /**
      * Transaksi yang siap di-SPJ-kan: diverifikasi + UP + belum tercakup
-     * pengajuan mana pun. Basis tanggal = tanggal bayar (konsisten kas/BKU).
-     * Filter rentang opsional untuk siklus 2x sebulan (mis. 1–15 / 16–akhir).
+     * pengajuan mana pun + tanggal efektif >= SPJ_GU_MULAI. Basis tanggal =
+     * tanggal bayar (konsisten kas/BKU). Filter rentang opsional untuk siklus
+     * 2x sebulan (mis. 1–15 / 16–akhir); batas bawah tetap SPJ_GU_MULAI.
      *
      * @return array<int, array<string,mixed>>
      */
@@ -42,10 +50,15 @@ class PengajuanGu
                 't.pengajuan_gu_id IS NULL',
             ];
             $params = [];
-            if (Transaksi::normalizeTanggalLunas($dari ?? '') !== null) {
-                $conds[] = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) >= :dari';
-                $params[':dari'] = $dari;
+
+            // Transaksi sebelum fitur SPJ GU aktif dianggap sudah di-SPJ-kan.
+            $mulai = self::SPJ_GU_MULAI;
+            $dari = Transaksi::normalizeTanggalLunas($dari ?? '');
+            if ($dari !== null && $dari > $mulai) {
+                $mulai = $dari;
             }
+            $conds[] = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) >= :mulai';
+            $params[':mulai'] = $mulai;
             if (Transaksi::normalizeTanggalLunas($sampai ?? '') !== null) {
                 $conds[] = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) <= :sampai';
                 $params[':sampai'] = $sampai;
@@ -69,15 +82,19 @@ class PengajuanGu
     }
 
     /**
-     * Total nominal belanja yang belum di-SPJ-kan (seluruh waktu).
+     * Total nominal belanja yang belum di-SPJ-kan sejak fitur SPJ GU aktif.
      */
     public function getTotalBelumSpj(): float
     {
         try {
-            return (float) $this->db->query("
+            $stmt = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0) FROM transaksi
                 WHERE status = 'diverifikasi' AND sumber_dana = 'UP' AND pengajuan_gu_id IS NULL
-            ")->fetchColumn();
+                  AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) >= :mulai
+            ");
+            $stmt->execute([':mulai' => self::SPJ_GU_MULAI]);
+
+            return (float) $stmt->fetchColumn();
         } catch (PDOException $e) {
             error_log('Error calculating belum SPJ: ' . $e->getMessage());
             return 0.0;
