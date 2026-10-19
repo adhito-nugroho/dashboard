@@ -59,7 +59,7 @@ class SpdExportService
 
         try {
             $stStmt = $pdo->prepare('
-                SELECT id, nomor_surat, tanggal_surat, untuk,
+                SELECT id, nomor_surat, tanggal_surat, untuk, kota_tujuan,
                        tanggal_mulai, tanggal_selesai
                 FROM surat_tugas WHERE id = ? LIMIT 1
             ');
@@ -108,6 +108,10 @@ class SpdExportService
             $lokasi = trim((string) ($trx['lokasi_kegiatan'] ?? ''));
         }
 
+        // Kota tujuan diambil dari field "Kota Tujuan" aplikasi Surat Tugas.
+        // Fallback ke lokasi kegiatan transaksi, lalu ke tempat berangkat.
+        $kotaTujuan = trim((string) ($st['kota_tujuan'] ?? ''));
+
         $tglMulai = (string) $st['tanggal_mulai'];
         $tglSelesai = (string) $st['tanggal_selesai'] !== '' ? (string) $st['tanggal_selesai'] : $tglMulai;
         $lama = max(1, (int) round((strtotime($tglSelesai) - strtotime($tglMulai)) / 86400) + 1);
@@ -126,7 +130,7 @@ class SpdExportService
             'alat_angkut' => $isKepalaCdk ? 'Kendaraan Dinas' : 'Kendaraan Pribadi',
             'maksud' => trim((string) $st['untuk']),
             'tempat_berangkat' => self::TEMPAT_BERANGKAT,
-            'tempat_tujuan' => $lokasi !== '' ? $lokasi : self::TEMPAT_BERANGKAT,
+            'tempat_tujuan' => $kotaTujuan !== '' ? $kotaTujuan : ($lokasi !== '' ? $lokasi : self::TEMPAT_BERANGKAT),
             'lama_hari' => $lama,
             'lama_text' => $lama . ' (' . strtolower($this->terbilangId($lama)) . ') hari',
             'tgl_berangkat' => $this->formatTanggalIndo($tglMulai),
