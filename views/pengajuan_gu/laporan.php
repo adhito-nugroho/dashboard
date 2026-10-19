@@ -32,11 +32,13 @@ $tanggal = static function (?string $value): string {
     border-color: #1f4e79 !important;
 }
 .lpj-table td { vertical-align: middle; }
-.lpj-hier { background: #ffffff !important; font-weight: 700; }
-.lpj-rek-a { background: #fce4d6 !important; }
-.lpj-rek-b { background: #f8cbad !important; }
+.lpj-hier { font-weight: 700; }
+.lpj-hier > td { background-color: #ffffff !important; }
+.lpj-rek-a > td { background-color: #fce4d6 !important; }
+.lpj-rek-b > td { background-color: #f8cbad !important; }
 .lpj-num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
-.lpj-total { background: #d9e1f2 !important; font-weight: 800; }
+.lpj-total { font-weight: 800; }
+.lpj-total > td { background-color: #d9e1f2 !important; }
 .lpj-total td { border-top: 2px solid #000 !important; border-bottom: 3px double #000 !important; }
 @media print {
     #sidebar, .header, .no-print { display: none !important; }
