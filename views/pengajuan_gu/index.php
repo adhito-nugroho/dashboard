@@ -12,6 +12,11 @@ $statusBadge = [
     'cair'     => ['Sudah Cair', 'bg-success-subtle text-success border-success-subtle'],
     'ditolak'  => ['Ditolak', 'bg-danger-subtle text-danger border-danger-subtle'],
 ];
+$laporanQuery = array_filter(
+    ['dari' => $dari ?? '', 'sampai' => $sampai ?? ''],
+    static fn($value) => $value !== ''
+);
+$laporanUrl = base_url('pengajuan-gu/laporan') . ($laporanQuery !== [] ? '?' . http_build_query($laporanQuery) : '');
 ?>
 <div class="container-fluid px-4 py-3">
     <?php if ($flash): ?>
@@ -31,19 +36,24 @@ $statusBadge = [
                 Nominal GU otomatis = jumlah transaksi terpilih.
             </p>
         </div>
-        <form method="GET" action="<?= base_url('pengajuan-gu') ?>" class="d-flex align-items-center gap-2 bg-white p-1 rounded-3 border shadow-sm flex-wrap" id="formFilterPeriode">
-            <input type="date" name="dari" id="filterDari" class="form-control form-control-sm border-0 bg-light" style="width: auto;" value="<?= htmlspecialchars($dari ?? '') ?>" title="Dari tanggal">
-            <span class="text-muted small">s/d</span>
-            <input type="date" name="sampai" id="filterSampai" class="form-control form-control-sm border-0 bg-light" style="width: auto;" value="<?= htmlspecialchars($sampai ?? '') ?>" title="Sampai tanggal">
-            <button type="submit" class="btn btn-sm btn-primary px-3">
-                <i class="bi bi-filter me-1"></i>Tampilkan
-            </button>
-            <?php if (!empty($dari) || !empty($sampai)): ?>
-                <a href="<?= base_url('pengajuan-gu') ?>" class="btn btn-sm btn-outline-secondary" title="Hapus filter periode">
-                    <i class="bi bi-x-lg"></i>
-                </a>
-            <?php endif; ?>
-        </form>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <form method="GET" action="<?= base_url('pengajuan-gu') ?>" class="d-flex align-items-center gap-2 bg-white p-1 rounded-3 border shadow-sm flex-wrap" id="formFilterPeriode">
+                <input type="date" name="dari" id="filterDari" class="form-control form-control-sm border-0 bg-light" style="width: auto;" value="<?= htmlspecialchars($dari ?? '') ?>" title="Dari tanggal">
+                <span class="text-muted small">s/d</span>
+                <input type="date" name="sampai" id="filterSampai" class="form-control form-control-sm border-0 bg-light" style="width: auto;" value="<?= htmlspecialchars($sampai ?? '') ?>" title="Sampai tanggal">
+                <button type="submit" class="btn btn-sm btn-primary px-3">
+                    <i class="bi bi-filter me-1"></i>Tampilkan
+                </button>
+                <?php if (!empty($dari) || !empty($sampai)): ?>
+                    <a href="<?= base_url('pengajuan-gu') ?>" class="btn btn-sm btn-outline-secondary" title="Hapus filter periode">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                <?php endif; ?>
+            </form>
+            <a href="<?= htmlspecialchars($laporanUrl) ?>" class="btn btn-sm btn-outline-success bg-white shadow-sm" title="Laporan Pertanggungjawaban Limpahan UP">
+                <i class="bi bi-file-earmark-text me-1"></i>Laporan LPJ
+            </a>
+        </div>
     </div>
 
     <div class="d-flex gap-2 flex-wrap mb-3">
@@ -203,6 +213,9 @@ $statusBadge = [
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
+                                            <a href="<?= base_url('pengajuan-gu/laporan?pengajuan_id=' . $pid) ?>" class="btn btn-sm btn-outline-primary" title="Cetak LPJ Limpahan UP">
+                                                <i class="bi bi-file-earmark-text me-1"></i>LPJ
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>

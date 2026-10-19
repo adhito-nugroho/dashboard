@@ -400,6 +400,8 @@ try {
 
         // Pengajuan SPJ ke GU
         ['ANY', '/pengajuan-gu', fn($m) => $pengajuanGuController->index()],
+        ['ANY', '/pengajuan-gu/laporan', fn($m) => $pengajuanGuController->laporan()],
+        ['ANY', '/pengajuan-gu/laporan/excel', fn($m) => $pengajuanGuController->laporanExcel()],
         ['POST', '/pengajuan-gu/store', fn($m) => $pengajuanGuController->store()],
         ['POST', '#^/pengajuan-gu/cairkan/(\d+)$#', fn($m) => $pengajuanGuController->cairkan((int) $m[1])],
         ['POST', '#^/pengajuan-gu/batalkan/(\d+)$#', fn($m) => $pengajuanGuController->batalkan((int) $m[1])],

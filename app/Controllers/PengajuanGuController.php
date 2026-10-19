@@ -7,6 +7,8 @@ namespace App\Controllers;
 use App\Models\KasBank;
 use App\Models\PengajuanGu;
 use App\Models\Transaksi;
+use App\Services\LpjLimpahanUpExportService;
+use App\Services\LpjLimpahanUpService;
 
 /**
  * Alur Pengajuan SPJ menjadi GU (admin/bendahara only).
@@ -152,6 +154,68 @@ class PengajuanGuController
             base_url('pengajuan-gu'),
             $ok ? 'success' : 'error',
             $ok ? 'Transaksi dilepas dari pengajuan.' : 'Gagal melepas (pengajuan sudah cair / tidak ditemukan).'
+        );
+    }
+
+    /**
+     * Laporan Pertanggungjawaban Limpahan UP (HTML, siap cetak).
+     * Bisa per pengajuan (pengajuan_id) atau rekap periode (dari/sampai).
+     */
+    public function laporan(): void
+    {
+        $this->requireAdmin();
+
+        $report = $this->buildLaporan();
+        if ($report === null) {
+            $this->redirectWithMessage(base_url('pengajuan-gu'), 'error', 'Pengajuan GU tidak ditemukan.');
+            return;
+        }
+
+        $pageTitle = 'LPJ Limpahan Uang Persediaan';
+        $activePage = 'pengajuan_gu';
+        $backUrl = base_url('pengajuan-gu');
+        $excelUrl = base_url('pengajuan-gu/laporan/excel') . '?' . http_build_query($_GET);
+        $viewFile = __DIR__ . '/../../views/pengajuan_gu/laporan.php';
+
+        include __DIR__ . '/../../views/layout.php';
+    }
+
+    /**
+     * Unduh laporan yang sama dalam format Excel.
+     */
+    public function laporanExcel(): void
+    {
+        $this->requireAdmin();
+
+        $report = $this->buildLaporan();
+        if ($report === null) {
+            $this->redirectWithMessage(base_url('pengajuan-gu'), 'error', 'Pengajuan GU tidak ditemukan.');
+            return;
+        }
+
+        $export = new LpjLimpahanUpExportService();
+        $export->download($report);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function buildLaporan(): ?array
+    {
+        $pengajuanId = isset($_GET['pengajuan_id']) && $_GET['pengajuan_id'] !== ''
+            ? (int) $_GET['pengajuan_id']
+            : null;
+        $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== ''
+            ? (int) $_GET['tahun']
+            : null;
+
+        $service = new LpjLimpahanUpService(\Database::getConnection());
+
+        return $service->build(
+            $pengajuanId,
+            $_GET['dari'] ?? null,
+            $_GET['sampai'] ?? null,
+            $tahun
         );
     }
 
