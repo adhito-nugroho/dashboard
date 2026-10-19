@@ -8,6 +8,7 @@ use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\Rekening;
+use App\Services\PaguComparisonExportService;
 use PDOException;
 
 class PaguController {
@@ -562,6 +563,21 @@ class PaguController {
             include __DIR__ . '/../../views/layout.php';
         } catch (\Exception $e) {
             $this->handleError('Gagal memuat laporan PAPBD: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export ringkasan APBD murni vs PAPBD (program -> kegiatan -> sub kegiatan -> rekening).
+     */
+    public function laporanExcel(): void
+    {
+        try {
+            $tahun = isset($_GET['tahun']) && is_numeric($_GET['tahun']) ? (int) $_GET['tahun'] : (int) date('Y');
+            $riwayatModel = $this->tableHasPaguRiwayat() ? $this->getRiwayatModel() : null;
+            $service = new PaguComparisonExportService($this->paguModel, $riwayatModel);
+            $service->download($tahun);
+        } catch (\Throwable $e) {
+            $this->handleError('Gagal membuat export APBD vs PAPBD: ' . $e->getMessage());
         }
     }
     

@@ -26,6 +26,7 @@ $totSisa = $totAkhir - $totReal;
                 <input type="number" name="tahun" class="form-control" min="2000" max="2100" value="<?= (int) $tahun ?>" style="width:120px">
                 <button class="btn btn-outline-primary" type="submit">Tampil</button>
             </form>
+            <a href="<?= base_url('pagu/laporan/excel?tahun=' . (int) $tahun) ?>" class="btn btn-success"><i class="bi bi-file-earmark-excel me-1"></i> Export Excel</a>
             <a href="<?= base_url('pagu?tahun=' . (int) $tahun) ?>" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i> Data Pagu</a>
         </div>
     </div>

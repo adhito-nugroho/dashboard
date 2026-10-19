@@ -295,6 +295,7 @@ try {
         ['POST', '/pagu/create', fn($m) => $paguController->store()],
         ['POST', '/pagu/store', fn($m) => $paguController->store()],
         ['POST', '/pagu/store-batch', fn($m) => $paguController->storeBatch()],
+        ['ANY', '/pagu/laporan/excel', fn($m) => $paguController->laporanExcel()],
         ['ANY', '/pagu/laporan', fn($m) => $paguController->laporan()],
         ['ANY', '#^/pagu/riwayat/(\d+)$#', fn($m) => $paguController->riwayat((int) $m[1])],
         ['GET', '#^/pagu/edit/(\d+)$#', fn($m) => $paguController->edit((int) $m[1])],
