@@ -310,14 +310,31 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
                     && (!empty($transaksi['surat_tugas_ref_id']) || !empty($transaksi['nomor_surat_tugas']));
             ?>
             <?php if ($bisaSpd): ?>
-                <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>"
-                   target="_blank" rel="noopener"
-                   class="btn btn-sm btn-outline-danger" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
-                    <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
-                </a>
+                <?php if (!empty($kotaTujuanKosong)): ?>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                            title="Kota Tujuan belum diisi di aplikasi Surat Tugas — SPD PDF tidak dapat dibuat">
+                        <i class="bi bi-file-earmark-x me-1"></i>SPD PDF
+                    </button>
+                <?php else: ?>
+                    <a href="<?= base_url('spj/spd-transaksi/' . $transaksi['id']) ?>"
+                       target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-danger" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
+                        <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
+                    </a>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
         <div class="card-body p-4">
+        <?php if (!empty($kotaTujuanKosong)): ?>
+            <div class="alert alert-warning d-flex align-items-start gap-2 mb-4 small" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <strong>Kota Tujuan belum diisi pada Surat Tugas terkait.</strong>
+                    <div>SPD PDF memakai field <em>Kota Tujuan</em> dari aplikasi Surat Tugas untuk kolom "Tempat Tujuan".
+                    Mohon lengkapi field tersebut agar SPD dapat dicetak dengan benar.</div>
+                </div>
+            </div>
+        <?php endif; ?>
         <?php if (!$rincianBiaya || empty($rincianBiaya['details'])): ?>
             <div class="text-center py-4 text-muted">
                 <div class="mb-2">

@@ -19,6 +19,13 @@ $namaBulanMap = [
 $flash    = $_SESSION['flash_message'] ?? null;
 $flashType = $_SESSION['flash_type'] ?? 'info';
 unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+
+$kotaTujuanKosongCount = 0;
+foreach ($suratTugasList as $stRow) {
+    if (trim((string) ($stRow['kota_tujuan'] ?? '')) === '') {
+        $kotaTujuanKosongCount++;
+    }
+}
 ?>
 
 <div class="container-fluid py-4">
@@ -78,6 +85,21 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i><?= htmlspecialchars($stError) ?></div>
     <?php endif; ?>
 
+    <!-- Notifikasi: Kota Tujuan belum diisi di aplikasi Surat Tugas -->
+    <?php if ($kotaTujuanKosongCount > 0): ?>
+        <div class="alert alert-warning d-flex align-items-start gap-2 border-warning" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+            <div>
+                <strong><?= $kotaTujuanKosongCount ?> Surat Tugas belum mengisi "Kota Tujuan".</strong>
+                <div class="small">
+                    SPD PDF memakai field <em>Kota Tujuan</em> dari aplikasi Surat Tugas.
+                    Lengkapi Kota Tujuan pada Surat Tugas bertanda <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                    di bawah ini agar kolom "Tempat Tujuan" pada SPD terisi benar.
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Tabel Surat Tugas -->
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
@@ -95,16 +117,23 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 <th width="15%">Nomor ST</th>
                                 <th width="10%">Tgl Surat</th>
                                 <th width="10%">Pelaksanaan</th>
+                                <th width="13%">Kota Tujuan</th>
                                 <th>Tujuan / Untuk</th>
                                 <th width="12%" class="text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($suratTugasList as $i => $st): ?>
+                            <?php foreach ($suratTugasList as $i => $st):
+                                $kotaTujuanKosong = trim((string) ($st['kota_tujuan'] ?? '')) === '';
+                            ?>
                                 <tr>
                                     <td class="text-muted" style="font-size:.8rem;"><?= $i + 1 ?></td>
                                     <td>
                                         <span class="fw-semibold" style="font-size:.85rem;"><?= htmlspecialchars($st['nomor_surat']) ?></span>
+                                        <?php if ($kotaTujuanKosong): ?>
+                                            <i class="bi bi-exclamation-triangle-fill text-warning ms-1"
+                                               title="Kota Tujuan belum diisi di aplikasi Surat Tugas — SPD PDF akan memakai tujuan yang keliru"></i>
+                                        <?php endif; ?>
                                         <?php if (!empty($st['dasar_surat'])): ?>
                                             <div class="text-muted" style="font-size:.75rem;">Dasar: <?= htmlspecialchars($st['dasar_surat']) ?></div>
                                         <?php endif; ?>
@@ -114,6 +143,15 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                         <?= $st['tanggal_mulai'] ? date('d/m/Y', strtotime($st['tanggal_mulai'])) : '-' ?>
                                         <?php if (!empty($st['tanggal_selesai']) && $st['tanggal_selesai'] !== $st['tanggal_mulai']): ?>
                                             <span class="text-muted">–<br><?= date('d/m/Y', strtotime($st['tanggal_selesai'])) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="font-size:.85rem;">
+                                        <?php if ($kotaTujuanKosong): ?>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Belum diisi
+                                            </span>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($st['kota_tujuan']) ?>
                                         <?php endif; ?>
                                     </td>
                                     <td style="font-size:.85rem;"><?= htmlspecialchars($st['untuk'] ?? '-') ?></td>

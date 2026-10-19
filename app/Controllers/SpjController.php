@@ -99,7 +99,8 @@ class SpjController
 
                 $stmt = $pdo->prepare("
                     SELECT id, nomor_surat, tanggal_surat, untuk,
-                           tanggal_mulai, tanggal_selesai, dasar_surat
+                           tanggal_mulai, tanggal_selesai, dasar_surat,
+                           kota_tujuan
                     FROM surat_tugas
                     {$where}
                     ORDER BY tanggal_mulai DESC, id DESC
@@ -142,7 +143,8 @@ class SpjController
                 // Ambil header ST
                 $stStmt = $pdo->prepare("
                     SELECT id, nomor_surat, tanggal_surat, untuk,
-                           tanggal_mulai, tanggal_selesai, dasar_surat
+                           tanggal_mulai, tanggal_selesai, dasar_surat,
+                           kota_tujuan
                     FROM surat_tugas WHERE id = ? LIMIT 1
                 ");
                 $stStmt->execute([$suratTugasId]);
@@ -427,7 +429,8 @@ class SpjController
         try {
             $stStmt = $pdo->prepare("
                 SELECT id, nomor_surat, tanggal_surat, untuk,
-                       tanggal_mulai, tanggal_selesai, dasar_surat
+                       tanggal_mulai, tanggal_selesai, dasar_surat,
+                       kota_tujuan
                 FROM surat_tugas WHERE id = ? LIMIT 1
             ");
             $stStmt->execute([$stId]);
@@ -599,6 +602,14 @@ class SpjController
             exit;
         }
 
+        if (!empty($data['kota_tujuan_kosong'])) {
+            $this->renderKotaTujuanKosong(
+                $svc->kotaTujuanKosongMessage((string) ($data['nomor_surat'] ?? '')),
+                base_url('spj/detail/' . $suratTugasId)
+            );
+            return;
+        }
+
         $svc->downloadPdf($data);
     }
 
@@ -643,7 +654,64 @@ class SpjController
             exit;
         }
 
+        if (!empty($data['kota_tujuan_kosong'])) {
+            $backUrl = $isAdmin
+                ? base_url('transaksi/show/' . $transaksiId)
+                : base_url('seksi/transaksi');
+            $this->renderKotaTujuanKosong(
+                $svc->kotaTujuanKosongMessage((string) ($data['nomor_surat'] ?? $trx['nomor_surat_tugas'] ?? '')),
+                $backUrl
+            );
+            return;
+        }
+
         $svc->downloadPdf($data);
+    }
+
+    /**
+     * Tampilkan notifikasi (halaman HTML) bahwa Kota Tujuan belum diisi di
+     * aplikasi Surat Tugas, sehingga SPD PDF tidak dibuat dengan tujuan
+     * yang keliru.
+     */
+    private function renderKotaTujuanKosong(string $message, string $backUrl): void
+    {
+        http_response_code(422);
+        $message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+        $backUrl = htmlspecialchars($backUrl, ENT_QUOTES, 'UTF-8');
+        echo <<<HTML
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kota Tujuan Belum Diisi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+    <div class="container py-5" style="max-width:640px;">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 text-center">
+                <div class="mb-3 text-warning" style="font-size:3rem;line-height:1;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <h4 class="fw-bold mb-2">Kota Tujuan Belum Diisi</h4>
+                <p class="text-muted mb-4">{$message}</p>
+                <div class="alert alert-warning text-start small mb-4">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Field <strong>Kota Tujuan</strong> diisi pada aplikasi Surat Tugas.
+                    Setelah dilengkapi, buka kembali pratinjau SPD PDF ini.
+                </div>
+                <a href="{$backUrl}" class="btn btn-primary">
+                    <i class="bi bi-arrow-left me-1"></i>Kembali
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+        exit;
     }
 
     private function redirectWithMessage(string $url, string $type, string $message): void

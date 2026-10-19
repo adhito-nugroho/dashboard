@@ -77,6 +77,9 @@ class SeksiTransaksiController
 
         $transaksis = $this->transaksiModel->getBySeksiFiltered($userId, $status ?: null, $bulan, $tahun, $q ?: null, $perPage, $offset, $inputDari, $inputSampai);
 
+        // Notifikasi "Kota Tujuan" untuk tombol SPD PDF (lihat aplikasi Surat Tugas).
+        $kotaTujuanKosongMap = $this->buildKotaTujuanKosongMap($transaksis);
+
         $hasFilter = ($status !== '' || $bulan !== null || $tahun !== null || $q !== '' || $inputDari !== null || $inputSampai !== null);
         $filters = ['status'=>$status,'bulan'=>$bulan,'tahun'=>$tahun,'q'=>$q,'input_dari'=>$inputDari,'input_sampai'=>$inputSampai];
 
@@ -482,7 +485,7 @@ class SeksiTransaksiController
                 $dbST = \DatabaseSuratTugas::getConnection();
                 if ($dbST) {
                     if ($stRefId > 0) {
-                        $stQuery = $dbST->prepare("SELECT id, nomor_surat, untuk, tanggal_mulai, tanggal_selesai FROM surat_tugas WHERE id = ? LIMIT 1");
+                        $stQuery = $dbST->prepare("SELECT id, nomor_surat, untuk, tanggal_mulai, tanggal_selesai, kota_tujuan FROM surat_tugas WHERE id = ? LIMIT 1");
                         $stQuery->execute([$stRefId]);
                     } else {
                         // Cari nomor_surat langsung atau substring nomor urut (contoh: 2605)
@@ -492,7 +495,7 @@ class SeksiTransaksiController
                         } elseif (preg_match('/([0-9]+)/', $stNomor, $mRaw)) {
                             $rawNo = $mRaw[1];
                         }
-                        $stQuery = $dbST->prepare("SELECT id, nomor_surat, untuk, tanggal_mulai, tanggal_selesai FROM surat_tugas WHERE nomor_surat = ? OR nomor_surat LIKE ? LIMIT 1");
+                        $stQuery = $dbST->prepare("SELECT id, nomor_surat, untuk, tanggal_mulai, tanggal_selesai, kota_tujuan FROM surat_tugas WHERE nomor_surat = ? OR nomor_surat LIKE ? LIMIT 1");
                         $stQuery->execute([$stNomor, "%{$rawNo}%"]);
                     }
                     $stRow = $stQuery->fetch(\PDO::FETCH_ASSOC);
@@ -501,6 +504,7 @@ class SeksiTransaksiController
                         $stMetadata['untuk'] = $stRow['untuk'] ?? '';
                         $stMetadata['tanggal_mulai'] = $stRow['tanggal_mulai'] ?? $stMetadata['tanggal_mulai'];
                         $stMetadata['tanggal_selesai'] = $stRow['tanggal_selesai'] ?? '';
+                        $stMetadata['kota_tujuan'] = $stRow['kota_tujuan'] ?? '';
                         if (empty($stMetadata['nomor_surat'])) {
                             $stMetadata['nomor_surat'] = $stRow['nomor_surat'] ?? '';
                         }
@@ -1346,6 +1350,7 @@ class SeksiTransaksiController
                     st.tanggal_mulai, 
                     st.tanggal_selesai, 
                     st.dasar_surat,
+                    st.kota_tujuan,
                     COUNT(DISTINCT pt.nip) AS total_pegawai,
                     GROUP_CONCAT(DISTINCT p.nama ORDER BY pt.urutan ASC SEPARATOR ', ') AS daftar_pegawai
                 FROM surat_tugas st
@@ -1524,6 +1529,42 @@ class SeksiTransaksiController
         } catch (\Exception $e) {
             error_log('audit_log error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Peta [id transaksi => true] untuk transaksi perjalanan dinas yang Surat
+     * Tugas-nya belum mengisi field "Kota Tujuan" (SPD PDF butuh field itu).
+     *
+     * @param array<int, array<string, mixed>> $transaksis
+     * @return array<int, bool>
+     */
+    private function buildKotaTujuanKosongMap(array $transaksis): array
+    {
+        $stIds = [];
+        foreach ($transaksis as $row) {
+            if (($row['jenis_transaksi'] ?? '') === 'perjalanan_dinas' && !empty($row['surat_tugas_ref_id'])) {
+                $stIds[] = (int) $row['surat_tugas_ref_id'];
+            }
+        }
+        if (!$stIds) {
+            return [];
+        }
+
+        try {
+            $svc = new \App\Services\SpdExportService();
+            $stKosong = $svc->kotaTujuanKosongMap($stIds);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($transaksis as $row) {
+            $refId = (int) ($row['surat_tugas_ref_id'] ?? 0);
+            if ($refId > 0 && array_key_exists($refId, $stKosong)) {
+                $map[(int) $row['id']] = $stKosong[$refId];
+            }
+        }
+        return $map;
     }
 
     private function redirectWithMessage(string $url, string $type, string $message): void

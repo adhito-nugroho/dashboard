@@ -120,6 +120,10 @@ class TransaksiController
             $offset = ($page - 1) * $perPage;
             $transaksis = array_slice($transaksis, $offset, $perPage);
 
+            // Notifikasi "Kota Tujuan": tandai transaksi perjalanan dinas yang
+            // Surat Tugas-nya belum mengisi Kota Tujuan (SPD PDF butuh field itu).
+            $kotaTujuanKosongMap = $this->buildKotaTujuanKosongMap($transaksis);
+
             // Build baseUrl with filter params for pagination links
             $queryParams = array_filter([
                 'bulan'           => $queryBulan,
@@ -173,6 +177,13 @@ class TransaksiController
             $db = \Database::getConnection();
             $rincianModel = new \App\Models\RincianBiaya($db);
             $rincianBiaya = $rincianModel->findForTransaksi($transaksi);
+
+            // Notifikasi Kota Tujuan untuk tombol SPD PDF.
+            $kotaTujuanKosong = false;
+            if (($transaksi['jenis_transaksi'] ?? '') === 'perjalanan_dinas') {
+                $map = $this->buildKotaTujuanKosongMap([$transaksi]);
+                $kotaTujuanKosong = (bool) ($map[(int) $transaksi['id']] ?? false);
+            }
 
             $pageTitle  = 'Detail Transaksi #' . $id;
             $activePage = 'transaksi';
@@ -1148,6 +1159,43 @@ class TransaksiController
         } catch (\Exception $e) {
             error_log('audit_log error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Peta [id transaksi => true] untuk transaksi perjalanan dinas yang Surat
+     * Tugas-nya belum mengisi field "Kota Tujuan" di aplikasi Surat Tugas.
+     * Dipakai untuk notifikasi pada daftar/detail transaksi.
+     *
+     * @param array<int, array<string, mixed>> $transaksis
+     * @return array<int, bool>
+     */
+    private function buildKotaTujuanKosongMap(array $transaksis): array
+    {
+        $stIds = [];
+        foreach ($transaksis as $row) {
+            if (($row['jenis_transaksi'] ?? '') === 'perjalanan_dinas' && !empty($row['surat_tugas_ref_id'])) {
+                $stIds[] = (int) $row['surat_tugas_ref_id'];
+            }
+        }
+        if (!$stIds) {
+            return [];
+        }
+
+        try {
+            $svc = new \App\Services\SpdExportService();
+            $stKosong = $svc->kotaTujuanKosongMap($stIds);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($transaksis as $row) {
+            $refId = (int) ($row['surat_tugas_ref_id'] ?? 0);
+            if ($refId > 0 && array_key_exists($refId, $stKosong)) {
+                $map[(int) $row['id']] = $stKosong[$refId];
+            }
+        }
+        return $map;
     }
 
     /**

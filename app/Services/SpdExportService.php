@@ -15,6 +15,10 @@ namespace App\Services;
  * - Akun        : kode rekening transaksi perjalanan dinas terkait
  *                 (Biasa 5.1.02.04.01.0001 / Dalam Kota 5.1.02.04.01.0003);
  *                 fallback ke Biasa bila tidak ada transaksi.
+ * - Kota tujuan : field "Kota Tujuan" aplikasi Surat Tugas. Bila kosong,
+ *                 buildData() menandai 'kota_tujuan_kosong' = true agar
+ *                 pemanggil bisa menampilkan notifikasi (bukan mencetak SPD
+ *                 dengan tujuan yang salah).
  */
 class SpdExportService
 {
@@ -130,6 +134,8 @@ class SpdExportService
             'alat_angkut' => $isKepalaCdk ? 'Kendaraan Dinas' : 'Kendaraan Pribadi',
             'maksud' => trim((string) $st['untuk']),
             'tempat_berangkat' => self::TEMPAT_BERANGKAT,
+            'kota_tujuan' => $kotaTujuan,
+            'kota_tujuan_kosong' => $kotaTujuan === '',
             'tempat_tujuan' => $kotaTujuan !== '' ? $kotaTujuan : ($lokasi !== '' ? $lokasi : self::TEMPAT_BERANGKAT),
             'lama_hari' => $lama,
             'lama_text' => $lama . ' (' . strtolower($this->terbilangId($lama)) . ') hari',
@@ -270,6 +276,71 @@ class SpdExportService
         }
         $out = preg_replace('#\s*/\s*([IVX]+)\s*-\s*([a-z])#i', ', $1/$2', $pangkat);
         return $out ?? $pangkat;
+    }
+
+    /**
+     * Peta id Surat Tugas => apakah "Kota Tujuan" kosong.
+     * Dipakai untuk menandai banyak baris (daftar transaksi) tanpa N+1 query.
+     * Return [] bila koneksi/kolom tidak tersedia (fitur di aplikasi lama).
+     *
+     * @param array<int, int|string> $suratTugasIds
+     * @return array<int, bool>
+     */
+    public function kotaTujuanKosongMap(array $suratTugasIds): array
+    {
+        $ids = [];
+        foreach ($suratTugasIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        if (!$ids) {
+            return [];
+        }
+
+        $cfg = __DIR__ . '/../../config/database_surat_tugas.php';
+        if (!class_exists('DatabaseSuratTugas') && is_file($cfg)) {
+            require_once $cfg;
+        }
+        if (!class_exists('DatabaseSuratTugas')) {
+            return [];
+        }
+        $pdo = \DatabaseSuratTugas::getConnection();
+        if ($pdo === null) {
+            return [];
+        }
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare("
+                SELECT id, kota_tujuan
+                FROM surat_tugas
+                WHERE id IN ({$placeholders})
+            ");
+            $stmt->execute(array_values($ids));
+
+            $map = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+                $map[(int) $row['id']] = trim((string) ($row['kota_tujuan'] ?? '')) === '';
+            }
+            return $map;
+        } catch (\Throwable $e) {
+            error_log('SpdExportService::kotaTujuanKosongMap error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Pesan notifikasi standar saat Kota Tujuan belum diisi di aplikasi
+     * Surat Tugas.
+     */
+    public function kotaTujuanKosongMessage(string $nomorSurat = ''): string
+    {
+        $nomor = trim($nomorSurat);
+        $prefix = $nomor !== '' ? 'Surat Tugas ' . $nomor . ' ' : 'Surat Tugas ini ';
+        return $prefix . 'belum mengisi field "Kota Tujuan" di aplikasi Surat Tugas. '
+            . 'Mohon lengkapi Kota Tujuan terlebih dahulu agar kolom "Tempat Tujuan" pada SPD PDF terisi dengan benar.';
     }
 
     public function formatTanggalIndo(?string $dateStr): string

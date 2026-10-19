@@ -615,6 +615,14 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                         <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnCheckAllPegawai" style="color:#1F3D2B;">Centang Semua</button>
                     </div>
                     <div id="pegawaiListContainer" class="border rounded p-2 bg-light" style="max-height:200px;overflow-y:auto;border-color:#DBD5C6 !important;"></div>
+                    <!-- Notifikasi: Kota Tujuan belum diisi pada ST terpilih -->
+                    <div id="stKotaTujuanAlert" style="display:none;" class="alert alert-warning py-2 mt-3 mb-0 small d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <div>
+                            <strong>Kota Tujuan belum diisi pada Surat Tugas ini.</strong>
+                            <div>Mohon lengkapi field <em>Kota Tujuan</em> di aplikasi Surat Tugas. SPD PDF memakai field tersebut untuk kolom "Tempat Tujuan".</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer py-2" style="background:#F7F5EF;border-top:1px solid #DBD5C6;">
@@ -1234,6 +1242,7 @@ function searchSuratTugas(keyword) {
                 const tglDisplay = tglMulaiFmt ? (tglSelesaiFmt && tglSelesaiFmt !== tglMulaiFmt ? `${tglMulaiFmt} sd ${tglSelesaiFmt}` : tglMulaiFmt) : (formatTglToDDMMYYYY(st.tanggal_surat) || '-');
                 const hlNomor = highlightMatch(st.nomor_surat || '-', keyword);
                 const hlUntuk = highlightMatch(st.untuk || '-', keyword);
+                const kotaTujuanKosong = ((st.kota_tujuan || '').trim() === '');
 
                 // Info pegawai yang terlibat
                 let pegawaiInfoHtml = '';
@@ -1262,6 +1271,10 @@ function searchSuratTugas(keyword) {
                             <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>${escapeHtml(tglDisplay)}</small>
                         </div>
                         <div class="small text-dark mt-1" style="line-height:1.35;">${hlUntuk}</div>
+                        ${kotaTujuanKosong ? `
+                            <div class="mt-1 small text-warning-emphasis" style="font-size:0.72rem;">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Kota Tujuan belum diisi di aplikasi Surat Tugas
+                            </div>` : ''}
                         ${pegawaiInfoHtml}
                     </button>
                 `;
@@ -1273,6 +1286,10 @@ function searchSuratTugas(keyword) {
                     document.querySelectorAll('.item-st-select').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
                     selectedSTData = JSON.parse(this.dataset.st);
+                    const kotaAlert = document.getElementById('stKotaTujuanAlert');
+                    if (kotaAlert) {
+                        kotaAlert.style.display = ((selectedSTData.kota_tujuan || '').trim() === '') ? 'flex' : 'none';
+                    }
                     loadPegawaiST(selectedSTData.id);
 
                     // Sinkronisasi data ke input single form

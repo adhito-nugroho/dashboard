@@ -206,7 +206,19 @@ $hasInputFilter = $curInputDari !== '' || $curInputSampai !== '';
 $hasFilter = $hasFilter ?? ($curStatus!=='' || $curBulan!==null || $curTahun!==null || $curQ!=='' || $hasInputFilter);
 $totalFiltered = $pagination['total'] ?? (is_array($transaksis)?count($transaksis):0);
 $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
+$kotaTujuanKosongMap = $kotaTujuanKosongMap ?? [];
+$jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
 ?>
+
+<?php if ($jumlahKotaKosong > 0): ?>
+    <div class="alert alert-warning d-flex align-items-start gap-2 shadow-sm mb-3" role="alert" style="border-radius:12px;">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <div class="small">
+            <strong><?= $jumlahKotaKosong ?> transaksi Perjalanan Dinas pada halaman ini belum tertaut ke Kota Tujuan.</strong>
+            <div>Tombol SPD PDF dinonaktifkan sementara. Lengkapi field <em>Kota Tujuan</em> pada Surat Tugas di aplikasi Surat Tugas terlebih dahulu.</div>
+        </div>
+    </div>
+<?php endif; ?>
 
 <!-- FILTER BAR -->
 <div class="card border-0 shadow-sm mb-3 filter-card" style="border-radius:14px;">
@@ -527,12 +539,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Unduh Excel Rincian Biaya SPPD">
                                             <i class="bi bi-file-earmark-excel"></i>
                                         </a>
-                                        <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
-                                           target="_blank" rel="noopener"
-                                           class="btn btn-outline-success btn-action-icon"
-                                           data-bs-toggle="tooltip" data-bs-placement="top" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
-                                            <i class="bi bi-file-earmark-text"></i>
-                                        </a>
+                                        <?php if (!empty($kotaTujuanKosongMap[$t['id']])): ?>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-action-icon"
+                                                    disabled
+                                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Kota Tujuan belum diisi di aplikasi Surat Tugas — SPD PDF tidak dapat dibuat">
+                                                <i class="bi bi-file-earmark-x"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
+                                               target="_blank" rel="noopener"
+                                               class="btn btn-outline-success btn-action-icon"
+                                               data-bs-toggle="tooltip" data-bs-placement="top" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
+                                                <i class="bi bi-file-earmark-text"></i>
+                                            </a>
+                                        <?php endif; ?>
                                     <?php elseif ($bolehEdit): ?>
                                         <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
                                         <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
@@ -650,12 +671,21 @@ $isFilteredEmpty = $hasFilter && empty($transaksis) && $totalFiltered===0;
                                 <i class="bi bi-printer me-1"></i>Kuitansi
                             </a>
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
-                                <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
-                                   target="_blank" rel="noopener"
-                                   class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   data-bs-toggle="tooltip" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
-                                    <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
-                                </a>
+                                <?php if (!empty($kotaTujuanKosongMap[$t['id']])): ?>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                            disabled
+                                            data-bs-toggle="tooltip" title="Kota Tujuan belum diisi di aplikasi Surat Tugas — SPD PDF tidak dapat dibuat">
+                                        <i class="bi bi-file-earmark-x me-1"></i>SPD PDF
+                                    </button>
+                                <?php else: ?>
+                                    <a href="<?= base_url('spj/spd-transaksi/' . $t['id']) ?>"
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                       data-bs-toggle="tooltip" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
+                                        <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
+                                    </a>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     </div>

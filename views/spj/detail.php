@@ -11,6 +11,9 @@ $stError     = $stError     ?? null;
 $flash     = $_SESSION['flash_message'] ?? null;
 $flashType = $_SESSION['flash_type'] ?? 'info';
 unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+
+$kotaTujuanKosong = $suratTugas !== null
+    && trim((string) ($suratTugas['kota_tujuan'] ?? '')) === '';
 ?>
 
 <div class="container-fluid py-4">
@@ -52,6 +55,32 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                         <div class="text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">Tujuan / Untuk</div>
                         <div style="font-size:.875rem;"><?= htmlspecialchars($suratTugas['untuk'] ?? '-') ?></div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">Kota Tujuan</div>
+                        <div style="font-size:.875rem;">
+                            <?php if ($kotaTujuanKosong): ?>
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Belum diisi di aplikasi Surat Tugas
+                                </span>
+                            <?php else: ?>
+                                <span class="fw-semibold"><?= htmlspecialchars($suratTugas['kota_tujuan']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($kotaTujuanKosong): ?>
+        <div class="alert alert-warning d-flex align-items-start gap-2 border-warning" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+            <div>
+                <strong>Kota Tujuan belum diisi pada Surat Tugas ini.</strong>
+                <div class="small">
+                    Field <em>Kota Tujuan</em> diisi pada aplikasi Surat Tugas. SPD PDF (kolom "Tempat Tujuan")
+                    akan memakai tujuan yang keliru bila field ini masih kosong, sehingga tombol <strong>SPD</strong>
+                    di bawah dinonaktifkan sampai Kota Tujuan dilengkapi.
                 </div>
             </div>
         </div>
@@ -144,11 +173,20 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                             </a>
                                         <?php endif; ?>
                                         <div class="mt-1 d-flex justify-content-center gap-1">
-                                            <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>"
-                                               target="_blank" rel="noopener"
-                                               class="btn btn-sm btn-outline-danger" title="Pratinjau PDF SPD">
-                                                <i class="bi bi-file-earmark-text me-1"></i>SPD
-                                            </a>
+                                            <?php if ($kotaTujuanKosong): ?>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        disabled
+                                                        title="Kota Tujuan belum diisi di aplikasi Surat Tugas — SPD PDF tidak dapat dibuat">
+                                                    <i class="bi bi-file-earmark-x me-1"></i>SPD
+                                                </button>
+                                            <?php else: ?>
+                                                <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>"
+                                                   target="_blank" rel="noopener"
+                                                   class="btn btn-sm btn-outline-danger" title="Pratinjau PDF SPD">
+                                                    <i class="bi bi-file-earmark-text me-1"></i>SPD
+                                                </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
