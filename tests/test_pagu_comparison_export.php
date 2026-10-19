@@ -56,9 +56,9 @@ try {
 
     $insertRiwayat = $db->prepare("
         INSERT INTO pagu_riwayat
-            (pagu_id, rekening_id, tahun, nilai_sebelum, nilai_sesudah, selisih, jenis, keterangan, created_by)
+            (pagu_id, rekening_id, tahun, nilai_sebelum, nilai_sesudah, selisih, jenis, keterangan, created_by, created_at)
         VALUES
-            (:pagu_id, :rekening_id, :tahun, :nilai_sebelum, :nilai_sesudah, :selisih, 'PAPBD', :keterangan, NULL)
+            (:pagu_id, :rekening_id, :tahun, :nilai_sebelum, :nilai_sesudah, :selisih, 'PAPBD', :keterangan, NULL, :created_at)
     ");
     $insertRiwayat->execute([
         ':pagu_id' => $paguId,
@@ -68,6 +68,7 @@ try {
         ':nilai_sesudah' => $after,
         ':selisih' => $after - $before,
         ':keterangan' => 'Pengujian export perbandingan',
+        ':created_at' => '2037-01-05 00:00:00',
     ]);
 
     $service = new PaguComparisonExportService(new Pagu($db), new PaguRiwayat($db));
@@ -107,6 +108,20 @@ try {
     check(abs((float) $sheet->getCell('D' . $sheetRow)->getValue() - $after) < 0.001, 'sel Excel PAPBD benar');
     check(abs((float) $sheet->getCell('E' . $sheetRow)->getValue() - ($after - $before)) < 0.001, 'sel Excel selisih benar');
     check((string) $sheet->getCell('F' . $sheetRow)->getValue() === 'Bertambah', 'keterangan bertambah benar');
+
+    $riwayat = new PaguRiwayat($db);
+    $paguAwalMap = $riwayat->getPaguAwalMapByTahun($tahun, [
+        ['id' => 9001, 'nilai_pagu' => 300.0, 'created_at' => '2036-12-01 00:00:00'],
+        ['id' => 9002, 'nilai_pagu' => 400.0, 'created_at' => '2037-06-01 00:00:00'],
+    ]);
+    check(abs((float) $paguAwalMap[9001] - 300.0) < 0.001, 'pagu lama tanpa riwayat dihitung APBD murni');
+    check(abs((float) $paguAwalMap[9002]) < 0.001, 'pagu baru setelah PAPBD tidak dihitung APBD murni');
+
+    $report2026 = $service->buildReport(2026);
+    check(
+        abs((float) $report2026['totals']['before'] - 1442000000.0) < 0.01,
+        'total APBD murni 2026 = 1.442.000.000'
+    );
 
     $db->rollBack();
     echo "=== SEMUA TEST LULUS ===\n";

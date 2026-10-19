@@ -66,7 +66,7 @@ class PaguComparisonExportService
         ));
 
         $nilaiAwalMap = $this->riwayatModel !== null
-            ? $this->riwayatModel->getNilaiAwalMapByTahun($tahun)
+            ? $this->riwayatModel->getPaguAwalMapByTahun($tahun, $pagus)
             : [];
 
         $hierarchy = [];

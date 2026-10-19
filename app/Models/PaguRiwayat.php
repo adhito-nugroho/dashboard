@@ -153,6 +153,69 @@ class PaguRiwayat
     }
 
     /**
+     * Waktu perubahan PAPBD pertama pada satu tahun.
+     * Dipakai untuk menandai pagu yang dibuat setelah PAPBD dimulai (baris baru).
+     */
+    public function getFirstChangeAtByTahun(int $tahun): ?string
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT created_at FROM pagu_riwayat
+                WHERE tahun = :tahun ORDER BY id ASC LIMIT 1
+            ");
+            $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            $val = $stmt->fetchColumn();
+            return ($val === false || $val === null) ? null : (string) $val;
+        } catch (PDOException $e) {
+            error_log('Error fetching first pagu change: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Peta pagu_id => nilai APBD murni untuk satu tahun.
+     *
+     * Aturan:
+     * - Punya riwayat  : nilai_sebelum pada log pertama.
+     * - Tanpa riwayat  : nilai saat ini bila pagu dibuat sebelum PAPBD dimulai.
+     * - Dibuat setelah PAPBD dimulai (baris baru PAPBD): 0 (tidak ada di APBD murni).
+     *
+     * @param array<int,array<string,mixed>> $pagus Baris pagu satu tahun.
+     * @return array<int,float>
+     */
+    public function getPaguAwalMapByTahun(int $tahun, array $pagus): array
+    {
+        $sebelumMap = $this->getNilaiAwalMapByTahun($tahun);
+        $firstChangeAt = $this->getFirstChangeAtByTahun($tahun);
+        $map = [];
+
+        foreach ($pagus as $pagu) {
+            $paguId = (int) ($pagu['id'] ?? 0);
+            if ($paguId === 0) {
+                continue;
+            }
+
+            if (array_key_exists($paguId, $sebelumMap)) {
+                $map[$paguId] = $sebelumMap[$paguId];
+                continue;
+            }
+
+            $current = (float) ($pagu['nilai_pagu'] ?? 0);
+            $createdAt = (string) ($pagu['created_at'] ?? '');
+
+            if ($firstChangeAt !== null && $createdAt !== '' && $createdAt >= $firstChangeAt) {
+                $map[$paguId] = 0.0;
+                continue;
+            }
+
+            $map[$paguId] = $current;
+        }
+
+        return $map;
+    }
+
+    /**
      * Ringkasan perubahan satu tahun untuk kartu laporan selisih.
      */
     public function getRingkasanByTahun(int $tahun): array

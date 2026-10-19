@@ -86,7 +86,11 @@ class PaguController {
             $realisasiMap = [];
             $ringkasanPerubahan = ['jumlah_perubahan' => 0, 'total_tambah' => 0.0, 'total_kurang' => 0.0, 'total_selisih' => 0.0, 'jumlah_rekening_berubah' => 0];
             if ($hasRiwayat && $this->getRiwayatModel() !== null) {
-                $nilaiAwalMap = $this->getRiwayatModel()->getNilaiAwalMapByTahun($tahunLaporan);
+                $paguTahunLaporan = array_values(array_filter(
+                    $pagus,
+                    fn($p) => (int) ($p['tahun'] ?? 0) === $tahunLaporan
+                ));
+                $nilaiAwalMap = $this->getRiwayatModel()->getPaguAwalMapByTahun($tahunLaporan, $paguTahunLaporan);
                 $ringkasanPerubahan = $this->getRiwayatModel()->getRingkasanByTahun($tahunLaporan);
             }
             // Realisasi per rekening untuk tahun laporan (fallback: semua tahun bila filter kosong)
@@ -530,7 +534,7 @@ class PaguController {
                 fn($p) => (int) ($p['tahun'] ?? 0) === $tahun
             ));
             $nilaiAwalMap = $this->tableHasPaguRiwayat() && $this->getRiwayatModel() !== null
-                ? $this->getRiwayatModel()->getNilaiAwalMapByTahun($tahun)
+                ? $this->getRiwayatModel()->getPaguAwalMapByTahun($tahun, $pagus)
                 : [];
             try {
                 $realisasiMap = $this->paguModel->getRealisasiMapByTahun($tahun);
