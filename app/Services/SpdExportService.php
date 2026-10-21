@@ -272,6 +272,8 @@ class SpdExportService
     {
         require_once __DIR__ . '/../../lib/fpdf.php';
         $pdf = new \FPDF('P', 'mm', 'A4');
+        // Margin 15mm agar tabel 180mm (W) tepat di tengah halaman A4.
+        $pdf->SetMargins(15, 10, 15);
         $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
         $W = 180; // lebar area cetak (210 - 2x15)
