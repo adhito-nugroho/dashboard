@@ -304,12 +304,12 @@ class SpdExportService
 
         // ── Lembar Ke / Kode Nomor ──
         $pdf->SetFont('Arial', '', 11);
-        $pdf->Cell(90, 6, '', 0, 0);
+        $pdf->Cell(100, 6, '', 0, 0);
         $pdf->Cell(30, 6, $txt('Lembar Ke'), 0, 0);
-        $pdf->Cell(60, 6, $txt(':  Satu'), 0, 1);
-        $pdf->Cell(90, 6, '', 0, 0);
+        $pdf->Cell(50, 6, $txt(':  Satu'), 0, 1);
+        $pdf->Cell(100, 6, '', 0, 0);
         $pdf->Cell(30, 6, $txt('Kode Nomor'), 0, 0);
-        $pdf->Cell(60, 6, $txt(':  1'), 0, 1);
+        $pdf->Cell(50, 6, $txt(':  1'), 0, 1);
         $pdf->Ln(2);
 
         // ── Judul ──
