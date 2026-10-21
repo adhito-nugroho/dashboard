@@ -372,11 +372,11 @@ class SpdExportService
             $pdf->SetXY($x + $w, $y0);
         }
         $pdf->SetXY($x0, $y0 + $h8);
-        $h8b = $lh * 3 + 2;
+        $h8b = $lh * 2 + 2;
         $this->pdfCheckBreak($pdf, $h8b);
         $x0 = $pdf->GetX();
         $y0 = $pdf->GetY();
-        foreach ([[$wNo, '', 'C'], [$wUraian, "1.\n\n2.", 'L'], [$wTgl, '', 'C'], [$wKet, '', 'C']] as [$w, $t, $a]) {
+        foreach ([[$wNo, '', 'C'], [$wUraian, "1.\n2.", 'L'], [$wTgl, '', 'C'], [$wKet, '', 'C']] as [$w, $t, $a]) {
             $x = $pdf->GetX();
             $pdf->Rect($x, $y0, $w, $h8b);
             $pdf->SetXY($x + 1, $y0 + 1);
