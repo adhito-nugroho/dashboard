@@ -151,8 +151,9 @@ $kotaTujuanKosong = $suratTugas !== null
                                         <?php if ($sudahAda): ?>
                                             <div class="btn-group btn-group-sm" role="group">
                                                 <a href="<?= base_url('spj/unduh/' . $rincian['id']) ?>"
-                                                   class="btn btn-outline-success" title="Unduh Excel Rincian Biaya">
-                                                    <i class="bi bi-file-earmark-excel"></i>
+                                                   target="_blank" rel="noopener"
+                                                   class="btn btn-outline-success" title="Preview / Cetak PDF Rincian Biaya">
+                                                    <i class="bi bi-file-earmark-pdf"></i>
                                                 </a>
                                                 <a href="<?= base_url('spj/edit/' . $rincian['id']) ?>"
                                                    class="btn btn-outline-primary" title="Edit">

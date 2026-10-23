@@ -535,9 +535,10 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
 
                                     <?php if (($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                         <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                           target="_blank" rel="noopener"
                                            class="btn btn-outline-success btn-action-icon"
-                                           data-bs-toggle="tooltip" data-bs-placement="top" title="Unduh Excel Rincian Biaya SPPD">
-                                            <i class="bi bi-file-earmark-excel"></i>
+                                           data-bs-toggle="tooltip" data-bs-placement="top" title="Preview / Cetak PDF Rincian Biaya SPPD">
+                                            <i class="bi bi-file-earmark-pdf"></i>
                                         </a>
                                         <?php if (!empty($kotaTujuanKosongMap[$t['id']])): ?>
                                             <button type="button"
@@ -659,9 +660,10 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
                             <?php endif; ?>
                             <?php if(($t['jenis_transaksi'] ?? '') === 'perjalanan_dinas'): ?>
                                 <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $t['id']) ?>"
+                                   target="_blank" rel="noopener"
                                    class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                   data-bs-toggle="tooltip" title="Unduh Excel Rincian Biaya SPPD">
-                                    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                   data-bs-toggle="tooltip" title="Preview / Cetak PDF Rincian Biaya SPPD">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
                                 </a>
                             <?php endif; ?>
                             <a href="<?= base_url('kuitansi/cetak/' . $t['id']) ?>"

@@ -300,8 +300,9 @@ function fmtRp($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.'
             </div>
             <?php if ($rincianBiaya): ?>
                 <a href="<?= base_url('seksi/transaksi/unduh-rincian-biaya?transaksi_id=' . $transaksi['id']) ?>"
+                   target="_blank" rel="noopener"
                    class="btn btn-sm btn-outline-success">
-                    <i class="bi bi-file-earmark-excel me-1"></i>Unduh Excel
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Preview PDF
                 </a>
             <?php endif; ?>
             <?php

@@ -4,444 +4,366 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-
 /**
- * Service untuk export Excel: RINCIAN BIAYA PERJALANAN DINAS & PERHITUNGAN SPPD RAMPUNG
- * Format resmi sesuai standar CDK Bojonegoro (1 halaman pas / A4 Portrait).
+ * Service PDF: RINCIAN BIAYA PERJALANAN DINAS & PERHITUNGAN SPPD RAMPUNG.
+ *
+ * Layout mengikuti contoh cetak resmi CDK Bojonegoro (A4 portrait, 1 halaman).
+ * Output berupa pratinjau PDF (inline) sehingga bisa langsung dicetak dari tab baru.
  */
 class RincianBiayaExportService
 {
-    /**
-     * Generate PhpSpreadsheet object untuk Rincian Biaya Perjalanan Dinas.
-     */
-    public function generateSpreadsheet(array $header, array $details, array $transaksi = []): Spreadsheet
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Rincian Biaya');
+    private const PAGE_W = 210.0;
+    private const LEFT = 13.0;
+    private const RIGHT = 197.08;
+    private const TABLE_TOP = 43.8;
+    private const HEADER_BOTTOM = 48.64;
+    private const ROW_H = 9.6;
 
-        // Font default seluruh sheet
-        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
+    private const X_NO = 13.0;
+    private const X_PERINCIAN = 22.44;
+    private const X_HARI = 103.76;
+    private const X_JUMLAH = 116.0;
+    private const X_KETERANGAN = 147.96;
 
-        // Page setup: A4 Portrait, Fit to 1 page, gridlines visible
-        $sheet->setShowGridLines(true);
-        $pageSetup = $sheet->getPageSetup();
-        $pageSetup->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
-        $pageSetup->setPaperSize(PageSetup::PAPERSIZE_A4);
-        $pageSetup->setFitToPage(true);
-        $pageSetup->setFitToWidth(1);
-        $pageSetup->setFitToHeight(1);
-        $pageSetup->setHorizontalCentered(true);
-
-        // Margin halaman (inci)
-        $sheet->getPageMargins()->setTop(0.5);
-        $sheet->getPageMargins()->setBottom(0.5);
-        $sheet->getPageMargins()->setLeft(0.5);
-        $sheet->getPageMargins()->setRight(0.5);
-
-        // Lebar kolom A s/d F
-        $sheet->getColumnDimension('A')->setWidth(5.5);
-        $sheet->getColumnDimension('B')->setWidth(22);
-        $sheet->getColumnDimension('C')->setWidth(16);
-        $sheet->getColumnDimension('D')->setWidth(8);
-        $sheet->getColumnDimension('E')->setWidth(19);
-        $sheet->getColumnDimension('F')->setWidth(24);
-
-        // Siapkan data tanggal & nomor surat (nomor SPT lengkap, lihat resolveNomorSurat)
-        $nomorSurat = $this->resolveNomorSurat($header, $transaksi);
-        $tglRaw = $transaksi['tanggal_surat_tugas'] ?? ($header['tanggal_surat'] ?? ($transaksi['tanggal'] ?? date('Y-m-d')));
-        $tglFormatted = $this->formatTanggalIndo($tglRaw);
-
-        // ── 1. JUDUL ────────────────────────────────────────────────────────
-        $sheet->mergeCells('A1:F1');
-        $sheet->setCellValue('A1', 'RINCIAN BIAYA PERJALANAN DINAS');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(11);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getRowDimension(1)->setRowHeight(22);
-        $sheet->getRowDimension(2)->setRowHeight(10);
-
-        // ── 2. METADATA SPT ─────────────────────────────────────────────────
-        $sheet->setCellValue('A3', 'Lampiran SPT Nomor');
-        $sheet->setCellValue('C3', ':  ' . $nomorSurat);
-        $sheet->setCellValue('A4', 'Tanggal');
-        $sheet->setCellValue('C4', ':  ' . $tglFormatted);
-        $sheet->getRowDimension(5)->setRowHeight(10);
-
-        // ── 3. TABLE HEADER (Baris 6) ───────────────────────────────────────
-        $sheet->setCellValue('A6', 'No.');
-        $sheet->mergeCells('B6:C6');
-        $sheet->setCellValue('B6', 'PERINCIAN BIAYA');
-        $sheet->setCellValue('D6', 'Hari');
-        $sheet->setCellValue('E6', 'JUMLAH (Rp)');
-        $sheet->setCellValue('F6', 'KETERANGAN');
-
-        $headerStyle = [
-            'font'      => ['bold' => true, 'size' => 10],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical'   => Alignment::VERTICAL_CENTER,
-            ],
-            'borders'   => [
-                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-            ],
-        ];
-        $sheet->getStyle('A6:F6')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(6)->setRowHeight(22);
-
-        // ── 4. DATA BARIS RINCIAN (Mulai baris 7) ────────────────────────────
-        // Jika details kosong, buat default 4 baris standar
-        if (empty($details)) {
-            $details = [
-                ['nama_komponen' => 'Uang Harian', 'harga_satuan' => 0, 'jumlah_hari' => 1, 'jumlah' => 0, 'keterangan' => ''],
-                ['nama_komponen' => 'BBM',         'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-                ['nama_komponen' => 'Tol',         'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-                ['nama_komponen' => 'Hotel',       'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
-            ];
-        }
-
-        $row = 7;
-        $startRow = $row;
-        $totalBiaya = 0.0;
-        $accFormat = '_("Rp "* #,##0_);_("Rp "* (#,##0);_("Rp "* "-"_);_(@_)';
-
-        foreach ($details as $idx => $d) {
-            $namaKomponen = trim((string) ($d['nama_komponen'] ?? ''));
-            $hargaSatuan  = (float) ($d['harga_satuan'] ?? 0);
-            $jumlahHari   = $d['jumlah_hari'] !== null && $d['jumlah_hari'] !== '' ? (float) $d['jumlah_hari'] : null;
-            // Hotel bukan komponen harian — kolom Hari selalu dikosongkan di output
-            // (berlaku juga untuk data lama yang terlanjur tersimpan hari=1).
-            if ($jumlahHari !== null && stripos($namaKomponen, 'hotel') !== false) {
-                $jumlahHari = null;
-            }
-            $jumlah       = (float) ($d['jumlah'] ?? 0);
-            $keterangan   = trim((string) ($d['keterangan'] ?? ''));
-
-            $totalBiaya += $jumlah;
-
-            // Kolom A: nomor urut SEMUA baris komponen (1, 2, 3, ...)
-            $sheet->setCellValue('A' . $row, $idx + 1);
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-            // Kolom B: Nama komponen
-            $sheet->setCellValue('B' . $row, $namaKomponen);
-            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-
-            // Kolom C: Format rate (@ Rp 300.000 atau Rp 200.000)
-            if ($hargaSatuan > 0) {
-                $prefix = ($jumlahHari !== null && $jumlahHari > 0) ? '@ Rp' : 'Rp';
-                $sheet->setCellValue('C' . $row, $prefix . '   ' . number_format($hargaSatuan, 0, ',', '.'));
-            } else {
-                $sheet->setCellValue('C' . $row, '');
-            }
-            $sheet->getStyle('C' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-            // Kolom D: Hari
-            if ($jumlahHari !== null && $jumlahHari > 0) {
-                $sheet->setCellValue('D' . $row, $jumlahHari);
-            } else {
-                $sheet->setCellValue('D' . $row, '');
-            }
-            $sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-            // Kolom E: Jumlah Rp
-            $sheet->setCellValue('E' . $row, $jumlah);
-            $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode($accFormat);
-            $sheet->getStyle('E' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-            // Kolom F: Keterangan
-            $sheet->setCellValue('F' . $row, $keterangan);
-            $sheet->getStyle('F' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-
-            $sheet->getRowDimension($row)->setRowHeight(20);
-
-            // Border vertikal kolom data (tanpa garis horizontal antar baris agar seperti form resmi)
-            $borderDataRow = [
-                'borders' => [
-                    'left'  => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-                    'right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-                ]
-            ];
-            $sheet->getStyle('A' . $row)->applyFromArray($borderDataRow);
-            // Antara B & C tidak ada garis vertikal pemisah (merupakan satu kesatuan Perincian Biaya)
-            $sheet->getStyle('C' . $row)->applyFromArray([
-                'borders' => ['right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
-            ]);
-            $sheet->getStyle('D' . $row)->applyFromArray($borderDataRow);
-            $sheet->getStyle('E' . $row)->applyFromArray($borderDataRow);
-            $sheet->getStyle('F' . $row)->applyFromArray($borderDataRow);
-
-            $row++;
-        }
-
-        // ── 5. BARIS TOTAL / JUMLAH ─────────────────────────────────────────
-        $totalRow = $row;
-        $sheet->mergeCells('A' . $totalRow . ':D' . $totalRow);
-        $sheet->setCellValue('A' . $totalRow, 'JUMLAH');
-        $sheet->setCellValue('E' . $totalRow, "=SUM(E{$startRow}:E" . ($totalRow - 1) . ')');
-        $sheet->setCellValue('F' . $totalRow, '');
-
-        $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('E' . $totalRow)->getFont()->setBold(true);
-        $sheet->getStyle('E' . $totalRow)->getNumberFormat()->setFormatCode($accFormat);
-        $sheet->getStyle('E' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $sheet->getRowDimension($totalRow)->setRowHeight(20);
-
-        // Border baris total
-        $sheet->getStyle('A' . $totalRow . ':F' . $totalRow)->applyFromArray([
-            'borders' => [
-                'top'    => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-                'bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']],
-            ]
-        ]);
-        $sheet->getStyle('A' . $totalRow)->applyFromArray(['borders' => ['left' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
-        $sheet->getStyle('E' . $totalRow)->applyFromArray(['borders' => ['left' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']], 'right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
-        $sheet->getStyle('F' . $totalRow)->applyFromArray(['borders' => ['right' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]]);
-
-        // ── 6. TERBILANG ───────────────────────────────────────────────────
-        $rowTerbilang = $totalRow + 1;
-        $terbilangText = $this->terbilang($totalBiaya) . ' Rupiah';
-
-        $sheet->setCellValue('A' . $rowTerbilang, 'Terbilang');
-        $sheet->mergeCells('A' . $rowTerbilang . ':B' . $rowTerbilang);
-        $sheet->mergeCells('C' . $rowTerbilang . ':F' . $rowTerbilang);
-        $sheet->setCellValue('C' . $rowTerbilang, $terbilangText);
-
-        $sheet->getStyle('C' . $rowTerbilang)->getFont()->setItalic(true);
-        $sheet->getStyle('C' . $rowTerbilang)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->getRowDimension($rowTerbilang)->setRowHeight(20);
-        // Tanpa border (kiri/kanan/bawah) mengikuti form resmi.
-
-        // ── 7. TANDA TANGAN TENGAH (Bendahara & Yang Menerima) ───────────────
-        $bendaharaNama = $_ENV['BENDAHARA_NAMA'] ?? 'ADHITO NUGROHO, S.Kom.';
-        $bendaharaNip  = $_ENV['BENDAHARA_NIP']  ?? '19840214 201001 1 011';
-        $pegawaiNama   = $header['pegawai_nama'] ?? ($transaksi['nama_penerima'] ?? '-');
-        $pegawaiNip    = $header['pegawai_nip'] ?? ($transaksi['pegawai_nip'] ?? '-');
-        $nipPenerimaFmt = $this->formatNip($pegawaiNip);
-
-        // Baris kosong
-        $r = $rowTerbilang + 1;
-        $sheet->getRowDimension($r)->setRowHeight(10);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Bojonegoro,
-        $r++;
-        $sheet->setCellValue('D' . $r, 'Bojonegoro,');
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Telah dibayar sejumlah & Telah menerima uang sejumlah
-        $r++;
-        $sheet->setCellValue('A' . $r, 'Telah dibayar sejumlah');
-        $sheet->setCellValue('D' . $r, 'Telah menerima uang sejumlah');
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Nominal Rp
-        $r++;
-        $sheet->setCellValue('A' . $r, 'Rp');
-        $sheet->setCellValue('B' . $r, $totalBiaya);
-        $sheet->getStyle('B' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('B' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-        $sheet->setCellValue('D' . $r, 'Rp');
-        $sheet->setCellValue('E' . $r, $totalBiaya);
-        $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Jabatan Penandatangan
-        $r++;
-        $sheet->setCellValue('A' . $r, 'Bendahara Pengeluaran Pembantu');
-        $sheet->setCellValue('D' . $r, 'Yang Menerima,');
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Ruang tanda tangan
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(18);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(18);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Nama Penandatangan (Underline)
-        $r++;
-        $sheet->setCellValue('A' . $r, $bendaharaNama);
-        $sheet->getStyle('A' . $r)->getFont()->setUnderline(true);
-        $sheet->setCellValue('D' . $r, $pegawaiNama);
-        $sheet->getStyle('D' . $r)->getFont()->setUnderline(true);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // NIP
-        $r++;
-        $sheet->setCellValue('A' . $r, 'NIP. ' . $this->formatNip($bendaharaNip));
-        $sheet->setCellValue('D' . $r, 'NIP. ' . $nipPenerimaFmt);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Baris garis tangan di bawah NIP (satu baris kosong bergaris penuh)
-        $r++;
-        $sheet->mergeCells('A' . $r . ':C' . $r);
-        $sheet->mergeCells('D' . $r . ':F' . $r);
-        $sheet->getStyle('A' . $r . ':C' . $r)->applyFromArray([
-            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
-        ]);
-        $sheet->getStyle('D' . $r . ':F' . $r)->applyFromArray([
-            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
-        ]);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Spasi antar bagian (tanpa garis mengikuti form resmi)
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(8);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // ── 8. PERHITUNGAN SPPD RAMPUNG ─────────────────────────────────────
-        $ditetapkan = (float) ($header['ditetapkan_sejumlah'] ?? $totalBiaya);
-        $dibayar    = (float) ($header['dibayar_semula']      ?? $totalBiaya);
-        $sisa       = $ditetapkan - $dibayar;
-        $kpaNama    = $_ENV['KPA_NAMA'] ?? 'ENDANG HANDAYANI, S.P., M.Si.';
-        $kpaNip     = $_ENV['KPA_NIP']  ?? '19760328 200003 2 003';
-
-        // Judul Rampung
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(10);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        $r++;
-        $sheet->mergeCells('A' . $r . ':F' . $r);
-        $sheet->setCellValue('A' . $r, 'PERHITUNGAN SPPD RAMPUNG');
-        $sheet->getStyle('A' . $r)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getRowDimension($r)->setRowHeight(20);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(8);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Ditetapkan sejumlah (label digabung A:B agar tidak kepotong)
-        $r++;
-        $sheet->mergeCells('A' . $r . ':B' . $r);
-        $sheet->setCellValue('A' . $r, 'Ditetapkan sejumlah');
-        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->setCellValue('C' . $r, ':');
-        $sheet->getStyle('C' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->setCellValue('D' . $r, 'Rp');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->setCellValue('E' . $r, $ditetapkan);
-        $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Yang telah dibayar semula
-        $r++;
-        $sheet->mergeCells('A' . $r . ':B' . $r);
-        $sheet->setCellValue('A' . $r, 'Yang telah dibayar semula');
-        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->setCellValue('C' . $r, ':');
-        $sheet->getStyle('C' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->setCellValue('D' . $r, 'Rp');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->setCellValue('E' . $r, $dibayar);
-        $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Sisa kurang/lebih
-        $r++;
-        $sheet->mergeCells('A' . $r . ':B' . $r);
-        $sheet->setCellValue('A' . $r, 'Sisa kurang/lebih');
-        $sheet->getStyle('A' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->setCellValue('C' . $r, ':');
-        $sheet->getStyle('C' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->setCellValue('D' . $r, 'Rp');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        if ($sisa == 0) {
-            $sheet->setCellValue('E' . $r, '-');
-            $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        } else {
-            $sheet->setCellValue('E' . $r, $sisa);
-            $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode('#,##0');
-            $sheet->getStyle('E' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        }
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Spasi sebelum TTD KPA
-        $r++;
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Kuasa Pengguna Anggaran (rata kiri, sejajar nama & NIP di bawahnya)
-        $r++;
-        $sheet->mergeCells('D' . $r . ':F' . $r);
-        $sheet->setCellValue('D' . $r, 'Kuasa Pengguna Anggaran');
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Ruang tanda tangan KPA
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(18);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(18);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Nama KPA (Underline, rata kiri)
-        $r++;
-        $sheet->mergeCells('D' . $r . ':F' . $r);
-        $sheet->setCellValue('D' . $r, $kpaNama);
-        $sheet->getStyle('D' . $r)->getFont()->setUnderline(true);
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // NIP KPA (rata kiri)
-        $r++;
-        $sheet->mergeCells('D' . $r . ':F' . $r);
-        $sheet->setCellValue('D' . $r, 'NIP. ' . $this->formatNip($kpaNip));
-        $sheet->getStyle('D' . $r)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        // Baris akhir (tanpa garis penutup mengikuti form resmi)
-        $r++;
-        $sheet->getRowDimension($r)->setRowHeight(6);
-        $this->applyOuterBoxVerticalBorders($sheet, $r);
-
-        return $spreadsheet;
-    }
+    private const W_NO = 9.44;
+    private const W_PERINCIAN = 81.32;
+    private const W_HARI = 12.24;
+    private const W_JUMLAH = 31.96;
+    private const W_KETERANGAN = 49.12;
 
     /**
-     * Download spreadsheet langsung ke browser.
+     * Tampilkan PDF rincian biaya langsung di browser (preview/print).
      */
-    public function download(array $header, array $details, array $transaksi = []): void
+    public function streamPdf(array $header, array $details, array $transaksi = []): void
     {
-        $spreadsheet = $this->generateSpreadsheet($header, $details, $transaksi);
+        $pdf = $this->generatePdf($header, $details, $transaksi);
 
         $pegawaiNama = $header['pegawai_nama'] ?? ($transaksi['nama_penerima'] ?? 'Pegawai');
-        $safeName    = preg_replace('/[^A-Za-z0-9]/', '_', $pegawaiNama);
-        $bulanTahun  = date('F_Y', strtotime($transaksi['tanggal'] ?? date('Y-m-d')));
-        $filename    = 'Rincian_Biaya_' . $safeName . '_' . $bulanTahun . '.xlsx';
+        $safeName = preg_replace('/[^A-Za-z0-9]+/', '_', (string) $pegawaiNama);
+        $safeName = trim((string) $safeName, '_');
+        if ($safeName === '') {
+            $safeName = 'Pegawai';
+        }
+        $filename = 'Rincian_Biaya_' . $safeName . '.pdf';
 
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
-        header('Pragma: public');
-
-        $writer = new Xlsx($spreadsheet);
-        $writer->save('php://output');
+        $pdf->Output('I', $filename);
         exit;
     }
 
     /**
-     * Dulu: border samping (kiri A dan kanan F) pembingkai section bawah.
-     * Kini no-op: form resmi tanpa border kiri/kanan/bawah (lihat gambar acuan).
-     * Dibiarkan sebagai pemanggil agar diff kecil; suatu saat boleh dihapus
-     * beserta seluruh pemanggilnya.
+     * Alias lama agar pemanggil lama tetap aman: sekarang menghasilkan PDF,
+     * bukan lagi mengunduh Excel.
      */
-    private function applyOuterBoxVerticalBorders(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row): void
+    public function download(array $header, array $details, array $transaksi = []): void
     {
-        unset($sheet, $row);
+        $this->streamPdf($header, $details, $transaksi);
+    }
+
+    /**
+     * Render dokumen ke objek FPDF (tanpa header HTTP/exit) agar bisa diuji.
+     */
+    public function generatePdf(array $header, array $details, array $transaksi = []): \FPDF
+    {
+        require_once __DIR__ . '/../../lib/fpdf.php';
+        require_once __DIR__ . '/../../config/terbilang.php';
+
+        $pdf = new \FPDF('P', 'mm', 'A4');
+        $pdf->SetMargins(self::LEFT, 10, self::PAGE_W - self::RIGHT);
+        $pdf->SetAutoPageBreak(false, 0);
+        $pdf->AddPage();
+        $pdf->SetLineWidth(0.3);
+
+        $nomorSurat = $this->resolveNomorSurat($header, $transaksi);
+        $tglRaw = $transaksi['tanggal_surat_tugas']
+            ?? ($header['tanggal_surat'] ?? ($transaksi['tanggal'] ?? date('Y-m-d')));
+        $tglFormatted = $this->formatTanggalIndo((string) $tglRaw);
+
+        // Judul
+        $this->put($pdf, 0, 19.8, self::PAGE_W, 6, 'RINCIAN BIAYA PERJALANAN DINAS', 'C', '', 11.5);
+
+        // Metadata SPT
+        $this->put($pdf, 13.9, 30.35, 56, 5, 'Lampiran SPT Nomor', 'L', '', 10.5);
+        $this->put($pdf, 71.4, 30.35, 4, 5, ':', 'C', '', 10.5);
+        $this->put($pdf, 75.9, 30.35, 122, 5, $nomorSurat, 'L', '', 10.5, true);
+
+        $this->put($pdf, 13.9, 35.1, 56, 5, 'Tanggal', 'L', '', 10.5);
+        $this->put($pdf, 71.4, 35.1, 4, 5, ':', 'C', '', 10.5);
+        $this->put($pdf, 75.9, 35.1, 122, 5, $tglFormatted, 'L', '', 10.5);
+
+        $details = $this->normaliseDetails($details);
+        $totalBiaya = 0.0;
+        foreach ($details as $d) {
+            $totalBiaya += (float) ($d['jumlah'] ?? 0);
+        }
+
+        $rowCount = count($details);
+        $rowH = self::ROW_H;
+        if ($rowCount > 8) {
+            // Jaga agar blok tanda tangan tetap muat dalam satu halaman.
+            $rowH = max(6.5, (140.0 - self::HEADER_BOTTOM) / max(1, $rowCount));
+        }
+        $dataBottom = self::HEADER_BOTTOM + ($rowCount * $rowH);
+        $totalY = max(96.4, $dataBottom + 4.0);
+        $terbilangY = $totalY + 4.8;
+        $tableBottom = $terbilangY + 5.2;
+
+        // Header tabel
+        $headerY = 44.5;
+        $this->put($pdf, self::X_NO, $headerY, self::W_NO, 4.84, 'No.', 'C', '', 10.5);
+        $this->put($pdf, self::X_PERINCIAN, $headerY, self::W_PERINCIAN, 4.84, 'PERINCIAN BIAYA', 'C', '', 10.5);
+        $this->put($pdf, self::X_HARI, $headerY, self::W_HARI, 4.84, 'Hari', 'C', '', 10.5);
+        $this->put($pdf, self::X_JUMLAH, $headerY, self::W_JUMLAH, 4.84, 'JUMLAH (Rp)', 'C', '', 10.5);
+        $this->put($pdf, self::X_KETERANGAN, $headerY, self::W_KETERANGAN, 4.84, 'KETERANGAN', 'C', '', 10.5);
+
+        // Baris rincian
+        foreach ($details as $idx => $d) {
+            $rowTop = self::HEADER_BOTTOM + ($idx * $rowH);
+            $rowTextY = $rowTop + 3.2;
+            $namaKomponen = trim((string) ($d['nama_komponen'] ?? ''));
+            $hargaSatuan = (float) ($d['harga_satuan'] ?? 0);
+            $jumlahHari = $d['jumlah_hari'] !== null && $d['jumlah_hari'] !== ''
+                ? (float) $d['jumlah_hari']
+                : null;
+            if ($jumlahHari !== null && stripos($namaKomponen, 'hotel') !== false) {
+                $jumlahHari = null;
+            }
+            $jumlah = (float) ($d['jumlah'] ?? 0);
+            $keterangan = trim((string) ($d['keterangan'] ?? ''));
+
+            $rateText = $this->rateText($hargaSatuan, $jumlahHari);
+            $rateWidth = $pdf->GetStringWidth($this->pdfText($rateText));
+            $nameWidth = max(20.0, self::W_PERINCIAN - 4.0 - $rateWidth - 3.0);
+
+            $this->put($pdf, self::X_NO, $rowTextY, self::W_NO, $rowH, (string) ($idx + 1), 'C', '', 10.5);
+            $this->put($pdf, self::X_PERINCIAN + 2.0, $rowTextY, $nameWidth, $rowH, $namaKomponen, 'L', '', 10.5, true);
+            $this->put($pdf, self::X_PERINCIAN + 2.0, $rowTextY, self::W_PERINCIAN - 4.0, $rowH, $rateText, 'R', '', 10.5, true);
+            $this->put($pdf, self::X_HARI, $rowTextY, self::W_HARI, $rowH, $this->dayText($jumlahHari), 'C', '', 10.5);
+            if ($jumlah > 0) {
+                $this->put($pdf, self::X_JUMLAH + 2.0, $rowTextY, 5, $rowH, 'Rp', 'L', '', 10.5);
+                $this->put(
+                    $pdf,
+                    self::X_JUMLAH + 8.0,
+                    $rowTextY,
+                    self::W_JUMLAH - 10.0,
+                    $rowH,
+                    $this->rupiah($jumlah),
+                    'R',
+                    '',
+                    10.5,
+                    true
+                );
+            }
+            $this->put($pdf, self::X_KETERANGAN + 2.0, $rowTextY, self::W_KETERANGAN - 4.0, $rowH, $keterangan, 'L', '', 10.5, true);
+        }
+
+        // Baris total
+        $totalTextY = $totalY + 1.0;
+        $this->put($pdf, self::X_PERINCIAN, $totalTextY, self::W_PERINCIAN, 4.8, 'JUMLAH', 'C', '', 10.5);
+        $this->put($pdf, self::X_JUMLAH + 2.0, $totalTextY, 5, 4.8, 'Rp', 'L', '', 10.5);
+        $this->put($pdf, self::X_JUMLAH + 8.0, $totalTextY, self::W_JUMLAH - 10.0, 4.8, $this->rupiah($totalBiaya), 'R', '', 10.5, true);
+
+        // Terbilang
+        $terbilangTextY = $terbilangY + 0.8;
+        $this->put($pdf, self::X_PERINCIAN + 1.0, $terbilangTextY, 30, 5.2, 'Terbilang', 'L', '', 10.5);
+        $terbilangText = ' ' . $this->terbilang($totalBiaya) . ' Rupiah';
+        $this->put($pdf, self::X_HARI + 3.0, $terbilangTextY, self::RIGHT - (self::X_HARI + 3.0), 5.2, $terbilangText, 'L', 'I', 9.7, true);
+
+        // Garis tabel
+        $this->line($pdf, self::X_NO, self::TABLE_TOP, self::RIGHT, self::TABLE_TOP);
+        $this->line($pdf, self::X_NO, self::HEADER_BOTTOM, self::RIGHT, self::HEADER_BOTTOM);
+        $this->line($pdf, self::X_NO, $totalY, self::RIGHT, $totalY);
+        $this->line($pdf, self::X_NO, $terbilangY, self::RIGHT, $terbilangY);
+        $this->line($pdf, self::X_NO, $tableBottom, self::RIGHT, $tableBottom);
+
+        foreach ([self::X_NO, self::X_PERINCIAN, self::X_HARI, self::X_JUMLAH, self::RIGHT] as $x) {
+            $bottom = ($x === self::X_NO || $x === self::RIGHT) ? $tableBottom : $terbilangY;
+            $this->line($pdf, $x, self::TABLE_TOP, $x, $bottom);
+        }
+
+        // Blok tanda tangan
+        $bendaharaNama = $this->env('BENDAHARA_NAMA', 'ADHITO NUGROHO, S.Kom.');
+        $bendaharaNip = $this->env('BENDAHARA_NIP', '19840214 201001 1 011');
+        $kpaNama = $this->env('KPA_NAMA', 'ENDANG HANDAYANI, S.P., M.Si.');
+        $kpaNip = $this->env('KPA_NIP', '19760328 200003 2 003');
+
+        $penerimaNama = trim((string) ($header['pegawai_nama'] ?? ($transaksi['nama_penerima'] ?? '-')));
+        $penerimaNip = trim((string) ($header['pegawai_nip'] ?? ($transaksi['pegawai_nip'] ?? '-')));
+        if ($penerimaNama === '') {
+            $penerimaNama = '-';
+        }
+
+        $tempatTanggal = trim((string) ($header['tempat_tanggal'] ?? ''));
+        if ($tempatTanggal === '') {
+            $tempatTanggal = 'Bojonegoro,';
+        }
+
+        $sigY = max(111.3, $tableBottom + 4.9);
+        $sigTextY = $sigY + 0.4;
+        $leftX = 14.7;
+        $rightX = 124.8;
+        $blockW = 64.0;
+
+        $this->put($pdf, 102.3, $sigTextY, 70.0, 5.0, $tempatTanggal, 'C', '', 10.5, true);
+        $this->put($pdf, $leftX, $sigTextY + 4.8, $blockW, 5.0, 'Telah dibayar sejumlah', 'C', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 4.8, $blockW, 5.0, 'Telah menerima uang sejumlah', 'C', '', 10.5, true);
+
+        $this->amountRow($pdf, 24.6, 68.7, $totalBiaya, $sigTextY + 14.5);
+        $this->amountRow($pdf, 150.1, 195.2, $totalBiaya, $sigTextY + 14.5);
+
+        $this->put($pdf, $leftX, $sigTextY + 24.1, $blockW, 5.0, 'Bendahara Pengeluaran Pembantu', 'C', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 24.1, $blockW, 5.0, 'Yang Menerima,', 'C', '', 10.5, true);
+
+        $this->put($pdf, $leftX, $sigTextY + 43.2, $blockW, 5.0, $bendaharaNama, 'C', 'U', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 43.2, $blockW, 5.0, $penerimaNama, 'C', 'U', 10.5, true);
+        $this->put($pdf, $leftX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($bendaharaNip), 'C', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($penerimaNip), 'C', '', 10.5, true);
+
+        $this->line($pdf, 13.2, $sigY + 57.1, 197.3, $sigY + 57.1);
+
+        $this->put($pdf, 0, $sigY + 62.7, self::PAGE_W, 5.0, 'PERHITUNGAN SPPD RAMPUNG', 'C', '', 10.5);
+
+        // Perhitungan SPPD rampung
+        $ditetapkan = (float) ($header['ditetapkan_sejumlah'] ?? $totalBiaya);
+        $dibayar = (float) ($header['dibayar_semula'] ?? $totalBiaya);
+        $sisa = $ditetapkan - $dibayar;
+
+        $this->calculationRow($pdf, $sigY + 72.3, 'Ditetapkan sejumlah', $ditetapkan);
+        $this->calculationRow($pdf, $sigY + 77.05, 'Yang telah dibayar semula', $dibayar);
+        $this->calculationRow($pdf, $sigY + 81.8, 'Sisa kurang/lebih', $sisa, true);
+
+        // Tanda tangan KPA
+        $this->put($pdf, 133.9, $sigY + 96.2, 55, 5.0, 'Kuasa Pengguna Anggaran', 'L', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigY + 120.1, $blockW, 5.0, $kpaNama, 'C', 'U', 10.5, true);
+        $this->put($pdf, $rightX, $sigY + 125.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($kpaNip), 'C', '', 10.5, true);
+
+        return $pdf;
+    }
+
+    /**
+     * Isi default 4 baris bila detail kosong, sama seperti export lama.
+     */
+    private function normaliseDetails(array $details): array
+    {
+        if (!empty($details)) {
+            return array_values($details);
+        }
+
+        return [
+            ['nama_komponen' => 'Uang Harian', 'harga_satuan' => 0, 'jumlah_hari' => 1, 'jumlah' => 0, 'keterangan' => ''],
+            ['nama_komponen' => 'BBM', 'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
+            ['nama_komponen' => 'Tol', 'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
+            ['nama_komponen' => 'Hotel', 'harga_satuan' => 0, 'jumlah_hari' => null, 'jumlah' => 0, 'keterangan' => ''],
+        ];
+    }
+
+    private function rateText(float $hargaSatuan, ?float $jumlahHari): string
+    {
+        if ($hargaSatuan <= 0) {
+            return 'Rp -';
+        }
+
+        $prefix = ($jumlahHari !== null && $jumlahHari > 0) ? '@ Rp ' : 'Rp ';
+        return $prefix . $this->rupiah($hargaSatuan);
+    }
+
+    private function dayText(?float $jumlahHari): string
+    {
+        if ($jumlahHari === null || $jumlahHari <= 0) {
+            return '';
+        }
+        if (floor($jumlahHari) == $jumlahHari) {
+            return (string) (int) $jumlahHari;
+        }
+        return number_format($jumlahHari, 1, ',', '.');
+    }
+
+    private function amountRow(\FPDF $pdf, float $xRp, float $xRight, float $amount, float $y): void
+    {
+        $this->put($pdf, $xRp, $y, 8, 5.0, 'Rp', 'L', '', 10.5);
+        $this->put($pdf, $xRight - 22.0, $y, 22.0, 5.0, $this->rupiah($amount), 'R', '', 10.5, true);
+    }
+
+    private function calculationRow(\FPDF $pdf, float $y, string $label, float $amount, bool $showDashForZero = false): void
+    {
+        $this->put($pdf, 13.9, $y, 56, 5.0, $label, 'L', '', 10.5, true);
+        $this->put($pdf, 71.4, $y, 4, 5.0, ':', 'C', '', 10.5);
+        $this->put($pdf, 77.2, $y, 5, 5.0, 'Rp', 'L', '', 10.5);
+
+        if ($showDashForZero && $amount == 0.0) {
+            $this->put($pdf, 83.2, $y, 18.8, 5.0, '-', 'C', '', 10.5);
+            return;
+        }
+
+        $this->put($pdf, 83.2, $y, 18.8, 5.0, $this->rupiah($amount), 'R', '', 10.5, true);
+    }
+
+    private function line(\FPDF $pdf, float $x1, float $y1, float $x2, float $y2): void
+    {
+        $pdf->Line($x1, $y1, $x2, $y2);
+    }
+
+    /**
+     * Tulis teks satu baris. $clip = potong dengan elipsis agar tidak menabrak kolom.
+     */
+    private function put(
+        \FPDF $pdf,
+        float $x,
+        float $y,
+        float $w,
+        float $h,
+        string $text,
+        string $align = 'L',
+        string $style = '',
+        float $size = 10.5,
+        bool $clip = false
+    ): void {
+        $pdf->SetFont('Arial', $style, $size);
+        $encoded = $this->pdfText($text);
+        if ($clip) {
+            $encoded = $this->clip($pdf, $encoded, max(1.0, $w - 2.0));
+        }
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($w, $h, $encoded, 0, 0, $align);
+    }
+
+    private function clip(\FPDF $pdf, string $text, float $maxWidth): string
+    {
+        if ($text === '' || $pdf->GetStringWidth($text) <= $maxWidth) {
+            return $text;
+        }
+
+        $ellipsis = '...';
+        while ($text !== '' && $pdf->GetStringWidth($text . $ellipsis) > $maxWidth) {
+            $text = substr($text, 0, -1);
+        }
+        return rtrim($text) . $ellipsis;
+    }
+
+    private function pdfText(string $s): string
+    {
+        if (function_exists('kuitansi_pdf_text')) {
+            return kuitansi_pdf_text($s);
+        }
+
+        $out = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $s);
+        return $out === false ? $s : $out;
+    }
+
+    private function rupiah(float $n): string
+    {
+        return number_format($n, 0, ',', '.');
+    }
+
+    private function env(string $key, string $default): string
+    {
+        $value = $_ENV[$key] ?? getenv($key);
+        if ($value === false || $value === null || trim((string) $value) === '') {
+            return $default;
+        }
+        return trim((string) $value);
     }
 
     /**
@@ -449,7 +371,9 @@ class RincianBiayaExportService
      */
     public function formatNip(?string $nip): string
     {
-        if (!$nip) return '-';
+        if (!$nip) {
+            return '-';
+        }
         $clean = preg_replace('/[^0-9]/', '', $nip);
         if (strlen($clean) === 18) {
             return substr($clean, 0, 8) . ' ' . substr($clean, 8, 6) . ' ' . substr($clean, 14, 1) . ' ' . substr($clean, 15, 3);
@@ -462,14 +386,18 @@ class RincianBiayaExportService
      */
     public function formatTanggalIndo(?string $dateStr): string
     {
-        if (!$dateStr) return date('d F Y');
+        if (!$dateStr) {
+            return date('d F Y');
+        }
         $t = strtotime($dateStr);
-        if (!$t) return $dateStr;
+        if (!$t) {
+            return $dateStr;
+        }
 
         $bulan = [
             1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
             5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
         ];
 
         $d = date('j', $t);
@@ -480,14 +408,7 @@ class RincianBiayaExportService
     }
 
     /**
-     * Nomor SPT lengkap untuk "Lampiran SPT Nomor" (format "800.1.11.1/ 2636 /123.6.6/2026").
-     * 1. Kumpulkan kandidat: master db_surat_tugas.surat_tugas.nomor_surat,
-     *    cache header, cache transaksi — pilih yang TERPANJANG (tidak pernah
-     *    downgrade lengkap -> pendek).
-     * 2. Jika pemenang masih nomor pendek ("2636", tanpa '/'), SUSUN nomor
-     *    lengkap: {PREFIX}/ {pendek} /{SUFFIX}/{tahun surat}. Prefix/suffix
-     *    bisa dioverride via ENV (SPT_NOMOR_PREFIX, SPT_NOMOR_SUFFIX).
-     * Read-only + null-safe: jika db_surat_tugas tak terjangkau, pakai cache lokal.
+     * Nomor SPT lengkap untuk "Lampiran SPT Nomor".
      */
     private function resolveNomorSurat(array $header, array $transaksi): string
     {
@@ -512,7 +433,7 @@ class RincianBiayaExportService
                     }
                 }
             } catch (\Throwable $e) {
-                // abaikan — pakai cache lokal
+                // abaikan - pakai cache lokal
             }
         }
 
@@ -529,11 +450,10 @@ class RincianBiayaExportService
         if ($best === '') {
             return '-';
         }
-        // Sudah lengkap (mengandung '/') -> pakai apa adanya.
         if (strpos($best, '/') !== false) {
             return $best;
         }
-        // Nomor pendek -> susun format lengkap.
+
         $prefix = trim((string) ($_ENV['SPT_NOMOR_PREFIX'] ?? getenv('SPT_NOMOR_PREFIX') ?: '800.1.11.1'));
         $suffix = trim((string) ($_ENV['SPT_NOMOR_SUFFIX'] ?? getenv('SPT_NOMOR_SUFFIX') ?: '123.6.6'));
         $tglRaw = $transaksi['tanggal_surat_tugas'] ?? ($header['tanggal_surat'] ?? ($transaksi['tanggal'] ?? ''));
@@ -547,7 +467,9 @@ class RincianBiayaExportService
     public function terbilang(float $n): string
     {
         $n = abs((int) round($n));
-        if ($n === 0) return 'Nol';
+        if ($n === 0) {
+            return 'Nol';
+        }
 
         $satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
 

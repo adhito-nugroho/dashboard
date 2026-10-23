@@ -1239,7 +1239,8 @@ class SeksiTransaksiController
     }
 
     /**
-     * Unduh Excel Rincian Biaya untuk satu transaksi perjalanan dinas (per pegawai).
+     * Pratinjau / cetak PDF Rincian Biaya untuk satu transaksi perjalanan dinas
+     * (per pegawai).
      * Akses: GET /seksi/transaksi/unduh-rincian-biaya?transaksi_id=X
      */
     public function downloadRincianBiaya(): void
@@ -1291,7 +1292,7 @@ class SeksiTransaksiController
         $details = $data['details'];
 
         $exportService = new \App\Services\RincianBiayaExportService();
-        $exportService->download($header, $details, $transaksi);
+        $exportService->streamPdf($header, $details, $transaksi);
     }
 
     /**

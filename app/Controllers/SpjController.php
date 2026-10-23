@@ -384,7 +384,7 @@ class SpjController
     }
 
     /**
-     * Unduh Excel Rincian Biaya Perjalanan Dinas.
+     * Pratinjau / cetak PDF Rincian Biaya Perjalanan Dinas.
      * Akses: GET /spj/unduh/{id}
      */
     public function download(int $id): void
@@ -410,7 +410,7 @@ class SpjController
         }
 
         $exportService = new \App\Services\RincianBiayaExportService();
-        $exportService->download($header, $details, $transaksi);
+        $exportService->streamPdf($header, $details, $transaksi);
     }
 
     /**
