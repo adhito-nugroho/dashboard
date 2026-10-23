@@ -696,22 +696,77 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
 
             <?php if (!empty($pagination) && $pagination['totalPages'] > 1): ?>
                 <?php
-                    $qsBase = array_filter(['status'=>$curStatus?:null,'bulan'=>$curBulan,'tahun'=>$curTahun,'q'=>$curQ?:null]);
-                    $base = $pagination['baseUrl'] . ($qsBase ? '?' . http_build_query($qsBase) . '&' : '?');
+                    $pgTotal = (int) $pagination['totalPages'];
+                    $pgCur = (int) $pagination['page'];
+                    $pgPerPage = max(1, (int) $pagination['perPage']);
+                    $pgFrom = (($pgCur - 1) * $pgPerPage) + 1;
+                    $pgTo = min((int) $pagination['total'], $pgCur * $pgPerPage);
+
+                    $qsBase = array_filter([
+                        'status' => $curStatus ?: null,
+                        'bulan' => $curBulan,
+                        'tahun' => $curTahun,
+                        'q' => $curQ ?: null,
+                        'input_dari' => $curInputDari ?: null,
+                        'input_sampai' => $curInputSampai ?: null,
+                    ], static fn ($value) => $value !== null && $value !== '');
+
+                    $pageUrl = static function (int $page) use ($pagination, $qsBase): string {
+                        return $pagination['baseUrl'] . '?' . http_build_query($qsBase + ['page' => $page]);
+                    };
+
+                    if ($pgTotal <= 7) {
+                        $pgNums = range(1, $pgTotal);
+                    } else {
+                        $pgNums = [1];
+                        $lo = max(2, $pgCur - 2);
+                        $hi = min($pgTotal - 1, $pgCur + 2);
+                        if ($pgCur <= 3) {
+                            $lo = 2;
+                            $hi = 5;
+                        }
+                        if ($pgCur >= $pgTotal - 2) {
+                            $lo = $pgTotal - 4;
+                            $hi = $pgTotal - 1;
+                        }
+                        if ($lo > 2) {
+                            $pgNums[] = '…';
+                        }
+                        for ($p = $lo; $p <= $hi; $p++) {
+                            $pgNums[] = $p;
+                        }
+                        if ($hi < $pgTotal - 1) {
+                            $pgNums[] = '…';
+                        }
+                        $pgNums[] = $pgTotal;
+                    }
                 ?>
-                <nav class="p-3 border-top">
-                    <ul class="pagination justify-content-center mb-0">
-                        <li class="page-item <?= $pagination['page']<=1?'disabled':'' ?>">
-                            <a class="page-link" href="<?= $pagination['page']<=1?'#': $base.'page='.($pagination['page']-1) ?>">«</a>
+                <nav class="p-3 border-top" aria-label="Navigasi halaman transaksi">
+                    <ul class="pagination pagination-sm flex-wrap justify-content-center mb-0">
+                        <li class="page-item <?= $pgCur <= 1 ? 'disabled' : '' ?>">
+                            <a class="page-link" href="<?= $pgCur <= 1 ? '#' : htmlspecialchars($pageUrl($pgCur - 1)) ?>" aria-label="Halaman sebelumnya" <?= $pgCur <= 1 ? 'aria-disabled="true" tabindex="-1"' : '' ?>>
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
                         </li>
-                        <?php for($p=1;$p<=$pagination['totalPages'];$p++): ?>
-                            <li class="page-item <?= $p==$pagination['page']?'active':'' ?>"><a class="page-link" href="<?= $base.'page='.$p ?>"><?= $p ?></a></li>
-                        <?php endfor; ?>
-                        <li class="page-item <?= $pagination['page']>=$pagination['totalPages']?'disabled':'' ?>">
-                            <a class="page-link" href="<?= $pagination['page']>=$pagination['totalPages']?'#': $base.'page='.($pagination['page']+1) ?>">»</a>
+                        <?php foreach ($pgNums as $p): ?>
+                            <?php if ($p === '…'): ?>
+                                <li class="page-item disabled" aria-hidden="true"><span class="page-link">…</span></li>
+                            <?php else: ?>
+                                <li class="page-item <?= (int) $p === $pgCur ? 'active' : '' ?>">
+                                    <a class="page-link" href="<?= htmlspecialchars($pageUrl((int) $p)) ?>" <?= (int) $p === $pgCur ? 'aria-current="page"' : '' ?>><?= (int) $p ?></a>
+                                </li>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                        <li class="page-item <?= $pgCur >= $pgTotal ? 'disabled' : '' ?>">
+                            <a class="page-link" href="<?= $pgCur >= $pgTotal ? '#' : htmlspecialchars($pageUrl($pgCur + 1)) ?>" aria-label="Halaman berikutnya" <?= $pgCur >= $pgTotal ? 'aria-disabled="true" tabindex="-1"' : '' ?>>
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
                         </li>
                     </ul>
-                    <div class="text-center small text-muted mt-2">Menampilkan <?= count($transaksis) ?> dari <?= $pagination['total'] ?> transaksi · Halaman <?= $pagination['page'] ?>/<?= $pagination['totalPages'] ?></div>
+                    <div class="text-center small text-muted mt-2">
+                        Menampilkan <strong class="text-dark"><?= $pgFrom ?>&ndash;<?= $pgTo ?></strong> dari <strong class="text-dark"><?= (int) $pagination['total'] ?></strong> transaksi
+                        &middot; Halaman <?= $pgCur ?>/<?= $pgTotal ?>
+                    </div>
                 </nav>
             <?php endif; ?>
         <?php endif; ?>
