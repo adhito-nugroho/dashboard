@@ -324,14 +324,14 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                             <?php $nb = 0; ?>
                             <?php foreach ($batches as $b):
                                 $nb++;
-                                $bersihBatch = (float) $b['total_nilai'] - (float) $b['total_potongan'];
+                                $totalPerjadinBatch = (float) $b['total_nilai'];
                                 ?>
                                 <tr>
                                     <td class="ps-4 align-top text-muted small"><?= ((int) ($batchPagination['page'] ?? 1) - 1) * (int) ($batchPagination['perPage'] ?? 10) + $nb ?></td>
                                     <td class="align-top fw-semibold text-dark"><?= htmlspecialchars((string) $b['nama']) ?></td>
                                     <td class="align-top text-muted small text-nowrap"><?= htmlspecialchars($fmtTanggalID(substr((string) $b['created_at'], 0, 10)) . ' ' . substr((string) $b['created_at'], 11, 5)) ?></td>
                                     <td class="align-top text-end font-monospace text-nowrap"><?= (int) $b['jml'] ?></td>
-                                    <td class="align-top text-end font-monospace fw-medium text-nowrap">Rp <?= number_format($bersihBatch, 0, ',', '.') ?></td>
+                                    <td class="align-top text-end font-monospace fw-medium text-nowrap">Rp <?= number_format($totalPerjadinBatch, 0, ',', '.') ?></td>
                                     <td class="align-top text-end pe-4">
                                         <a href="<?= base_url('transfer-perjadin/export') ?>?batch_id=<?= (int) $b['id'] ?>" class="btn btn-sm btn-success text-nowrap">
                                             <i class="bi bi-file-earmark-excel me-1"></i>Unduh
