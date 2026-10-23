@@ -107,7 +107,8 @@ class RincianBiayaExportService
         }
         $dataBottom = self::HEADER_BOTTOM + ($rowCount * $rowH);
         $totalY = max(96.4, $dataBottom + 4.0);
-        $terbilangY = $totalY + 4.8;
+        $totalRowH = 5.8;
+        $terbilangY = $totalY + $totalRowH;
         $tableBottom = $terbilangY + 5.2;
 
         // Header tabel
@@ -160,13 +161,13 @@ class RincianBiayaExportService
         }
 
         // Baris total
-        $totalTextY = $totalY + 1.0;
-        $this->put($pdf, self::X_PERINCIAN, $totalTextY, self::W_PERINCIAN, 4.8, 'JUMLAH', 'C', '', 10.5);
-        $this->put($pdf, self::X_JUMLAH + 2.0, $totalTextY, 5, 4.8, 'Rp', 'L', '', 10.5);
-        $this->put($pdf, self::X_JUMLAH + 8.0, $totalTextY, self::W_JUMLAH - 10.0, 4.8, $this->rupiah($totalBiaya), 'R', '', 10.5, true);
+        $totalTextY = $totalY + 0.6;
+        $this->put($pdf, self::X_PERINCIAN, $totalTextY, self::W_PERINCIAN, $totalRowH, 'JUMLAH', 'C', '', 10.5);
+        $this->put($pdf, self::X_JUMLAH + 2.0, $totalTextY, 5, $totalRowH, 'Rp', 'L', '', 10.5);
+        $this->put($pdf, self::X_JUMLAH + 8.0, $totalTextY, self::W_JUMLAH - 10.0, $totalRowH, $this->rupiah($totalBiaya), 'R', '', 10.5, true);
 
         // Terbilang
-        $terbilangTextY = $terbilangY + 0.8;
+        $terbilangTextY = $terbilangY + 0.6;
         $this->put($pdf, self::X_PERINCIAN + 1.0, $terbilangTextY, 30, 5.2, 'Terbilang', 'L', '', 10.5);
         $terbilangText = ' ' . $this->terbilang($totalBiaya) . ' Rupiah';
         $this->put($pdf, self::X_HARI + 3.0, $terbilangTextY, self::RIGHT - (self::X_HARI + 3.0), 5.2, $terbilangText, 'L', 'I', 9.7, true);
@@ -178,7 +179,7 @@ class RincianBiayaExportService
         $this->line($pdf, self::X_NO, $terbilangY, self::RIGHT, $terbilangY);
         $this->line($pdf, self::X_NO, $tableBottom, self::RIGHT, $tableBottom);
 
-        foreach ([self::X_NO, self::X_PERINCIAN, self::X_HARI, self::X_JUMLAH, self::RIGHT] as $x) {
+        foreach ([self::X_NO, self::X_PERINCIAN, self::X_HARI, self::X_JUMLAH, self::X_KETERANGAN, self::RIGHT] as $x) {
             $bottom = ($x === self::X_NO || $x === self::RIGHT) ? $tableBottom : $terbilangY;
             $this->line($pdf, $x, self::TABLE_TOP, $x, $bottom);
         }
@@ -200,7 +201,7 @@ class RincianBiayaExportService
             $tempatTanggal = 'Bojonegoro,';
         }
 
-        $sigY = max(111.3, $tableBottom + 4.9);
+        $sigY = max(111.3, $tableBottom + 3.9);
         $sigTextY = $sigY + 0.4;
         $leftX = 14.7;
         $rightX = 124.8;
