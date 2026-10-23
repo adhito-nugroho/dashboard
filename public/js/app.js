@@ -118,6 +118,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 closeSidebar();
             }
         });
+
+        // Keep the active menu item visible when the sidebar is scrollable.
+        const activeNavLink = sidebar.querySelector('.sidebar-nav .nav-link.active');
+        if (activeNavLink) {
+            requestAnimationFrame(function () {
+                const sidebarRect = sidebar.getBoundingClientRect();
+                const activeRect = activeNavLink.getBoundingClientRect();
+                const isAbove = activeRect.top < sidebarRect.top;
+                const isBelow = activeRect.bottom > sidebarRect.bottom;
+
+                if (isAbove || isBelow) {
+                    const targetTop = sidebar.scrollTop
+                        + (activeRect.top - sidebarRect.top)
+                        - ((sidebar.clientHeight - activeRect.height) / 2);
+                    sidebar.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+                }
+            });
+        }
     }
 
     // Auto-hide alerts after 5 seconds
