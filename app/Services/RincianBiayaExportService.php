@@ -214,13 +214,13 @@ class RincianBiayaExportService
         $this->amountRow($pdf, 24.6, 68.7, $totalBiaya, $sigTextY + 14.5);
         $this->amountRow($pdf, 150.1, 195.2, $totalBiaya, $sigTextY + 14.5);
 
-        $this->put($pdf, $leftX, $sigTextY + 24.1, $blockW, 5.0, 'Bendahara Pengeluaran Pembantu', 'C', '', 10.5, true);
-        $this->put($pdf, $rightX, $sigTextY + 24.1, $blockW, 5.0, 'Yang Menerima,', 'C', '', 10.5, true);
+        $this->put($pdf, $leftX, $sigTextY + 24.1, $blockW, 5.0, 'Bendahara Pengeluaran Pembantu', 'L', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 24.1, $blockW, 5.0, 'Yang Menerima,', 'L', '', 10.5, true);
 
-        $this->put($pdf, $leftX, $sigTextY + 43.2, $blockW, 5.0, $bendaharaNama, 'C', 'U', 10.5, true);
-        $this->put($pdf, $rightX, $sigTextY + 43.2, $blockW, 5.0, $penerimaNama, 'C', 'U', 10.5, true);
-        $this->put($pdf, $leftX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($bendaharaNip), 'C', '', 10.5, true);
-        $this->put($pdf, $rightX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($penerimaNip), 'C', '', 10.5, true);
+        $this->put($pdf, $leftX, $sigTextY + 43.2, $blockW, 5.0, $bendaharaNama, 'L', 'U', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 43.2, $blockW, 5.0, $penerimaNama, 'L', 'U', 10.5, true);
+        $this->put($pdf, $leftX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($bendaharaNip), 'L', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($penerimaNip), 'L', '', 10.5, true);
 
         $this->line($pdf, 13.2, $sigY + 57.1, 197.3, $sigY + 57.1);
 
@@ -236,9 +236,9 @@ class RincianBiayaExportService
         $this->calculationRow($pdf, $sigY + 81.8, 'Sisa kurang/lebih', $sisa, true);
 
         // Tanda tangan KPA
-        $this->put($pdf, 133.9, $sigY + 96.2, 55, 5.0, 'Kuasa Pengguna Anggaran', 'L', '', 10.5, true);
-        $this->put($pdf, $rightX, $sigY + 120.1, $blockW, 5.0, $kpaNama, 'C', 'U', 10.5, true);
-        $this->put($pdf, $rightX, $sigY + 125.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($kpaNip), 'C', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigY + 96.2, $blockW, 5.0, 'Kuasa Pengguna Anggaran', 'L', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigY + 120.1, $blockW, 5.0, $kpaNama, 'L', 'U', 10.5, true);
+        $this->put($pdf, $rightX, $sigY + 125.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($kpaNip), 'L', '', 10.5, true);
 
         return $pdf;
     }
