@@ -71,6 +71,37 @@ class TransferPerjadinController
         $configMap = $this->model->getConfigMap();
         $batches = $this->model->getBatches();
 
+        // Pagination tabel "Konfigurasi Tersimpan" (filter dipertahankan pada link halaman).
+        $batchPerPage = 10;
+        $batchPage = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+        $batchTotal = count($batches);
+        $batchTotalPages = max(1, (int) ceil($batchTotal / $batchPerPage));
+        if ($batchPage > $batchTotalPages) {
+            $batchPage = $batchTotalPages;
+        }
+        $batchOffset = ($batchPage - 1) * $batchPerPage;
+        $batches = array_slice($batches, $batchOffset, $batchPerPage);
+
+        $batchQuery = array_filter([
+            'tahun' => (string) $tahun,
+            'input_dari' => (string) ($inputDari ?? ''),
+            'input_sampai' => (string) ($inputSampai ?? ''),
+            'seksi_id' => $seksiId !== null ? (string) $seksiId : '',
+            'q' => $q,
+        ], static fn ($v) => $v !== '');
+        $batchPaginationBase = base_url('transfer-perjadin');
+        if ($batchQuery !== []) {
+            $batchPaginationBase .= '?' . http_build_query($batchQuery) . '&';
+        }
+
+        $batchPagination = [
+            'page' => $batchPage,
+            'perPage' => $batchPerPage,
+            'total' => $batchTotal,
+            'totalPages' => $batchTotalPages,
+            'baseUrl' => rtrim($batchPaginationBase, '&'),
+        ];
+
         // Saran "Transfer Ke" dibatasi ke pegawai peserta Surat Tugas pada transaksi tsb.
         [$stIdByTransaksi, $namaListBySt] = $this->buildTransferKeLists($transaksiList);
 

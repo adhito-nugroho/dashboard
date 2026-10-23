@@ -8,6 +8,7 @@ $stIdByTransaksi = $stIdByTransaksi ?? [];
 $namaListBySt = $namaListBySt ?? [];
 $seksiList = $seksiList ?? [];
 $batches = $batches ?? [];
+$batchPagination = $batchPagination ?? [];
 $inputDari = $inputDari ?? null;
 $inputSampai = $inputSampai ?? null;
 
@@ -298,7 +299,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                 <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-archive text-success me-2"></i>Konfigurasi Tersimpan</h5>
                 <small class="text-muted">Setiap konfigurasi tersimpan dapat diunduh sebagai Excel (sheet Detail + Rekap).</small>
             </div>
-            <span class="badge bg-success-subtle text-success border border-success-subtle text-nowrap"><?= count($batches ?? []) ?> konfigurasi</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle text-nowrap"><?= (int) ($batchPagination['total'] ?? count($batches ?? [])) ?> konfigurasi</span>
         </div>
         <div class="card-body p-0">
             <?php if (empty($batches)): ?>
@@ -315,7 +316,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                 <th class="small align-top" style="min-width:200px;">Nama Konfigurasi</th>
                                 <th class="small align-top text-nowrap" style="width:150px;">Disimpan</th>
                                 <th class="text-end small align-top text-nowrap" style="width:120px;">Transaksi</th>
-                                <th class="text-end small align-top text-nowrap" style="width:150px;">Total Bersih</th>
+                                <th class="text-end small align-top text-nowrap" style="width:150px;">Total Perjalanan Dinas</th>
                                 <th class="text-end pe-4 small align-top text-nowrap" style="width:130px;">Unduh</th>
                             </tr>
                         </thead>
@@ -326,7 +327,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                 $bersihBatch = (float) $b['total_nilai'] - (float) $b['total_potongan'];
                                 ?>
                                 <tr>
-                                    <td class="ps-4 align-top text-muted small"><?= $nb ?></td>
+                                    <td class="ps-4 align-top text-muted small"><?= ((int) ($batchPagination['page'] ?? 1) - 1) * (int) ($batchPagination['perPage'] ?? 10) + $nb ?></td>
                                     <td class="align-top fw-semibold text-dark"><?= htmlspecialchars((string) $b['nama']) ?></td>
                                     <td class="align-top text-muted small text-nowrap"><?= htmlspecialchars($fmtTanggalID(substr((string) $b['created_at'], 0, 10)) . ' ' . substr((string) $b['created_at'], 11, 5)) ?></td>
                                     <td class="align-top text-end font-monospace text-nowrap"><?= (int) $b['jml'] ?></td>
@@ -341,6 +342,26 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                         </tbody>
                     </table>
                 </div>
+                <?php if (!empty($batchPagination) && ($batchPagination['totalPages'] ?? 1) > 1): ?>
+                    <nav class="mt-3 mb-2">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item <?= ($batchPagination['page'] ?? 1) <= 1 ? 'disabled' : '' ?>">
+                                <?php $sep = str_contains((string) $batchPagination['baseUrl'], '?') ? '&' : '?'; ?>
+                                <a class="page-link" href="<?= ($batchPagination['page'] ?? 1) <= 1 ? '#' : $batchPagination['baseUrl'] . $sep . 'page=' . (($batchPagination['page'] ?? 1) - 1) ?>">«</a>
+                            </li>
+                            <?php for ($p = 1; $p <= $batchPagination['totalPages']; $p++): ?>
+                                <?php $sep = str_contains((string) $batchPagination['baseUrl'], '?') ? '&' : '?'; ?>
+                                <li class="page-item <?= $p == ($batchPagination['page'] ?? 1) ? 'active' : '' ?>">
+                                    <a class="page-link" href="<?= $batchPagination['baseUrl'] . $sep . 'page=' . $p ?>"><?= $p ?></a>
+                                </li>
+                            <?php endfor; ?>
+                            <li class="page-item <?= ($batchPagination['page'] ?? 1) >= $batchPagination['totalPages'] ? 'disabled' : '' ?>">
+                                <?php $sep = str_contains((string) $batchPagination['baseUrl'], '?') ? '&' : '?'; ?>
+                                <a class="page-link" href="<?= ($batchPagination['page'] ?? 1) >= $batchPagination['totalPages'] ? '#' : $batchPagination['baseUrl'] . $sep . 'page=' . (($batchPagination['page'] ?? 1) + 1) ?>">»</a>
+                            </li>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
