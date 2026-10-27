@@ -1012,6 +1012,77 @@ class Transaksi
     }
 
     /**
+     * Cari transaksi perjalanan dinas yang sudah ada untuk Surat Tugas + pegawai
+     * yang sama. Status 'ditolak' diabaikan agar transaksi yang ditolak tetap
+     * bisa diajukan ulang dengan benar.
+     *
+     * @param int|null $suratTugasRefId id surat tugas di db_surat_tugas
+     * @param string $nomorSuratTugas nomor surat tugas (fallback bila ref id kosong)
+     * @param string $nip NIP pegawai (prioritas utama pencocokan)
+     * @param string $nama nama penerima (fallback bila NIP kosong/tidak tercatat)
+     * @return array<int, array<string,mixed>>
+     */
+    public function findPerjadinDuplikat(?int $suratTugasRefId, string $nomorSuratTugas, string $nip, string $nama): array
+    {
+        $stId = (int) ($suratTugasRefId ?? 0);
+        $nomor = trim($nomorSuratTugas);
+        $nama = trim($nama);
+        $nipNorm = str_replace(' ', '', trim($nip));
+
+        if (($stId <= 0 && $nomor === '') || ($nipNorm === '' && $nama === '')) {
+            return [];
+        }
+
+        $conds = [
+            "jenis_transaksi = 'perjalanan_dinas'",
+            "status <> 'ditolak'",
+        ];
+        $params = [];
+
+        if ($stId > 0 && $nomor !== '') {
+            $conds[] = '(surat_tugas_ref_id = :st OR TRIM(COALESCE(nomor_surat_tugas, \'\')) = :no)';
+            $params[':st'] = $stId;
+            $params[':no'] = $nomor;
+        } elseif ($stId > 0) {
+            $conds[] = 'surat_tugas_ref_id = :st';
+            $params[':st'] = $stId;
+        } else {
+            $conds[] = 'TRIM(COALESCE(nomor_surat_tugas, \'\')) = :no';
+            $params[':no'] = $nomor;
+        }
+
+        if ($nipNorm !== '' && $nama !== '') {
+            // NIP jadi kunci utama; nama hanya dipakai untuk data lama yang NIP-nya kosong.
+            $conds[] = "(REPLACE(COALESCE(pegawai_nip, ''), ' ', '') = :nip
+                         OR (COALESCE(TRIM(pegawai_nip), '') = '' AND TRIM(COALESCE(nama_penerima, '')) = :nama))";
+            $params[':nip'] = $nipNorm;
+            $params[':nama'] = $nama;
+        } elseif ($nipNorm !== '') {
+            $conds[] = "REPLACE(COALESCE(pegawai_nip, ''), ' ', '') = :nip";
+            $params[':nip'] = $nipNorm;
+        } else {
+            $conds[] = "TRIM(COALESCE(nama_penerima, '')) = :nama";
+            $params[':nama'] = $nama;
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id, nomor_bukti, tanggal, tanggal_surat_tugas, tanggal_pelaksanaan,
+                       status, nilai, nama_penerima, pegawai_nip, surat_tugas_ref_id,
+                       nomor_surat_tugas
+                FROM transaksi
+                WHERE " . implode(' AND ', $conds) . "
+                ORDER BY id DESC
+            ");
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error finding perjadin duplicate: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Delete transaction.
      * Data turunan ikut dibersihkan: rincian biaya perjalanan dinas dilepas,
      * konfigurasi transfer terkait dihapus, dan pengajuan GU disinkronkan.

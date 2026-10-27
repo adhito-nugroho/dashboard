@@ -150,6 +150,25 @@ class SeksiTransaksiController
 
         $errors = $this->validate($_POST, $db, $seksiId);
 
+        $jenisTransaksi = in_array($_POST['jenis_transaksi'] ?? '', ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)
+            ? $_POST['jenis_transaksi']
+            : 'lainnya';
+
+        // Peringatan dobel perjalanan dinas (ST + pegawai). User harus
+        // mengonfirmasi lewat modal; server tetap memvalidasi flag ini.
+        if (empty($errors) && $jenisTransaksi === 'perjalanan_dinas'
+            && (string) ($_POST['konfirmasi_dobel'] ?? '0') !== '1') {
+            $duplikat = $this->collectPerjadinDuplikat([[
+                'surat_tugas_ref_id' => $_POST['surat_tugas_ref_id'] ?? 0,
+                'nomor_surat_tugas' => $_POST['nomor_surat_tugas'] ?? '',
+                'pegawai_nip' => $_POST['pegawai_nip'] ?? '',
+                'nama_penerima' => $_POST['nama_penerima'] ?? '',
+            ]]);
+            if ($duplikat !== []) {
+                $errors[] = $this->duplikatMessage($duplikat);
+            }
+        }
+
         if (!empty($errors)) {
             $programs = $db->prepare("
                 SELECT DISTINCT p.id, p.kode_program, p.nama_program
@@ -175,10 +194,6 @@ class SeksiTransaksiController
             $this->redirectWithMessage(base_url('seksi/transaksi'), 'error', 'Rekening tidak valid untuk seksi Anda');
             return;
         }
-
-        $jenisTransaksi = in_array($_POST['jenis_transaksi'] ?? '', ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)
-            ? $_POST['jenis_transaksi']
-            : 'lainnya';
 
         $id = $this->transaksiModel->createSeksi(
             $_POST['tanggal'],
@@ -218,6 +233,14 @@ class SeksiTransaksiController
         $items = $post['items'];
         $createdCount = 0;
         $errors = [];
+
+        // Tolak seluruh pengajuan bila ada transaksi dobel untuk ST + pegawai
+        // yang sama dan user belum mengonfirmasi lewat modal peringatan.
+        $duplikat = $this->collectPerjadinDuplikat($items);
+        if ($duplikat !== [] && (string) ($post['konfirmasi_dobel'] ?? '0') !== '1') {
+            $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', $this->duplikatMessage($duplikat));
+            return;
+        }
 
         // Instansiasi model rincian biaya (reuse koneksi yang sama)
         $rincianBiayaModel = new \App\Models\RincianBiaya($db);
@@ -1442,6 +1465,70 @@ class SeksiTransaksiController
             $stmt->execute();
             $pegawais = $stmt->fetchAll();
 
+            // Tandai pegawai yang sudah punya transaksi perjalanan dinas pada
+            // ST ini (status selain ditolak) agar user waspada sebelum memilih.
+            try {
+                $stmtNo = $pdo->prepare('SELECT nomor_surat FROM surat_tugas WHERE id = :id LIMIT 1');
+                $stmtNo->execute([':id' => $idST]);
+                $nomorST = trim((string) ($stmtNo->fetchColumn() ?: ''));
+
+                $db = \Database::getConnection();
+                $conds = ["jenis_transaksi = 'perjalanan_dinas'", "status <> 'ditolak'"];
+                $params = [];
+                if ($nomorST !== '') {
+                    $conds[] = "(surat_tugas_ref_id = :st OR TRIM(COALESCE(nomor_surat_tugas, '')) = :no)";
+                    $params[':st'] = $idST;
+                    $params[':no'] = $nomorST;
+                } else {
+                    $conds[] = 'surat_tugas_ref_id = :st';
+                    $params[':st'] = $idST;
+                }
+
+                $stmtTrx = $db->prepare("
+                    SELECT id, nomor_bukti, tanggal, tanggal_pelaksanaan, status, nilai,
+                           nama_penerima, REPLACE(COALESCE(pegawai_nip, ''), ' ', '') AS nip_norm
+                    FROM transaksi
+                    WHERE " . implode(' AND ', $conds) . "
+                    ORDER BY id DESC
+                ");
+                $stmtTrx->execute($params);
+
+                $byNip = [];
+                $byNama = [];
+                foreach ($stmtTrx->fetchAll(\PDO::FETCH_ASSOC) as $trx) {
+                    $info = [
+                        'id' => (int) $trx['id'],
+                        'nomor_bukti' => (string) ($trx['nomor_bukti'] ?? ''),
+                        'tanggal' => (string) ($trx['tanggal'] ?? ''),
+                        'tanggal_pelaksanaan' => (string) ($trx['tanggal_pelaksanaan'] ?? ''),
+                        'status' => (string) ($trx['status'] ?? ''),
+                        'nilai' => (float) ($trx['nilai'] ?? 0),
+                    ];
+                    $nipNorm = (string) ($trx['nip_norm'] ?? '');
+                    if ($nipNorm !== '') {
+                        $byNip[$nipNorm][] = $info;
+                    } else {
+                        $byNama[trim((string) ($trx['nama_penerima'] ?? ''))][] = $info;
+                    }
+                }
+
+                foreach ($pegawais as &$p) {
+                    $nipNorm = str_replace(' ', '', trim((string) ($p['nip'] ?? $p['pt_nip'] ?? '')));
+                    $namaKey = trim((string) ($p['nama'] ?? ''));
+                    $p['duplikat'] = array_merge(
+                        $nipNorm !== '' ? ($byNip[$nipNorm] ?? []) : [],
+                        $byNama[$namaKey] ?? []
+                    );
+                }
+                unset($p);
+            } catch (\Throwable $e) {
+                error_log('Error getPegawaiSuratTugas duplikat: ' . $e->getMessage());
+                foreach ($pegawais as &$p) {
+                    $p['duplikat'] = [];
+                }
+                unset($p);
+            }
+
             echo json_encode([
                 'success' => true,
                 'data' => $pegawais
@@ -1454,6 +1541,101 @@ class SeksiTransaksiController
             ]);
         }
         exit;
+    }
+
+    /**
+     * AJAX: deteksi transaksi perjalanan dinas dobel (Surat Tugas + pegawai)
+     * sebelum form diajukan. Client memakai hasil ini untuk menampilkan modal
+     * peringatan; validasi tetap diulang di server saat menyimpan.
+     */
+    public function cekDobel(): void
+    {
+        $this->requireSeksi();
+        header('Content-Type: application/json');
+
+        $items = $_POST['items'] ?? [];
+        if (!is_array($items) || $items === []) {
+            $items = [[
+                'surat_tugas_ref_id' => $_POST['surat_tugas_ref_id'] ?? 0,
+                'nomor_surat_tugas' => $_POST['nomor_surat_tugas'] ?? '',
+                'pegawai_nip' => $_POST['pegawai_nip'] ?? '',
+                'nama_penerima' => $_POST['nama_penerima'] ?? '',
+            ]];
+        }
+
+        try {
+            echo json_encode([
+                'success' => true,
+                'duplikat' => $this->collectPerjadinDuplikat($items),
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Error cekDobel: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Gagal memeriksa transaksi dobel.']);
+        }
+        exit;
+    }
+
+    /**
+     * Kumpulkan transaksi perjalanan dinas yang sudah ada untuk tiap item
+     * (Surat Tugas + pegawai sama), status selain 'ditolak'.
+     *
+     * @param array<int, array<string,mixed>> $items
+     * @return array<int, array{nama:string,nip:string,nomor_surat_tugas:string,transaksi:array<int,array<string,mixed>>}>
+     */
+    private function collectPerjadinDuplikat(array $items): array
+    {
+        $hasil = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $nama = trim((string) ($item['nama_penerima'] ?? ''));
+            $nip = trim((string) ($item['pegawai_nip'] ?? ''));
+            $nomor = trim((string) ($item['nomor_surat_tugas'] ?? ''));
+            $stRef = (int) ($item['surat_tugas_ref_id'] ?? 0);
+
+            if ($nama === '' && $nip === '') {
+                continue;
+            }
+            if ($stRef <= 0 && $nomor === '') {
+                continue;
+            }
+
+            $rows = $this->transaksiModel->findPerjadinDuplikat($stRef > 0 ? $stRef : null, $nomor, $nip, $nama);
+            if ($rows === []) {
+                continue;
+            }
+
+            $hasil[] = [
+                'nama' => $nama !== '' ? $nama : (string) ($rows[0]['nama_penerima'] ?? ''),
+                'nip' => $nip,
+                'nomor_surat_tugas' => $nomor !== '' ? $nomor : (string) ($rows[0]['nomor_surat_tugas'] ?? ''),
+                'transaksi' => $rows,
+            ];
+        }
+        return $hasil;
+    }
+
+    private function duplikatMessage(array $duplikat): string
+    {
+        $parts = [];
+        $shown = 0;
+        foreach ($duplikat as $d) {
+            $trx = $d['transaksi'][0] ?? [];
+            $parts[] = ($d['nama'] !== '' ? $d['nama'] : 'Pegawai')
+                . ' (No. bukti ' . ((string) ($trx['nomor_bukti'] ?? '') !== '' ? $trx['nomor_bukti'] : '-')
+                . ', ' . ((string) ($trx['status'] ?? '') !== '' ? $trx['status'] : '-') . ')';
+            $shown++;
+            if ($shown >= 5) {
+                break;
+            }
+        }
+
+        $msg = 'Transaksi perjalanan dinas untuk Surat Tugas yang sama sudah ada: ' . implode('; ', $parts) . '.';
+        if (count($duplikat) > $shown) {
+            $msg .= ' dan ' . (count($duplikat) - $shown) . ' pegawai lainnya.';
+        }
+        return $msg . ' Periksa kembali pengajuan Anda — centang konfirmasi pada peringatan untuk melanjutkan.';
     }
 
     private function validate(array $data, \PDO $db, int $seksiId): array

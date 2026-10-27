@@ -393,6 +393,7 @@ try {
         ['GET', '/seksi/transaksi/search-st', fn($m) => $seksiTransaksiController->searchSuratTugas()],
         ['GET', '/seksi/transaksi/cari-klasifikasi', fn($m) => $seksiTransaksiController->cariKlasifikasi()],
         ['GET', '/seksi/transaksi/pegawai-st', fn($m) => $seksiTransaksiController->getPegawaiSuratTugas()],
+        ['POST', '/seksi/transaksi/cek-dobel', fn($m) => $seksiTransaksiController->cekDobel()],
         ['GET', '/seksi/transaksi/bku', fn($m) => $seksiTransaksiController->downloadBku()],
         ['GET', '/seksi/transaksi/unduh-rincian-biaya', fn($m) => $seksiTransaksiController->downloadRincianBiaya()],
 
