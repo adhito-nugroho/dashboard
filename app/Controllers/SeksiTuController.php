@@ -78,8 +78,12 @@ class SeksiTuController
     public function create(): void
     {
         $this->requireSeksi();
-        $errors = [];
-        $form   = [];
+        $db      = \Database::getConnection();
+        $seksiId = $this->seksiId();
+        $errors  = [];
+        $form    = [];
+
+        $programs = $this->getProgramsBySeksi($db, $seksiId);
 
         $pageTitle  = 'Ajukan Tambah Uang (TU)';
         $activePage = 'tu';
@@ -94,6 +98,7 @@ class SeksiTuController
         $this->requireSeksi();
         $seksiId = $this->seksiId();
         $userId  = $this->userId();
+        $db      = \Database::getConnection();
 
         $form = [
             'tanggal_pengajuan' => trim($_POST['tanggal_pengajuan'] ?? date('Y-m-d')),
@@ -101,18 +106,23 @@ class SeksiTuController
             'tahun'             => (int) ($_POST['tahun'] ?? date('Y')),
             'kebutuhan_raw'     => $_POST['kebutuhan'] ?? '0',
             'keperluan'         => trim($_POST['keperluan'] ?? ''),
+            'rekening_id'       => !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null,
+            'program_id'        => $_POST['program_id']    ?? '',
+            'kegiatan_id'       => $_POST['kegiatan_id']   ?? '',
+            'sub_kegiatan_id'   => $_POST['sub_kegiatan_id'] ?? '',
         ];
 
         $kebutuhan = (float) str_replace(['.', ','], ['', '.'], $form['kebutuhan_raw']);
 
         $errors = [];
         if (!$form['tanggal_pengajuan'] || !strtotime($form['tanggal_pengajuan'])) $errors[] = 'Tanggal pengajuan tidak valid.';
-        if ($form['bulan'] < 1 || $form['bulan'] > 12)     $errors[] = 'Bulan tidak valid.';
+        if ($form['bulan'] < 1 || $form['bulan'] > 12)      $errors[] = 'Bulan tidak valid.';
         if ($form['tahun'] < 2020 || $form['tahun'] > 2099) $errors[] = 'Tahun tidak valid.';
-        if ($kebutuhan <= 0)  $errors[] = 'Kebutuhan TU (Rp) wajib diisi dan harus lebih dari 0.';
-        if ($form['keperluan'] === '') $errors[] = 'Keperluan / uraian kegiatan wajib diisi.';
+        if ($kebutuhan <= 0)               $errors[] = 'Kebutuhan TU (Rp) wajib diisi dan harus lebih dari 0.';
+        if ($form['keperluan'] === '')     $errors[] = 'Keperluan / uraian kegiatan wajib diisi.';
 
         if (!empty($errors)) {
+            $programs = $this->getProgramsBySeksi($db, $seksiId);
             $pageTitle  = 'Ajukan Tambah Uang (TU)';
             $activePage = 'tu';
             $viewFile   = __DIR__ . '/../../views/seksi/tu_form.php';
@@ -123,7 +133,7 @@ class SeksiTuController
         $nomorPengajuan = $this->model->generateNomor($seksiId, $form['bulan'], $form['tahun']);
 
         try {
-            $id = $this->model->create(
+            $this->model->create(
                 $nomorPengajuan,
                 $form['tanggal_pengajuan'],
                 $seksiId,
@@ -131,13 +141,15 @@ class SeksiTuController
                 $form['bulan'],
                 $kebutuhan,
                 $form['keperluan'],
-                $userId
+                $userId,
+                $form['rekening_id']
             );
             $this->flash('success', 'Pengajuan TU berhasil diajukan. Menunggu persetujuan admin.');
             $this->redirect(base_url('seksi/tu'));
         } catch (\Throwable $e) {
             error_log('SeksiTuController::store error: ' . $e->getMessage());
             $errors[] = 'Gagal menyimpan: ' . $e->getMessage();
+            $programs = $this->getProgramsBySeksi($db, $seksiId);
             $pageTitle  = 'Ajukan Tambah Uang (TU)';
             $activePage = 'tu';
             $viewFile   = __DIR__ . '/../../views/seksi/tu_form.php';
@@ -150,15 +162,17 @@ class SeksiTuController
     public function edit(int $id): void
     {
         $this->requireSeksi();
-        $tu = $this->model->getById($id);
+        $db  = \Database::getConnection();
+        $tu  = $this->model->getById($id);
 
         if (!$tu || (int) $tu['seksi_id'] !== $this->seksiId() || $tu['status'] !== 'diajukan') {
             $this->flash('error', 'Pengajuan TU tidak dapat diedit.');
             $this->redirect(base_url('seksi/tu'));
         }
 
-        $errors = [];
-        $form   = $tu;
+        $errors   = [];
+        $form     = $tu;
+        $programs = $this->getProgramsBySeksi($db, $this->seksiId());
 
         $pageTitle  = 'Edit Pengajuan TU';
         $activePage = 'tu';
@@ -171,7 +185,8 @@ class SeksiTuController
     public function update(int $id): void
     {
         $this->requireSeksi();
-        $tu = $this->model->getById($id);
+        $db  = \Database::getConnection();
+        $tu  = $this->model->getById($id);
 
         if (!$tu || (int) $tu['seksi_id'] !== $this->seksiId() || $tu['status'] !== 'diajukan') {
             $this->flash('error', 'Pengajuan TU tidak dapat diedit.');
@@ -182,6 +197,10 @@ class SeksiTuController
             'tanggal_pengajuan' => trim($_POST['tanggal_pengajuan'] ?? ''),
             'kebutuhan_raw'     => $_POST['kebutuhan'] ?? '0',
             'keperluan'         => trim($_POST['keperluan'] ?? ''),
+            'rekening_id'       => !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null,
+            'program_id'        => $_POST['program_id']      ?? '',
+            'kegiatan_id'       => $_POST['kegiatan_id']     ?? '',
+            'sub_kegiatan_id'   => $_POST['sub_kegiatan_id'] ?? '',
         ];
         $kebutuhan = (float) str_replace(['.', ','], ['', '.'], $form['kebutuhan_raw']);
 
@@ -191,7 +210,8 @@ class SeksiTuController
         if ($form['keperluan'] === '') $errors[] = 'Keperluan wajib diisi.';
 
         if (!empty($errors)) {
-            $form = array_merge($tu, $form);
+            $form     = array_merge($tu, $form);
+            $programs = $this->getProgramsBySeksi($db, $this->seksiId());
             $pageTitle  = 'Edit Pengajuan TU';
             $activePage = 'tu';
             $viewFile   = __DIR__ . '/../../views/seksi/tu_form.php';
@@ -199,7 +219,7 @@ class SeksiTuController
             return;
         }
 
-        $ok = $this->model->update($id, $kebutuhan, $form['keperluan'], $form['tanggal_pengajuan']);
+        $ok = $this->model->update($id, $kebutuhan, $form['keperluan'], $form['tanggal_pengajuan'], $form['rekening_id']);
         $this->flash($ok ? 'success' : 'error', $ok ? 'Pengajuan TU diperbarui.' : 'Gagal memperbarui.');
         $this->redirect(base_url('seksi/tu'));
     }
@@ -223,6 +243,20 @@ class SeksiTuController
     }
 
     // ── HELPERS ───────────────────────────────────────────────────────────
+
+    private function getProgramsBySeksi(\PDO $db, int $seksiId): array
+    {
+        $stmt = $db->prepare("
+            SELECT DISTINCT p.id, p.kode_program, p.nama_program
+            FROM program p
+            INNER JOIN kegiatan k   ON k.program_id   = p.id
+            INNER JOIN sub_kegiatan sk ON sk.kegiatan_id = k.id
+            WHERE sk.seksi_id = ?
+            ORDER BY p.kode_program ASC
+        ");
+        $stmt->execute([$seksiId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
 
     private function flash(string $type, string $message): void
     {

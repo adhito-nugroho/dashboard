@@ -1,11 +1,12 @@
 <?php
 /**
  * View: Form Pengajuan TU (Seksi)
- * Variabel: $form (array data form / data existing), $errors (array)
+ * Variabel: $form (array data form / data existing), $errors (array), $programs (array)
  */
-$form   = $form   ?? [];
-$errors = $errors ?? [];
-$isEdit = !empty($form['id']);
+$form     = $form     ?? [];
+$errors   = $errors   ?? [];
+$programs = $programs ?? [];
+$isEdit   = !empty($form['id']);
 
 $formAction = $isEdit
     ? base_url('seksi/tu/update/' . $form['id'])
@@ -16,10 +17,16 @@ $namaBulanMap = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'J
 
 // Nilai form
 $tanggalPengajuan = $form['tanggal_pengajuan'] ?? date('Y-m-d');
-$bulan            = $form['bulan']    ?? (int) date('n');
-$tahun            = $form['tahun']    ?? (int) date('Y');
-$kebutuhan        = $form['kebutuhan'] ?? '';
-$keperluan        = $form['keperluan'] ?? '';
+$bulan            = $form['bulan']      ?? (int) date('n');
+$tahun            = $form['tahun']      ?? (int) date('Y');
+$kebutuhan        = $form['kebutuhan']  ?? '';
+$keperluan        = $form['keperluan']  ?? '';
+
+// Cascade pre-select (saat edit / error re-render)
+$selectedProgramId    = $form['program_id']      ?? '';
+$selectedKegiatanId   = $form['kegiatan_id']     ?? '';
+$selectedSubKegId     = $form['sub_kegiatan_id'] ?? '';
+$selectedRekeningId   = $form['rekening_id']     ?? '';
 
 // Format kebutuhan untuk tampil
 $kebutuhanFmt = $kebutuhan ? number_format((float) $kebutuhan, 0, ',', '.') : '';
@@ -81,6 +88,60 @@ $kebutuhanFmt = $kebutuhan ? number_format((float) $kebutuhan, 0, ',', '.') : ''
                                 <?php endfor; ?>
                             </select>
                             <?php if ($isEdit): ?><input type="hidden" name="tahun" value="<?= $tahun ?>"><?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-f8fafc fw-semibold" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:.9rem;">
+                    <i class="bi bi-diagram-3 me-2 text-primary"></i>Klasifikasi Anggaran
+                    <small class="text-muted fw-normal ms-1">(opsional — pilih rekening yang akan digunakan)</small>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Program -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" style="font-size:.85rem;">Program</label>
+                            <select name="program_id" id="tu_program_id" class="form-select">
+                                <option value="">-- Pilih Program --</option>
+                                <?php foreach ($programs as $p): ?>
+                                    <option value="<?= $p['id'] ?>" <?= $selectedProgramId == $p['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($p['kode_program'] . ' – ' . $p['nama_program']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <!-- Kegiatan -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" style="font-size:.85rem;">
+                                Kegiatan
+                                <span id="spinner-tu-keg" style="display:none;font-size:.75rem;color:#4f46e5;margin-left:.3rem;"><i class="bi bi-arrow-repeat"></i></span>
+                            </label>
+                            <select name="kegiatan_id" id="tu_kegiatan_id" class="form-select" disabled>
+                                <option value="">-- Pilih Kegiatan --</option>
+                            </select>
+                        </div>
+                        <!-- Sub Kegiatan -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" style="font-size:.85rem;">
+                                Sub Kegiatan
+                                <span id="spinner-tu-sub" style="display:none;font-size:.75rem;color:#4f46e5;margin-left:.3rem;"><i class="bi bi-arrow-repeat"></i></span>
+                            </label>
+                            <select name="sub_kegiatan_id" id="tu_sub_kegiatan_id" class="form-select" disabled>
+                                <option value="">-- Pilih Sub Kegiatan --</option>
+                            </select>
+                        </div>
+                        <!-- Rekening -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" style="font-size:.85rem;">
+                                Rekening Belanja
+                                <span id="spinner-tu-rek" style="display:none;font-size:.75rem;color:#4f46e5;margin-left:.3rem;"><i class="bi bi-arrow-repeat"></i></span>
+                            </label>
+                            <select name="rekening_id" id="tu_rekening_id" class="form-select" disabled>
+                                <option value="">-- Pilih Rekening --</option>
+                            </select>
+                            <small class="text-muted">Pilih rekening yang akan menjadi acuan kebutuhan TU ini.</small>
                         </div>
                     </div>
                 </div>
@@ -153,4 +214,91 @@ if (kebutuhanInput) {
         kebutuhanInput.value = kebutuhanInput.value.replace(/[^0-9]/g, '');
     });
 }
+
+// ── Cascade dropdown: Program → Kegiatan → Sub Kegiatan → Rekening ──────
+const BASE = (typeof BASE_URL !== 'undefined' ? BASE_URL.replace(/\/$/, '') : '');
+
+function tuLoadOptions(selectEl, url, keepValue, placeholder, spinnerId) {
+    const spinner = document.getElementById(spinnerId);
+    selectEl.innerHTML = `<option value="">Memuat…</option>`;
+    selectEl.disabled  = true;
+    if (spinner) spinner.style.display = 'inline';
+    return fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            let html = `<option value="">${placeholder}</option>`;
+            data.forEach(d => {
+                let label = d.kode_rekening
+                    ? d.kode_rekening + ' – ' + (d.nama_rekening || '')
+                    : d.kode_sub_kegiatan
+                        ? d.kode_sub_kegiatan + ' – ' + (d.nama_sub_kegiatan || '')
+                        : d.kode_kegiatan
+                            ? d.kode_kegiatan + ' – ' + (d.nama_kegiatan || '')
+                            : '';
+                html += `<option value="${d.id}">${label}</option>`;
+            });
+            selectEl.innerHTML = html;
+            selectEl.disabled  = false;
+            if (keepValue) selectEl.value = keepValue;
+            if (spinner) spinner.style.display = 'none';
+            return data;
+        })
+        .catch(() => {
+            selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+            selectEl.disabled  = false;
+            if (spinner) spinner.style.display = 'none';
+        });
+}
+
+const tuProgram  = document.getElementById('tu_program_id');
+const tuKegiatan = document.getElementById('tu_kegiatan_id');
+const tuSubKeg   = document.getElementById('tu_sub_kegiatan_id');
+const tuRekening = document.getElementById('tu_rekening_id');
+
+tuProgram.addEventListener('change', function () {
+    tuKegiatan.innerHTML = '<option value="">-- Pilih Kegiatan --</option>'; tuKegiatan.disabled = true;
+    tuSubKeg.innerHTML   = '<option value="">-- Pilih Sub Kegiatan --</option>'; tuSubKeg.disabled = true;
+    tuRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; tuRekening.disabled = true;
+    if (!this.value) return;
+    tuLoadOptions(tuKegiatan, `${BASE}/seksi/transaksi/kegiatans?program_id=${this.value}`,
+        '', '-- Pilih Kegiatan --', 'spinner-tu-keg');
+});
+
+tuKegiatan.addEventListener('change', function () {
+    tuSubKeg.innerHTML   = '<option value="">-- Pilih Sub Kegiatan --</option>'; tuSubKeg.disabled = true;
+    tuRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; tuRekening.disabled = true;
+    if (!this.value) return;
+    tuLoadOptions(tuSubKeg, `${BASE}/seksi/transaksi/subkegiatans?kegiatan_id=${this.value}`,
+        '', '-- Pilih Sub Kegiatan --', 'spinner-tu-sub');
+});
+
+tuSubKeg.addEventListener('change', function () {
+    tuRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; tuRekening.disabled = true;
+    if (!this.value) return;
+    tuLoadOptions(tuRekening, `${BASE}/seksi/transaksi/rekenings?sub_kegiatan_id=${this.value}`,
+        '', '-- Pilih Rekening --', 'spinner-tu-rek');
+});
+
+// Pre-load cascade saat edit / error re-render
+(function () {
+    const savedProgram  = <?= json_encode((string) $selectedProgramId) ?>;
+    const savedKegiatan = <?= json_encode((string) $selectedKegiatanId) ?>;
+    const savedSub      = <?= json_encode((string) $selectedSubKegId) ?>;
+    const savedRekening = <?= json_encode((string) $selectedRekeningId) ?>;
+
+    if (!savedProgram) return;
+    tuProgram.value = savedProgram;
+    tuLoadOptions(tuKegiatan, `${BASE}/seksi/transaksi/kegiatans?program_id=${savedProgram}`,
+        savedKegiatan, '-- Pilih Kegiatan --', 'spinner-tu-keg')
+    .then(() => {
+        if (!savedKegiatan) return;
+        return tuLoadOptions(tuSubKeg, `${BASE}/seksi/transaksi/subkegiatans?kegiatan_id=${savedKegiatan}`,
+            savedSub, '-- Pilih Sub Kegiatan --', 'spinner-tu-sub');
+    })
+    .then(() => {
+        if (!savedSub) return;
+        return tuLoadOptions(tuRekening, `${BASE}/seksi/transaksi/rekenings?sub_kegiatan_id=${savedSub}`,
+            savedRekening, '-- Pilih Rekening --', 'spinner-tu-rek');
+    });
+})();
 </script>

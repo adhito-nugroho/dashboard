@@ -182,13 +182,21 @@ class PengajuanTu
     public function getById(int $id): ?array
     {
         $stmt = $this->db->prepare("
-            SELECT pt.*, s.nama_seksi, s.kode_seksi
+            SELECT pt.*, s.nama_seksi, s.kode_seksi,
+                   r.kode_rekening, r.nama_rekening,
+                   sk.id AS sub_kegiatan_id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                   k.id AS kegiatan_id, k.kode_kegiatan, k.nama_kegiatan,
+                   p.id AS program_id, p.kode_program, p.nama_program
             FROM pengajuan_tu pt
-            LEFT JOIN seksi s ON pt.seksi_id = s.id
+            LEFT JOIN seksi s        ON pt.seksi_id   = s.id
+            LEFT JOIN rekening r     ON pt.rekening_id = r.id
+            LEFT JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            LEFT JOIN kegiatan k     ON sk.kegiatan_id = k.id
+            LEFT JOIN program p      ON k.program_id  = p.id
             WHERE pt.id = :id LIMIT 1
         ");
         $stmt->execute([':id' => $id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
         return $row ?: null;
     }
 
@@ -238,25 +246,27 @@ class PengajuanTu
         int    $bulan,
         float  $kebutuhan,
         string $keperluan,
-        int    $createdBy
+        int    $createdBy,
+        ?int   $rekeningId = null
     ): int {
         $stmt = $this->db->prepare("
             INSERT INTO pengajuan_tu
-                (nomor_pengajuan, tanggal_pengajuan, seksi_id, tahun, bulan,
+                (nomor_pengajuan, tanggal_pengajuan, seksi_id, rekening_id, tahun, bulan,
                  kebutuhan, keperluan, status, created_by)
             VALUES
-                (:nomor, :tgl, :seksi_id, :tahun, :bulan,
+                (:nomor, :tgl, :seksi_id, :rekening_id, :tahun, :bulan,
                  :kebutuhan, :keperluan, 'diajukan', :created_by)
         ");
         $stmt->execute([
-            ':nomor'      => $nomorPengajuan,
-            ':tgl'        => $tanggalPengajuan,
-            ':seksi_id'   => $seksiId,
-            ':tahun'      => $tahun,
-            ':bulan'      => $bulan,
-            ':kebutuhan'  => $kebutuhan,
-            ':keperluan'  => $keperluan,
-            ':created_by' => $createdBy,
+            ':nomor'       => $nomorPengajuan,
+            ':tgl'         => $tanggalPengajuan,
+            ':seksi_id'    => $seksiId,
+            ':rekening_id' => $rekeningId,
+            ':tahun'       => $tahun,
+            ':bulan'       => $bulan,
+            ':kebutuhan'   => $kebutuhan,
+            ':keperluan'   => $keperluan,
+            ':created_by'  => $createdBy,
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -456,16 +466,17 @@ class PengajuanTu
     /**
      * Update keperluan/kebutuhan (hanya saat status diajukan).
      */
-    public function update(int $id, float $kebutuhan, string $keperluan, string $tanggalPengajuan): bool
+    public function update(int $id, float $kebutuhan, string $keperluan, string $tanggalPengajuan, ?int $rekeningId = null): bool
     {
         $stmt = $this->db->prepare("
             UPDATE pengajuan_tu
             SET kebutuhan          = :kebutuhan,
                 keperluan          = :keperluan,
-                tanggal_pengajuan  = :tgl
+                tanggal_pengajuan  = :tgl,
+                rekening_id        = :rekening_id
             WHERE id = :id AND status = 'diajukan'
         ");
-        $stmt->execute([':kebutuhan' => $kebutuhan, ':keperluan' => $keperluan, ':tgl' => $tanggalPengajuan, ':id' => $id]);
+        $stmt->execute([':kebutuhan' => $kebutuhan, ':keperluan' => $keperluan, ':tgl' => $tanggalPengajuan, ':rekening_id' => $rekeningId, ':id' => $id]);
         return $stmt->rowCount() > 0;
     }
 
