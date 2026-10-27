@@ -75,6 +75,9 @@ use App\Models\PengajuanGu;
 use App\Controllers\PengajuanGuController;
 use App\Models\TransferPerjadin;
 use App\Controllers\TransferPerjadinController;
+use App\Models\PengajuanTu;
+use App\Controllers\PengajuanTuController;
+use App\Controllers\SeksiTuController;
 
 try {
     // Get database connection
@@ -119,6 +122,9 @@ try {
     $pengajuanGuController = new PengajuanGuController($pengajuanGuModel, $kasBankModel);
     $transferPerjadinModel = new TransferPerjadin($db);
     $transferPerjadinController = new TransferPerjadinController($transferPerjadinModel, $seksiModel);
+    $pengajuanTuModel = new PengajuanTu($db);
+    $pengajuanTuController = new PengajuanTuController($pengajuanTuModel, $kasBankModel);
+    $seksiTuController = new SeksiTuController($pengajuanTuModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -201,6 +207,7 @@ try {
         $seksiAllowed = in_array($path, ['/logout', '/logout/'], true)
             || preg_match('#^/dashboard/(tu|rlpm|tkuk)$#', $path)
             || preg_match('#^/seksi/transaksi#', $path)
+            || preg_match('#^/seksi/tu#', $path)
             || preg_match('#^/kuitansi/cetak/\d+$#', $path)
             || preg_match('#^/kuitansi/kalibrasi#', $path)
             || preg_match('#^/spj#', $path);
@@ -407,6 +414,24 @@ try {
         ['POST', '#^/pengajuan-gu/cairkan/(\d+)$#', fn($m) => $pengajuanGuController->cairkan((int) $m[1])],
         ['POST', '#^/pengajuan-gu/batalkan/(\d+)$#', fn($m) => $pengajuanGuController->batalkan((int) $m[1])],
         ['POST', '#^/pengajuan-gu/lepas/(\d+)/(\d+)$#', fn($m) => $pengajuanGuController->lepas((int) $m[1], (int) $m[2])],
+
+        // Pengajuan Tambah Uang (TU) — admin
+        ['ANY', '/pengajuan-tu', fn($m) => $pengajuanTuController->index()],
+        ['ANY', '#^/pengajuan-tu/show/(\d+)$#', fn($m) => $pengajuanTuController->show((int) $m[1])],
+        ['POST', '#^/pengajuan-tu/setujui/(\d+)$#', fn($m) => $pengajuanTuController->setujui((int) $m[1])],
+        ['POST', '#^/pengajuan-tu/tolak/(\d+)$#', fn($m) => $pengajuanTuController->tolak((int) $m[1])],
+        ['POST', '#^/pengajuan-tu/cairkan/(\d+)$#', fn($m) => $pengajuanTuController->cairkan((int) $m[1])],
+        ['POST', '#^/pengajuan-tu/selesaikan/(\d+)$#', fn($m) => $pengajuanTuController->selesaikan((int) $m[1])],
+        ['POST', '#^/pengajuan-tu/kaitkan/(\d+)$#', fn($m) => $pengajuanTuController->kaitkan((int) $m[1])],
+        ['POST', '#^/pengajuan-tu/lepas/(\d+)/(\d+)$#', fn($m) => $pengajuanTuController->lepas((int) $m[1], (int) $m[2])],
+
+        // Pengajuan TU sisi Seksi
+        ['ANY', '/seksi/tu', fn($m) => $seksiTuController->index()],
+        ['ANY', '/seksi/tu/create', fn($m) => $seksiTuController->create()],
+        ['POST', '/seksi/tu/store', fn($m) => $seksiTuController->store()],
+        ['ANY', '#^/seksi/tu/edit/(\d+)$#', fn($m) => $seksiTuController->edit((int) $m[1])],
+        ['POST', '#^/seksi/tu/update/(\d+)$#', fn($m) => $seksiTuController->update((int) $m[1])],
+        ['POST', '#^/seksi/tu/delete/(\d+)$#', fn($m) => $seksiTuController->delete((int) $m[1])],
 
         // Transfer Perjalanan Dinas (admin only) — berbasis transaksi
         ['ANY', '/transfer-perjadin', fn($m) => $transferPerjadinController->index()],

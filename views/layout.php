@@ -109,6 +109,24 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <?php
+                                    $sidebarTuPending = 0;
+                                    try {
+                                        $db = \Database::getConnection();
+                                        $s = $db->query("SELECT COUNT(*) FROM pengajuan_tu WHERE status = 'diajukan'");
+                                        $sidebarTuPending = (int) $s->fetchColumn();
+                                    } catch (\Exception $e) {}
+                                ?>
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'pengajuan_tu') ? 'active' : '' ?>"
+                                    href="<?= base_url('pengajuan-tu') ?>">
+                                    <i class="bi bi-plus-circle-dotted"></i>
+                                    <span>Tambah Uang (TU)</span>
+                                    <?php if ($sidebarTuPending > 0): ?>
+                                        <span class="badge badge-pulse ms-auto"><?= $sidebarTuPending ?></span>
+                                    <?php endif; ?>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link <?= (isset($activePage) && $activePage === 'pengajuan_gu') ? 'active' : '' ?>"
                                     href="<?= base_url('pengajuan-gu') ?>">
                                     <i class="bi bi-send-check"></i>

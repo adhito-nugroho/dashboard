@@ -2,3 +2,4 @@
 - Deployment workflow: changes are pushed to GitHub, then the server pulls them over SSH (via `deploy-git.bat`: commit + `git push origin main`, SSH `git fetch` + `git reset --hard origin/main` + `php migrate.php`). Confidence: 0.7
 - Prefers to run the deployment script himself rather than have the agent push/deploy (deploy-git.bat needs interactive commit message and SSH password). Confidence: 0.65
 - When adding features to an existing project, follow the conventions/patterns already established in the codebase rather than inventing new ones. Confidence: 0.55
+- Expects changes to be complete rather than cosmetic: e.g. changing a table column means updating both the header label and the underlying value/calculation, not just the heading text. Confidence: 0.6
