@@ -79,7 +79,7 @@ $oldRekenings       = $form['rekenings']       ?? [];
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold" style="font-size:.85rem;">Tahun <span class="text-danger">*</span></label>
-                                <select name="tahun" class="form-select" <?= $isEdit ? 'disabled' : '' ?> required>
+                                <select name="tahun" id="tu_tahun" class="form-select" <?= $isEdit ? 'disabled' : '' ?> required>
                                     <?php for ($y = (int) date('Y'); $y >= (int) date('Y') - 2; $y--): ?>
                                         <option value="<?= $y ?>" <?= $tahun == $y ? 'selected' : '' ?>><?= $y ?></option>
                                     <?php endfor; ?>
@@ -150,19 +150,20 @@ $oldRekenings       = $form['rekenings']       ?? [];
                                 <thead class="table-light">
                                     <tr>
                                         <th class="ps-3">Rekening</th>
+                                        <th class="text-end">Sisa Pagu</th>
                                         <th class="text-end pe-3" style="width:240px;">Nominal (Rp)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tuRekeningBody">
                                     <tr>
-                                        <td colspan="2" class="text-center text-muted py-4">
+                                        <td colspan="3" class="text-center text-muted py-4">
                                             Pilih Sub Kegiatan terlebih dahulu untuk menampilkan daftar rekening.
                                         </td>
                                     </tr>
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
-                                        <td class="ps-3 fw-bold text-end">Total Kebutuhan TU</td>
+                                        <td colspan="2" class="ps-3 fw-bold text-end">Total Kebutuhan TU</td>
                                         <td class="text-end pe-3 fw-bold text-primary" style="font-size:1rem;">
                                             Rp <span id="tuTotal">0</span>
                                         </td>
@@ -275,11 +276,18 @@ tuSubKeg.addEventListener('change', function () {
     loadRekenings(this.value);
 });
 
-// ── Daftar rekening per sub kegiatan ───────────────────────────────────
+const tuTahun = document.getElementById('tu_tahun');
+if (tuTahun) {
+    tuTahun.addEventListener('change', function () {
+        if (tuSubKeg.value) loadRekenings(tuSubKeg.value);
+    });
+}
+
+// ── Daftar rekening per sub kegiatan + sisa pagu ───────────────────────
 function clearRekenings() {
     tuBody.innerHTML = `
         <tr>
-            <td colspan="2" class="text-center text-muted py-4">
+            <td colspan="3" class="text-center text-muted py-4">
                 Pilih Sub Kegiatan terlebih dahulu untuk menampilkan daftar rekening.
             </td>
         </tr>`;
@@ -288,22 +296,23 @@ function clearRekenings() {
 
 function loadRekenings(subKegiatanId) {
     if (!subKegiatanId) { clearRekenings(); return; }
-    tuBody.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3"><i class="bi bi-arrow-repeat me-1"></i>Memuat rekening…</td></tr>`;
-    fetch(`${BASE}/pagu/get-rekenings?sub_kegiatan_id=${encodeURIComponent(subKegiatanId)}`)
+    const tahun = tuTahun && tuTahun.value ? tuTahun.value : new Date().getFullYear();
+    tuBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3"><i class="bi bi-arrow-repeat me-1"></i>Memuat rekening…</td></tr>`;
+    fetch(`${BASE}/transaksi/get-rekenings-with-budget?sub_kegiatan_id=${encodeURIComponent(subKegiatanId)}&tahun=${encodeURIComponent(tahun)}`)
         .then(r => r.json())
         .then(data => {
-            if (!Array.isArray(data)) throw new Error('Respons tidak valid');
+            if (!Array.isArray(data)) throw new Error(data && data.error ? data.error : 'Respons tidak valid');
             renderRekenings(data);
         })
         .catch(() => {
-            tuBody.innerHTML = `<tr><td colspan="2" class="text-center text-danger py-3">Gagal memuat daftar rekening.</td></tr>`;
+            tuBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-3">Gagal memuat daftar rekening.</td></tr>`;
             updateTotal();
         });
 }
 
 function renderRekenings(data) {
     if (!data.length) {
-        tuBody.innerHTML = `<tr><td colspan="2" class="text-center text-warning py-3">Tidak ada rekening untuk sub kegiatan ini.</td></tr>`;
+        tuBody.innerHTML = `<tr><td colspan="3" class="text-center text-warning py-3">Tidak ada rekening untuk sub kegiatan ini.</td></tr>`;
         updateTotal();
         return;
     }
@@ -315,12 +324,19 @@ function renderRekenings(data) {
     data.forEach((r, i) => {
         const oldVal = oldMap[String(r.id)];
         const valFmt = oldVal ? Number(oldVal).toLocaleString('id-ID') : '';
+        const sisa = (r.sisa_pagu === null || r.sisa_pagu === undefined) ? null : Number(r.sisa_pagu);
+        const sisaText = sisa === null ? 'Pagu belum diatur' : 'Rp ' + sisa.toLocaleString('id-ID');
+        const sisaClass = sisa === null ? 'text-muted' : (sisa < 0 ? 'text-danger fw-semibold' : 'text-success');
+        const paguTitle = (r.pagu === null || r.pagu === undefined) ? '' : 'Pagu: Rp ' + Number(r.pagu).toLocaleString('id-ID');
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="ps-3">
                 <div class="fw-semibold" style="font-size:.85rem;">${escapeHtml(r.kode_rekening)}</div>
                 <div class="text-muted" style="font-size:.78rem;">${escapeHtml(r.nama_rekening)}</div>
                 <input type="hidden" name="rekenings[${i}][rekening_id]" value="${Number(r.id)}">
+            </td>
+            <td class="text-end ${sisaClass}" title="${escapeHtml(paguTitle)}" style="white-space:nowrap;font-size:.82rem;">
+                ${sisaText}
             </td>
             <td class="text-end pe-3">
                 <div class="input-group input-group-sm justify-content-end">
