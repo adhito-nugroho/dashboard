@@ -2754,3 +2754,106 @@ tr.trx-extra td {
 /* ---- 9. Cascade select: status disabled + hint ---- */
 select:disabled { cursor: not-allowed; }
 .cascade-hint { font-size: 0.72rem; color: var(--gray-400, #94a3b8); }
+
+/* ============================================
+   Tambah Uang (TU) — halaman daftar pengajuan
+   ============================================ */
+.tu-page .btn-tu-primary {
+    background: #15803D;
+    border-color: #15803D;
+    color: #fff;
+}
+.tu-page .btn-tu-primary:hover,
+.tu-page .btn-tu-primary:focus-visible {
+    background: #166534;
+    border-color: #166534;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
+}
+
+/* Soft badge "Menunggu Cair" */
+.tu-page .badge-soft-warning {
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+    font-weight: 600;
+}
+
+/* KPI cards — horizontal compact */
+.tu-page .tu-kpi {
+    min-height: 76px;
+}
+.tu-page .tu-kpi .card-body {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+}
+.tu-page .tu-kpi-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+.tu-page .tu-kpi-icon--warning  { background: #FEF3C7; color: #B45309; }
+.tu-page .tu-kpi-icon--info     { background: #E0F2FE; color: #0369A1; }
+.tu-page .tu-kpi-icon--primary  { background: #EEF2FF; color: #4338CA; }
+.tu-page .tu-kpi-icon--danger   { background: #FEE2E2; color: #B91C1C; }
+.tu-page .tu-kpi-icon--success  { background: #DCFCE7; color: #15803D; }
+
+.tu-page .tu-kpi-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.tu-page .tu-kpi-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--gray-900);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tu-page .tu-kpi-value--money {
+    font-size: 0.95rem;
+}
+.tu-page .tu-kpi-label {
+    display: block;
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: var(--gray-500);
+}
+.tu-page .tu-kpi-zero {
+    opacity: 0.75;
+    transition: opacity var(--transition-fast);
+}
+.tu-page .tu-kpi-zero:hover {
+    opacity: 1;
+}
+
+/* Tabel — nomor TU & kolom angka */
+.tu-page .tu-nomor {
+    white-space: nowrap;
+}
+.tu-page .tu-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 991.98px) {
+    .tu-page .tu-kpi-value--money { font-size: 0.88rem; }
+}
+@media (max-width: 575.98px) {
+    .tu-page .tu-kpi .card-body { gap: 0.5rem; padding: 0.65rem 0.7rem; }
+    .tu-page .tu-kpi-value { font-size: 1rem; }
+    .tu-page .tu-kpi-value--money { font-size: 0.82rem; }
+}

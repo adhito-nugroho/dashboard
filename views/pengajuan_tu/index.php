@@ -27,7 +27,7 @@ $flashType = $_SESSION['flash_type'] ?? 'info';
 unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 ?>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 tu-page">
 
     <?php if ($flash): ?>
         <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'success' ? 'success' : 'info') ?> alert-dismissible fade show" role="alert">
@@ -39,10 +39,10 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h2 class="mb-1"><i class="bi bi-plus-circle-dotted text-primary me-2"></i>Tambah Uang (TU)</h2>
+            <h2 class="mb-1">Tambah Uang (TU)</h2>
             <p class="text-muted mb-0">Siklus TU: input pengajuan → pencairan SP2D → pembayaran/realisasi → setoran sisa</p>
         </div>
-        <a href="<?= base_url('pengajuan-tu/create') ?>" class="btn btn-primary">
+        <a href="<?= base_url('pengajuan-tu/create') ?>" class="btn btn-primary btn-tu-primary">
             <i class="bi bi-plus-circle me-1"></i>Input Pengajuan TU
         </a>
     </div>
@@ -61,25 +61,28 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         ?>
         <div class="col-6 col-md-4 col-xl-2">
             <a href="<?= base_url('pengajuan-tu?status=' . $key . '&tahun=' . $tahun) ?>" class="text-decoration-none">
-                <div class="card border-0 shadow-sm h-100 <?= $key === 'jatuh_tempo' && $val > 0 ? 'border-danger' : '' ?>">
-                    <div class="card-body p-3 text-center">
-                        <i class="bi <?= $icon ?> text-<?= $color ?> mb-2" style="font-size:1.5rem;"></i>
-                        <div class="fw-bold" style="font-size:1.4rem;"><?= $val ?></div>
-                        <div class="text-muted" style="font-size:.75rem;"><?= $label ?></div>
+                <div class="card border-0 shadow-sm h-100 tu-kpi <?= (int) $val === 0 ? 'tu-kpi-zero' : '' ?> <?= $key === 'jatuh_tempo' && $val > 0 ? 'border-danger' : '' ?>">
+                    <div class="card-body">
+                        <span class="tu-kpi-icon tu-kpi-icon--<?= $color ?>"><i class="bi <?= $icon ?>"></i></span>
+                        <span class="tu-kpi-body">
+                            <span class="tu-kpi-value"><?= $val ?></span>
+                            <span class="tu-kpi-label"><?= $label ?></span>
+                        </span>
                     </div>
                 </div>
             </a>
         </div>
         <?php endforeach; ?>
         <!-- Total Cair -->
+        <?php $totalCair = (float) ($stats['total_cair'] ?? 0); ?>
         <div class="col-6 col-md-4 col-xl-2">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body p-3 text-center">
-                    <i class="bi bi-bank text-success mb-2" style="font-size:1.5rem;"></i>
-                    <div class="fw-bold text-success" style="font-size:1rem;">
-                        Rp <?= number_format($stats['total_cair'] ?? 0, 0, ',', '.') ?>
-                    </div>
-                    <div class="text-muted" style="font-size:.75rem;">Total TU Cair <?= $tahun ?></div>
+            <div class="card border-0 shadow-sm h-100 tu-kpi <?= $totalCair == 0 ? 'tu-kpi-zero' : '' ?>">
+                <div class="card-body">
+                    <span class="tu-kpi-icon tu-kpi-icon--success"><i class="bi bi-bank"></i></span>
+                    <span class="tu-kpi-body">
+                        <span class="tu-kpi-value tu-kpi-value--money text-success">Rp <?= number_format($totalCair, 0, ',', '.') ?></span>
+                        <span class="tu-kpi-label">Total TU Cair <?= $tahun ?></span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -89,6 +92,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3">
             <form method="GET" action="<?= base_url('pengajuan-tu') ?>" class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label fw-semibold mb-1">Cari Nomor TU</label>
+                    <input type="search" id="tuSearch" name="q" class="form-control form-control-sm" placeholder="Cari Nomor TU..."
+                        style="min-width:190px;" autocomplete="off" title="Menyaring baris nomor TU pada halaman ini">
+                </div>
                 <div class="col-auto">
                     <label class="form-label fw-semibold mb-1">Tahun</label>
                     <select name="tahun" class="form-select form-select-sm" style="min-width:100px;">
@@ -125,7 +133,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                     </select>
                 </div>
                 <div class="col-auto">
-                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filter</button>
+                    <button type="submit" class="btn btn-primary btn-tu-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filter</button>
                     <a href="<?= base_url('pengajuan-tu') ?>" class="btn btn-outline-secondary btn-sm ms-1"><i class="bi bi-x-circle me-1"></i>Reset</a>
                 </div>
             </form>
@@ -181,15 +189,15 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="font-size:.875rem;">
+                    <table id="tuTable" class="table table-hover align-middle mb-0" style="font-size:.875rem;">
                         <thead class="table-light">
                             <tr>
                                 <th>Nomor TU</th>
                                 <th>Seksi</th>
                                 <th>Periode</th>
-                                <th class="text-end">Kebutuhan (Rp)</th>
-                                <th class="text-end">Cair (Rp)</th>
-                                <th class="text-end">Terpakai (Rp)</th>
+                                <th class="tu-num">Kebutuhan (Rp)</th>
+                                <th class="tu-num">Cair (Rp)</th>
+                                <th class="tu-num">Terpakai (Rp)</th>
                                 <th>Batas SPJ</th>
                                 <th class="text-center">Status</th>
                                 <th class="text-center">Aksi</th>
@@ -203,25 +211,25 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 $sisa = $nominal_cair - $nominal_terpakai;
                                 $jatuhTempo = $item['status'] === 'cair' && !empty($item['batas_spj']) && $item['batas_spj'] < date('Y-m-d');
                             ?>
-                                <tr class="<?= $jatuhTempo ? 'table-danger' : '' ?>">
+                                <tr class="<?= $jatuhTempo ? 'table-danger' : '' ?>" data-nomor="<?= htmlspecialchars(strtolower((string) $item['nomor_pengajuan'])) ?>">
                                     <td>
-                                        <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="fw-semibold text-decoration-none">
+                                        <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="fw-semibold text-decoration-none tu-nomor">
                                             <?= htmlspecialchars($item['nomor_pengajuan']) ?>
                                         </a>
                                         <div class="text-muted" style="font-size:.75rem;"><?= date('d/m/Y', strtotime($item['tanggal_pengajuan'])) ?></div>
                                     </td>
                                     <td><span class="badge bg-info"><?= htmlspecialchars($item['kode_seksi'] ?? '-') ?></span> <?= htmlspecialchars($item['nama_seksi'] ?? '-') ?></td>
                                     <td style="white-space:nowrap;"><?= ($namaBulanMap[$item['bulan']] ?? $item['bulan']) . ' ' . $item['tahun'] ?></td>
-                                    <td class="text-end">
+                                    <td class="tu-num">
                                         <?= number_format((float)$item['kebutuhan'], 0, ',', '.') ?>
                                         <?php if (!empty($item['jumlah_rekening'])): ?>
                                             <div class="text-muted" style="font-size:.72rem;"><?= (int)$item['jumlah_rekening'] ?> rekening</div>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end <?= $nominal_cair > 0 ? 'text-primary fw-semibold' : 'text-muted' ?>">
+                                    <td class="tu-num <?= $nominal_cair > 0 ? 'text-primary fw-semibold' : 'text-muted' ?>">
                                         <?= $nominal_cair > 0 ? number_format($nominal_cair, 0, ',', '.') : '—' ?>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="tu-num">
                                         <?php if ($nominal_cair > 0): ?>
                                             <?= number_format($nominal_terpakai, 0, ',', '.') ?>
                                             <div class="text-muted" style="font-size:.72rem;">sisa: <?= number_format(max(0, $sisa), 0, ',', '.') ?></div>
@@ -235,7 +243,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                             </span>
                                         <?php else: ?><span class="text-muted">—</span><?php endif; ?>
                                     </td>
-                                    <td class="text-center"><span class="badge bg-<?= $bInfo[0] ?>"><?= $bInfo[1] ?></span></td>
+                                    <td class="text-center"><span class="badge <?= $bInfo[0] === 'warning' ? 'badge-soft-warning' : 'bg-' . $bInfo[0] ?>"><?= $bInfo[1] ?></span></td>
                                     <td class="text-center" style="white-space:nowrap;">
                                         <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="btn btn-sm btn-outline-primary" title="Detail"><i class="bi bi-eye"></i></a>
                                         <?php if ($item['status'] === 'diajukan'): ?>
@@ -247,6 +255,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                            <tr id="tuSearchEmpty" style="display:none;">
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="bi bi-search me-1"></i>Tidak ada nomor TU yang cocok.
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -273,3 +286,38 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    // Filter nomor TU di sisi klien (hanya baris pada halaman aktif).
+    var input = document.getElementById('tuSearch');
+    var table = document.getElementById('tuTable');
+    if (!input || !table) return;
+
+    var rows  = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-nomor]'));
+    var empty = document.getElementById('tuSearchEmpty');
+
+    var initial = new URLSearchParams(window.location.search).get('q');
+    if (initial) input.value = initial;
+
+    function applyFilter() {
+        var q = input.value.trim().toLowerCase();
+        var visible = 0;
+
+        rows.forEach(function (row) {
+            var match = !q || (row.getAttribute('data-nomor') || '').indexOf(q) !== -1;
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+
+        if (empty) empty.style.display = (q !== '' && visible === 0) ? '' : 'none';
+    }
+
+    input.addEventListener('input', applyFilter);
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') e.preventDefault();
+    });
+
+    applyFilter();
+})();
+</script>
