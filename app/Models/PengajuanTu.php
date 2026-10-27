@@ -545,15 +545,6 @@ class PengajuanTu
     public function getStats(?int $tahun = null): array
     {
         $tahun = $tahun ?? (int) date('Y');
-        $stmt = $this->db->prepare("
-            SELECT
-                COUNT(*) FILTER (WHERE status = 'diajukan')  AS pending,
-                COUNT(*) FILTER (WHERE status = 'disetujui') AS disetujui,
-                COUNT(*) FILTER (WHERE status = 'cair')      AS cair,
-                COUNT(*) FILTER (WHERE status = 'selesai')   AS selesai,
-                COUNT(*) FILTER (WHERE status = 'cair' AND batas_spj IS NOT NULL AND batas_spj < :today) AS jatuh_tempo
-            FROM pengajuan_tu WHERE tahun = :tahun
-        ");
         // MySQL tidak support FILTER() — pakai SUM+CASE
         $stmt = $this->db->prepare("
             SELECT
