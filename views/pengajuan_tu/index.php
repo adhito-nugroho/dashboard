@@ -14,8 +14,8 @@ $namaBulanMap = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'J
                  7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
 
 $statusBadge = [
-    'diajukan'  => ['warning',  'Menunggu Persetujuan'],
-    'disetujui' => ['info',     'Disetujui'],
+    'diajukan'  => ['warning',  'Menunggu Cair'],
+    'disetujui' => ['info',     'Disetujui (lama)'],
     'cair'      => ['primary',  'SP2D Cair'],
     'selesai'   => ['success',  'Selesai'],
     'ditolak'   => ['danger',   'Ditolak'],
@@ -39,16 +39,19 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h2 class="mb-1"><i class="bi bi-plus-circle-dotted text-primary me-2"></i>Tambah Uang (TU)</h2>
-            <p class="text-muted mb-0">Monitoring siklus TU: pengajuan → persetujuan → pencairan SP2D → SPJ → setoran sisa</p>
+            <p class="text-muted mb-0">Siklus TU: input pengajuan → pencairan SP2D → pembayaran/realisasi → setoran sisa</p>
         </div>
+        <a href="<?= base_url('pengajuan-tu/create') ?>" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Input Pengajuan TU
+        </a>
     </div>
 
     <!-- KPI Cards -->
     <div class="row g-3 mb-4">
         <?php
         $kpis = [
-            ['pending',    'bi-hourglass-split',    'warning', 'Menunggu Persetujuan', $stats['pending']    ?? 0],
-            ['disetujui',  'bi-check-circle',       'info',    'Disetujui',            $stats['disetujui']  ?? 0],
+            ['pending',    'bi-hourglass-split',    'warning', 'Menunggu Cair',        $stats['pending']    ?? 0],
+            ['disetujui',  'bi-check-circle',       'info',    'Disetujui (lama)',     $stats['disetujui']  ?? 0],
             ['cair',       'bi-cash-coin',          'primary', 'SP2D Cair',            $stats['cair']       ?? 0],
             ['jatuh_tempo','bi-exclamation-triangle','danger', 'Jatuh Tempo SPJ',      $stats['jatuh_tempo']?? 0],
             ['selesai',    'bi-check2-all',         'success', 'Selesai',              $stats['selesai']    ?? 0],
@@ -188,8 +191,14 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                         <?php else: ?><span class="text-muted">—</span><?php endif; ?>
                                     </td>
                                     <td class="text-center"><span class="badge bg-<?= $bInfo[0] ?>"><?= $bInfo[1] ?></span></td>
-                                    <td class="text-center">
-                                        <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                                    <td class="text-center" style="white-space:nowrap;">
+                                        <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="btn btn-sm btn-outline-primary" title="Detail"><i class="bi bi-eye"></i></a>
+                                        <?php if ($item['status'] === 'diajukan'): ?>
+                                            <a href="<?= base_url('pengajuan-tu/edit/' . $item['id']) ?>" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                            <form method="POST" action="<?= base_url('pengajuan-tu/delete/' . $item['id']) ?>" style="display:inline;" onsubmit="return confirm('Hapus pengajuan TU ini?')">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

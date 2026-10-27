@@ -3,3 +3,4 @@
 - Prefers to run the deployment script himself rather than have the agent push/deploy (deploy-git.bat needs interactive commit message and SSH password). Confidence: 0.65
 - When adding features to an existing project, follow the conventions/patterns already established in the codebase rather than inventing new ones. Confidence: 0.55
 - Expects changes to be complete rather than cosmetic: e.g. changing a table column means updating both the header label and the underlying value/calculation, not just the heading text. Confidence: 0.6
+- Expects domain terminology to be used precisely and corrects conflation of similar-sounding terms: in the dashboard project "dana TU" = *tambah uang* (a fund type), whereas "seksi TU" = Subbagian Tata Usaha (an organizational unit); `pengajuan_tu.seksi_id` is the section owning the request, not "Tata Usaha". Confidence: 0.65

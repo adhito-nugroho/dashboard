@@ -10,13 +10,11 @@ use PDOException;
 /**
  * Model untuk modul Tambah Uang (TU).
  *
- * Alur siklus:
- *   1. Seksi ajukan TU → row berstatus 'diajukan'
- *   2. Admin setujui  → 'disetujui'
- *   3. Admin cairkan (SP2D-TU masuk kas) → 'cair' + baris kas_bank jenis='tu'
- *   4. Seksi pakai untuk belanja → transaksi.pengajuan_tu_id diisi
- *   5. Batas SPJ → admin selesaikan: hitung sisa, catat setoran → 'selesai'
- *   5b. Atau admin tolak saat masih 'diajukan' → 'ditolak'
+ * Alur siklus (seluruhnya dikelola admin/bendahara):
+ *   1. Admin input pengajuan TU → 'diajukan' (menunggu SP2D)
+ *   2. Admin cairkan (SP2D-TU masuk kas) → 'cair' + baris kas_bank jenis='tu'
+ *   3. Admin catat pembayaran → transaksi.pengajuan_tu_id diisi (diverifikasi)
+ *   4. Admin selesaikan: input setoran sisa → 'selesai' + baris kas_bank jenis='setoran'
  */
 class PengajuanTu
 {
@@ -109,32 +107,6 @@ class PengajuanTu
     }
 
     /**
-     * Pengajuan TU milik seksi tertentu (dipakai view seksi).
-     */
-    public function getBySeksi(int $seksiId, ?string $status = null): array
-    {
-        $conds  = ['pt.seksi_id = :seksi_id'];
-        $params = [':seksi_id' => $seksiId];
-        if ($status) { $conds[] = 'pt.status = :status'; $params[':status'] = $status; }
-
-        $stmt = $this->db->prepare("
-            SELECT pt.*,
-                   (SELECT COALESCE(SUM(t.nilai), 0)
-                    FROM transaksi t
-                    WHERE t.pengajuan_tu_id = pt.id
-                      AND t.status = 'diverifikasi') AS nominal_terpakai
-            FROM pengajuan_tu pt
-            WHERE " . implode(' AND ', $conds) . "
-            ORDER BY pt.tanggal_pengajuan DESC, pt.id DESC
-        ");
-        foreach ($params as $k => $v) {
-            $stmt->bindValue($k, $v, is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR);
-        }
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    /**
      * Detail satu pengajuan TU + daftar transaksi yang terkait.
      */
     public function getByIdWithTransaksi(int $id): ?array
@@ -142,12 +114,20 @@ class PengajuanTu
         $stmt = $this->db->prepare("
             SELECT pt.*,
                    s.nama_seksi, s.kode_seksi,
+                   r.kode_rekening, r.nama_rekening,
+                   sk.id AS sub_kegiatan_id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                   k.id AS kegiatan_id, k.kode_kegiatan, k.nama_kegiatan,
+                   p.id AS program_id, p.kode_program, p.nama_program,
                    u.username AS created_by_name,
                    ua.username AS disetujui_by_name
             FROM pengajuan_tu pt
-            LEFT JOIN seksi s  ON pt.seksi_id   = s.id
-            LEFT JOIN users u  ON pt.created_by = u.id
-            LEFT JOIN users ua ON pt.disetujui_by = ua.id
+            LEFT JOIN seksi s          ON pt.seksi_id    = s.id
+            LEFT JOIN rekening r       ON pt.rekening_id = r.id
+            LEFT JOIN sub_kegiatan sk  ON r.sub_kegiatan_id = sk.id
+            LEFT JOIN kegiatan k       ON sk.kegiatan_id = k.id
+            LEFT JOIN program p        ON k.program_id   = p.id
+            LEFT JOIN users u          ON pt.created_by  = u.id
+            LEFT JOIN users ua         ON pt.disetujui_by = ua.id
             WHERE pt.id = :id LIMIT 1
         ");
         $stmt->execute([':id' => $id]);
@@ -200,43 +180,12 @@ class PengajuanTu
         return $row ?: null;
     }
 
-    /**
-     * Pengajuan TU yang sedang cair (status='cair') untuk seksi tertentu —
-     * dipakai saat input transaksi agar seksi bisa memilih TU yang aktif.
-     */
-    public function getAktifBySeksi(int $seksiId): array
-    {
-        $stmt = $this->db->prepare("
-            SELECT id, nomor_pengajuan, tanggal_cair, nominal_cair, batas_spj, keperluan,
-                   (SELECT COALESCE(SUM(nilai), 0) FROM transaksi
-                    WHERE pengajuan_tu_id = pt.id AND status = 'diverifikasi') AS nominal_terpakai
-            FROM pengajuan_tu pt
-            WHERE seksi_id = :sid AND status = 'cair'
-            ORDER BY tanggal_cair DESC
-        ");
-        $stmt->execute([':sid' => $seksiId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Hitung jumlah TU aktif (cair) yang batas SPJ-nya sudah lewat.
-     */
-    public function countMendekatiJatuhTempo(string $today): int
-    {
-        $stmt = $this->db->prepare("
-            SELECT COUNT(*) FROM pengajuan_tu
-            WHERE status = 'cair' AND batas_spj IS NOT NULL AND batas_spj <= :today
-        ");
-        $stmt->execute([':today' => $today]);
-        return (int) $stmt->fetchColumn();
-    }
-
     // ──────────────────────────────────────────────────────────────────────
     // CREATE
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Seksi mengajukan TU baru.
+     * Admin membuat pengajuan TU baru.
      */
     public function create(
         string $nomorPengajuan,
@@ -276,41 +225,7 @@ class PengajuanTu
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Admin menyetujui pengajuan TU (diajukan → disetujui).
-     */
-    public function setujui(int $id, int $adminId, ?string $catatan = null): bool
-    {
-        $stmt = $this->db->prepare("
-            UPDATE pengajuan_tu
-            SET status = 'disetujui',
-                disetujui_by = :admin_id,
-                disetujui_at = NOW(),
-                catatan_admin = :catatan
-            WHERE id = :id AND status = 'diajukan'
-        ");
-        $stmt->execute([':admin_id' => $adminId, ':catatan' => $catatan, ':id' => $id]);
-        return $stmt->rowCount() > 0;
-    }
-
-    /**
-     * Admin menolak pengajuan TU (diajukan → ditolak).
-     */
-    public function tolak(int $id, int $adminId, string $catatan): bool
-    {
-        $stmt = $this->db->prepare("
-            UPDATE pengajuan_tu
-            SET status = 'ditolak',
-                disetujui_by = :admin_id,
-                disetujui_at = NOW(),
-                catatan_admin = :catatan
-            WHERE id = :id AND status IN ('diajukan')
-        ");
-        $stmt->execute([':admin_id' => $adminId, ':catatan' => $catatan, ':id' => $id]);
-        return $stmt->rowCount() > 0;
-    }
-
-    /**
-     * Admin mencairkan TU (disetujui → cair).
+     * Admin mencairkan TU (diajukan → cair).
      * Mencatat baris kas_bank jenis='tu' dan mengisi kas_bank_id + nomor SP2D.
      * $batasSpj = null → default +30 hari dari tanggal_cair.
      *
@@ -327,7 +242,7 @@ class PengajuanTu
         $this->db->beginTransaction();
         try {
             $tu = $this->getById($id);
-            if (!$tu || $tu['status'] !== 'disetujui') {
+            if (!$tu || !in_array($tu['status'], ['diajukan', 'disetujui'], true)) {
                 throw new \RuntimeException('Pengajuan TU tidak ditemukan atau status tidak valid.');
             }
 
@@ -369,7 +284,7 @@ class PengajuanTu
                     nominal_cair   = :nominal,
                     batas_spj      = :batas,
                     kas_bank_id    = :kb_id
-                WHERE id = :id AND status = 'disetujui'
+                WHERE id = :id AND status IN ('diajukan','disetujui')
             ");
             $stmtU->execute([
                 ':sp2d'    => $nomorSp2d,
@@ -390,12 +305,20 @@ class PengajuanTu
 
     /**
      * Admin menyelesaikan siklus TU (cair → selesai).
-     * Menghitung sisa, jika ada sisa > 0 mencatat kas_bank jenis='setoran'.
+     * Sisa dihitung dari dana cair dikurangi pembayaran terverifikasi; admin
+     * menginput sendiri nominal dan tanggal setoran (boleh lebih kecil dari
+     * sisa bila ada koreksi), lalu dicatat sebagai kas_bank jenis='setoran'.
      *
-     * @return array ['sisa' => float, 'kas_bank_setoran_id' => int|null]
+     * @return array ['sisa' => float, 'disetor' => float, 'kas_bank_setoran_id' => int|null]
      */
-    public function selesaikan(int $id, int $adminId, ?string $catatanAdmin = null): array
-    {
+    public function selesaikan(
+        int     $id,
+        int     $adminId,
+        float   $nominalSetor,
+        string  $tanggalSetoran,
+        ?string $nomorBuktiSetoran = null,
+        ?string $catatanAdmin = null
+    ): array {
         $this->db->beginTransaction();
         try {
             $data = $this->getByIdWithTransaksi($id);
@@ -403,35 +326,47 @@ class PengajuanTu
                 throw new \RuntimeException('Pengajuan TU tidak dalam status cair.');
             }
 
-            $nominalCair   = (float) ($data['nominal_cair'] ?? 0);
+            $nominalCair     = (float) ($data['nominal_cair'] ?? 0);
             $nominalTerpakai = (float) $data['nominal_terpakai'];
             $sisa = $nominalCair - $nominalTerpakai;
             if ($sisa < 0) $sisa = 0.0;
 
+            if ($nominalSetor < 0) $nominalSetor = 0.0;
+            if ($nominalSetor > $sisa + 0.005) {
+                throw new \RuntimeException(sprintf(
+                    'Nominal setoran (Rp %s) melebihi sisa dana TU (Rp %s).',
+                    number_format($nominalSetor, 0, ',', '.'),
+                    number_format($sisa, 0, ',', '.')
+                ));
+            }
+            if (!strtotime($tanggalSetoran)) {
+                $tanggalSetoran = date('Y-m-d');
+            }
+
             $kasBankSetoranId = null;
 
-            // Jika ada sisa, catat setoran ke kas
-            if ($sisa > 0.005) {
-                $tanggalSetoran = date('Y-m-d');
+            // Catat setoran ke kas hanya bila nominalnya > 0
+            if ($nominalSetor > 0.005) {
                 $stmtSetoran = $this->db->prepare("
                     INSERT INTO kas_bank
                         (tanggal, tahun, bulan, jenis, nomor_bukti, keterangan, nominal,
                          status, tanggal_cair, created_by)
                     VALUES
                         (:tgl, :tahun, :bulan, 'setoran',
-                         :nomor_bukti, :ket, :nominal, 'cair', :tgl, :by)
+                         :nomor_bukti, :ket, :nominal, 'cair', :tgl_cair, :by)
                 ");
-                $bulan = (int) date('n');
-                $tahun = (int) date('Y');
-                $noBukti = 'SETORAN-TU-' . $id . '-' . date('Ymd');
+                $bulan = (int) date('n', strtotime($tanggalSetoran));
+                $tahun = (int) date('Y', strtotime($tanggalSetoran));
+                $noBukti = $nomorBuktiSetoran ?: 'SETORAN-TU-' . $id . '-' . date('Ymd', strtotime($tanggalSetoran));
                 $ket = 'Setoran sisa TU: ' . ($data['nomor_pengajuan'] ?? 'ID-' . $id);
                 $stmtSetoran->execute([
                     ':tgl'         => $tanggalSetoran,
+                    ':tgl_cair'    => $tanggalSetoran,
                     ':tahun'       => $tahun,
                     ':bulan'       => $bulan,
                     ':nomor_bukti' => $noBukti,
                     ':ket'         => $ket,
-                    ':nominal'     => $sisa,
+                    ':nominal'     => $nominalSetor,
                     ':by'          => $adminId,
                 ]);
                 $kasBankSetoranId = (int) $this->db->lastInsertId();
@@ -442,25 +377,141 @@ class PengajuanTu
                 UPDATE pengajuan_tu
                 SET status                = 'selesai',
                     nominal_digunakan     = :terpakai,
-                    nominal_disetor       = :sisa,
+                    nominal_disetor       = :disetor,
                     kas_bank_setoran_id   = :kb_setoran_id,
                     catatan_admin         = :catatan
                 WHERE id = :id AND status = 'cair'
             ");
             $stmtU->execute([
                 ':terpakai'       => $nominalTerpakai,
-                ':sisa'           => $sisa,
+                ':disetor'        => $nominalSetor,
                 ':kb_setoran_id'  => $kasBankSetoranId,
                 ':catatan'        => $catatanAdmin,
                 ':id'             => $id,
             ]);
 
             $this->db->commit();
-            return ['sisa' => $sisa, 'kas_bank_setoran_id' => $kasBankSetoranId];
+            return [
+                'sisa'                => $sisa,
+                'disetor'             => $nominalSetor,
+                'kas_bank_setoran_id' => $kasBankSetoranId,
+            ];
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Catat pembayaran dari dana TU (admin).
+     *
+     * Membuat baris transaksi terverifikasi yang langsung terkait ke TU ini.
+     * Nilai pembayaran tidak boleh melebihi sisa dana TU yang belum terpakai.
+     *
+     * @param array<string,mixed> $data tanggal, rekening_id, uraian, nilai,
+     *                                 nomor_bukti, nama_penerima, jenis_transaksi
+     * @return int ID transaksi baru
+     */
+    public function catatPembayaran(int $tuId, array $data, int $adminId): int
+    {
+        $tu = $this->getById($tuId);
+        if (!$tu || $tu['status'] !== 'cair') {
+            throw new \RuntimeException('Pembayaran hanya dapat dicatat pada TU berstatus cair.');
+        }
+
+        $rekeningId = (int) ($data['rekening_id'] ?? 0);
+        $stmtRek = $this->db->prepare("
+            SELECT sk.seksi_id
+            FROM rekening r
+            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            WHERE r.id = :rid
+            LIMIT 1
+        ");
+        $stmtRek->execute([':rid' => $rekeningId]);
+        $rekeningSeksiId = $stmtRek->fetchColumn();
+        if ($rekeningSeksiId === false || $rekeningSeksiId === null || (int) $rekeningSeksiId === 0) {
+            throw new \RuntimeException('Rekening pembayaran tidak valid atau belum memiliki seksi.');
+        }
+
+        $uraian = trim((string) ($data['uraian'] ?? ''));
+        if ($uraian === '') {
+            throw new \RuntimeException('Uraian pembayaran wajib diisi.');
+        }
+
+        $nilai = (float) ($data['nilai'] ?? 0);
+        if ($nilai <= 0) {
+            throw new \RuntimeException('Nilai pembayaran harus lebih dari 0.');
+        }
+
+        $tanggal = (string) ($data['tanggal'] ?? '');
+        if (!strtotime($tanggal)) {
+            throw new \RuntimeException('Tanggal pembayaran tidak valid.');
+        }
+
+        $stmtPakai = $this->db->prepare("
+            SELECT COALESCE(SUM(nilai), 0)
+            FROM transaksi
+            WHERE pengajuan_tu_id = :tu AND status = 'diverifikasi'
+        ");
+        $stmtPakai->execute([':tu' => $tuId]);
+        $terpakai = (float) $stmtPakai->fetchColumn();
+        $sisa = (float) $tu['nominal_cair'] - $terpakai;
+        if ($nilai > $sisa + 0.005) {
+            throw new \RuntimeException(sprintf(
+                'Nilai pembayaran (Rp %s) melebihi sisa dana TU (Rp %s).',
+                number_format($nilai, 0, ',', '.'),
+                number_format(max(0, $sisa), 0, ',', '.')
+            ));
+        }
+
+        $jenisTransaksi = (string) ($data['jenis_transaksi'] ?? 'belanja');
+        if (!in_array($jenisTransaksi, ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)) {
+            $jenisTransaksi = 'belanja';
+        }
+
+        $stmt = $this->db->prepare("
+            INSERT INTO transaksi
+                (tanggal, tanggal_lunas_dibayar, seksi_id, rekening_id, uraian,
+                 nama_penerima, jenis_transaksi, nilai, nomor_bukti, status,
+                 sumber_dana, input_by, diverifikasi_by, diverifikasi_at, pengajuan_tu_id)
+            VALUES
+                (:tgl, :tgl_lunas, :seksi_id, :rekening_id, :uraian,
+                 :penerima, :jenis, :nilai, :nomor_bukti, 'diverifikasi',
+                 'UP', :input_by, :verif_by, NOW(), :tu_id)
+        ");
+        $stmt->execute([
+            ':tgl'         => $tanggal,
+            ':tgl_lunas'   => $tanggal,
+            ':seksi_id'    => (int) $rekeningSeksiId,
+            ':rekening_id' => $rekeningId,
+            ':uraian'      => $uraian,
+            ':penerima'    => trim((string) ($data['nama_penerima'] ?? '')) ?: null,
+            ':jenis'       => $jenisTransaksi,
+            ':nilai'       => $nilai,
+            ':nomor_bukti' => trim((string) ($data['nomor_bukti'] ?? '')) ?: null,
+            ':input_by'    => $adminId,
+            ':verif_by'    => $adminId,
+            ':tu_id'       => $tuId,
+        ]);
+
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Hapus pembayaran yang terkait ke TU ini (hanya saat TU masih cair).
+     */
+    public function hapusPembayaran(int $tuId, int $transaksiId): bool
+    {
+        $tu = $this->getById($tuId);
+        if (!$tu || $tu['status'] !== 'cair') {
+            return false;
+        }
+        $stmt = $this->db->prepare("
+            DELETE FROM transaksi
+            WHERE id = :tid AND pengajuan_tu_id = :tu_id AND pengajuan_gu_id IS NULL
+        ");
+        $stmt->execute([':tid' => $transaksiId, ':tu_id' => $tuId]);
+        return $stmt->rowCount() > 0;
     }
 
     /**
@@ -487,41 +538,6 @@ class PengajuanTu
     {
         $stmt = $this->db->prepare("DELETE FROM pengajuan_tu WHERE id = :id AND status = 'diajukan'");
         $stmt->execute([':id' => $id]);
-        return $stmt->rowCount() > 0;
-    }
-
-    /**
-     * Kaitkan transaksi ke pengajuan TU tertentu.
-     * Hanya bisa jika TU berstatus 'cair' dan transaksi milik seksi yang sama.
-     */
-    public function kaitkanTransaksi(int $tuId, int $transaksiId, \PDO $db): bool
-    {
-        // Validasi: TU harus cair dan milik seksi yang sama dengan transaksi
-        $stmtCek = $db->prepare("
-            SELECT pt.seksi_id FROM pengajuan_tu pt WHERE pt.id = :tu_id AND pt.status = 'cair' LIMIT 1
-        ");
-        $stmtCek->execute([':tu_id' => $tuId]);
-        $tu = $stmtCek->fetch(PDO::FETCH_ASSOC);
-        if (!$tu) return false;
-
-        $stmtT = $db->prepare("
-            UPDATE transaksi SET pengajuan_tu_id = :tu_id
-            WHERE id = :t_id AND seksi_id = :seksi_id AND pengajuan_tu_id IS NULL
-        ");
-        $stmtT->execute([':tu_id' => $tuId, ':t_id' => $transaksiId, ':seksi_id' => $tu['seksi_id']]);
-        return $stmtT->rowCount() > 0;
-    }
-
-    /**
-     * Lepas kaitan transaksi dari TU (set pengajuan_tu_id = NULL).
-     */
-    public function lepasTransaksi(int $tuId, int $transaksiId): bool
-    {
-        $stmt = $this->db->prepare("
-            UPDATE transaksi SET pengajuan_tu_id = NULL
-            WHERE id = :t_id AND pengajuan_tu_id = :tu_id
-        ");
-        $stmt->execute([':t_id' => $transaksiId, ':tu_id' => $tuId]);
         return $stmt->rowCount() > 0;
     }
 
