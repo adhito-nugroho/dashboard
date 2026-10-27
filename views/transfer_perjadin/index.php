@@ -85,8 +85,9 @@ sort($daftarSeksiCepat, SORT_NATURAL | SORT_FLAG_CASE);
                 <i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer Perjalanan Dinas
             </h1>
             <p class="text-muted small mb-0">
-                Isi <strong>Transfer Ke</strong> dan <strong>Potongan</strong> di salah satu baris per Surat Tugas (otomatis tersebar ke seluruh transaksi pada ST itu),
-                beri <strong>Nama Konfigurasi</strong>, lalu simpan. Transaksi yang sudah masuk konfigurasi tidak ditampilkan lagi dan bisa diunduh per nama konfigurasi di bawah.
+                Isi <strong>Transfer Ke</strong> sekali per Surat Tugas (otomatis tersebar ke seluruh transaksi pada ST itu), sedangkan <strong>Potongan</strong> tersebar per
+                <strong>grup Transfer Ke</strong> sehingga tiap penerima transfer dalam satu ST boleh punya potongan berbeda.
+                Beri <strong>Nama Konfigurasi</strong>, lalu simpan. Transaksi yang sudah masuk konfigurasi tidak ditampilkan lagi dan bisa diunduh per nama konfigurasi di bawah.
                 Hanya transaksi berstatus <strong>diverifikasi</strong> yang diinput mulai <strong>Oktober 2026</strong> yang tampil; yang diinput sebelumnya dianggap sudah punya file konfigurasi.
             </p>
         </div>
@@ -146,7 +147,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div class="min-w-0">
                     <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-list-check text-success me-2"></i>Daftar Transaksi Perjalanan Dinas</h5>
-                    <small class="text-muted">Centang <strong>Surat Tugas</strong> yang ingin dikonfigurasi (boleh sebagian ST saja). Isi Transfer Ke sekali per ST → otomatis tersebar. Bila ada penerima berbeda dalam satu ST, ubah nama pada baris itu (otomatis ditandai <strong>beda</strong>); klik badge <strong>beda</strong> untuk menggabung kembali ke nilai acuan ST. Potongan berlaku per orang.</small>
+                    <small class="text-muted">Centang <strong>Surat Tugas</strong> yang ingin dikonfigurasi (boleh sebagian ST saja). Isi Transfer Ke sekali per ST → otomatis tersebar. Bila ada penerima berbeda dalam satu ST, ubah nama pada baris itu (otomatis ditandai <strong>beda</strong>); klik badge <strong>beda</strong> untuk menggabung kembali ke nilai acuan ST. <strong>Potongan</strong> tersebar per <strong>grup Transfer Ke</strong>, jadi tiap penerima boleh punya potongan berbeda.</small>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                     <span id="stSyncHint" class="badge bg-success-subtle text-success border border-success-subtle text-nowrap d-none" role="status"></span>
@@ -297,7 +298,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-archive text-success me-2"></i>Konfigurasi Tersimpan</h5>
-                <small class="text-muted">Setiap konfigurasi tersimpan dapat diunduh sebagai Excel (sheet Detail + Rekap).</small>
+                <small class="text-muted">Setiap konfigurasi tersimpan dapat diunduh sebagai Excel (sheet Detail + Rekap). <strong>Hapus</strong> konfigurasi untuk mengembalikan transaksinya ke daftar perjalanan dinas yang belum dikonfigurasi.</small>
             </div>
             <span class="badge bg-success-subtle text-success border border-success-subtle text-nowrap"><?= (int) ($batchPagination['total'] ?? count($batches ?? [])) ?> konfigurasi</span>
         </div>
@@ -317,7 +318,8 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                 <th class="small align-top text-nowrap" style="width:150px;">Disimpan</th>
                                 <th class="text-end small align-top text-nowrap" style="width:120px;">Transaksi</th>
                                 <th class="text-end small align-top text-nowrap" style="width:150px;">Total Perjalanan Dinas</th>
-                                <th class="text-end pe-4 small align-top text-nowrap" style="width:130px;">Unduh</th>
+                                <th class="text-end small align-top text-nowrap" style="width:110px;">Unduh</th>
+                                <th class="text-end pe-4 small align-top text-nowrap" style="width:90px;">Hapus</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -332,10 +334,17 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                     <td class="align-top text-muted small text-nowrap"><?= htmlspecialchars($fmtTanggalID(substr((string) $b['created_at'], 0, 10)) . ' ' . substr((string) $b['created_at'], 11, 5)) ?></td>
                                     <td class="align-top text-end font-monospace text-nowrap"><?= (int) $b['jml'] ?></td>
                                     <td class="align-top text-end font-monospace fw-medium text-nowrap">Rp <?= number_format($totalPerjadinBatch, 0, ',', '.') ?></td>
-                                    <td class="align-top text-end pe-4">
+                                    <td class="align-top text-end text-nowrap">
                                         <a href="<?= base_url('transfer-perjadin/export') ?>?batch_id=<?= (int) $b['id'] ?>" class="btn btn-sm btn-success text-nowrap">
                                             <i class="bi bi-file-earmark-excel me-1"></i>Unduh
                                         </a>
+                                    </td>
+                                    <td class="align-top text-end pe-4">
+                                        <form method="POST" action="<?= base_url('transfer-perjadin/delete/' . (int) $b['id']) ?>" onsubmit="return confirm('Hapus konfigurasi ini? Semua transaksinya akan kembali ke daftar perjalanan dinas yang belum dikonfigurasi dan file konfigurasi tidak dapat diunduh lagi.')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus konfigurasi">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -406,17 +415,6 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         set('badgeBersih', 'Total bersih: ' + rp(totalBersih));
     }
 
-    // Satu Surat Tugas = satu Potongan per orang (selalu disebar).
-    function syncSt(tr, selector, value) {
-        const st = tr.dataset.st;
-        if (!st || st === '0') return;
-        form.querySelectorAll('#tabelTransaksi tbody tr[data-st="' + st + '"]').forEach((other) => {
-            if (other === tr) return;
-            const inp = other.querySelector(selector);
-            if (inp) inp.value = value;
-        });
-    }
-
     // ── Transfer Ke: sebar otomatis per ST + pisah otomatis (kasus khusus) ──
     // Baris "acuan" mengendalikan nilai seluruh ST. Mengubah baris lain menjadi
     // nama berbeda membuat baris itu "terpisah" (tidak ikut sebar/tertimpa).
@@ -431,6 +429,24 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         }
         const g = tr.getAttribute('data-group');
         return Array.from(form.querySelectorAll('#tabelTransaksi tbody tr.st-item[data-group="' + g + '"]'));
+    }
+    // Potongan disebar per grup Transfer Ke di dalam ST: tiap penerima transfer
+    // punya acuan potongan sendiri. Baris tanpa Transfer Ke mengikuti acuan ST
+    // (sama seperti penyebaran saat simpan di backend).
+    function potonganPeers(tr) {
+        const rows = stRows(tr);
+        const acuan = acuanOf(rows);
+        const acuanKe = acuan ? keVal(acuan) : '';
+        const keyOf = (r) => { const v = keVal(r); return normKe(v !== '' ? v : acuanKe); };
+        const key = keyOf(tr);
+        return rows.filter((r) => keyOf(r) === key);
+    }
+    function syncPotongan(tr, value) {
+        potonganPeers(tr).forEach((other) => {
+            if (other === tr) return;
+            const inp = other.querySelector('.input-potongan');
+            if (inp) inp.value = value;
+        });
     }
     function acuanOf(rows) {
         return rows.find((r) => r.dataset.keAcuan === '1' && keVal(r) !== '') || null;
@@ -554,7 +570,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         input.addEventListener('input', function () {
             const digits = this.value.replace(/[^0-9]/g, '');
             this.value = digits === '' ? '' : Number(digits).toLocaleString('id-ID');
-            syncSt(this.closest('tr'), '.input-potongan', this.value);
+            syncPotongan(this.closest('tr'), this.value);
             setGroupChecked(this.closest('tr'));
             syncHeaderPilih();
             recalc();
@@ -569,7 +585,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
 
 <script>
 (function () {
-    // Aditif & visual saja: filter cepat + indikator sebar per ST. Tidak mengubah nilai/input.
+    // Aditif & visual saja: filter cepat + indikator sebar per ST / grup Transfer Ke. Tidak mengubah nilai/input.
     const form = document.getElementById('formTransferPerjadin');
     if (!form) return;
     const tbody = form.querySelector('#tabelTransaksi tbody');
@@ -579,6 +595,11 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
     const hint = document.getElementById('stSyncHint');
     let hintTimer = null;
     const flashTimers = new WeakMap();
+    const normKe = (s) => (s || '').toUpperCase().replace(/\./g, '').replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ').replace(/^[ ,]+|[ ,]+$/g, '');
+    const keValOf = (row) => {
+        const i = row.querySelector('.input-transfer-ke');
+        return i ? i.value.trim() : '';
+    };
     form.addEventListener('input', function (e) {
         const target = e.target;
         if (!target || !target.classList) return;
@@ -587,7 +608,15 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         if (!tr) return;
         const st = tr.dataset.st;
         if (!st || st === '0') return;
-        const peers = Array.from(tbody.querySelectorAll('tr.st-item[data-st="' + st + '"]'));
+        const isPotongan = target.classList.contains('input-potongan');
+        let peers = Array.from(tbody.querySelectorAll('tr.st-item[data-st="' + st + '"]'));
+        const acuanRow = peers.find((row) => row.dataset.keAcuan === '1' && keValOf(row) !== '');
+        const acuanKe = acuanRow ? keValOf(acuanRow) : '';
+        if (isPotongan) {
+            const keyOf = (row) => { const v = keValOf(row); return normKe(v !== '' ? v : acuanKe); };
+            const key = keyOf(tr);
+            peers = peers.filter((row) => keyOf(row) === key);
+        }
         peers.forEach((row) => {
             row.classList.remove('st-flash');
             void row.offsetWidth;
@@ -602,7 +631,9 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             if (badge && badge.textContent.trim() !== '') label = badge.textContent.trim();
         }
         if (hint) {
-            hint.textContent = '✓ Tersebar ke ' + peers.length + ' baris • ' + label;
+            const grupKe = keValOf(tr) !== '' ? keValOf(tr) : (acuanKe !== '' ? acuanKe : 'tanpa Transfer Ke');
+            hint.textContent = (isPotongan ? '✓ Potongan tersebar ke ' : '✓ Transfer Ke tersebar ke ')
+                + peers.length + ' baris • ' + (isPotongan ? 'grup ' + grupKe + ' • ' : '') + label;
             hint.classList.remove('d-none');
             if (hintTimer) clearTimeout(hintTimer);
             hintTimer = setTimeout(() => hint.classList.add('d-none'), 2600);

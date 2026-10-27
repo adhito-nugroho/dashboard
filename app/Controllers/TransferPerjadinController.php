@@ -22,6 +22,8 @@ use App\Services\TransferPerjadinExportService;
  *   /transfer-perjadin/save     → save()   : simpan konfigurasi bernama / batch (POST)
  *   /transfer-perjadin/export   → export() : unduh Excel per batch (?batch_id=) :
  *                                            Detail + Rekap pivot
+ *   /transfer-perjadin/delete/{id} → delete(): hapus batch konfigurasi; transaksinya
+ *                                            kembali ke daftar belum dikonfigurasi (POST)
  *
  * Penerimaan (gross) = transaksi.nilai. Penerimaan bersih = nilai - potongan.
  */
@@ -205,7 +207,7 @@ class TransferPerjadinController
             $saved = $this->model->saveBulk($rows, $userId, $batchId);
             $message = 'Konfigurasi "' . $namaBatch . '" tersimpan (' . $saved . ' transaksi). Silakan unduh pada daftar konfigurasi tersimpan.';
             if ($propagated > 0) {
-                $message .= ' ' . $propagated . ' baris lain pada Surat Tugas yang sama otomatis disamakan.';
+                $message .= ' ' . $propagated . ' baris lain otomatis disamakan (Transfer Ke per Surat Tugas, Potongan per grup Transfer Ke).';
             }
             if ($diabaikan > 0) {
                 $message .= ' ' . $diabaikan . ' nama Transfer Ke diabaikan karena bukan pegawai pada Surat Tugas transaksi tersebut.';
@@ -266,6 +268,35 @@ class TransferPerjadinController
         } catch (\Throwable $e) {
             error_log('TransferPerjadinController::export error: ' . $e->getMessage());
             $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Gagal membuat file Excel. Silakan coba lagi.');
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // DELETE
+    // ──────────────────────────────────────────────────────────
+
+    public function delete(int $batchId): void
+    {
+        $this->requireAdmin();
+
+        $batch = $batchId > 0 ? $this->model->getBatch($batchId) : null;
+        if ($batch === null) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi tidak ditemukan.');
+        }
+
+        try {
+            $restored = $this->model->deleteBatch($batchId);
+            $this->redirectWithMessage(
+                base_url('transfer-perjadin'),
+                'success',
+                'Konfigurasi "' . $batch['nama'] . '" dihapus. '
+                . ($restored > 0
+                    ? $restored . ' transaksi kembali ke daftar perjalanan dinas yang belum dikonfigurasi.'
+                    : 'Tidak ada transaksi yang terhubung pada konfigurasi tersebut.')
+            );
+        } catch (\Throwable $e) {
+            error_log('TransferPerjadinController::delete error: ' . $e->getMessage());
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Gagal menghapus konfigurasi transfer.');
         }
     }
 
@@ -439,8 +470,11 @@ class TransferPerjadinController
     }
 
     /**
-     * Dalam satu Surat Tugas, Transfer Ke & Potongan cukup diisi sekali:
-     * nilai yang terisi disebarkan ke baris lain (yang masih kosong) pada ST yang sama.
+     * Penyebaran nilai acuan saat menyimpan:
+     *  - Transfer Ke : satu acuan per Surat Tugas (menyebar ke seluruh baris ST).
+     *  - Potongan    : satu acuan per grup Transfer Ke di dalam ST, sehingga tiap
+     *                  penerima transfer boleh punya potongan berbeda.
+     * Hanya baris yang masih kosong (transfer_ke kosong / potongan <= 0) yang diisi.
      *
      * @param array<int, array{transfer_ke:string, potongan:float}> $rows
      * @param array<int,int> $stByTrx
@@ -458,27 +492,45 @@ class TransferPerjadinController
 
         $filled = 0;
         foreach ($groups as $ids) {
+            // 1) Transfer Ke — acuan berlaku untuk seluruh ST.
             $sourceKe = '';
-            $sourcePot = 0.0;
             foreach ($ids as $id) {
-                if ($sourceKe === '' && trim((string) $rows[$id]['transfer_ke']) !== '') {
+                if (trim((string) $rows[$id]['transfer_ke']) !== '') {
                     $sourceKe = trim((string) $rows[$id]['transfer_ke']);
-                }
-                if ($sourcePot <= 0 && (float) $rows[$id]['potongan'] > 0) {
-                    $sourcePot = (float) $rows[$id]['potongan'];
+                    break;
                 }
             }
-            if ($sourceKe === '' && $sourcePot <= 0) {
-                continue;
+            if ($sourceKe !== '') {
+                foreach ($ids as $id) {
+                    if (trim((string) $rows[$id]['transfer_ke']) === '') {
+                        $rows[$id]['transfer_ke'] = $sourceKe;
+                        $filled++;
+                    }
+                }
             }
+
+            // 2) Potongan — acuan per grup Transfer Ke dalam ST ini.
+            $potonganGroups = [];
             foreach ($ids as $id) {
-                if (trim((string) $rows[$id]['transfer_ke']) === '' && $sourceKe !== '') {
-                    $rows[$id]['transfer_ke'] = $sourceKe;
-                    $filled++;
+                $key = $this->normNama((string) $rows[$id]['transfer_ke']);
+                $potonganGroups[$key][] = (int) $id;
+            }
+            foreach ($potonganGroups as $groupIds) {
+                $sourcePot = 0.0;
+                foreach ($groupIds as $id) {
+                    if ((float) $rows[$id]['potongan'] > 0) {
+                        $sourcePot = (float) $rows[$id]['potongan'];
+                        break;
+                    }
                 }
-                if ((float) $rows[$id]['potongan'] <= 0 && $sourcePot > 0) {
-                    $rows[$id]['potongan'] = $sourcePot;
-                    $filled++;
+                if ($sourcePot <= 0) {
+                    continue;
+                }
+                foreach ($groupIds as $id) {
+                    if ((float) $rows[$id]['potongan'] <= 0) {
+                        $rows[$id]['potongan'] = $sourcePot;
+                        $filled++;
+                    }
                 }
             }
         }

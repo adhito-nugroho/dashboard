@@ -178,6 +178,32 @@ class TransferPerjadin
     }
 
     /**
+     * Hapus satu batch konfigurasi beserta seluruh baris transfernya.
+     * Transaksi yang sebelumnya terhubung kembali muncul pada daftar
+     * transaksi perjalanan dinas yang belum dikonfigurasi.
+     *
+     * @return int jumlah baris transfer_perjadin yang dihapus
+     */
+    public function deleteBatch(int $batchId): int
+    {
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare("DELETE FROM transfer_perjadin WHERE batch_id = ?");
+            $stmt->execute([$batchId]);
+            $deleted = $stmt->rowCount();
+
+            $stmt = $this->db->prepare("DELETE FROM transfer_perjadin_batch WHERE id = ?");
+            $stmt->execute([$batchId]);
+
+            $this->db->commit();
+            return $deleted;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Daftar transaksi perjalanan dinas yang BELUM masuk konfigurasi mana pun
      * (dengan filter opsional). Hanya transaksi berstatus 'diverifikasi' dan
      * diinput sejak FEATURE_START (Oktober 2026) yang ditampilkan; yang lain

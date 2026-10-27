@@ -429,6 +429,7 @@ try {
         ['ANY', '/transfer-perjadin', fn($m) => $transferPerjadinController->index()],
         ['POST', '/transfer-perjadin/save', fn($m) => $transferPerjadinController->save()],
         ['GET', '/transfer-perjadin/export', fn($m) => $transferPerjadinController->export()],
+        ['POST', '#^/transfer-perjadin/delete/(\d+)$#', fn($m) => $transferPerjadinController->delete((int) $m[1])],
     ];
 
     // ---- Dispatcher: first match wins ----
