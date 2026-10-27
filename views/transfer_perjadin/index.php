@@ -86,7 +86,7 @@ sort($daftarSeksiCepat, SORT_NATURAL | SORT_FLAG_CASE);
             </h1>
             <p class="text-muted small mb-0">
                 Isi <strong>Transfer Ke</strong> sekali per Surat Tugas (otomatis tersebar ke seluruh transaksi pada ST itu), sedangkan <strong>Potongan</strong> tersebar per
-                <strong>grup Transfer Ke</strong> sehingga tiap penerima transfer dalam satu ST boleh punya potongan berbeda.
+                <strong>grup Transfer Ke</strong>. Bila ada pegawai dengan potongan berbeda, ubah nilainya di baris itu — baris tersebut ditandai <strong>beda</strong> dan tidak mengubah baris lain.
                 Beri <strong>Nama Konfigurasi</strong>, lalu simpan. Transaksi yang sudah masuk konfigurasi tidak ditampilkan lagi dan bisa diunduh per nama konfigurasi di bawah.
                 Hanya transaksi berstatus <strong>diverifikasi</strong> yang diinput mulai <strong>Oktober 2026</strong> yang tampil; yang diinput sebelumnya dianggap sudah punya file konfigurasi.
             </p>
@@ -147,7 +147,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div class="min-w-0">
                     <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-list-check text-success me-2"></i>Daftar Transaksi Perjalanan Dinas</h5>
-                    <small class="text-muted">Centang <strong>Surat Tugas</strong> yang ingin dikonfigurasi (boleh sebagian ST saja). Isi Transfer Ke sekali per ST → otomatis tersebar. Bila ada penerima berbeda dalam satu ST, ubah nama pada baris itu (otomatis ditandai <strong>beda</strong>); klik badge <strong>beda</strong> untuk menggabung kembali ke nilai acuan ST. <strong>Potongan</strong> tersebar per <strong>grup Transfer Ke</strong>, jadi tiap penerima boleh punya potongan berbeda.</small>
+                    <small class="text-muted">Centang <strong>Surat Tugas</strong> yang ingin dikonfigurasi (boleh sebagian ST saja). Isi Transfer Ke sekali per ST → otomatis tersebar. Bila ada penerima berbeda dalam satu ST, ubah nama pada baris itu (otomatis ditandai <strong>beda</strong>); klik badge <strong>beda</strong> untuk menggabung kembali ke nilai acuan ST. <strong>Potongan</strong> tersebar per <strong>grup Transfer Ke</strong>; ubah nilai di satu baris untuk membuat pengecualian bertanda <strong>beda</strong>, klik badge untuk menggabung kembali.</small>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                     <span id="stSyncHint" class="badge bg-success-subtle text-success border border-success-subtle text-nowrap d-none" role="status"></span>
@@ -241,7 +241,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                         $stRow = (int) ($stIdByTransaksi[$tid] ?? 0);
                                         $seksiRow = (string) ($t['kode_seksi'] ?? '');
                                         ?>
-                                        <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiRow) ?>" data-ke-acuan="0" data-ke-detached="0" class="st-item <?= $isConfigured ? 'table-success-subtle' : '' ?>">
+                                        <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiRow) ?>" data-ke-acuan="0" data-ke-detached="0" data-pot-acuan="0" data-pot-beda="0" class="st-item <?= $isConfigured ? 'table-success-subtle' : '' ?>">
                                             <td class="ps-4 align-top text-muted small text-nowrap" style="width:52px;"><?= $no ?><?php if ($isConfigured): ?> <i class="bi bi-check-circle-fill text-success" title="Sudah dikonfigurasi"></i><?php endif; ?></td>
                                             <td class="align-top text-dark cell-nama"><?= htmlspecialchars((string) ($t['nama_penerima'] ?? '-')) ?></td>
                                             <td class="align-top text-end text-nowrap font-monospace fw-medium">Rp <?= number_format($nilai, 0, ',', '.') ?></td>
@@ -263,6 +263,8 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                                         value="<?= $potongan > 0 ? number_format($potongan, 0, ',', '.') : '' ?>"
                                                         placeholder="0">
                                                 </div>
+                                                <input type="hidden" class="pot-beda" name="potongan_beda[<?= $tid ?>]" value="0">
+                                                <span class="pot-badge d-block text-end mt-1" style="font-size:.68rem;"></span>
                                             </td>
                                             <td class="align-top text-end pe-4 font-monospace fw-medium text-dark cell-bersih text-nowrap">Rp <?= number_format($nilai - $potongan, 0, ',', '.') ?></td>
                                         </tr>
@@ -430,9 +432,20 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         const g = tr.getAttribute('data-group');
         return Array.from(form.querySelectorAll('#tabelTransaksi tbody tr.st-item[data-group="' + g + '"]'));
     }
-    // Potongan disebar per grup Transfer Ke di dalam ST: tiap penerima transfer
-    // punya acuan potongan sendiri. Baris tanpa Transfer Ke mengikuti acuan ST
-    // (sama seperti penyebaran saat simpan di backend).
+    // Potongan: pola sama seperti Transfer Ke — satu nilai acuan per grup
+    // Transfer Ke dalam ST. Baris lain mengikuti acuan, tetapi bila diubah ke
+    // nilai berbeda baris itu ditandai "beda" dan tidak ikut tertimpa.
+    const potInput = (tr) => tr.querySelector('.input-potongan');
+    const potNum = (tr) => {
+        const i = potInput(tr);
+        const d = i ? i.value.replace(/[^0-9]/g, '') : '';
+        return d === '' ? 0 : parseInt(d, 10);
+    };
+    function setPotBeda(tr, beda) {
+        tr.dataset.potBeda = beda ? '1' : '0';
+        const h = tr.querySelector('.pot-beda');
+        if (h) h.value = beda ? '1' : '0';
+    }
     function potonganPeers(tr) {
         const rows = stRows(tr);
         const acuan = acuanOf(rows);
@@ -441,12 +454,79 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         const key = keyOf(tr);
         return rows.filter((r) => keyOf(r) === key);
     }
-    function syncPotongan(tr, value) {
-        potonganPeers(tr).forEach((other) => {
-            if (other === tr) return;
-            const inp = other.querySelector('.input-potongan');
-            if (inp) inp.value = value;
+    function potAcuanOf(rows) {
+        return rows.find((r) => r.dataset.potAcuan === '1' && potNum(r) > 0) || null;
+    }
+    function setPotBadge(tr, rows) {
+        const el = tr.querySelector('.pot-badge');
+        if (!el) return;
+        if (rows.length <= 1) { el.innerHTML = ''; return; }
+        if (tr.dataset.potBeda === '1') {
+            el.innerHTML = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle pot-rejoin" role="button" title="Klik untuk samakan dengan acuan grup">beda — klik untuk gabung</span>';
+        } else if (tr.dataset.potAcuan === '1' && potNum(tr) > 0) {
+            el.innerHTML = '<span class="text-muted">acuan grup</span>';
+        } else {
+            el.innerHTML = '';
+        }
+    }
+    function refreshPotBadges(rows) { rows.forEach((r) => setPotBadge(r, rows)); }
+    function potGroupsOfRows(rowsAll) {
+        const acuan = acuanOf(rowsAll);
+        const acuanKe = acuan ? keVal(acuan) : '';
+        const map = new Map();
+        rowsAll.forEach((tr) => {
+            const v = keVal(tr);
+            const key = normKe(v !== '' ? v : acuanKe);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(tr);
         });
+        return Array.from(map.values());
+    }
+    // Hitung ulang acuan/beda per grup; dipakai saat halaman dimuat dan saat
+    // Transfer Ke berubah (keanggotaan grup ikut berubah).
+    function initPotonganFor(rowsAll) {
+        potGroupsOfRows(rowsAll).forEach((rows) => {
+            let acuan = potAcuanOf(rows);
+            if (!acuan) acuan = rows.find((r) => potNum(r) > 0) || null;
+            rows.forEach((r) => {
+                if (r === acuan) { r.dataset.potAcuan = '1'; setPotBeda(r, false); return; }
+                r.dataset.potAcuan = '0';
+                if (acuan && potNum(r) === potNum(acuan)) { setPotBeda(r, false); return; }
+                if (r.dataset.potBeda === '1') return;
+                setPotBeda(r, acuan !== null && potNum(r) > 0);
+            });
+            refreshPotBadges(rows);
+        });
+    }
+    function applyPotongan(tr) {
+        const rows = potonganPeers(tr);
+        const acuan = potAcuanOf(rows);
+        if (!acuan || acuan === tr) {
+            tr.dataset.potAcuan = '1';
+            setPotBeda(tr, false);
+            const i = potInput(tr);
+            const value = i ? i.value : '';
+            rows.forEach((r) => {
+                if (r === tr) return;
+                r.dataset.potAcuan = '0';
+                if (r.dataset.potBeda === '1') return;
+                const inp = potInput(r);
+                if (inp) inp.value = value;
+            });
+        } else {
+            tr.dataset.potAcuan = '0';
+            const i = potInput(tr);
+            if (i && i.value === '') {
+                const a = potInput(acuan);
+                if (i && a) i.value = a.value;
+                setPotBeda(tr, false);
+            } else if (potNum(tr) === potNum(acuan)) {
+                setPotBeda(tr, false);
+            } else {
+                setPotBeda(tr, true);
+            }
+        }
+        refreshPotBadges(rows);
     }
     function acuanOf(rows) {
         return rows.find((r) => r.dataset.keAcuan === '1' && keVal(r) !== '') || null;
@@ -486,6 +566,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             });
         }
         refreshBadges(rows);
+        initPotonganFor(rows);
     }
     function initKe() {
         const groups = {};
@@ -505,6 +586,15 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             });
             refreshBadges(rows);
         });
+    }
+    function initPotongan() {
+        const groups = {};
+        form.querySelectorAll('#tabelTransaksi tbody tr.st-item').forEach((tr) => {
+            const st = tr.dataset.st;
+            const k = (st && st !== '0') ? 'st:' + st : 'g:' + tr.getAttribute('data-group');
+            (groups[k] = groups[k] || []).push(tr);
+        });
+        Object.values(groups).forEach((rows) => initPotonganFor(rows));
     }
 
     // Pilih Surat Tugas: hanya transaksi pada ST tercentang yang disimpan.
@@ -564,20 +654,43 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         tr.dataset.keDetached = '0';
         tr.dataset.keAcuan = '0';
         refreshBadges(rows);
+        initPotonganFor(rows);
+    });
+
+    // Klik badge "beda" pada potongan untuk kembali mengikuti acuan grup.
+    form.addEventListener('click', function (e) {
+        const b = e.target.closest ? e.target.closest('.pot-rejoin') : null;
+        if (!b) return;
+        e.preventDefault();
+        const tr = b.closest('tr');
+        if (!tr) return;
+        const rows = potonganPeers(tr);
+        const acuan = potAcuanOf(rows);
+        if (acuan) {
+            const i = potInput(tr);
+            const a = potInput(acuan);
+            if (i && a) i.value = a.value;
+        }
+        tr.dataset.potAcuan = '0';
+        setPotBeda(tr, false);
+        refreshPotBadges(rows);
+        recalc();
     });
 
     form.querySelectorAll('.input-potongan').forEach((input) => {
         input.addEventListener('input', function () {
+            const tr = this.closest('tr');
             const digits = this.value.replace(/[^0-9]/g, '');
             this.value = digits === '' ? '' : Number(digits).toLocaleString('id-ID');
-            syncPotongan(this.closest('tr'), this.value);
-            setGroupChecked(this.closest('tr'));
+            applyPotongan(tr);
+            setGroupChecked(tr);
             syncHeaderPilih();
             recalc();
         });
     });
 
     initKe();
+    initPotongan();
     syncHeaderPilih();
     recalc();
 })();
@@ -609,6 +722,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         const st = tr.dataset.st;
         if (!st || st === '0') return;
         const isPotongan = target.classList.contains('input-potongan');
+        const bedaPot = isPotongan && tr.dataset.potBeda === '1';
         let peers = Array.from(tbody.querySelectorAll('tr.st-item[data-st="' + st + '"]'));
         const acuanRow = peers.find((row) => row.dataset.keAcuan === '1' && keValOf(row) !== '');
         const acuanKe = acuanRow ? keValOf(acuanRow) : '';
@@ -617,7 +731,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
             const key = keyOf(tr);
             peers = peers.filter((row) => keyOf(row) === key);
         }
-        peers.forEach((row) => {
+        (bedaPot ? [tr] : peers).forEach((row) => {
             row.classList.remove('st-flash');
             void row.offsetWidth;
             row.classList.add('st-flash');
@@ -632,8 +746,12 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         }
         if (hint) {
             const grupKe = keValOf(tr) !== '' ? keValOf(tr) : (acuanKe !== '' ? acuanKe : 'tanpa Transfer Ke');
-            hint.textContent = (isPotongan ? '✓ Potongan tersebar ke ' : '✓ Transfer Ke tersebar ke ')
-                + peers.length + ' baris • ' + (isPotongan ? 'grup ' + grupKe + ' • ' : '') + label;
+            if (bedaPot) {
+                hint.textContent = '✓ Potongan khusus baris ini (beda dari acuan grup ' + grupKe + ') • ' + label;
+            } else {
+                hint.textContent = (isPotongan ? '✓ Potongan tersebar ke ' : '✓ Transfer Ke tersebar ke ')
+                    + peers.length + ' baris • ' + (isPotongan ? 'grup ' + grupKe + ' • ' : '') + label;
+            }
             hint.classList.remove('d-none');
             if (hintTimer) clearTimeout(hintTimer);
             hintTimer = setTimeout(() => hint.classList.add('d-none'), 2600);

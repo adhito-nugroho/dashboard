@@ -125,6 +125,7 @@ class TransferPerjadinController
 
         $transferKeInput = $_POST['transfer_ke'] ?? [];
         $potonganInput = $_POST['potongan'] ?? [];
+        $potonganBedaInput = $_POST['potongan_beda'] ?? [];
         $pilihStInput = $_POST['pilih_st'] ?? [];
         $stItemsInput = $_POST['st_items'] ?? [];
         if (!is_array($transferKeInput)) {
@@ -132,6 +133,9 @@ class TransferPerjadinController
         }
         if (!is_array($potonganInput)) {
             $potonganInput = [];
+        }
+        if (!is_array($potonganBedaInput)) {
+            $potonganBedaInput = [];
         }
         if (!is_array($pilihStInput)) {
             $pilihStInput = [];
@@ -186,10 +190,18 @@ class TransferPerjadinController
             $namaBatch = mb_substr($namaBatch, 0, 150);
         }
 
+        // Baris yang sengaja dibedakan (termasuk potongan 0) tidak boleh ditimpa acuan.
+        $potBedaIds = [];
+        foreach ($ids as $id) {
+            if (!empty($potonganBedaInput[$id])) {
+                $potBedaIds[(int) $id] = true;
+            }
+        }
+
         // Resolusi Surat Tugas tiap transaksi, lalu validasi & propagasi per ST.
         [$stByTrx, $participants] = $this->resolveStContext($rows);
         $diabaikan = $this->filterInvalidTransferKe($rows, $stByTrx, $participants);
-        $propagated = $this->propagateWithinSt($rows, $stByTrx);
+        $propagated = $this->propagateWithinSt($rows, $stByTrx, $potBedaIds);
 
         try {
             try {
@@ -473,14 +485,17 @@ class TransferPerjadinController
      * Penyebaran nilai acuan saat menyimpan:
      *  - Transfer Ke : satu acuan per Surat Tugas (menyebar ke seluruh baris ST).
      *  - Potongan    : satu acuan per grup Transfer Ke di dalam ST, sehingga tiap
-     *                  penerima transfer boleh punya potongan berbeda.
+     *                  penerima transfer boleh punya potongan berbeda. Baris yang
+     *                  ditandai "beda" ($potBedaIds) mempertahankan nilainya
+     *                  sendiri, termasuk bila nilainya 0.
      * Hanya baris yang masih kosong (transfer_ke kosong / potongan <= 0) yang diisi.
      *
      * @param array<int, array{transfer_ke:string, potongan:float}> $rows
      * @param array<int,int> $stByTrx
+     * @param array<int,bool> $potBedaIds
      * @return int jumlah baris yang diisi otomatis
      */
-    private function propagateWithinSt(array &$rows, array $stByTrx): int
+    private function propagateWithinSt(array &$rows, array $stByTrx, array $potBedaIds = []): int
     {
         $groups = [];
         foreach ($rows as $id => $cfg) {
@@ -518,6 +533,9 @@ class TransferPerjadinController
             foreach ($potonganGroups as $groupIds) {
                 $sourcePot = 0.0;
                 foreach ($groupIds as $id) {
+                    if (isset($potBedaIds[$id])) {
+                        continue;
+                    }
                     if ((float) $rows[$id]['potongan'] > 0) {
                         $sourcePot = (float) $rows[$id]['potongan'];
                         break;
@@ -527,6 +545,9 @@ class TransferPerjadinController
                     continue;
                 }
                 foreach ($groupIds as $id) {
+                    if (isset($potBedaIds[$id])) {
+                        continue;
+                    }
                     if ((float) $rows[$id]['potongan'] <= 0) {
                         $rows[$id]['potongan'] = $sourcePot;
                         $filled++;
