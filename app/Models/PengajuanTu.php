@@ -109,6 +109,55 @@ class PengajuanTu
     }
 
     /**
+     * Total pengajuan TU untuk filter yang sama dengan getAll()/countAll().
+     *
+     * @return array{jumlah:int, total_pengajuan:float, total_cair:float, total_terpakai:float}
+     */
+    public function getTotals(
+        ?string $status  = null,
+        ?int    $seksiId = null,
+        ?int    $tahun   = null,
+        ?int    $bulan   = null
+    ): array {
+        $conds  = [];
+        $params = [];
+
+        if ($status)  { $conds[] = 'pt.status = :status';    $params[':status']  = $status;  }
+        if ($seksiId) { $conds[] = 'pt.seksi_id = :seksi_id'; $params[':seksi_id'] = $seksiId; }
+        if ($tahun)   { $conds[] = 'pt.tahun = :tahun';       $params[':tahun']   = $tahun;   }
+        if ($bulan)   { $conds[] = 'pt.bulan = :bulan';       $params[':bulan']   = $bulan;   }
+
+        $where = $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
+
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS jumlah,
+                   COALESCE(SUM(pt.kebutuhan), 0)   AS total_pengajuan,
+                   COALESCE(SUM(pt.nominal_cair), 0) AS total_cair,
+                   COALESCE(SUM(tp.nilai), 0)        AS total_terpakai
+            FROM pengajuan_tu pt
+            LEFT JOIN (
+                SELECT pengajuan_tu_id, SUM(nilai) AS nilai
+                FROM transaksi
+                WHERE status = 'diverifikasi' AND pengajuan_tu_id IS NOT NULL
+                GROUP BY pengajuan_tu_id
+            ) tp ON tp.pengajuan_tu_id = pt.id
+            {$where}
+        ");
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v, is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        return [
+            'jumlah'          => (int)   ($row['jumlah']          ?? 0),
+            'total_pengajuan' => (float) ($row['total_pengajuan'] ?? 0),
+            'total_cair'      => (float) ($row['total_cair']      ?? 0),
+            'total_terpakai'  => (float) ($row['total_terpakai']  ?? 0),
+        ];
+    }
+
+    /**
      * Detail satu pengajuan TU + daftar transaksi yang terkait.
      */
     public function getByIdWithTransaksi(int $id): ?array

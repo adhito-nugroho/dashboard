@@ -1,10 +1,11 @@
 <?php
 /**
  * View: Tambah Uang (TU) — Daftar & Monitoring (Admin)
- * Variabel: $items, $stats, $pagination, $seksiList, $status, $tahun, $bulan, $seksiId
+ * Variabel: $items, $stats, $totals, $pagination, $seksiList, $status, $tahun, $bulan, $seksiId
  */
 $items     = $items     ?? [];
 $stats     = $stats     ?? [];
+$totals    = $totals    ?? [];
 $seksiList = $seksiList ?? [];
 $status    = $status    ?? '';
 $tahun     = $tahun     ?? (int) date('Y');
@@ -128,6 +129,45 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                     <a href="<?= base_url('pengajuan-tu') ?>" class="btn btn-outline-secondary btn-sm ms-1"><i class="bi bi-x-circle me-1"></i>Reset</a>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Ringkasan total sesuai filter aktif -->
+    <?php
+    $totalJumlah    = (int)   ($totals['jumlah']          ?? 0);
+    $totalPengajuan = (float) ($totals['total_pengajuan'] ?? 0);
+    $totalCair      = (float) ($totals['total_cair']      ?? 0);
+    $totalTerpakai  = (float) ($totals['total_terpakai']  ?? 0);
+    $totalSisa      = max(0, $totalCair - $totalTerpakai);
+    ?>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <span class="fw-semibold" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:#64748b;">
+                    <i class="bi bi-calculator me-1"></i>Total Sesuai Filter
+                </span>
+                <span class="text-muted" style="font-size:.75rem;">
+                    <?= $totalJumlah ?> pengajuan
+                </span>
+            </div>
+            <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                    <div class="text-muted" style="font-size:.72rem;">Total Pengajuan</div>
+                    <div class="fw-bold" style="font-size:1.1rem;">Rp <?= number_format($totalPengajuan, 0, ',', '.') ?></div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="text-muted" style="font-size:.72rem;">Total Cair (SP2D)</div>
+                    <div class="fw-bold text-primary" style="font-size:1.1rem;">Rp <?= number_format($totalCair, 0, ',', '.') ?></div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="text-muted" style="font-size:.72rem;">Total Terpakai</div>
+                    <div class="fw-bold" style="font-size:1.1rem;">Rp <?= number_format($totalTerpakai, 0, ',', '.') ?></div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="text-muted" style="font-size:.72rem;">Sisa Belum Terpakai</div>
+                    <div class="fw-bold <?= $totalSisa > 0 ? 'text-success' : 'text-muted' ?>" style="font-size:1.1rem;">Rp <?= number_format($totalSisa, 0, ',', '.') ?></div>
+                </div>
+            </div>
         </div>
     </div>
 

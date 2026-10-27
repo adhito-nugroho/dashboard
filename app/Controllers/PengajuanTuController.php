@@ -76,6 +76,7 @@ class PengajuanTuController
 
         $items = $this->model->getAll($status ?: null, $seksiId, $tahun, $bulan, $perPage, $offset);
         $stats = $this->model->getStats($tahun);
+        $totals = $this->model->getTotals($status ?: null, $seksiId, $tahun, $bulan);
 
         // Daftar seksi untuk filter dropdown
         $db = \Database::getConnection();
