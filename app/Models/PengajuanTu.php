@@ -61,7 +61,9 @@ class PengajuanTu
                    (SELECT COALESCE(SUM(t.nilai), 0)
                     FROM transaksi t
                     WHERE t.pengajuan_tu_id = pt.id
-                      AND t.status = 'diverifikasi') AS nominal_terpakai
+                      AND t.status = 'diverifikasi') AS nominal_terpakai,
+                   (SELECT COUNT(*) FROM pengajuan_tu_rekening tr
+                    WHERE tr.pengajuan_tu_id = pt.id) AS jumlah_rekening
             FROM pengajuan_tu pt
             LEFT JOIN seksi s  ON pt.seksi_id   = s.id
             LEFT JOIN users u  ON pt.created_by = u.id
@@ -155,6 +157,7 @@ class PengajuanTu
             array_filter($transaksis, fn($t) => $t['status'] === 'diverifikasi'),
             'nilai'
         ));
+        $row['rekenings']        = $this->getRekenings($id);
 
         return $row;
     }
@@ -177,7 +180,30 @@ class PengajuanTu
         ");
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
+        if (!$row) return null;
+        $row['rekenings'] = $this->getRekenings($id);
+        return $row;
+    }
+
+    /**
+     * Rincian rekening & nominal milik satu pengajuan TU.
+     *
+     * @return array<int, array<string,mixed>>
+     */
+    public function getRekenings(int $tuId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT tr.rekening_id, tr.nominal,
+                   r.kode_rekening, r.nama_rekening,
+                   sk.kode_sub_kegiatan, sk.nama_sub_kegiatan
+            FROM pengajuan_tu_rekening tr
+            INNER JOIN rekening r ON tr.rekening_id = r.id
+            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            WHERE tr.pengajuan_tu_id = :id
+            ORDER BY r.kode_rekening ASC
+        ");
+        $stmt->execute([':id' => $tuId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -185,7 +211,9 @@ class PengajuanTu
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Admin membuat pengajuan TU baru.
+     * Admin membuat pengajuan TU baru (batch banyak rekening dalam satu sub kegiatan).
+     *
+     * @param array<int, array{rekening_id:int, nominal:float}> $rekenings
      */
     public function create(
         string $nomorPengajuan,
@@ -196,28 +224,60 @@ class PengajuanTu
         float  $kebutuhan,
         string $keperluan,
         int    $createdBy,
-        ?int   $rekeningId = null
+        array  $rekenings
     ): int {
+        if (empty($rekenings)) {
+            throw new \RuntimeException('Minimal satu rekening harus diisi.');
+        }
+        $primaryRekeningId = (int) $rekenings[0]['rekening_id'];
+
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO pengajuan_tu
+                    (nomor_pengajuan, tanggal_pengajuan, seksi_id, rekening_id, tahun, bulan,
+                     kebutuhan, keperluan, status, created_by)
+                VALUES
+                    (:nomor, :tgl, :seksi_id, :rekening_id, :tahun, :bulan,
+                     :kebutuhan, :keperluan, 'diajukan', :created_by)
+            ");
+            $stmt->execute([
+                ':nomor'       => $nomorPengajuan,
+                ':tgl'         => $tanggalPengajuan,
+                ':seksi_id'    => $seksiId,
+                ':rekening_id' => $primaryRekeningId,
+                ':tahun'       => $tahun,
+                ':bulan'       => $bulan,
+                ':kebutuhan'   => $kebutuhan,
+                ':keperluan'   => $keperluan,
+                ':created_by'  => $createdBy,
+            ]);
+            $id = (int) $this->db->lastInsertId();
+            $this->insertRekenings($id, $rekenings);
+            $this->db->commit();
+            return $id;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * @param array<int, array{rekening_id:int, nominal:float}> $rekenings
+     */
+    private function insertRekenings(int $tuId, array $rekenings): void
+    {
         $stmt = $this->db->prepare("
-            INSERT INTO pengajuan_tu
-                (nomor_pengajuan, tanggal_pengajuan, seksi_id, rekening_id, tahun, bulan,
-                 kebutuhan, keperluan, status, created_by)
-            VALUES
-                (:nomor, :tgl, :seksi_id, :rekening_id, :tahun, :bulan,
-                 :kebutuhan, :keperluan, 'diajukan', :created_by)
+            INSERT INTO pengajuan_tu_rekening (pengajuan_tu_id, rekening_id, nominal)
+            VALUES (:tu_id, :rekening_id, :nominal)
         ");
-        $stmt->execute([
-            ':nomor'       => $nomorPengajuan,
-            ':tgl'         => $tanggalPengajuan,
-            ':seksi_id'    => $seksiId,
-            ':rekening_id' => $rekeningId,
-            ':tahun'       => $tahun,
-            ':bulan'       => $bulan,
-            ':kebutuhan'   => $kebutuhan,
-            ':keperluan'   => $keperluan,
-            ':created_by'  => $createdBy,
-        ]);
-        return (int) $this->db->lastInsertId();
+        foreach ($rekenings as $row) {
+            $stmt->execute([
+                ':tu_id'       => $tuId,
+                ':rekening_id' => (int) $row['rekening_id'],
+                ':nominal'     => (float) $row['nominal'],
+            ]);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -515,30 +575,71 @@ class PengajuanTu
     }
 
     /**
-     * Update keperluan/kebutuhan (hanya saat status diajukan).
+     * Update keperluan/kebutuhan + rincian rekening (hanya saat status diajukan).
+     *
+     * @param array<int, array{rekening_id:int, nominal:float}> $rekenings
      */
-    public function update(int $id, float $kebutuhan, string $keperluan, string $tanggalPengajuan, ?int $rekeningId = null): bool
+    public function update(int $id, float $kebutuhan, string $keperluan, string $tanggalPengajuan, array $rekenings): bool
     {
-        $stmt = $this->db->prepare("
-            UPDATE pengajuan_tu
-            SET kebutuhan          = :kebutuhan,
-                keperluan          = :keperluan,
-                tanggal_pengajuan  = :tgl,
-                rekening_id        = :rekening_id
-            WHERE id = :id AND status = 'diajukan'
-        ");
-        $stmt->execute([':kebutuhan' => $kebutuhan, ':keperluan' => $keperluan, ':tgl' => $tanggalPengajuan, ':rekening_id' => $rekeningId, ':id' => $id]);
-        return $stmt->rowCount() > 0;
+        $tu = $this->getById($id);
+        if (!$tu || $tu['status'] !== 'diajukan' || empty($rekenings)) {
+            return false;
+        }
+        $primaryRekeningId = (int) $rekenings[0]['rekening_id'];
+
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare("
+                UPDATE pengajuan_tu
+                SET kebutuhan          = :kebutuhan,
+                    keperluan          = :keperluan,
+                    tanggal_pengajuan  = :tgl,
+                    rekening_id        = :rekening_id
+                WHERE id = :id AND status = 'diajukan'
+            ");
+            $stmt->execute([
+                ':kebutuhan'   => $kebutuhan,
+                ':keperluan'   => $keperluan,
+                ':tgl'         => $tanggalPengajuan,
+                ':rekening_id' => $primaryRekeningId,
+                ':id'          => $id,
+            ]);
+
+            $this->db->prepare('DELETE FROM pengajuan_tu_rekening WHERE pengajuan_tu_id = :id')
+                     ->execute([':id' => $id]);
+            $this->insertRekenings($id, $rekenings);
+
+            $this->db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 
     /**
-     * Hapus pengajuan TU (hanya saat status diajukan).
+     * Hapus pengajuan TU + rincian rekening (hanya saat status diajukan).
      */
     public function delete(int $id): bool
     {
-        $stmt = $this->db->prepare("DELETE FROM pengajuan_tu WHERE id = :id AND status = 'diajukan'");
-        $stmt->execute([':id' => $id]);
-        return $stmt->rowCount() > 0;
+        $tu = $this->getById($id);
+        if (!$tu || $tu['status'] !== 'diajukan') {
+            return false;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('DELETE FROM pengajuan_tu_rekening WHERE pengajuan_tu_id = :id')
+                     ->execute([':id' => $id]);
+            $stmt = $this->db->prepare("DELETE FROM pengajuan_tu WHERE id = :id AND status = 'diajukan'");
+            $stmt->execute([':id' => $id]);
+            $ok = $stmt->rowCount() > 0;
+            $this->db->commit();
+            return $ok;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 
     /**

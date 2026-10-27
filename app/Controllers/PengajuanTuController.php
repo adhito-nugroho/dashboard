@@ -118,28 +118,16 @@ class PengajuanTuController
             'tanggal_pengajuan' => trim($_POST['tanggal_pengajuan'] ?? date('Y-m-d')),
             'bulan'             => (int) ($_POST['bulan'] ?? date('n')),
             'tahun'             => (int) ($_POST['tahun'] ?? date('Y')),
-            'kebutuhan_raw'     => $_POST['kebutuhan'] ?? '0',
             'keperluan'         => trim($_POST['keperluan'] ?? ''),
-            'rekening_id'       => !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null,
             'program_id'        => $_POST['program_id']      ?? '',
             'kegiatan_id'       => $_POST['kegiatan_id']     ?? '',
-            'sub_kegiatan_id'   => $_POST['sub_kegiatan_id'] ?? '',
+            'sub_kegiatan_id'   => !empty($_POST['sub_kegiatan_id']) ? (int) $_POST['sub_kegiatan_id'] : null,
+            'rekenings'         => $this->parseRekenings($_POST['rekenings'] ?? []),
         ];
 
-        $kebutuhan = $this->parseNominal($form['kebutuhan_raw']);
-
-        $errors = [];
-        if (!$form['tanggal_pengajuan'] || !strtotime($form['tanggal_pengajuan'])) $errors[] = 'Tanggal pengajuan tidak valid.';
-        if ($form['bulan'] < 1 || $form['bulan'] > 12)      $errors[] = 'Bulan tidak valid.';
-        if ($form['tahun'] < 2020 || $form['tahun'] > 2099) $errors[] = 'Tahun tidak valid.';
-        if ($kebutuhan <= 0)               $errors[] = 'Kebutuhan TU (Rp) wajib diisi dan harus lebih dari 0.';
-        if ($form['keperluan'] === '')     $errors[] = 'Keperluan / uraian kegiatan wajib diisi.';
-        if (empty($form['rekening_id']))   $errors[] = 'Rekening belanja wajib dipilih.';
-
-        $seksiId = $form['rekening_id'] ? $this->seksiIdFromRekening((int) $form['rekening_id']) : null;
-        if ($form['rekening_id'] && $seksiId === null) {
-            $errors[] = 'Rekening yang dipilih tidak memiliki seksi yang valid.';
-        }
+        $errors    = $this->validateBatch($form);
+        $kebutuhan = array_sum(array_column($form['rekenings'], 'nominal'));
+        $seksiId   = $form['sub_kegiatan_id'] ? $this->seksiIdFromSubKegiatan((int) $form['sub_kegiatan_id']) : null;
 
         if (!empty($errors)) {
             $programs = $this->getPrograms();
@@ -162,7 +150,7 @@ class PengajuanTuController
                 $kebutuhan,
                 $form['keperluan'],
                 $this->adminId(),
-                $form['rekening_id']
+                $form['rekenings']
             );
             $this->logAudit($this->adminId(), 'tu_create', 'pengajuan_tu', $id,
                 'Input TU ' . $nomorPengajuan);
@@ -213,27 +201,15 @@ class PengajuanTuController
 
         $form = [
             'tanggal_pengajuan' => trim($_POST['tanggal_pengajuan'] ?? ''),
-            'kebutuhan_raw'     => $_POST['kebutuhan'] ?? '0',
             'keperluan'         => trim($_POST['keperluan'] ?? ''),
-            'rekening_id'       => !empty($_POST['rekening_id']) ? (int) $_POST['rekening_id'] : null,
             'program_id'        => $_POST['program_id']      ?? '',
             'kegiatan_id'       => $_POST['kegiatan_id']     ?? '',
-            'sub_kegiatan_id'   => $_POST['sub_kegiatan_id'] ?? '',
+            'sub_kegiatan_id'   => !empty($_POST['sub_kegiatan_id']) ? (int) $_POST['sub_kegiatan_id'] : null,
+            'rekenings'         => $this->parseRekenings($_POST['rekenings'] ?? []),
         ];
-        $kebutuhan = $this->parseNominal($form['kebutuhan_raw']);
 
-        $errors = [];
-        if (!$form['tanggal_pengajuan'] || !strtotime($form['tanggal_pengajuan'])) $errors[] = 'Tanggal tidak valid.';
-        if ($kebutuhan <= 0) $errors[] = 'Kebutuhan (Rp) harus lebih dari 0.';
-        if ($form['keperluan'] === '') $errors[] = 'Keperluan wajib diisi.';
-        if (empty($form['rekening_id'])) $errors[] = 'Rekening belanja wajib dipilih.';
-
-        if ($form['rekening_id']) {
-            $seksiId = $this->seksiIdFromRekening((int) $form['rekening_id']);
-            if ($seksiId === null || $seksiId !== (int) $tu['seksi_id']) {
-                $errors[] = 'Rekening harus berasal dari seksi yang sama dengan pengajuan TU ini.';
-            }
-        }
+        $errors    = $this->validateBatch($form, $tu);
+        $kebutuhan = array_sum(array_column($form['rekenings'], 'nominal'));
 
         if (!empty($errors)) {
             $form     = array_merge($tu, $form);
@@ -245,7 +221,13 @@ class PengajuanTuController
             return;
         }
 
-        $ok = $this->model->update($id, $kebutuhan, $form['keperluan'], $form['tanggal_pengajuan'], $form['rekening_id']);
+        try {
+            $ok = $this->model->update($id, $kebutuhan, $form['keperluan'], $form['tanggal_pengajuan'], $form['rekenings']);
+        } catch (\Throwable $e) {
+            error_log('PengajuanTuController::update error: ' . $e->getMessage());
+            $this->flash('error', 'Gagal memperbarui: ' . $e->getMessage());
+            $this->redirect(base_url('pengajuan-tu/edit/' . $id));
+        }
         $this->logAudit($this->adminId(), 'tu_update', 'pengajuan_tu', $id, 'Update TU id ' . $id);
         $this->flash($ok ? 'success' : 'error', $ok ? 'Pengajuan TU diperbarui.' : 'Gagal memperbarui.');
         $this->redirect(base_url('pengajuan-tu/show/' . $id));
@@ -402,22 +384,123 @@ class PengajuanTuController
         return (float) str_replace(['.', ','], ['', '.'], (string) $raw);
     }
 
-    private function seksiIdFromRekening(int $rekeningId): ?int
+    /**
+     * Bersihkan input rekenings[] menjadi daftar {rekening_id, nominal}.
+     * Baris tanpa rekening atau nominal 0 diabaikan.
+     *
+     * @return array<int, array{rekening_id:int, nominal:float}>
+     */
+    private function parseRekenings(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $rekeningId = (int) ($row['rekening_id'] ?? 0);
+            $nominal    = $this->parseNominal($row['nominal'] ?? '0');
+            if ($rekeningId <= 0 || $nominal <= 0) {
+                continue;
+            }
+            $out[] = ['rekening_id' => $rekeningId, 'nominal' => $nominal];
+        }
+        return $out;
+    }
+
+    /**
+     * Validasi input batch: sub kegiatan wajib, minimal satu rekening,
+     * semua rekening milik sub kegiatan tersebut, dan tidak duplikat.
+     *
+     * @param array<string,mixed>      $form
+     * @param array<string,mixed>|null $tu   data TU saat edit (untuk cek seksi)
+     * @return string[]
+     */
+    private function validateBatch(array $form, ?array $tu = null): array
+    {
+        $errors = [];
+
+        if (empty($form['tanggal_pengajuan']) || !strtotime((string) $form['tanggal_pengajuan'])) {
+            $errors[] = 'Tanggal pengajuan tidak valid.';
+        }
+        if (isset($form['bulan']) && ($form['bulan'] < 1 || $form['bulan'] > 12)) {
+            $errors[] = 'Bulan tidak valid.';
+        }
+        if (isset($form['tahun']) && ($form['tahun'] < 2020 || $form['tahun'] > 2099)) {
+            $errors[] = 'Tahun tidak valid.';
+        }
+        if (trim((string) ($form['keperluan'] ?? '')) === '') {
+            $errors[] = 'Keperluan / uraian kegiatan wajib diisi.';
+        }
+        if (empty($form['sub_kegiatan_id'])) {
+            $errors[] = 'Sub kegiatan wajib dipilih.';
+        }
+
+        $rows = $form['rekenings'] ?? [];
+        if (empty($rows)) {
+            $errors[] = 'Minimal satu rekening harus diisi nominalnya.';
+            return $errors;
+        }
+
+        $seen = [];
+        foreach ($rows as $row) {
+            $rid = (int) ($row['rekening_id'] ?? 0);
+            if (isset($seen[$rid])) {
+                $errors[] = 'Rekening yang sama dipilih lebih dari sekali.';
+            }
+            $seen[$rid] = true;
+        }
+
+        if (!empty($form['sub_kegiatan_id'])) {
+            $subKegiatanId = (int) $form['sub_kegiatan_id'];
+            $seksiId = $this->seksiIdFromSubKegiatan($subKegiatanId);
+
+            if ($seksiId === null) {
+                $errors[] = 'Sub kegiatan tidak memiliki seksi yang valid.';
+            } elseif ($tu !== null && $seksiId !== (int) $tu['seksi_id']) {
+                $errors[] = 'Sub kegiatan harus berasal dari seksi yang sama dengan pengajuan TU ini.';
+            }
+
+            $ids = array_values(array_unique(array_map(fn($r) => (int) $r['rekening_id'], $rows)));
+            if (!$this->rekeningsBelongToSubKegiatan($ids, $subKegiatanId)) {
+                $errors[] = 'Semua rekening harus berasal dari sub kegiatan yang dipilih.';
+            }
+        }
+
+        return $errors;
+    }
+
+    private function seksiIdFromSubKegiatan(int $subKegiatanId): ?int
     {
         $db = \Database::getConnection();
-        $stmt = $db->prepare("
-            SELECT sk.seksi_id
-            FROM rekening r
-            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
-            WHERE r.id = :id
-            LIMIT 1
-        ");
-        $stmt->execute([':id' => $rekeningId]);
+        $stmt = $db->prepare("SELECT seksi_id FROM sub_kegiatan WHERE id = :id LIMIT 1");
+        $stmt->execute([':id' => $subKegiatanId]);
         $seksiId = $stmt->fetchColumn();
         if ($seksiId === false || $seksiId === null || (int) $seksiId === 0) {
             return null;
         }
         return (int) $seksiId;
+    }
+
+    /**
+     * @param int[] $rekeningIds
+     */
+    private function rekeningsBelongToSubKegiatan(array $rekeningIds, int $subKegiatanId): bool
+    {
+        if (empty($rekeningIds)) {
+            return true;
+        }
+        $db = \Database::getConnection();
+        $placeholders = implode(',', array_fill(0, count($rekeningIds), '?'));
+        $stmt = $db->prepare("
+            SELECT COUNT(*)
+            FROM rekening
+            WHERE id IN ({$placeholders}) AND sub_kegiatan_id = ?
+        ");
+        $stmt->execute([...$rekeningIds, $subKegiatanId]);
+        return (int) $stmt->fetchColumn() === count($rekeningIds);
     }
 
     private function getPrograms(): array

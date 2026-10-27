@@ -98,9 +98,6 @@ function fmtRp2($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.
                 <div class="col-md-3 col-6"><div class="text-muted mb-1" style="font-size:.72rem;">Periode</div><div><?= ($namaBulanMap[$h['bulan']] ?? $h['bulan']) . ' ' . $h['tahun'] ?></div></div>
                 <div class="col-md-3 col-6"><div class="text-muted mb-1" style="font-size:.72rem;">Tgl Pengajuan</div><div><?= date('d/m/Y', strtotime($h['tanggal_pengajuan'])) ?></div></div>
                 <div class="col-md-3 col-6"><div class="text-muted mb-1" style="font-size:.72rem;">Kebutuhan TU</div><div class="fw-bold text-primary"><?= fmtRp2($h['kebutuhan']) ?></div></div>
-                <?php if (!empty($h['kode_rekening'])): ?>
-                <div class="col-12"><div class="text-muted mb-1" style="font-size:.72rem;">Rekening</div><div><?= htmlspecialchars($h['kode_rekening'] . ' – ' . ($h['nama_rekening'] ?? '')) ?></div></div>
-                <?php endif; ?>
                 <?php if ($nominalCair > 0): ?>
                 <div class="col-md-3 col-6"><div class="text-muted mb-1" style="font-size:.72rem;">Nomor SP2D-TU</div><div style="font-family:monospace;"><?= htmlspecialchars($h['nomor_sp2d'] ?? '-') ?></div></div>
                 <div class="col-md-3 col-6"><div class="text-muted mb-1" style="font-size:.72rem;">Tgl Cair</div><div><?= $h['tanggal_cair'] ? date('d/m/Y', strtotime($h['tanggal_cair'])) : '-' ?></div></div>
@@ -122,6 +119,44 @@ function fmtRp2($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.
                 </div>
                 <div class="progress" style="height:10px;">
                     <div class="progress-bar bg-<?= $pct >= 100 ? 'success' : 'primary' ?>" style="width:<?= $pct ?>%" role="progressbar"></div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($h['rekenings'])): ?>
+            <!-- Rincian Rekening -->
+            <div class="mt-3">
+                <div class="text-muted mb-1" style="font-size:.72rem;">Rincian Rekening</div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0" style="font-size:.82rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Rekening</th>
+                                <th>Sub Kegiatan</th>
+                                <th class="text-end">Nominal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php $totalRekening = 0; foreach ($h['rekenings'] as $rek):
+                                $totalRekening += (float) $rek['nominal'];
+                            ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold"><?= htmlspecialchars($rek['kode_rekening']) ?></div>
+                                        <div class="text-muted"><?= htmlspecialchars($rek['nama_rekening']) ?></div>
+                                    </td>
+                                    <td class="text-muted"><?= htmlspecialchars($rek['kode_sub_kegiatan'] . ' – ' . $rek['nama_sub_kegiatan']) ?></td>
+                                    <td class="text-end fw-semibold"><?= number_format((float) $rek['nominal'], 0, ',', '.') ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="2" class="text-end fw-bold">Total</td>
+                                <td class="text-end fw-bold text-primary"><?= number_format($totalRekening, 0, ',', '.') ?></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
             <?php endif; ?>

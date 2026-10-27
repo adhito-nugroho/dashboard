@@ -73,6 +73,11 @@ $qsTitle    = $qsTitle ?? 'Cari Sub Kegiatan / Rekening';
     };
     // Jika dropdown Program tidak ada di halaman ini, nonaktifkan partial.
     if (!endpoint || !sel.program || !sel.kegiatan || !sel.sub) return;
+    // Mode "Rekening" hanya relevan bila halaman punya satu dropdown rekening.
+    if (!sel.rekening) {
+        const rekBtn = root.querySelector('.qs-mode-btn[data-mode="rekening"]');
+        if (rekBtn) rekBtn.remove();
+    }
     const input = root.querySelector('.qs-input');
     const resultsBox = root.querySelector('.qs-results');
     const statusEl = root.querySelector('.qs-status');

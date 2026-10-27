@@ -172,7 +172,12 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                     </td>
                                     <td><span class="badge bg-info"><?= htmlspecialchars($item['kode_seksi'] ?? '-') ?></span> <?= htmlspecialchars($item['nama_seksi'] ?? '-') ?></td>
                                     <td style="white-space:nowrap;"><?= ($namaBulanMap[$item['bulan']] ?? $item['bulan']) . ' ' . $item['tahun'] ?></td>
-                                    <td class="text-end"><?= number_format((float)$item['kebutuhan'], 0, ',', '.') ?></td>
+                                    <td class="text-end">
+                                        <?= number_format((float)$item['kebutuhan'], 0, ',', '.') ?>
+                                        <?php if (!empty($item['jumlah_rekening'])): ?>
+                                            <div class="text-muted" style="font-size:.72rem;"><?= (int)$item['jumlah_rekening'] ?> rekening</div>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="text-end <?= $nominal_cair > 0 ? 'text-primary fw-semibold' : 'text-muted' ?>">
                                         <?= $nominal_cair > 0 ? number_format($nominal_cair, 0, ',', '.') : '—' ?>
                                     </td>
