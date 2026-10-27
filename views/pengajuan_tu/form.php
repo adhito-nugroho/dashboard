@@ -98,6 +98,15 @@ $kebutuhanFmt = $kebutuhan ? number_format((float) $kebutuhan, 0, ',', '.') : ''
                         <small class="text-muted fw-normal ms-1">(seksi mengikuti rekening yang dipilih)</small>
                     </div>
                     <div class="card-body">
+                        <?php
+                        $qsEndpoint = base_url('transaksi/cari-klasifikasi');
+                        $qsProgram  = 'tu_program_id';
+                        $qsKegiatan = 'tu_kegiatan_id';
+                        $qsSub      = 'tu_sub_kegiatan_id';
+                        $qsRekening = 'tu_rekening_id';
+                        $qsTitle    = 'Cari Sub Kegiatan / Rekening';
+                        include __DIR__ . '/../shared/_klasifikasi_quick_search.php';
+                        ?>
                         <div class="row g-3">
                             <div class="col-12">
                                 <label class="form-label fw-semibold" style="font-size:.85rem;">Program</label>

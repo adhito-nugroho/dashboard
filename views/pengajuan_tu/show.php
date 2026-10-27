@@ -260,6 +260,15 @@ function fmtRp2($v): string { return 'Rp ' . number_format((float)$v, 0, ',', '.
                 <div class="alert alert-info py-2" style="font-size:.82rem;">
                     Sisa dana TU yang bisa dibayarkan: <strong><?= fmtRp2($sisa) ?></strong>
                 </div>
+                <?php
+                $qsEndpoint = base_url('transaksi/cari-klasifikasi');
+                $qsProgram  = 'bayar_program_id';
+                $qsKegiatan = 'bayar_kegiatan_id';
+                $qsSub      = 'bayar_sub_kegiatan_id';
+                $qsRekening = 'bayar_rekening_id';
+                $qsTitle    = 'Cari Sub Kegiatan / Rekening';
+                include __DIR__ . '/../shared/_klasifikasi_quick_search.php';
+                ?>
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label fw-semibold" style="font-size:.85rem;">Tanggal Bayar <span class="text-danger">*</span></label>
