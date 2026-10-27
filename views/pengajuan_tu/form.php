@@ -262,7 +262,7 @@ tuProgram.addEventListener('change', function () {
     tuSubKeg.innerHTML   = '<option value="">-- Pilih Sub Kegiatan --</option>'; tuSubKeg.disabled = true;
     tuRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; tuRekening.disabled = true;
     if (!this.value) return;
-    tuLoadOptions(tuKegiatan, `${BASE}/seksi/transaksi/kegiatans?program_id=${this.value}`,
+    tuLoadOptions(tuKegiatan, `${BASE}/pagu/get-kegiatans?program_id=${this.value}`,
         '', '-- Pilih Kegiatan --', 'spinner-tu-keg');
 });
 
@@ -270,14 +270,14 @@ tuKegiatan.addEventListener('change', function () {
     tuSubKeg.innerHTML   = '<option value="">-- Pilih Sub Kegiatan --</option>'; tuSubKeg.disabled = true;
     tuRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; tuRekening.disabled = true;
     if (!this.value) return;
-    tuLoadOptions(tuSubKeg, `${BASE}/seksi/transaksi/subkegiatans?kegiatan_id=${this.value}`,
+    tuLoadOptions(tuSubKeg, `${BASE}/pagu/get-sub-kegiatans?kegiatan_id=${this.value}`,
         '', '-- Pilih Sub Kegiatan --', 'spinner-tu-sub');
 });
 
 tuSubKeg.addEventListener('change', function () {
     tuRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; tuRekening.disabled = true;
     if (!this.value) return;
-    tuLoadOptions(tuRekening, `${BASE}/seksi/transaksi/rekenings?sub_kegiatan_id=${this.value}`,
+    tuLoadOptions(tuRekening, `${BASE}/pagu/get-rekenings?sub_kegiatan_id=${this.value}`,
         '', '-- Pilih Rekening --', 'spinner-tu-rek');
 });
 
@@ -290,16 +290,16 @@ tuSubKeg.addEventListener('change', function () {
 
     if (!savedProgram) return;
     tuProgram.value = savedProgram;
-    tuLoadOptions(tuKegiatan, `${BASE}/seksi/transaksi/kegiatans?program_id=${savedProgram}`,
+    tuLoadOptions(tuKegiatan, `${BASE}/pagu/get-kegiatans?program_id=${savedProgram}`,
         savedKegiatan, '-- Pilih Kegiatan --', 'spinner-tu-keg')
     .then(() => {
         if (!savedKegiatan) return;
-        return tuLoadOptions(tuSubKeg, `${BASE}/seksi/transaksi/subkegiatans?kegiatan_id=${savedKegiatan}`,
+        return tuLoadOptions(tuSubKeg, `${BASE}/pagu/get-sub-kegiatans?kegiatan_id=${savedKegiatan}`,
             savedSub, '-- Pilih Sub Kegiatan --', 'spinner-tu-sub');
     })
     .then(() => {
         if (!savedSub) return;
-        return tuLoadOptions(tuRekening, `${BASE}/seksi/transaksi/rekenings?sub_kegiatan_id=${savedSub}`,
+        return tuLoadOptions(tuRekening, `${BASE}/pagu/get-rekenings?sub_kegiatan_id=${savedSub}`,
             savedRekening, '-- Pilih Rekening --', 'spinner-tu-rek');
     });
 })();

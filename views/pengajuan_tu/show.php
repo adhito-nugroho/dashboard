@@ -464,20 +464,20 @@ if (byProgram) {
         bySubKeg.innerHTML   = '<option value="">-- Pilih Sub Kegiatan --</option>'; bySubKeg.disabled = true;
         byRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; byRekening.disabled = true;
         if (!this.value) return;
-        bayarLoadOptions(byKegiatan, `${BASE}/seksi/transaksi/kegiatans?program_id=${this.value}`, '', '-- Pilih Kegiatan --');
+        bayarLoadOptions(byKegiatan, `${BASE}/pagu/get-kegiatans?program_id=${this.value}`, '', '-- Pilih Kegiatan --');
     });
 
     byKegiatan.addEventListener('change', function () {
         bySubKeg.innerHTML   = '<option value="">-- Pilih Sub Kegiatan --</option>'; bySubKeg.disabled = true;
         byRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; byRekening.disabled = true;
         if (!this.value) return;
-        bayarLoadOptions(bySubKeg, `${BASE}/seksi/transaksi/subkegiatans?kegiatan_id=${this.value}`, '', '-- Pilih Sub Kegiatan --');
+        bayarLoadOptions(bySubKeg, `${BASE}/pagu/get-sub-kegiatans?kegiatan_id=${this.value}`, '', '-- Pilih Sub Kegiatan --');
     });
 
     bySubKeg.addEventListener('change', function () {
         byRekening.innerHTML = '<option value="">-- Pilih Rekening --</option>'; byRekening.disabled = true;
         if (!this.value) return;
-        bayarLoadOptions(byRekening, `${BASE}/seksi/transaksi/rekenings?sub_kegiatan_id=${this.value}`, '', '-- Pilih Rekening --');
+        bayarLoadOptions(byRekening, `${BASE}/pagu/get-rekenings?sub_kegiatan_id=${this.value}`, '', '-- Pilih Rekening --');
     });
 
     // Prefill dari rekening TU
@@ -489,14 +489,14 @@ if (byProgram) {
 
         if (!savedProgram) return;
         byProgram.value = savedProgram;
-        bayarLoadOptions(byKegiatan, `${BASE}/seksi/transaksi/kegiatans?program_id=${savedProgram}`, savedKegiatan, '-- Pilih Kegiatan --')
+        bayarLoadOptions(byKegiatan, `${BASE}/pagu/get-kegiatans?program_id=${savedProgram}`, savedKegiatan, '-- Pilih Kegiatan --')
         .then(() => {
             if (!savedKegiatan) return;
-            return bayarLoadOptions(bySubKeg, `${BASE}/seksi/transaksi/subkegiatans?kegiatan_id=${savedKegiatan}`, savedSub, '-- Pilih Sub Kegiatan --');
+            return bayarLoadOptions(bySubKeg, `${BASE}/pagu/get-sub-kegiatans?kegiatan_id=${savedKegiatan}`, savedSub, '-- Pilih Sub Kegiatan --');
         })
         .then(() => {
             if (!savedSub) return;
-            return bayarLoadOptions(byRekening, `${BASE}/seksi/transaksi/rekenings?sub_kegiatan_id=${savedSub}`, savedRekening, '-- Pilih Rekening --');
+            return bayarLoadOptions(byRekening, `${BASE}/pagu/get-rekenings?sub_kegiatan_id=${savedSub}`, savedRekening, '-- Pilih Rekening --');
         });
     })();
 }
