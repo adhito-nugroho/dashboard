@@ -1012,18 +1012,40 @@ class Transaksi
     }
 
     /**
-     * Delete transaction
-     * 
+     * Delete transaction.
+     * Data turunan ikut dibersihkan: rincian biaya perjalanan dinas dilepas,
+     * konfigurasi transfer terkait dihapus, dan pengajuan GU disinkronkan.
+     *
      * @param int $id
      * @return bool
      */
     public function delete(int $id): bool
     {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $ownTransaction = !$this->db->inTransaction();
+        if ($ownTransaction) {
+            $this->db->beginTransaction();
+        }
         try {
+            $guIds = $this->cleanupBeforeDelete([$id]);
+
             $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id = :id");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            return $stmt->execute();
+            $ok = $stmt->execute();
+
+            $this->recalcPengajuanGu($guIds);
+
+            if ($ownTransaction) {
+                $this->db->commit();
+            }
+            return $ok;
         } catch (PDOException $e) {
+            if ($ownTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('Error deleting transaction: ' . $e->getMessage());
             throw new \RuntimeException('Failed to delete transaction');
         }
@@ -1079,7 +1101,8 @@ class Transaksi
 
     /**
      * Delete multiple transactions by IDs in a single database transaction.
-     * Also unlinks any associated rincian_biaya_perjalanan_dinas.
+     * Data turunan ikut dibersihkan (rincian biaya, konfigurasi transfer,
+     * pengajuan GU) — lihat cleanupBeforeDelete().
      * 
      * @param int[] $ids
      * @return int Number of deleted transactions
@@ -1091,30 +1114,141 @@ class Transaksi
             return 0;
         }
 
-        $this->db->beginTransaction();
+        $ownTransaction = !$this->db->inTransaction();
+        if ($ownTransaction) {
+            $this->db->beginTransaction();
+        }
         try {
             $placeholders = implode(',', array_fill(0, count($validIds), '?'));
 
-            // Unlink rincian_biaya_perjalanan_dinas jika ada
-            try {
-                $unlinkStmt = $this->db->prepare("UPDATE rincian_biaya_perjalanan_dinas SET transaksi_id = NULL WHERE transaksi_id IN ($placeholders)");
-                $unlinkStmt->execute($validIds);
-            } catch (\Exception $e) {
-                // Kolom/tabel mungkin opsional jika belum dimigrasi
-                error_log("Notice unlinking rincian_biaya_perjalanan_dinas on deleteBatch: " . $e->getMessage());
-            }
+            $guIds = $this->cleanupBeforeDelete($validIds);
 
             // Hapus data transaksi
             $stmt = $this->db->prepare("DELETE FROM transaksi WHERE id IN ($placeholders)");
             $stmt->execute($validIds);
             $deletedCount = $stmt->rowCount();
 
-            $this->db->commit();
+            $this->recalcPengajuanGu($guIds);
+
+            if ($ownTransaction) {
+                $this->db->commit();
+            }
             return $deletedCount;
         } catch (PDOException $e) {
-            $this->db->rollBack();
+            if ($ownTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             error_log('Error in Transaksi::deleteBatch: ' . $e->getMessage());
             throw new \RuntimeException('Gagal menghapus batch transaksi: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Bersihkan data turunan sebelum transaksi dihapus:
+     *  - rincian_biaya_perjalanan_dinas dilepas (transaksi_id = NULL),
+     *  - konfigurasi transfer perjalanan dinas terkait dihapus, batch yang
+     *    menjadi kosong ikut dihapus,
+     *  - pengajuan GU terdampak dicatat untuk dihitung ulang setelah baris
+     *    transaksi benar-benar hilang.
+     *
+     * @param int[] $ids
+     * @return int[] id pengajuan GU yang perlu disinkronkan
+     */
+    private function cleanupBeforeDelete(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        $guIds = [];
+        try {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT pengajuan_gu_id
+                FROM transaksi
+                WHERE pengajuan_gu_id IS NOT NULL AND id IN ($placeholders)
+            ");
+            $stmt->execute($ids);
+            $guIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        } catch (\Throwable $e) {
+            error_log('Notice reading pengajuan_gu_id on delete: ' . $e->getMessage());
+        }
+
+        try {
+            $this->db->prepare("UPDATE rincian_biaya_perjalanan_dinas SET transaksi_id = NULL WHERE transaksi_id IN ($placeholders)")
+                ->execute($ids);
+        } catch (\Throwable $e) {
+            error_log('Notice unlinking rincian_biaya_perjalanan_dinas on delete: ' . $e->getMessage());
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT batch_id
+                FROM transfer_perjadin
+                WHERE batch_id IS NOT NULL AND transaksi_id IN ($placeholders)
+            ");
+            $stmt->execute($ids);
+            $batchIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+            $this->db->prepare("DELETE FROM transfer_perjadin WHERE transaksi_id IN ($placeholders)")
+                ->execute($ids);
+
+            $stmtEmpty = $this->db->prepare("
+                DELETE FROM transfer_perjadin_batch
+                WHERE id = :batch_id
+                  AND NOT EXISTS (SELECT 1 FROM transfer_perjadin tp WHERE tp.batch_id = :batch_check)
+            ");
+            foreach ($batchIds as $batchId) {
+                $stmtEmpty->execute([':batch_id' => $batchId, ':batch_check' => $batchId]);
+            }
+        } catch (\Throwable $e) {
+            error_log('Notice cleaning transfer_perjadin on delete: ' . $e->getMessage());
+        }
+
+        return $guIds;
+    }
+
+    /**
+     * Sinkronkan pengajuan GU yang masih 'diajukan' setelah transaksi dihapus:
+     * total nominal dan baris kas menunggu cair mengikuti jumlah transaksi
+     * tersisa; pengajuan yang tidak punya transaksi lagi dihapus bersama baris
+     * kasnya. GU yang sudah 'cair' dibiarkan sebagai catatan historis.
+     *
+     * @param int[] $guIds
+     */
+    private function recalcPengajuanGu(array $guIds): void
+    {
+        foreach (array_unique($guIds) as $guId) {
+            $guId = (int) $guId;
+            if ($guId <= 0) {
+                continue;
+            }
+
+            $stmt = $this->db->prepare("SELECT id, status, kas_bank_id FROM pengajuan_gu WHERE id = :id");
+            $stmt->execute([':id' => $guId]);
+            $gu = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$gu || ($gu['status'] ?? '') !== 'diajukan') {
+                continue;
+            }
+
+            $stmt = $this->db->prepare("SELECT COALESCE(SUM(nilai), 0) FROM transaksi WHERE pengajuan_gu_id = :id");
+            $stmt->execute([':id' => $guId]);
+            $sisa = (float) $stmt->fetchColumn();
+
+            if ($sisa <= 0) {
+                $this->db->prepare("DELETE FROM pengajuan_gu WHERE id = :id")->execute([':id' => $guId]);
+                if (!empty($gu['kas_bank_id'])) {
+                    $this->db->prepare("DELETE FROM kas_bank WHERE id = :id")->execute([':id' => (int) $gu['kas_bank_id']]);
+                }
+                continue;
+            }
+
+            $this->db->prepare("UPDATE pengajuan_gu SET total_nominal = :total WHERE id = :id")
+                ->execute([':total' => $sisa, ':id' => $guId]);
+            if (!empty($gu['kas_bank_id'])) {
+                $this->db->prepare("UPDATE kas_bank SET nominal = :total WHERE id = :id AND status = 'menunggu_cair'")
+                    ->execute([':total' => $sisa, ':id' => (int) $gu['kas_bank_id']]);
+            }
         }
     }
 
