@@ -72,18 +72,38 @@ $pdo->exec("
 ");
 
 // ── Kolom pengajuan_tu_id di transaksi ─────────────────────────────────────
-$pdo->exec("
-    ALTER TABLE `transaksi`
-        ADD COLUMN IF NOT EXISTS `pengajuan_tu_id` INT UNSIGNED DEFAULT NULL
-            COMMENT 'FK ke pengajuan_tu.id — NULL = bukan dari dana TU'
-            AFTER `pengajuan_gu_id`
+// Cek dulu apakah kolom sudah ada (kompatibel semua versi MySQL)
+$colCheck = $pdo->prepare("
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'transaksi'
+      AND COLUMN_NAME  = 'pengajuan_tu_id'
 ");
+$colCheck->execute();
+if ((int) $colCheck->fetchColumn() === 0) {
+    $pdo->exec("
+        ALTER TABLE `transaksi`
+            ADD COLUMN `pengajuan_tu_id` INT UNSIGNED DEFAULT NULL
+                COMMENT 'FK ke pengajuan_tu.id — NULL = bukan dari dana TU'
+                AFTER `pengajuan_gu_id`
+    ");
+}
 
 // ── Tambah nilai 'tu' pada enum kas_bank.jenis ────────────────────────────
-// MySQL tidak bisa DROP/ADD enum langsung; harus MODIFY COLUMN ulang.
-$pdo->exec("
-    ALTER TABLE `kas_bank`
-        MODIFY COLUMN `jenis`
-            ENUM('saldo_awal', 'up', 'gu', 'tu', 'setoran', 'lainnya')
-            NOT NULL DEFAULT 'gu'
+// Cek apakah 'tu' sudah masuk dalam definisi enum kolom jenis
+$enumCheck = $pdo->prepare("
+    SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'kas_bank'
+      AND COLUMN_NAME  = 'jenis'
 ");
+$enumCheck->execute();
+$enumType = (string) $enumCheck->fetchColumn();
+if (strpos($enumType, "'tu'") === false) {
+    $pdo->exec("
+        ALTER TABLE `kas_bank`
+            MODIFY COLUMN `jenis`
+                ENUM('saldo_awal', 'up', 'gu', 'tu', 'setoran', 'lainnya')
+                NOT NULL DEFAULT 'gu'
+    ");
+}
