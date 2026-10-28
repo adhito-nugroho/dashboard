@@ -116,9 +116,10 @@ class PaguController {
             }
             unset($p);
             
-            $perPage = 10;
-            $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
             $total = count($pagus);
+            $showAll = isset($_GET['show_all']) && (string) $_GET['show_all'] === '1';
+            $perPage = $showAll ? max($total, 1) : 10;
+            $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
             $totalPages = max(1, (int) ceil($total / $perPage));
             if ($page > $totalPages) {
                 $page = $totalPages;
@@ -130,7 +131,8 @@ class PaguController {
                 'perPage' => $perPage,
                 'total' => $total,
                 'totalPages' => $totalPages,
-                'baseUrl' => base_url('pagu')
+                'baseUrl' => base_url('pagu'),
+                'showAll' => $showAll
             ];
             
             $pageTitle = 'Pagu';
