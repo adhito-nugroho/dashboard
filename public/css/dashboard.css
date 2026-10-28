@@ -137,6 +137,10 @@
         right: auto !important;
         position: static !important;
     }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-sisa {
+        right: auto !important;
+        position: static !important;
+    }
     .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
         right: auto !important;
         position: static !important;
@@ -204,6 +208,10 @@
         right: auto !important;
         position: static !important;
     }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-sisa {
+        right: auto !important;
+        position: static !important;
+    }
     .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-percent {
         right: auto !important;
         position: static !important;
@@ -232,6 +240,10 @@
         position: static !important;
     }
     .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-sisa {
         right: auto !important;
         position: static !important;
     }
@@ -291,6 +303,10 @@
         position: static !important;
     }
     .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-sisa {
         right: auto !important;
         position: static !important;
     }
@@ -526,8 +542,9 @@
     --ma-pagu-width: 150px;
     --ma-month-width: 118px;
     --ma-total-width: 160px;
+    --ma-sisa-width: 155px;
     --ma-pct-width: 90px;
-    min-width: 2180px;
+    min-width: 2335px;
     border-collapse: separate;
     border-spacing: 0;
     font-variant-numeric: tabular-nums;
@@ -558,6 +575,7 @@
     color: #3730a3;
 }
 .monthly-absorption-table thead .monthly-absorption-total,
+.monthly-absorption-table thead .monthly-absorption-sisa,
 .monthly-absorption-table thead .monthly-absorption-percent {
     background: #ecfdf5;
     color: #047857;
@@ -584,6 +602,17 @@
     color: #0f172a;
     white-space: nowrap;
 }
+.monthly-absorption-table .monthly-absorption-sisa {
+    width: var(--ma-sisa-width);
+    min-width: 155px;
+    padding-right: 1rem;
+    font-weight: 800;
+    color: #047857;
+    white-space: nowrap;
+}
+.monthly-absorption-table .monthly-absorption-sisa.is-over {
+    color: #b91c1c;
+}
 .monthly-absorption-table .monthly-absorption-percent {
     width: var(--ma-pct-width);
     min-width: 90px;
@@ -602,6 +631,7 @@
 .monthly-sticky-name,
 .monthly-sticky-pagu,
 .monthly-sticky-total,
+.monthly-sticky-sisa,
 .monthly-sticky-percent {
     position: sticky;
     z-index: 5;
@@ -618,10 +648,16 @@
     box-shadow: 3px 0 6px -3px rgba(0,0,0,0.08), 1px 0 0 #e2e8f0;
 }
 .monthly-sticky-total {
-    right: var(--ma-pct-width);
+    right: calc(var(--ma-pct-width) + var(--ma-sisa-width));
     z-index: 3;
     background-color: #f8fafc;
     box-shadow: -4px 0 8px -2px rgba(0,0,0,0.08), -1px 0 0 #cbd5e1;
+}
+.monthly-sticky-sisa {
+    right: var(--ma-pct-width);
+    z-index: 3;
+    background-color: #f8fafc;
+    box-shadow: -1px 0 0 #e2e8f0;
 }
 .monthly-sticky-percent {
     right: 0;
@@ -672,12 +708,14 @@
 .monthly-absorption-table thead .monthly-sticky-name,
 .monthly-absorption-table thead .monthly-sticky-pagu,
 .monthly-absorption-table thead .monthly-sticky-total,
+.monthly-absorption-table thead .monthly-sticky-sisa,
 .monthly-absorption-table thead .monthly-sticky-percent {
     z-index: 25;
 }
 /* tfoot: sel bulan (bukan sticky) juga harus solid agar tidak "tembus" */
 .monthly-absorption-table tfoot .monthly-absorption-month,
 .monthly-absorption-table tfoot .monthly-absorption-total,
+.monthly-absorption-table tfoot .monthly-absorption-sisa,
 .monthly-absorption-table tfoot .monthly-absorption-percent {
     background: #f8fafc;
 }
@@ -706,8 +744,10 @@
 }
 /* Group: sticky right (lebih gelap agar beda dari area bulan) */
 .monthly-absorption-group .monthly-sticky-total,
+.monthly-absorption-group .monthly-sticky-sisa,
 .monthly-absorption-group .monthly-sticky-percent,
 .monthly-absorption-group:hover .monthly-sticky-total,
+.monthly-absorption-group:hover .monthly-sticky-sisa,
 .monthly-absorption-group:hover .monthly-sticky-percent {
     background: #dbe4ee !important;
 }
@@ -742,6 +782,7 @@
 }
 /* Detail: sticky right */
 .monthly-absorption-detail .monthly-sticky-total,
+.monthly-absorption-detail .monthly-sticky-sisa,
 .monthly-absorption-detail .monthly-sticky-percent {
     background: #f8fafc !important;
 }
@@ -770,6 +811,7 @@
 .monthly-absorption-table tfoot .monthly-sticky-name,
 .monthly-absorption-table tfoot .monthly-sticky-pagu,
 .monthly-absorption-table tfoot .monthly-sticky-total,
+.monthly-absorption-table tfoot .monthly-sticky-sisa,
 .monthly-absorption-table tfoot .monthly-sticky-percent {
     z-index: 22;
     background: #f8fafc !important;
@@ -835,6 +877,10 @@
         position: static !important;
     }
     .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-total {
+        right: auto !important;
+        position: static !important;
+    }
+    .monthly-absorption-table:not(.is-expanded-months) .monthly-sticky-sisa {
         right: auto !important;
         position: static !important;
     }

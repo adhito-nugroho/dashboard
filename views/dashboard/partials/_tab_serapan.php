@@ -6,6 +6,7 @@
         $absorptionSubKegiatan = $monthlyAbsorptionDetails['sub_kegiatan'];
         $absorptionTotals = $monthlyAbsorptionDetails['totals'];
         $absorptionPct = $absorptionTotals['pagu'] > 0 ? ($absorptionTotals['realisasi'] / $absorptionTotals['pagu']) * 100 : 0;
+        $absorptionSisa = $absorptionTotals['pagu'] - $absorptionTotals['realisasi'];
         $formatCompactRupiah = function ($value, bool $dashZero = false): string {
             $value = (float) $value;
             $abs = abs($value);
@@ -65,6 +66,7 @@
                                         <th class="text-end monthly-absorption-month"><?= $bulanNames[$m] ?></th>
                                     <?php endfor; ?>
                                     <th class="text-end text-nowrap monthly-absorption-total monthly-sticky-total">Total</th>
+                                    <th class="text-end text-nowrap monthly-absorption-sisa monthly-sticky-sisa">Sisa Anggaran</th>
                                     <th class="text-end text-nowrap pe-4 monthly-absorption-percent monthly-sticky-percent">%</th>
                                 </tr>
                             </thead>
@@ -72,6 +74,7 @@
                                 <?php foreach ($absorptionSubKegiatan as $skid => $sk): ?>
                                     <?php
                                         $skPct = $sk['pagu'] > 0 ? ($sk['realisasi'] / $sk['pagu']) * 100 : 0;
+                                        $skSisa = $sk['pagu'] - $sk['realisasi'];
                                         $skRowKey = 'absorption-sk-' . (int) $skid;
                                     ?>
                                     <tr class="monthly-absorption-group is-collapsed" data-absorption-toggle="<?= htmlspecialchars($skRowKey) ?>" role="button" tabindex="0" aria-expanded="false">
@@ -92,6 +95,7 @@
                                             <td class="text-end monthly-absorption-month <?= $monthValue > 0 ? 'monthly-absorption-filled' : 'monthly-absorption-zero' ?>"><?= $formatCompactRupiah($monthValue, true) ?></td>
                                         <?php endfor; ?>
                                         <td class="text-end monthly-absorption-total monthly-sticky-total"><?= $formatCompactRupiah($sk['realisasi']) ?></td>
+                                        <td class="text-end monthly-absorption-sisa monthly-sticky-sisa <?= $skSisa < 0 ? 'is-over' : '' ?>"><?= $formatCompactRupiah($skSisa) ?></td>
                                         <td class="text-end pe-4 monthly-absorption-percent monthly-sticky-percent">
                                             <span class="monthly-absorption-pct <?= $skPct > 100 ? 'is-over' : ($skPct >= 80 ? 'is-high' : ($skPct > 0 ? 'is-mid' : 'is-empty')) ?>">
                                                 <?= number_format($skPct, 2) ?>%
@@ -99,7 +103,10 @@
                                         </td>
                                     </tr>
                                     <?php foreach ($sk['rekening'] as $rek): ?>
-                                        <?php $rekPct = $rek['pagu'] > 0 ? ($rek['realisasi'] / $rek['pagu']) * 100 : 0; ?>
+                                        <?php
+                                            $rekPct = $rek['pagu'] > 0 ? ($rek['realisasi'] / $rek['pagu']) * 100 : 0;
+                                            $rekSisa = $rek['pagu'] - $rek['realisasi'];
+                                        ?>
                                         <tr class="monthly-absorption-detail" data-absorption-child="<?= htmlspecialchars($skRowKey) ?>" hidden>
                                             <td class="ps-4 monthly-absorption-name monthly-sticky-name">
                                                 <div style="font-weight:700;color:#334155;"><?= htmlspecialchars($rek['nama']) ?></div>
@@ -111,6 +118,7 @@
                                                 <td class="text-end monthly-absorption-month <?= $monthValue > 0 ? 'monthly-absorption-filled' : 'monthly-absorption-zero' ?>"><?= $formatCompactRupiah($monthValue, true) ?></td>
                                             <?php endfor; ?>
                                             <td class="text-end monthly-absorption-total monthly-sticky-total"><?= $formatCompactRupiah($rek['realisasi']) ?></td>
+                                            <td class="text-end monthly-absorption-sisa monthly-sticky-sisa <?= $rekSisa < 0 ? 'is-over' : '' ?>"><?= $formatCompactRupiah($rekSisa) ?></td>
                                             <td class="text-end pe-4 monthly-absorption-percent monthly-sticky-percent">
                                                 <span class="monthly-absorption-pct <?= $rekPct > 100 ? 'is-over' : ($rekPct >= 80 ? 'is-high' : ($rekPct > 0 ? 'is-mid' : 'is-empty')) ?>">
                                                     <?= number_format($rekPct, 2) ?>%
@@ -129,6 +137,7 @@
                                         <td class="text-end monthly-absorption-month <?= $monthValue > 0 ? 'monthly-absorption-filled' : 'monthly-absorption-zero' ?>"><?= $formatCompactRupiah($monthValue, true) ?></td>
                                     <?php endfor; ?>
                                     <td class="text-end monthly-absorption-total monthly-sticky-total"><?= $formatCompactRupiah($absorptionTotals['realisasi']) ?></td>
+                                    <td class="text-end monthly-absorption-sisa monthly-sticky-sisa <?= $absorptionSisa < 0 ? 'is-over' : '' ?>"><?= $formatCompactRupiah($absorptionSisa) ?></td>
                                     <td class="text-end pe-4 monthly-absorption-percent monthly-sticky-percent"><?= number_format($absorptionPct, 2) ?>%</td>
                                 </tr>
                             </tfoot>
