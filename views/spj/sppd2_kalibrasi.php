@@ -36,7 +36,7 @@ foreach ($printers as $p) {
 .kal-canvas .kal-bg { position:absolute; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
 .kal-canvas canvas.kal-pdfbg { position:absolute; opacity:.5; pointer-events:none; }
 .kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:3px; padding:0 2px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; overflow:hidden; }
-.kal-box .kal-txt { display:block; font-size:10.5px; color:#0f172a; line-height:1.32; height:100%; padding-top:1px; box-sizing:border-box; }
+.kal-box .kal-txt { display:block; font-size:14.8px; color:#0f172a; line-height:1.32; height:100%; box-sizing:border-box; }
 .kal-box.one-line .kal-txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kal-box.multi .kal-txt { white-space:normal; word-break:break-word; text-align:center; }
 .kal-box[data-align="C"] .kal-txt { text-align:center; }
@@ -189,6 +189,7 @@ const OFF_X = <?= json_encode($offX) ?>, OFF_Y = <?= json_encode($offY) ?>;
 const state = <?= json_encode($positions, JSON_UNESCAPED_UNICODE) ?>;
 const defaults = <?= json_encode($defaults, JSON_UNESCAPED_UNICODE) ?>;
 const labels = <?= json_encode($labels, JSON_UNESCAPED_UNICODE) ?>;
+const aligns = <?= json_encode($aligns ?? [], JSON_UNESCAPED_UNICODE) ?>;
 const widths = <?= json_encode($widths, JSON_UNESCAPED_UNICODE) ?>;
 const defaultWidths = <?= json_encode($defaultWidths, JSON_UNESCAPED_UNICODE) ?>;
 const defaultLines = <?= json_encode($defaultLines, JSON_UNESCAPED_UNICODE) ?>;
@@ -213,10 +214,23 @@ function showAlert(msg, type) {
 function markDirty() {
     dirtyBadge.classList.toggle('d-none', JSON.stringify(state) === initial);
 }
+// Ukuran font cetak 10,5pt pada skala kanvas (1mm = 4px).
+const FONT_PX = 10.5 * (25.4 / 72) * SCALE;
+const measureCtx = document.createElement('canvas').getContext('2d');
+measureCtx.font = FONT_PX + 'px Arial, Helvetica, sans-serif';
+function textWidthMm(key) {
+    const t = sample[key] || '';
+    if (t === '') return null;
+    return measureCtx.measureText(t).width / SCALE;
+}
+/** Lebar kotak: ikut panjang teks, dibatasi lebar default (atau override). */
 function widthOf(key) {
     const ov = state[key]?.max_width_mm;
     if (ov !== null && ov !== undefined && ov !== '' && !isNaN(parseFloat(ov))) return parseFloat(ov);
-    return parseFloat(widths[key] ?? defaultWidths[key] ?? 60);
+    const def = parseFloat(widths[key] ?? defaultWidths[key] ?? 60);
+    const tw = textWidthMm(key);
+    if (tw === null) return def;
+    return Math.max(5, Math.min(def, Math.round((tw + 1) * 10) / 10));
 }
 function defaultWidthOf(key) {
     return parseFloat(defaultWidths[key] ?? widths[key] ?? 60);
@@ -251,7 +265,7 @@ function layout() {
         el.style.height = (5 * lines * SCALE) + 'px';
         el.classList.toggle('one-line', lines === 1);
         el.classList.toggle('multi', lines > 1);
-        el.dataset.align = (key.indexOf('pejabat_') === 0) ? 'C' : 'L';
+        el.dataset.align = aligns[key] || 'L';
 
         const txt = sample[key] || '';
         const txtEl = el.querySelector('.kal-txt');
@@ -339,7 +353,7 @@ function syncPanel() {
         inW.placeholder = 'default ' + defaultWidthOf(selected).toFixed(1) + 'mm';
     }
     document.getElementById('kalDefWInfo').textContent =
-        'Aktif: ' + widthOf(selected).toFixed(1) + 'mm (default ' + defaultWidthOf(selected).toFixed(1) + 'mm). Kosongkan untuk pakai default.';
+        'Lebar kotak: ' + widthOf(selected).toFixed(1) + 'mm (default cetak ' + defaultWidthOf(selected).toFixed(1) + 'mm). Kosongkan isian untuk mengikuti panjang teks.';
     const inL = document.getElementById('kalInLines');
     if (document.activeElement !== inL) {
         const ovL = state[selected].max_lines;

@@ -193,7 +193,9 @@ $kotaTujuanKosong = $suratTugas !== null
                                                    class="btn btn-sm btn-outline-danger" title="Pratinjau PDF SPD">
                                                     <i class="bi bi-file-earmark-text me-1"></i>SPD
                                                 </a>
-                                                <a href="<?= base_url('spj/sppd2/' . $stId . '/' . $nipEncoded) ?>"
+                                                <a href="#"
+                                                   data-sppd2-st="<?= $stId ?>"
+                                                   data-sppd2-nip="<?= htmlspecialchars($nipKey, ENT_QUOTES) ?>"
                                                    class="btn btn-sm btn-outline-danger"
                                                    title="Cetak lembar 2 SPPD (Tiba di / Berangkat dari + pejabat instansi tujuan)">
                                                     <i class="bi bi-file-earmark-text me-1"></i>Lembar 2
@@ -229,3 +231,4 @@ document.querySelectorAll('.btn-hapus-rincian').forEach(function (btn) {
     });
 });
 </script>
+<?php include __DIR__ . '/_sppd2_modal.php'; ?>

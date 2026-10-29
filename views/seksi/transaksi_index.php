@@ -568,10 +568,11 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
                                                 <i class="bi bi-file-earmark-plus"></i>
                                             </button>
                                         <?php else: ?>
-                                            <a href="<?= base_url('spj/sppd2/' . $l2StId . '/' . $l2Nip) ?>"
-                                               target="_blank" rel="noopener"
+                                            <a href="#"
+                                               data-sppd2-st="<?= $l2StId ?>"
+                                               data-sppd2-nip="<?= htmlspecialchars($l2Nip, ENT_QUOTES) ?>"
                                                class="btn btn-outline-success btn-action-icon"
-                                               data-bs-toggle="tooltip" data-bs-placement="top" title="Isi & Cetak Lembar 2 SPPD (overlay)">
+                                               data-bs-toggle="tooltip" data-bs-placement="top" title="Isi &amp; Cetak Lembar 2 SPPD (overlay)">
                                                 <i class="bi bi-file-earmark-plus"></i>
                                             </a>
                                         <?php endif; ?>
@@ -721,10 +722,11 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
                                         <i class="bi bi-file-earmark-plus me-1"></i>Lembar 2
                                     </button>
                                 <?php else: ?>
-                                    <a href="<?= base_url('spj/sppd2/' . $l2StIdM . '/' . $l2NipM) ?>"
-                                       target="_blank" rel="noopener"
+                                    <a href="#"
+                                       data-sppd2-st="<?= $l2StIdM ?>"
+                                       data-sppd2-nip="<?= htmlspecialchars($l2NipM, ENT_QUOTES) ?>"
                                        class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
-                                       data-bs-toggle="tooltip" title="Isi & Cetak Lembar 2 SPPD (overlay)">
+                                       data-bs-toggle="tooltip" title="Isi &amp; Cetak Lembar 2 SPPD (overlay)">
                                         <i class="bi bi-file-earmark-plus me-1"></i>Lembar 2
                                     </a>
                                 <?php endif; ?>
@@ -1028,3 +1030,4 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 <script src="<?= base_url('js/transaksi-ui.js') ?>"></script>
+<?php include __DIR__ . '/../spj/_sppd2_modal.php'; ?>

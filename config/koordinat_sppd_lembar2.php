@@ -71,11 +71,11 @@ return [
         ],
         'pejabat_tiba_nama' => [
             'x_mm' => 4.0, 'y_mm' => 68.9, 'w_mm' => 60.0, 'h_mm' => 5.0,
-            'align' => 'C', 'style' => 'U', 'label' => 'II - nama pejabat tujuan (tiba)',
+            'align' => 'L', 'style' => 'U', 'label' => 'II - nama pejabat tujuan (tiba)',
         ],
         'pejabat_tiba_nip' => [
             'x_mm' => 4.0, 'y_mm' => 73.0, 'w_mm' => 60.0, 'h_mm' => 5.0,
-            'align' => 'C', 'style' => '', 'label' => 'II - NIP pejabat tujuan (tiba)',
+            'align' => 'L', 'style' => '', 'label' => 'II - NIP pejabat tujuan (tiba)',
         ],
 
         // ── Kolom kanan (baris II): keberangkatan kembali dari kota tujuan ──
@@ -97,11 +97,11 @@ return [
         ],
         'pejabat_berangkat_nama' => [
             'x_mm' => 98.0, 'y_mm' => 68.9, 'w_mm' => 54.0, 'h_mm' => 5.0,
-            'align' => 'C', 'style' => 'U', 'label' => 'II - nama pejabat tujuan (berangkat)',
+            'align' => 'L', 'style' => 'U', 'label' => 'II - nama pejabat tujuan (berangkat)',
         ],
         'pejabat_berangkat_nip' => [
             'x_mm' => 98.0, 'y_mm' => 73.0, 'w_mm' => 54.0, 'h_mm' => 5.0,
-            'align' => 'C', 'style' => '', 'label' => 'II - NIP pejabat tujuan (berangkat)',
+            'align' => 'L', 'style' => '', 'label' => 'II - NIP pejabat tujuan (berangkat)',
         ],
 
         // ── Kolom kiri (baris VI): tiba kembali di tempat kedudukan ──

@@ -372,6 +372,7 @@ try {
         ['POST', '/spj/sppd2/kalibrasi/uji', fn($m) => $spjController->ujiKalibrasiSppd()],
         ['POST', '/spj/sppd2/kalibrasi/upload', fn($m) => $spjController->uploadReferensiSppd()],
         ['GET', '/spj/sppd2/uji', fn($m) => $spjController->cetakUjiSppdLembar2()],
+        ['GET', '#^/spj/sppd2/pejabat/(\d+)$#', fn($m) => $spjController->sppd2Pejabat((int) $m[1])],
         ['POST', '#^/spj/sppd2/cetak/(\d+)/(.+)$#', fn($m) => $spjController->cetakSppdLembar2((int) $m[1], urldecode($m[2]))],
         ['ANY', '#^/spj/sppd2/(\d+)/(.+)$#', fn($m) => $spjController->sppdLembar2((int) $m[1], urldecode($m[2]))],
 

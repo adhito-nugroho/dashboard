@@ -545,6 +545,30 @@ class SpjController
     }
 
     /**
+     * Data pejabat instansi tujuan yang tersimpan (untuk prefill modal cetak).
+     * Akses: GET /spj/sppd2/pejabat/{st_id}
+     */
+    public function sppd2Pejabat(int $suratTugasId): void
+    {
+        $this->requireLogin();
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            $row = (new SppdLembar2Pejabat(\Database::getConnection()))
+                ->getBySuratTugasId($suratTugasId)
+                ?? ['jabatan' => '', 'nama' => '', 'nip' => ''];
+            echo json_encode([
+                'ok' => true,
+                'jabatan' => (string) ($row['jabatan'] ?? ''),
+                'nama' => (string) ($row['nama'] ?? ''),
+                'nip' => (string) ($row['nip'] ?? ''),
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => 'Gagal memuat data pejabat.']);
+        }
+    }
+
+    /**
      * Simpan pejabat tujuan lalu cetak PDF lembar 2 SPPD (overlay A4).
      * Akses: POST /spj/sppd2/cetak/{st_id}/{nip}
      */
@@ -703,6 +727,7 @@ class SpjController
         $defaultWidths = [];
         $defaultLines = [];
         $labels = [];
+        $aligns = [];
         $order = [];
         $cfg = $svc->getConfig();
         foreach (array_keys($cfg['elements'] ?? []) as $key) {
@@ -711,6 +736,7 @@ class SpjController
             $defaultWidths[$key] = (float) ($defaults[$key]['w_mm'] ?? 50);
             $defaultLines[$key] = (int) ($defaults[$key]['max_lines'] ?? 1);
             $labels[$key] = (string) ($cfg['elements'][$key]['label'] ?? $key);
+            $aligns[$key] = (string) ($cfg['elements'][$key]['align'] ?? 'L');
         }
 
         $flash = $_SESSION['flash_message'] ?? null;
@@ -725,6 +751,7 @@ class SpjController
             'defaultWidths' => $defaultWidths,
             'defaultLines' => $defaultLines,
             'labels' => $labels,
+            'aligns' => $aligns,
             'order' => $order,
             'sampleTexts' => $svc->sampleTexts(),
             'refUrl' => $ref['url'] ?? null,
