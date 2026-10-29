@@ -34,12 +34,21 @@
         }
     }
 
+    // Nilai awal dari DB bisa berbentuk desimal mentah ("4880000.00"). Titik
+    // desimal harus dibuang bersama pecahannya, bukan diperlakukan sebagai
+    // pemisah ribuan (kalau salah, nilai tampil 100x lipat).
+    function integerFromValue(str) {
+        var s = String(str == null ? '' : str).trim();
+        if (/^\d+\.\d{1,2}$/.test(s)) s = s.split('.')[0];
+        return digitsOnly(s).replace(/^0+(?=\d)/, '');
+    }
+
     function initRupiah(scope) {
         (scope || document).querySelectorAll('input[data-rupiah]').forEach(function (el) {
             if (el.dataset.rupiahInit) return;
             el.dataset.rupiahInit = '1';
             el.setAttribute('inputmode', 'numeric');
-            if (el.value) el.value = formatRibuan(digitsOnly(el.value).replace(/^0+(?=\d)/, ''));
+            if (el.value) el.value = formatRibuan(integerFromValue(el.value));
             el.addEventListener('input', function () { maskRupiah(el); });
         });
     }

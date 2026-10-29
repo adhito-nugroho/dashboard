@@ -295,8 +295,8 @@ class SeksiTransaksiController
                 $nilai = $totalRincian;
             }
 
-            if ($nomorBukti === '' || $uraian === '' || $nilai <= 0) {
-                $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nomor bukti, uraian, dan nilai harus valid.";
+            if ($nomorBukti === '' || $uraian === '' || $nilai <= 0 || $namaPenerima === '') {
+                $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nama penerima, nomor bukti, uraian, dan nilai harus valid.";
                 continue;
             }
 
@@ -687,8 +687,8 @@ class SeksiTransaksiController
                 $nilai = $totalRincian;
             }
 
-            if ($nomorBukti === '' || $uraian === '' || $nilai <= 0) {
-                $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nomor bukti, uraian, dan nilai harus valid.";
+            if ($nomorBukti === '' || $uraian === '' || $nilai <= 0 || $namaPenerima === '') {
+                $errors[] = "Baris #" . ($idx + 1) . " (" . ($namaPenerima ?: 'Penerima') . "): Nama penerima, nomor bukti, uraian, dan nilai harus valid.";
                 continue;
             }
 
@@ -1686,6 +1686,10 @@ class SeksiTransaksiController
 
         if (empty(trim($data['nomor_bukti'] ?? ''))) {
             $errors[] = 'Nomor bukti wajib diisi';
+        }
+
+        if (empty(trim($data['nama_penerima'] ?? ''))) {
+            $errors[] = 'Nama penerima/pihak ketiga wajib diisi';
         }
 
         $jenis = $data['jenis_transaksi'] ?? 'lainnya';

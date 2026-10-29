@@ -8,6 +8,9 @@ $subKegiatanId = $transaksi['sub_kegiatan_id'] ?? '';
 $rekeningId = $transaksi['rekening_id'] ?? '';
 $uraian = $transaksi['uraian'] ?? '';
 $nilai = $transaksi['nilai'] ?? '';
+// Nilai dari DB berupa desimal (mis. 4880000.00); tampilkan sebagai rupiah
+// berformat agar masker JS tidak menghapus titik desimal dan mengalikan 100.
+$nilaiDisplay = is_numeric($nilai) ? number_format((float) $nilai, 0, ',', '.') : $nilai;
 $nomorBukti = $transaksi['nomor_bukti'] ?? '';
 $namaPenerima = $transaksi['nama_penerima'] ?? '';
 $jenisTransaksi = $transaksi['jenis_transaksi'] ?? '';
@@ -484,9 +487,9 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                             <!-- Nama Penerima -->
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" style="font-size:0.85rem;color:#23241F;">
-                                    Nama Penerima / Pihak Ketiga
+                                    Nama Penerima / Pihak Ketiga <span class="required" style="color:#B8874B;">*</span>
                                 </label>
-                                <input type="text" name="nama_penerima" id="nama_penerima" class="form-control custom-form-input" placeholder="Contoh: Budi Santoso, S.Hut" value="<?= htmlspecialchars($namaPenerima) ?>">
+                                <input type="text" name="nama_penerima" id="nama_penerima" class="form-control custom-form-input" placeholder="Contoh: Budi Santoso, S.Hut" value="<?= htmlspecialchars($namaPenerima) ?>" required>
                                 <small class="text-muted" style="font-size:0.75rem;color:#5C5A50 !important;">Nama pelaksana/toko/penerima pembayaran</small>
                             </div>
 
@@ -546,7 +549,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text fw-bold" style="border-radius:6px 0 0 6px;font-size:0.875rem;background:#F7F5EF;border:1px solid #DBD5C6;border-right:none;color:#5C5A50;">Rp</span>
-                                    <input type="text" name="nilai" id="nilai" data-rupiah class="form-control custom-form-input" style="border-radius:0 6px 6px 0;" placeholder="0" value="<?= htmlspecialchars($nilai) ?>" required inputmode="numeric">
+                                    <input type="text" name="nilai" id="nilai" data-rupiah class="form-control custom-form-input" style="border-radius:0 6px 6px 0;" placeholder="0" value="<?= htmlspecialchars($nilaiDisplay) ?>" required inputmode="numeric">
                                 </div>
                             </div>
                         </div>
@@ -1821,11 +1824,13 @@ document.addEventListener('DOMContentLoaded', function() {
         autoFillSingleNomorBukti(false);
     }
 
-    // Format nilai awal jika ada
+    // Format nilai awal jika ada. Nilai desimal mentah dari DB ("4880000.00")
+    // harus kehilangan pecahannya lebih dulu, jangan hanya dibuang non-digitnya.
     const nilaiEl = document.getElementById('nilai');
     if (nilaiEl && nilaiEl.value) {
-        let clean = nilaiEl.value.replace(/[^0-9]/g, '');
-        if (clean) nilaiEl.value = parseInt(clean, 10).toLocaleString('id-ID');
+        const raw = nilaiEl.value.trim();
+        let digits = /^\d+\.\d{1,2}$/.test(raw) ? raw.split('.')[0] : raw.replace(/[^0-9]/g, '');
+        if (digits) nilaiEl.value = parseInt(digits, 10).toLocaleString('id-ID');
     }
 
     // Bangun ulang batch items & rincian biaya jika dalam mode edit batch
