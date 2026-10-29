@@ -235,6 +235,23 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
     color: #5C5A50;
     border-color: #DBD5C6;
 }
+.sisa-pagu-alert {
+    display: none;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.sisa-pagu-alert i {
+    margin-top: 0.1rem;
+}
 .field-highlight {
     border-color: #ef4444 !important;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
@@ -353,6 +370,10 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 <div class="sisa-pagu-badge unknown" id="sisaPaguError" style="display:none;">
                                     <i class="bi bi-exclamation-circle"></i>
                                     <span>Sisa anggaran tidak dapat dimuat — transaksi tetap bisa diajukan tanpa validasi otomatis.</span>
+                                </div>
+                                <div class="sisa-pagu-alert" id="sisaPaguWarning" role="alert" aria-live="polite">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <span id="sisaPaguWarningText"></span>
                                 </div>
                             </div>
                         </div>
@@ -719,6 +740,48 @@ function loadOptions(selectEl, url, keepValue, placeholder) {
     });
 }
 
+function getTotalNilaiPengajuan() {
+    const batchContainer = document.getElementById('batchItemsContainer');
+    const isBatchMode = batchContainer && batchContainer.style.display !== 'none' && document.querySelectorAll('.batch-nilai-input').length > 0;
+    let total = 0;
+    if (isBatchMode) {
+        document.querySelectorAll('.batch-nilai-input').forEach(inp => {
+            total += parseNilaiToInt(inp.value);
+        });
+    } else {
+        const nilaiEl = document.getElementById('nilai');
+        total = parseNilaiToInt(nilaiEl ? nilaiEl.value : '0');
+    }
+    return total;
+}
+
+function hideSisaPaguWarning() {
+    const warning = document.getElementById('sisaPaguWarning');
+    if (warning) warning.style.display = 'none';
+}
+
+function updateSisaPaguWarning() {
+    const warning = document.getElementById('sisaPaguWarning');
+    const textEl = document.getElementById('sisaPaguWarningText');
+    if (!warning || !textEl) return;
+
+    const sisa = window.currentSisaPagu;
+    if (sisa === null || sisa === undefined || isNaN(Number(sisa))) {
+        warning.style.display = 'none';
+        return;
+    }
+
+    const total = getTotalNilaiPengajuan();
+    if (total <= Number(sisa)) {
+        warning.style.display = 'none';
+        return;
+    }
+
+    const fmt = (v) => 'Rp ' + Number(v).toLocaleString('id-ID');
+    textEl.innerText = 'Nilai pengajuan (' + fmt(total) + ') melebihi sisa anggaran (' + fmt(sisa) + ') sebesar ' + fmt(total - Number(sisa)) + '. Pengajuan tetap dapat dilanjutkan dan menunggu verifikasi admin.';
+    warning.style.display = 'flex';
+}
+
 function updateSisaPagu() {
     const rekId = document.getElementById('rekening_id').value;
     const tglVal = document.getElementById('tanggal').value;
@@ -736,6 +799,7 @@ function updateSisaPagu() {
         if (spinnerSisa) spinnerSisa.style.display = 'none';
         if (errorBadge) errorBadge.style.display = 'none';
         if (badge) badge.style.display = 'inline-flex';
+        hideSisaPaguWarning();
         return;
     }
 
@@ -766,10 +830,12 @@ function updateSisaPagu() {
                 } else if (res.sisa_pagu < (res.pagu * 0.1)) {
                     badge.classList.add('warning');
                 }
+                updateSisaPaguWarning();
             } else {
                 window.currentSisaPagu = null;
                 container.style.display = 'none';
                 if (errorBadge) errorBadge.style.display = 'none';
+                hideSisaPaguWarning();
             }
         })
         .catch(() => {
@@ -778,6 +844,7 @@ function updateSisaPagu() {
             container.style.display = 'block';
             if (badge) badge.style.display = 'none';
             if (errorBadge) errorBadge.style.display = 'inline-flex';
+            hideSisaPaguWarning();
         });
 }
 
@@ -835,6 +902,7 @@ function updateBatchTotal() {
     if (el) el.innerText = 'Rp ' + total.toLocaleString('id-ID');
     const container = document.getElementById('batchTotalNilai');
     if (container) container.style.display = inputs.length ? 'flex' : 'none';
+    if (typeof updateSisaPaguWarning === 'function') updateSisaPaguWarning();
 }
 
 function setSingleItemActive(isActive) {
@@ -981,6 +1049,7 @@ document.getElementById('jenis_transaksi').addEventListener('change', function(e
 // Format ribuan nilai input single — dengan preservasi posisi kursor (Task 3)
 document.getElementById('nilai').addEventListener('input', function(e) {
     formatRibuanWithCursor(this);
+    updateSisaPaguWarning();
 });
 
 // Helper membersihkan duplikasi kata "Perjalanan Dinas dalam rangka"
@@ -1595,21 +1664,15 @@ document.getElementById('seksiTransaksiForm').addEventListener('submit', functio
     const sisa = Number(window.currentSisaPagu);
     if (isNaN(sisa)) return;
 
-    let totalNilai = 0;
-    if (isBatchMode) {
-        document.querySelectorAll('.batch-nilai-input').forEach(inp => {
-            totalNilai += parseNilaiToInt(inp.value);
-        });
-    } else {
-        const nilaiEl = document.getElementById('nilai');
-        totalNilai = parseNilaiToInt(nilaiEl ? nilaiEl.value : '0');
-    }
+    const totalNilai = getTotalNilaiPengajuan();
 
     if (totalNilai === 0) return; // biar required yang handle
     if (totalNilai > sisa) {
+        updateSisaPaguWarning();
         const sisaFmt = 'Rp ' + Number(sisa).toLocaleString('id-ID');
         const totalFmt = 'Rp ' + Number(totalNilai).toLocaleString('id-ID');
-        const msg = `Nilai transaksi (${totalFmt}) melebihi sisa anggaran (${sisaFmt}). Tetap ajukan?`;
+        const lebihFmt = 'Rp ' + Number(totalNilai - sisa).toLocaleString('id-ID');
+        const msg = `Nilai transaksi (${totalFmt}) melebihi sisa anggaran (${sisaFmt}) sebesar ${lebihFmt}. Tetap ajukan?`;
         if (!confirm(msg)) {
             e.preventDefault();
             // Task C: scroll & focus ke field nilai relevan + highlight
