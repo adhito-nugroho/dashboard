@@ -367,6 +367,9 @@ try {
         ['ANY', '#^/spj/unduh/(\d+)$#', fn($m) => $spjController->download((int) $m[1])],
         ['ANY', '#^/spj/spd/(\d+)/(.+)$#', fn($m) => $spjController->unduhSpd((int) $m[1], urldecode($m[2]))],
         ['ANY', '#^/spj/spd-transaksi/(\d+)$#', fn($m) => $spjController->unduhSpdTransaksi((int) $m[1])],
+        ['GET', '/spj/sppd2/uji', fn($m) => $spjController->cetakUjiSppdLembar2()],
+        ['POST', '#^/spj/sppd2/cetak/(\d+)/(.+)$#', fn($m) => $spjController->cetakSppdLembar2((int) $m[1], urldecode($m[2]))],
+        ['ANY', '#^/spj/sppd2/(\d+)/(.+)$#', fn($m) => $spjController->sppdLembar2((int) $m[1], urldecode($m[2]))],
 
         // Kuitansi NCR 215x165mm (kalibrasi admin only, cetak admin+seksi)
         ['ANY', '/kuitansi/kalibrasi', fn($m) => $kuitansiController->kalibrasi()],

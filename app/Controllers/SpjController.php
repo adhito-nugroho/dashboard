@@ -6,8 +6,10 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/helpers.php';
 
 use App\Models\RincianBiaya;
+use App\Models\SppdLembar2Pejabat;
 use App\Repositories\SuratTugasRepository;
 use App\Services\RincianBiayaInputService;
+use App\Services\SppdLembar2Service;
 
 /**
  * Controller modul SPJ Rincian Biaya Perjalanan Dinas.
@@ -495,6 +497,121 @@ class SpjController
         }
 
         $svc->downloadPdf($data);
+    }
+
+    /**
+     * Form isian sebelum mencetak lembar 2 SPPD (overlay).
+     * Akses: GET /spj/sppd2/{st_id}/{nip}
+     * Isi otomatis: Kota Tujuan, tanggal tiba (tgl mulai), tanggal berangkat
+     * (tgl selesai), tujuan kembali (Bojonegoro). Diinput saat cetak:
+     * jabatan + nama + NIP pejabat instansi tujuan (disimpan per Surat Tugas).
+     */
+    public function sppdLembar2(int $suratTugasId, string $nip): void
+    {
+        $this->requireLogin();
+
+        $svc = new SppdLembar2Service();
+        $values = $svc->buildValues($suratTugasId, $nip);
+        if ($values === null) {
+            $this->redirectWithMessage(
+                base_url('spj/detail/' . $suratTugasId),
+                'error',
+                'SPPD lembar 2 tidak dapat dibuat: Surat Tugas/pegawai tidak ditemukan di database Surat Tugas.'
+            );
+            return;
+        }
+        if (!empty($values['kota_tujuan_kosong'])) {
+            $this->renderKotaTujuanKosong(
+                'Surat Tugas ' . ($values['nomor_surat'] !== '' ? $values['nomor_surat'] . ' ' : '')
+                    . 'belum mengisi field "Kota Tujuan" di aplikasi Surat Tugas. '
+                    . 'Kolom "Tiba di" dan "Berangkat dari" pada lembar 2 SPPD membutuhkan Kota Tujuan.',
+                base_url('spj/detail/' . $suratTugasId)
+            );
+            return;
+        }
+
+        $suratTugas = $this->fetchStOnly($suratTugasId);
+        $pegawai = $this->fetchStAndPegawai($suratTugasId, $nip)[1];
+        $pejabat = (new SppdLembar2Pejabat(\Database::getConnection()))
+            ->getBySuratTugasId($suratTugasId)
+            ?? ['jabatan' => '', 'nama' => '', 'nip' => ''];
+
+        $pageTitle = 'Cetak Lembar 2 SPPD — ' . ($values['pegawai_nama'] ?? $nip);
+        $activePage = 'spj';
+        $viewFile = __DIR__ . '/../../views/spj/sppd_lembar2_form.php';
+        include __DIR__ . '/../../views/layout.php';
+    }
+
+    /**
+     * Simpan pejabat tujuan lalu cetak PDF lembar 2 SPPD (overlay A4).
+     * Akses: POST /spj/sppd2/cetak/{st_id}/{nip}
+     */
+    public function cetakSppdLembar2(int $suratTugasId, string $nip): void
+    {
+        $this->requireLogin();
+
+        $svc = new SppdLembar2Service();
+        $values = $svc->buildValues($suratTugasId, $nip);
+        if ($values === null) {
+            http_response_code(404);
+            echo 'SPPD lembar 2 tidak dapat dibuat: Surat Tugas/pegawai tidak ditemukan.';
+            exit;
+        }
+        if (!empty($values['kota_tujuan_kosong'])) {
+            $this->renderKotaTujuanKosong(
+                'Surat Tugas ini belum mengisi field "Kota Tujuan" di aplikasi Surat Tugas. '
+                    . 'Kolom "Tiba di" dan "Berangkat dari" pada lembar 2 SPPD membutuhkan Kota Tujuan.',
+                base_url('spj/detail/' . $suratTugasId)
+            );
+            return;
+        }
+
+        $jabatan = trim((string) ($_POST['jabatan'] ?? ''));
+        $nama = trim((string) ($_POST['nama'] ?? ''));
+        $nipPejabat = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['nip'] ?? ''));
+
+        if ($jabatan === '' || $nama === '' || $nipPejabat === '') {
+            $this->redirectWithMessage(
+                base_url('spj/sppd2/' . $suratTugasId . '/' . urlencode($nip)),
+                'error',
+                'Jabatan, nama, dan NIP pejabat instansi tujuan wajib diisi.'
+            );
+            return;
+        }
+
+        try {
+            (new SppdLembar2Pejabat(\Database::getConnection()))->save(
+                $suratTugasId,
+                $jabatan,
+                $nama,
+                $nipPejabat,
+                $this->actor()
+            );
+        } catch (\Throwable $e) {
+            error_log('SpjController::cetakSppdLembar2 save error: ' . $e->getMessage());
+            $this->redirectWithMessage(
+                base_url('spj/sppd2/' . $suratTugasId . '/' . urlencode($nip)),
+                'error',
+                'Gagal menyimpan data pejabat tujuan: ' . $e->getMessage()
+            );
+            return;
+        }
+
+        $svc->streamPdf($values, ['jabatan' => $jabatan, 'nama' => $nama, 'nip' => $nipPejabat]);
+        exit;
+    }
+
+    /** Halaman uji posisi (kalibrasi) lembar 2 SPPD. Akses: GET /spj/sppd2/uji */
+    public function cetakUjiSppdLembar2(): void
+    {
+        $this->requireLogin();
+        (new SppdLembar2Service())->streamPdf([], [], true);
+        exit;
+    }
+
+    private function actor(): string
+    {
+        return (string) ($_SESSION['username'] ?? ('user#' . ($_SESSION['user_id'] ?? '?')));
     }
 
     /**

@@ -181,11 +181,22 @@ $kotaTujuanKosong = $suratTugas !== null
                                                         title="Kota Tujuan belum diisi di aplikasi Surat Tugas — SPD PDF tidak dapat dibuat">
                                                     <i class="bi bi-file-earmark-x me-1"></i>SPD
                                                 </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary"
+                                                        disabled
+                                                        title="Kota Tujuan belum diisi di aplikasi Surat Tugas — lembar 2 SPPD tidak dapat dibuat">
+                                                    <i class="bi bi-file-earmark-x me-1"></i>Lembar 2
+                                                </button>
                                             <?php else: ?>
                                                 <a href="<?= base_url('spj/spd/' . $stId . '/' . $nipEncoded) ?>"
                                                    target="_blank" rel="noopener"
                                                    class="btn btn-sm btn-outline-danger" title="Pratinjau PDF SPD">
                                                     <i class="bi bi-file-earmark-text me-1"></i>SPD
+                                                </a>
+                                                <a href="<?= base_url('spj/sppd2/' . $stId . '/' . $nipEncoded) ?>"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="Cetak lembar 2 SPPD (Tiba di / Berangkat dari + pejabat instansi tujuan)">
+                                                    <i class="bi bi-file-earmark-text me-1"></i>Lembar 2
                                                 </a>
                                             <?php endif; ?>
                                         </div>
