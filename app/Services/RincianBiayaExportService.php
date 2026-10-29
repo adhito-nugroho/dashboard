@@ -206,19 +206,21 @@ class RincianBiayaExportService
         $leftX = 14.7;
         $rightX = 124.8;
         $blockW = 64.0;
+        // Blok kanan dilebarkan sampai tepi nominal (195.2) agar nama panjang tidak terpotong.
+        $rightBlockW = 195.2 - $rightX;
 
         $this->put($pdf, 102.3, $sigTextY, 70.0, 5.0, $tempatTanggal, 'C', '', 10.5, true);
         $this->put($pdf, $leftX, $sigTextY + 4.8, $blockW, 5.0, 'Telah dibayar sejumlah', 'C', '', 10.5, true);
-        $this->put($pdf, $rightX, $sigTextY + 4.8, $blockW, 5.0, 'Telah menerima uang sejumlah', 'C', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 4.8, $rightBlockW, 5.0, 'Telah menerima uang sejumlah', 'C', '', 10.5, true);
 
         $this->amountRow($pdf, 24.6, 68.7, $totalBiaya, $sigTextY + 14.5);
         $this->amountRow($pdf, 150.1, 195.2, $totalBiaya, $sigTextY + 14.5);
 
         $this->put($pdf, $leftX, $sigTextY + 24.1, $blockW, 5.0, 'Bendahara Pengeluaran Pembantu', 'L', '', 10.5, true);
-        $this->put($pdf, $rightX, $sigTextY + 24.1, $blockW, 5.0, 'Yang Menerima,', 'L', '', 10.5, true);
+        $this->put($pdf, $rightX, $sigTextY + 24.1, $rightBlockW, 5.0, 'Yang Menerima,', 'L', '', 10.5, true);
 
-        $this->put($pdf, $leftX, $sigTextY + 43.2, $blockW, 5.0, $bendaharaNama, 'L', 'U', 10.5, true);
-        $this->put($pdf, $rightX, $sigTextY + 43.2, $blockW, 5.0, $penerimaNama, 'L', 'U', 10.5, true);
+        $this->putFit($pdf, $leftX, $sigTextY + 43.2, $blockW, 5.0, $bendaharaNama, 'L', 'U', 10.5);
+        $this->putFit($pdf, $rightX, $sigTextY + 43.2, $rightBlockW, 5.0, $penerimaNama, 'L', 'U', 10.5);
         $this->put($pdf, $leftX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($bendaharaNip), 'L', '', 10.5, true);
         $this->put($pdf, $rightX, $sigTextY + 48.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($penerimaNip), 'L', '', 10.5, true);
 
@@ -236,8 +238,8 @@ class RincianBiayaExportService
         $this->calculationRow($pdf, $sigY + 81.8, 'Sisa kurang/lebih', $sisa, true);
 
         // Tanda tangan KPA
-        $this->put($pdf, $rightX, $sigY + 96.2, $blockW, 5.0, 'Kuasa Pengguna Anggaran', 'L', '', 10.5, true);
-        $this->put($pdf, $rightX, $sigY + 120.1, $blockW, 5.0, $kpaNama, 'L', 'U', 10.5, true);
+        $this->put($pdf, $rightX, $sigY + 96.2, $rightBlockW, 5.0, 'Kuasa Pengguna Anggaran', 'L', '', 10.5, true);
+        $this->putFit($pdf, $rightX, $sigY + 120.1, $rightBlockW, 5.0, $kpaNama, 'L', 'U', 10.5);
         $this->put($pdf, $rightX, $sigY + 125.0, $blockW, 5.0, 'NIP. ' . $this->formatNip($kpaNip), 'L', '', 10.5, true);
 
         return $pdf;
@@ -326,6 +328,38 @@ class RincianBiayaExportService
         if ($clip) {
             $encoded = $this->clip($pdf, $encoded, max(1.0, $w - 2.0));
         }
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($w, $h, $encoded, 0, 0, $align);
+    }
+
+    /**
+     * Seperti put(), tetapi font dikecilkan bertahap agar teks muat utuh.
+     * Hanya bila masih terlalu panjang pada ukuran minimum, teks dipotong elipsis.
+     */
+    private function putFit(
+        \FPDF $pdf,
+        float $x,
+        float $y,
+        float $w,
+        float $h,
+        string $text,
+        string $align = 'L',
+        string $style = '',
+        float $size = 10.5,
+        float $minSize = 9.0
+    ): void {
+        $encoded = $this->pdfText($text);
+        $maxWidth = max(1.0, $w - 2.0);
+
+        $pdf->SetFont('Arial', $style, $size);
+        while ($size > $minSize && $pdf->GetStringWidth($encoded) > $maxWidth) {
+            $size = max($minSize, $size - 0.25);
+            $pdf->SetFont('Arial', $style, $size);
+        }
+        if ($pdf->GetStringWidth($encoded) > $maxWidth) {
+            $encoded = $this->clip($pdf, $encoded, $maxWidth);
+        }
+
         $pdf->SetXY($x, $y);
         $pdf->Cell($w, $h, $encoded, 0, 0, $align);
     }
