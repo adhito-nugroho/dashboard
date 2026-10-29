@@ -555,6 +555,26 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
                                                 <i class="bi bi-file-earmark-text"></i>
                                             </a>
                                         <?php endif; ?>
+                                        <?php
+                                            $l2StId = (int) ($t['surat_tugas_ref_id'] ?? 0);
+                                            $l2Nip  = preg_replace('/[^0-9]/', '', (string) ($t['pegawai_nip'] ?? ''));
+                                            if (!empty($kotaTujuanKosongMap[$t['id']]) || $l2StId <= 0 || $l2Nip === ''):
+                                        ?>
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary btn-action-icon"
+                                                    disabled
+                                                    data-bs-toggle="tooltip" data-bs-placement="top"
+                                                    title="<?= !empty($kotaTujuanKosongMap[$t['id']]) ? 'Kota Tujuan belum diisi di aplikasi Surat Tugas — lembar 2 SPPD tidak dapat dibuat' : 'Data Surat Tugas / NIP pegawai belum lengkap — lembar 2 SPPD tidak dapat dibuat' ?>">
+                                                <i class="bi bi-file-earmark-plus"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <a href="<?= base_url('spj/sppd2/' . $l2StId . '/' . $l2Nip) ?>"
+                                               target="_blank" rel="noopener"
+                                               class="btn btn-outline-success btn-action-icon"
+                                               data-bs-toggle="tooltip" data-bs-placement="top" title="Isi & Cetak Lembar 2 SPPD (overlay)">
+                                                <i class="bi bi-file-earmark-plus"></i>
+                                            </a>
+                                        <?php endif; ?>
                                     <?php elseif ($bolehEdit): ?>
                                         <!-- Placeholder invisible agar layout tetap konsisten dan tidak loncat -->
                                         <span class="btn-action-icon" style="visibility:hidden;" aria-hidden="true"></span>
@@ -686,6 +706,26 @@ $jumlahKotaKosong = count(array_filter($kotaTujuanKosongMap));
                                        class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
                                        data-bs-toggle="tooltip" title="Pratinjau PDF SPD (Surat Perjalanan Dinas)">
                                         <i class="bi bi-file-earmark-text me-1"></i>SPD PDF
+                                    </a>
+                                <?php endif; ?>
+                                <?php
+                                    $l2StIdM = (int) ($t['surat_tugas_ref_id'] ?? 0);
+                                    $l2NipM  = preg_replace('/[^0-9]/', '', (string) ($t['pegawai_nip'] ?? ''));
+                                    if (!empty($kotaTujuanKosongMap[$t['id']]) || $l2StIdM <= 0 || $l2NipM === ''):
+                                ?>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                            disabled
+                                            data-bs-toggle="tooltip"
+                                            title="<?= !empty($kotaTujuanKosongMap[$t['id']]) ? 'Kota Tujuan belum diisi di aplikasi Surat Tugas — lembar 2 SPPD tidak dapat dibuat' : 'Data Surat Tugas / NIP pegawai belum lengkap — lembar 2 SPPD tidak dapat dibuat' ?>">
+                                        <i class="bi bi-file-earmark-plus me-1"></i>Lembar 2
+                                    </button>
+                                <?php else: ?>
+                                    <a href="<?= base_url('spj/sppd2/' . $l2StIdM . '/' . $l2NipM) ?>"
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-outline-success <?= $bolehEdit ? 'flex-shrink-0' : 'flex-fill' ?>"
+                                       data-bs-toggle="tooltip" title="Isi & Cetak Lembar 2 SPPD (overlay)">
+                                        <i class="bi bi-file-earmark-plus me-1"></i>Lembar 2
                                     </a>
                                 <?php endif; ?>
                             <?php endif; ?>
