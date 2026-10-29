@@ -96,7 +96,8 @@ class SppdLembar2Service
             $y = $offY + (float) ($el['y_mm'] ?? 0);
             $w = (float) ($el['w_mm'] ?? 50);
             $h = (float) ($el['h_mm'] ?? 5);
-            $this->cell($pdf, $x, $y, $w, $h, $text, (string) ($el['align'] ?? 'L'), (string) ($el['style'] ?? ''), $fontFamily, $fontSize);
+            $maxLines = max(1, (int) ($el['max_lines'] ?? 1));
+            $this->cell($pdf, $x, $y, $w, $h, $text, (string) ($el['align'] ?? 'L'), (string) ($el['style'] ?? ''), $fontFamily, $fontSize, $maxLines);
         }
 
         return $pdf;
@@ -124,7 +125,11 @@ class SppdLembar2Service
         ];
     }
 
-    /** Tulis satu baris; teks yang melebihi kotak dipotong dengan elipsis. */
+    /**
+     * Tulis teks dalam kotak; bila maxLines > 1 teks dipecah per kata ke
+     * beberapa baris (jarak antar baris = h_mm). Baris terakhir dipotong
+     * dengan elipsis bila masih melebihi lebar kotak.
+     */
     private function cell(
         \FPDF $pdf,
         float $x,
@@ -135,16 +140,58 @@ class SppdLembar2Service
         string $align,
         string $style,
         string $family,
-        float $size
+        float $size,
+        int $maxLines = 1
     ): void {
         $pdf->SetFont($family, $style, $size);
         $encoded = $this->pdfText($text);
         $maxWidth = max(1.0, $w - 1.0);
-        if ($pdf->GetStringWidth($encoded) > $maxWidth) {
-            $encoded = $this->clip($pdf, $encoded, $maxWidth);
+        $lines = $this->wrapLines($pdf, $encoded, $maxWidth, $maxLines);
+        foreach ($lines as $i => $line) {
+            $pdf->SetXY($x, $y + ($i * $h));
+            $pdf->Cell($w, $h, $line, 0, 0, $align);
         }
-        $pdf->SetXY($x, $y);
-        $pdf->Cell($w, $h, $encoded, 0, 0, $align);
+    }
+
+    /** @return string[] */
+    private function wrapLines(\FPDF $pdf, string $text, float $maxWidth, int $maxLines): array
+    {
+        $text = trim($text);
+        if ($maxLines <= 1 || $pdf->GetStringWidth($text) <= $maxWidth) {
+            return [$this->fitLine($pdf, $text, $maxWidth)];
+        }
+
+        $words = preg_split('/\s+/', $text) ?: [];
+        $lines = [];
+        $cur = '';
+        $i = 0;
+        $n = count($words);
+
+        // Isi baris 1..(maxLines-1) secara greedy; sisanya masuk baris terakhir.
+        while ($i < $n && count($lines) < $maxLines - 1) {
+            $word = (string) $words[$i];
+            $try = $cur === '' ? $word : $cur . ' ' . $word;
+            if ($cur !== '' && $pdf->GetStringWidth($try) > $maxWidth) {
+                $lines[] = $cur;
+                $cur = '';
+                continue;
+            }
+            $cur = $try;
+            $i++;
+        }
+
+        $rest = trim($cur . ' ' . implode(' ', array_slice($words, $i)));
+        $lines[] = $this->fitLine($pdf, $rest, $maxWidth);
+
+        return $lines;
+    }
+
+    private function fitLine(\FPDF $pdf, string $text, float $maxWidth): string
+    {
+        if ($pdf->GetStringWidth($text) <= $maxWidth) {
+            return $text;
+        }
+        return $this->clip($pdf, $text, $maxWidth);
     }
 
     private function clip(\FPDF $pdf, string $text, float $maxWidth): string
@@ -196,12 +243,13 @@ class SppdLembar2Service
             $y = $offY + (float) ($el['y_mm'] ?? 0);
             $w = (float) ($el['w_mm'] ?? 50);
             $h = (float) ($el['h_mm'] ?? 5);
+            $boxH = $h * max(1, (int) ($el['max_lines'] ?? 1));
 
             $pdf->SetDrawColor(200, 30, 30);
-            $pdf->Rect($x, $y, $w, $h);
+            $pdf->Rect($x, $y, $w, $boxH);
             $r = 2.5;
-            $pdf->Line($x - $r, $y + $h / 2, $x + $r, $y + $h / 2);
-            $pdf->Line($x, $y - $r, $x, $y + $h + $r);
+            $pdf->Line($x - $r, $y + $boxH / 2, $x + $r, $y + $boxH / 2);
+            $pdf->Line($x, $y - $r, $x, $y + $boxH + $r);
 
             $pdf->SetFont('Arial', '', 6);
             $pdf->SetTextColor(200, 30, 30);

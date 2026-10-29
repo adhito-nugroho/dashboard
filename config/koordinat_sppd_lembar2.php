@@ -14,6 +14,9 @@ declare(strict_types=1);
  *   atau x_mm/y_mm elemen terkait. Bandingkan dengan "Cetak Uji Posisi".
  * - x_mm/y_mm = pojok kiri-atas kotak teks; h_mm = tinggi kotak (teks
  *   tercetak di tengah kotak, seperti Cell() FPDF).
+ * - max_lines = jumlah baris maksimum teks (default 1). Bila > 1, teks dipecah
+ *   per kata dan baris berikutnya turun sebesar h_mm; dipakai untuk jabatan
+ *   pejabat yang panjang.
  */
 
 return [
@@ -50,7 +53,7 @@ return [
         ],
         'pejabat_tiba_jabatan' => [
             'x_mm' => 4.0, 'y_mm' => 53.9, 'w_mm' => 60.0, 'h_mm' => 5.0,
-            'align' => 'C', 'style' => '', 'label' => 'II - jabatan pejabat tujuan (tiba)',
+            'align' => 'C', 'style' => '', 'max_lines' => 2, 'label' => 'II - jabatan pejabat tujuan (tiba)',
         ],
         'pejabat_tiba_nama' => [
             'x_mm' => 4.0, 'y_mm' => 68.9, 'w_mm' => 60.0, 'h_mm' => 5.0,
@@ -76,7 +79,7 @@ return [
         ],
         'pejabat_berangkat_jabatan' => [
             'x_mm' => 98.0, 'y_mm' => 56.4, 'w_mm' => 54.0, 'h_mm' => 5.0,
-            'align' => 'C', 'style' => '', 'label' => 'II - jabatan pejabat tujuan (berangkat)',
+            'align' => 'C', 'style' => '', 'max_lines' => 2, 'label' => 'II - jabatan pejabat tujuan (berangkat)',
         ],
         'pejabat_berangkat_nama' => [
             'x_mm' => 98.0, 'y_mm' => 68.9, 'w_mm' => 54.0, 'h_mm' => 5.0,
