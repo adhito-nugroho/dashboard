@@ -211,6 +211,13 @@
                                     <span>Kalibrasi Kuitansi</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'kalibrasi_sppd2') ? 'active' : '' ?>"
+                                    href="<?= base_url('spj/sppd2/kalibrasi') ?>">
+                                    <i class="bi bi-sliders"></i>
+                                    <span>Kalibrasi Lembar 2 SPPD</span>
+                                </a>
+                            </li>
                         <?php endif; ?>
                     </ul>
                 </nav>

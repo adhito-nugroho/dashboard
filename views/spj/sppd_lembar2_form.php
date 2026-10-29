@@ -53,6 +53,9 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold mb-0"><i class="bi bi-file-earmark-text text-danger me-2"></i>Cetak Lembar 2 SPPD</h5>
         <div class="d-flex gap-2">
+            <a href="<?= base_url('spj/sppd2/kalibrasi') ?>" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-sliders me-1"></i>Kalibrasi Posisi
+            </a>
             <a href="<?= base_url('spj/sppd2/uji') ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-crosshair me-1"></i>Cetak Uji Posisi
             </a>
@@ -86,6 +89,18 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 <div class="sppd2-value"><?= htmlspecialchars($values['nomor_surat'] ?? '-') ?></div>
                             </div>
                             <div class="col-md-6">
+                                <div class="sppd2-label">I. Berangkat dari (tempat kedudukan)</div>
+                                <div class="sppd2-value"><?= htmlspecialchars($values['i_berangkat_dari'] ?? '-') ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="sppd2-label">I. Ke</div>
+                                <div class="sppd2-value"><?= htmlspecialchars($values['i_ke'] ?? '-') ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="sppd2-label">I. Pada tanggal</div>
+                                <div class="sppd2-value"><?= htmlspecialchars($values['i_tanggal'] ?? '-') ?></div>
+                            </div>
+                            <div class="col-md-6">
                                 <div class="sppd2-label">II. Tiba di</div>
                                 <div class="sppd2-value"><?= htmlspecialchars($values['tiba_di'] ?? '-') ?></div>
                             </div>
@@ -104,6 +119,14 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                             <div class="col-md-6">
                                 <div class="sppd2-label">Pada tanggal (berangkat)</div>
                                 <div class="sppd2-value"><?= htmlspecialchars($values['berangkat_tanggal'] ?? '-') ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="sppd2-label">VI. Tiba di</div>
+                                <div class="sppd2-value"><?= htmlspecialchars($values['vi_tiba_di'] ?? '-') ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="sppd2-label">VI. Pada tanggal</div>
+                                <div class="sppd2-value"><?= htmlspecialchars($values['vi_tiba_tanggal'] ?? '-') ?></div>
                             </div>
                         </div>
                     </div>
@@ -152,7 +175,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                 <div class="sppd2-card-body small text-muted">
                     <ul class="mb-0 ps-3">
                         <li class="mb-2">Kertas: <strong>A4</strong>, cetak <em>actual size</em> (jangan <em>fit to page</em>).</li>
-                        <li class="mb-2">Bagian I, III, IV, V, VI, VII, dan VIII tidak diisi oleh aplikasi.</li>
+                        <li class="mb-2">Bagian I, II, dan VI terisi otomatis; bagian III–V, VII, dan VIII tidak diisi oleh aplikasi.</li>
                         <li class="mb-2">Jika posisi isian bergeser dari blanko, gunakan <strong>Cetak Uji Posisi</strong> lalu sesuaikan koordinat.</li>
                         <li>Pejabat yang tersimpan akan terisi otomatis saat membuka halaman ini lagi.</li>
                     </ul>

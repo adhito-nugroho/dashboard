@@ -42,6 +42,20 @@ return [
     ],
 
     'elements' => [
+        // ── Kolom kanan (baris I): keberangkatan dari tempat kedudukan ──
+        'i_berangkat_dari' => [
+            'x_mm' => 139.0, 'y_mm' => 0.0, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'I - Berangkat dari (tempat kedudukan)',
+        ],
+        'i_ke' => [
+            'x_mm' => 139.0, 'y_mm' => 8.1, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'I - Ke',
+        ],
+        'i_tanggal' => [
+            'x_mm' => 139.0, 'y_mm' => 12.4, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'I - Pada tanggal',
+        ],
+
         // ── Kolom kiri (baris II): kedatangan di kota tujuan ──
         'tiba_di' => [
             'x_mm' => 38.0, 'y_mm' => 43.0, 'w_mm' => 54.0, 'h_mm' => 5.0,
@@ -88,6 +102,16 @@ return [
         'pejabat_berangkat_nip' => [
             'x_mm' => 98.0, 'y_mm' => 73.0, 'w_mm' => 54.0, 'h_mm' => 5.0,
             'align' => 'C', 'style' => '', 'label' => 'II - NIP pejabat tujuan (berangkat)',
+        ],
+
+        // ── Kolom kiri (baris VI): tiba kembali di tempat kedudukan ──
+        'vi_tiba_di' => [
+            'x_mm' => 38.0, 'y_mm' => 207.3, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'VI - Tiba di',
+        ],
+        'vi_tiba_tanggal' => [
+            'x_mm' => 38.0, 'y_mm' => 212.1, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'VI - Pada tanggal',
         ],
     ],
 ];

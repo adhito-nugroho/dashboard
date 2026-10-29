@@ -5,6 +5,8 @@ namespace App\Controllers;
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/helpers.php';
 
+use App\Models\KalibrasiSppdLembar2Elemen;
+use App\Models\PrinterKuitansi;
 use App\Models\RincianBiaya;
 use App\Models\SppdLembar2Pejabat;
 use App\Repositories\SuratTugasRepository;
@@ -597,6 +599,7 @@ class SpjController
             return;
         }
 
+        $this->applySppdCalibration($svc);
         $svc->streamPdf($values, ['jabatan' => $jabatan, 'nama' => $nama, 'nip' => $nipPejabat]);
         exit;
     }
@@ -604,9 +607,269 @@ class SpjController
     /** Halaman uji posisi (kalibrasi) lembar 2 SPPD. Akses: GET /spj/sppd2/uji */
     public function cetakUjiSppdLembar2(): void
     {
-        $this->requireLogin();
-        (new SppdLembar2Service())->streamPdf([], [], true);
+        $this->requireKalibrasiAccess();
+        $svc = new SppdLembar2Service();
+        $this->applySppdCalibration($svc);
+        $svc->streamTestPage();
         exit;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // KALIBRASI POSISI LEMBAR 2 SPPD (per printer)
+    // ──────────────────────────────────────────────────────────
+
+    public const REF_DIR = __DIR__ . '/../../public/uploads/kalibrasi';
+    public const REF_BASE = 'referensi_sppd_lembar2';
+
+    private function requireKalibrasiAccess(): void
+    {
+        $this->requireLogin();
+        $isAdmin = !empty($_SESSION['is_admin']);
+        $isSeksi = in_array($_SESSION['role'] ?? '', ['rlpm', 'tkuk', 'tu', 'seksi'], true);
+        if (!($isAdmin || $isSeksi)) {
+            http_response_code(403);
+            echo 'Akses ditolak: halaman kalibrasi hanya untuk admin/seksi.';
+            exit;
+        }
+    }
+
+    /** Posisi tersimpan printer default diterapkan ke service cetak. */
+    private function applySppdCalibration(SppdLembar2Service $svc): void
+    {
+        try {
+            $db = \Database::getConnection();
+            $printerId = (new PrinterKuitansi($db))->getDefaultId();
+            $svc->setPositions((new KalibrasiSppdLembar2Elemen($db))->getAll($printerId));
+        } catch (\Throwable $e) {
+            error_log('SpjController::applySppdCalibration: ' . $e->getMessage());
+        }
+    }
+
+    /** File contoh blanko lembar 2 aktif (gambar/PDF, terbaru menang). */
+    public static function referenceInfoSppdLembar2(): ?array
+    {
+        $best = null;
+        foreach (['jpg', 'jpeg', 'png'] as $ext) {
+            $file = self::REF_DIR . '/' . self::REF_BASE . '.' . $ext;
+            if (is_file($file)) {
+                $mt = filemtime($file);
+                if ($best === null || $mt > $best['mtime']) {
+                    $best = ['url' => base_url('uploads/kalibrasi/' . self::REF_BASE . '.' . $ext) . '?v=' . $mt, 'kind' => 'image', 'mtime' => $mt];
+                }
+            }
+        }
+        $pdf = self::REF_DIR . '/' . self::REF_BASE . '.pdf';
+        if (is_file($pdf)) {
+            $mt = filemtime($pdf);
+            if ($best === null || $mt > $best['mtime']) {
+                $best = ['url' => base_url('uploads/kalibrasi/' . self::REF_BASE . '.pdf') . '?v=' . $mt, 'kind' => 'pdf', 'mtime' => $mt];
+            }
+        }
+        if ($best === null) {
+            return null;
+        }
+        unset($best['mtime']);
+        return $best;
+    }
+
+    /**
+     * Halaman kanvas kalibrasi posisi lembar 2 SPPD.
+     * Akses: GET /spj/sppd2/kalibrasi[?printer=ID]
+     */
+    public function kalibrasiSppdLembar2(): void
+    {
+        $this->requireKalibrasiAccess();
+
+        $db = \Database::getConnection();
+        $printerModel = new PrinterKuitansi($db);
+        $elemenModel = new KalibrasiSppdLembar2Elemen($db);
+
+        $printers = $printerModel->getAll();
+        $reqPid = isset($_GET['printer']) ? (int) $_GET['printer'] : 0;
+        $printerId = $reqPid > 0 && $printerModel->get($reqPid) !== null ? $reqPid : $printerModel->getDefaultId();
+        $activePrinter = null;
+        foreach ($printers as $p) {
+            if ((int) ($p['id'] ?? 0) === $printerId) {
+                $activePrinter = $p;
+                break;
+            }
+        }
+
+        $svc = new SppdLembar2Service();
+        $svc->setPositions($elemenModel->getAll($printerId));
+        $positions = $svc->getPositions();
+        $defaults = $svc->getDefaults();
+        $widths = [];
+        $defaultWidths = [];
+        $defaultLines = [];
+        $labels = [];
+        $order = [];
+        $cfg = $svc->getConfig();
+        foreach (array_keys($cfg['elements'] ?? []) as $key) {
+            $order[] = $key;
+            $widths[$key] = $svc->widthOf($key);
+            $defaultWidths[$key] = (float) ($defaults[$key]['w_mm'] ?? 50);
+            $defaultLines[$key] = (int) ($defaults[$key]['max_lines'] ?? 1);
+            $labels[$key] = (string) ($cfg['elements'][$key]['label'] ?? $key);
+        }
+
+        $flash = $_SESSION['flash_message'] ?? null;
+        $flashType = $_SESSION['flash_type'] ?? 'info';
+        unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+
+        $ref = self::referenceInfoSppdLembar2();
+        $kalibrasiData = [
+            'positions' => $positions,
+            'defaults' => $defaults,
+            'widths' => $widths,
+            'defaultWidths' => $defaultWidths,
+            'defaultLines' => $defaultLines,
+            'labels' => $labels,
+            'order' => $order,
+            'sampleTexts' => $svc->sampleTexts(),
+            'refUrl' => $ref['url'] ?? null,
+            'refKind' => $ref['kind'] ?? null,
+            'flash' => $flash,
+            'flashType' => $flashType,
+            'printers' => $printers,
+            'printerId' => $printerId,
+            'content' => $cfg['content'] ?? [],
+            'offset' => $cfg['offset_mm'] ?? ['x' => 0, 'y' => 0],
+        ];
+
+        $pageTitle = 'Kalibrasi Cetak Lembar 2 SPPD';
+        $activePage = 'kalibrasi_sppd2';
+        $viewFile = __DIR__ . '/../../views/spj/sppd2_kalibrasi.php';
+        $layout = !empty($_SESSION['is_admin'])
+            ? __DIR__ . '/../../views/layout.php'
+            : __DIR__ . '/../../views/layout_seksi.php';
+        include $layout;
+    }
+
+    /**
+     * Simpan posisi semua elemen satu printer.
+     * Body JSON: {"printer_id":1,"items":[{"elemen_key","label","x_mm","y_mm","max_width_mm"|null,"max_lines"|null}, ...]}
+     */
+    public function simpanKalibrasiSppd(): void
+    {
+        $this->requireKalibrasiAccess();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $body = json_decode((string) file_get_contents('php://input'), true);
+        $body = is_array($body) ? $body : [];
+        $printerId = (int) ($body['printer_id'] ?? 0);
+        if ($printerId <= 0) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Pilih printer dulu. Tambahkan printer di halaman Kalibrasi Kuitansi.']);
+            return;
+        }
+        try {
+            $db = \Database::getConnection();
+            if ((new PrinterKuitansi($db))->get($printerId) === null) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'Printer tidak dikenal.']);
+                return;
+            }
+            $allowed = array_keys((new SppdLembar2Service())->getConfig()['elements'] ?? []);
+            $items = array_values(array_filter(
+                is_array($body['items'] ?? null) ? $body['items'] : [],
+                fn($it) => in_array((string) ($it['elemen_key'] ?? ''), $allowed, true)
+            ));
+            if ($items === []) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'Tidak ada elemen_key yang dikenal.']);
+                return;
+            }
+            $count = (new KalibrasiSppdLembar2Elemen($db))->saveAll($printerId, $items, $this->actor());
+            echo json_encode(['ok' => true, 'saved' => $count, 'printer_id' => $printerId]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Cetak uji dari posisi kanvas (belum tentu tersimpan).
+     * Body JSON: {"positions":{key:{"x_mm","y_mm","max_width_mm"|null,"max_lines"|null}}}
+     */
+    public function ujiKalibrasiSppd(): void
+    {
+        $this->requireKalibrasiAccess();
+        $body = json_decode((string) file_get_contents('php://input'), true);
+        $positions = is_array($body['positions'] ?? null) ? $body['positions'] : [];
+        (new SppdLembar2Service())->streamTestPage($positions);
+        exit;
+    }
+
+    /**
+     * Upload contoh blanko lembar 2 (JPG/PNG maks 5MB atau PDF-scan maks 10MB)
+     * sebagai background kanvas kalibrasi.
+     */
+    public function uploadReferensiSppd(): void
+    {
+        $this->requireKalibrasiAccess();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $f = $_FILES['referensi'] ?? null;
+        if (!is_array($f) || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Pilih file JPG/PNG/PDF terlebih dahulu.']);
+            return;
+        }
+
+        $tmp = (string) $f['tmp_name'];
+        $isPdf = str_starts_with((string) @file_get_contents($tmp, false, null, 0, 5), '%PDF');
+        $mime = @getimagesize($tmp)['mime'] ?? '';
+        if ($mime === '') {
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mime = (string) $finfo->file($tmp);
+        }
+
+        if ($isPdf || $mime === 'application/pdf') {
+            if ((int) $f['size'] > 10 * 1024 * 1024) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'PDF maksimal 10MB.']);
+                return;
+            }
+            if (!is_dir(self::REF_DIR)) {
+                mkdir(self::REF_DIR, 0755, true);
+            }
+            @unlink(self::REF_DIR . '/' . self::REF_BASE . '.pdf');
+            if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.pdf')) {
+                http_response_code(500);
+                echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
+                return;
+            }
+            $info = self::referenceInfoSppdLembar2();
+            echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'pdf']);
+            return;
+        }
+
+        if ((int) $f['size'] > 5 * 1024 * 1024) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Ukuran maksimal 5MB.']);
+            return;
+        }
+        if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG/PDF.']);
+            return;
+        }
+
+        if (!is_dir(self::REF_DIR)) {
+            mkdir(self::REF_DIR, 0755, true);
+        }
+        foreach (glob(self::REF_DIR . '/' . self::REF_BASE . '.{jpg,jpeg,png}', GLOB_BRACE) ?: [] as $old) {
+            @unlink($old);
+        }
+        $ext = $mime === 'image/png' ? 'png' : 'jpg';
+        if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.' . $ext)) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
+            return;
+        }
+        $info = self::referenceInfoSppdLembar2();
+        echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'image']);
     }
 
     private function actor(): string
