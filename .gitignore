@@ -25,8 +25,9 @@ logs/
 cache/
 tmp/
 
-# Uploads kalibrasi (file referensi NCR lokal, jangan commit — kecuali .gitkeep)
+# Uploads kalibrasi (file referensi lokal, jangan commit — kecuali .gitkeep)
 public/uploads/kalibrasi/referensi_kuitansi.*
+public/uploads/kalibrasi/referensi_sppd_lembar2.*
 !public/uploads/kalibrasi/.gitkeep
 
 # Executables & Binaries

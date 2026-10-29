@@ -861,10 +861,9 @@ class SpjController
             if (!is_dir(self::REF_DIR)) {
                 mkdir(self::REF_DIR, 0755, true);
             }
-            @unlink(self::REF_DIR . '/' . self::REF_BASE . '.pdf');
             if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.pdf')) {
                 http_response_code(500);
-                echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
+                echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server. Tutup file referensi yang sedang terbuka lalu coba lagi.']);
                 return;
             }
             $info = self::referenceInfoSppdLembar2();
