@@ -21,6 +21,9 @@ if (PHP_SAPI !== 'cli') {
 require __DIR__ . '/../config/load_env.php';
 require __DIR__ . '/../config/database.php';
 require __DIR__ . '/../config/database_surat_tugas.php';
+if (is_file(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
 
 $keyword = trim((string) ($argv[1] ?? 'DEDI'));
 $nomorSt = trim((string) ($argv[2] ?? '3127'));
@@ -41,6 +44,11 @@ try {
 $st = DatabaseSuratTugas::getConnection();
 if ($st === null) {
     echo 'PERINGATAN: db_surat_tugas tidak bisa diakses; cek ST/NIP akan dilewati.' . PHP_EOL;
+}
+
+$repo = null;
+if ($st !== null && class_exists(\App\Repositories\SuratTugasRepository::class)) {
+    $repo = new \App\Repositories\SuratTugasRepository($st);
 }
 
 $kw = '%' . $keyword . '%';
@@ -107,7 +115,8 @@ $daftarPegawai = function (int $stId) use ($st): array {
         return [];
     }
     $s = $st->prepare(
-        "SELECT pt.nip AS pt_nip, COALESCE(p.nip, pt.nip) AS nip_efektif,
+        "SELECT pt.nip AS pt_nip, HEX(pt.nip) AS pt_hex, LENGTH(pt.nip) AS pt_len,
+                COALESCE(p.nip, pt.nip) AS nip_efektif,
                 COALESCE(p.nama, pt.nip, 'Pegawai') AS nama, p.jabatan
          FROM pegawai_tugas pt
          LEFT JOIN pegawai p ON (p.nip = pt.nip OR REPLACE(p.nip, ' ', '') = REPLACE(pt.nip, ' ', ''))
@@ -128,6 +137,11 @@ foreach ($rows as $trx) {
     echo "  surat_tugas_ref_id : " . var_export($trx['surat_tugas_ref_id'], true) . PHP_EOL;
     echo "  nomor_surat_tugas  : '" . (string) $trx['nomor_surat_tugas'] . "'" . PHP_EOL;
     echo "  pegawai_nip        : " . ($nip === '' ? 'NULL/KOSONG' : "'{$nip}'") . PHP_EOL;
+
+    $rawQ = $db->prepare('SELECT HEX(pegawai_nip) AS hex, LENGTH(pegawai_nip) AS len FROM transaksi WHERE id = ?');
+    $rawQ->execute([$id]);
+    $rawNip = $rawQ->fetch(PDO::FETCH_ASSOC) ?: [];
+    echo '  pegawai_nip (raw)  : hex ' . ($rawNip['hex'] ?? '') . ' | len ' . ($rawNip['len'] ?? '') . PHP_EOL;
 
     [$stId, $cara] = $resolveSt($trx);
     echo "  ST ter-resolve     : " . ($stId > 0 ? "#{$stId} (via {$cara})" : "TIDAK ({$cara})") . PHP_EOL;
@@ -150,7 +164,7 @@ foreach ($rows as $trx) {
     } elseif ($nip === '' || $nip === '-') {
         echo 'GAGAL — NIP pegawai kosong/NULL. Ini penyebab pesan error SPD.' . PHP_EOL;
     } else {
-        $peg = $findPegawai($stId, $nip);
+        $peg = $repo !== null ? $repo->findPegawai($stId, $nip) : $findPegawai($stId, $nip);
         if ($peg === null) {
             echo "GAGAL — NIP '{$nip}' tidak ada di pegawai_tugas ST #{$stId} (format berbeda / pegawai sudah diubah)." . PHP_EOL;
         } else {
@@ -164,7 +178,9 @@ foreach ($rows as $trx) {
         foreach ($pegawai as $p) {
             $pnip = trim((string) ($p['pt_nip'] ?? ''));
             $label = $pnip === '' ? 'NON-NIP (pt.nip NULL)' : $pnip;
-            echo "    - " . ($p['nama'] ?? '-') . " | pt.nip: {$label} | nip efektif: " . (string) ($p['nip_efektif'] ?? '') . PHP_EOL;
+            echo '    - ' . ($p['nama'] ?? '-') . " | pt.nip: {$label}"
+                . ' | hex: ' . (string) ($p['pt_hex'] ?? '')
+                . ' | len: ' . (string) ($p['pt_len'] ?? '') . PHP_EOL;
         }
     }
 }
@@ -183,7 +199,8 @@ if ($st !== null && $nomorSt !== '') {
         echo "  #{$sid} | {$srow['nomor_surat']} | surat {$srow['tanggal_surat']} | laks {$srow['tanggal_mulai']} s.d. {$srow['tanggal_selesai']}" . PHP_EOL;
         foreach ($daftarPegawai($sid) as $p) {
             $pnip = trim((string) ($p['pt_nip'] ?? ''));
-            echo '      - ' . ($p['nama'] ?? '-') . ' | pt.nip: ' . ($pnip === '' ? 'NON-NIP (NULL)' : $pnip) . PHP_EOL;
+            echo '      - ' . ($p['nama'] ?? '-') . ' | pt.nip: ' . ($pnip === '' ? 'NON-NIP (NULL)' : $pnip)
+                . ' | hex: ' . (string) ($p['pt_hex'] ?? '') . ' | len: ' . (string) ($p['pt_len'] ?? '') . PHP_EOL;
         }
     }
 }

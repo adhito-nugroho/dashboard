@@ -247,7 +247,55 @@ class SuratTugasRepository
             ");
             $stmt->execute([$suratTugasId, $nip, $nip]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $row ?: null;
+            if ($row) {
+                return $row;
+            }
+
+            // Fallback: NIP di db_surat_tugas bisa membawa karakter tak
+            // terlihat (tab/newline/zero-width/NBSP) akibat impor, sedangkan
+            // NIP dari transaksi sudah di-trim. Cocokkan digitnya saja.
+            $nipDigits = preg_replace('/\D+/', '', $nip);
+            if ($nipDigits === '') {
+                return null;
+            }
+
+            $stmt = $pdo->prepare(
+                'SELECT pt.nip FROM pegawai_tugas pt WHERE pt.id_surat_tugas = ?'
+            );
+            $stmt->execute([$suratTugasId]);
+            $ptNip = null;
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $candidate) {
+                if (preg_replace('/\D+/', '', (string) $candidate) === $nipDigits) {
+                    $ptNip = (string) $candidate;
+                    break;
+                }
+            }
+            if ($ptNip === null) {
+                return null;
+            }
+
+            $stmt = $pdo->prepare(
+                'SELECT nip, nama, pangkat, jabatan FROM pegawai WHERE nip = ? LIMIT 1'
+            );
+            $stmt->execute([$ptNip]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return $row;
+            }
+
+            $stmt = $pdo->query('SELECT nip, nama, pangkat, jabatan FROM pegawai');
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $p) {
+                if (preg_replace('/\D+/', '', (string) ($p['nip'] ?? '')) === $nipDigits) {
+                    return $p;
+                }
+            }
+
+            return [
+                'nip' => $ptNip,
+                'nama' => $ptNip,
+                'pangkat' => '',
+                'jabatan' => '',
+            ];
         } catch (Throwable $e) {
             error_log('SuratTugasRepository::findPegawai error: ' . $e->getMessage());
             return null;
