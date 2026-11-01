@@ -148,14 +148,15 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                    value="<?= htmlspecialchars($pejabat['nama'] ?? '') ?>" required>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label sppd2-label" for="nip">NIP</label>
+                            <label class="form-label sppd2-label" for="nip">NIP (opsional)</label>
                             <input type="text" class="form-control sppd2-input" id="nip" name="nip" maxlength="30"
-                                   inputmode="numeric" placeholder="18 digit NIP"
-                                   value="<?= htmlspecialchars($pejabat['nip'] ?? '') ?>" required>
+                                   inputmode="numeric" placeholder="18 digit NIP (kosongkan bila tidak ada)"
+                                   value="<?= htmlspecialchars($pejabat['nip'] ?? '') ?>">
                         </div>
                         <div class="form-text">
                             Nama &amp; NIP dicetak pada kedua kolom stempel (Tiba di dan Berangkat dari),
-                            lalu data ini disimpan untuk Surat Tugas ini.
+                            lalu data ini disimpan untuk Surat Tugas ini. Bila NIP dikosongkan, dianggap
+                            pejabat tidak memiliki NIP sehingga tulisan &ldquo;NIP&rdquo; tidak dicetak.
                         </div>
                     </div>
                 </div>

@@ -596,11 +596,11 @@ class SpjController
         $nama = trim((string) ($_POST['nama'] ?? ''));
         $nipPejabat = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['nip'] ?? ''));
 
-        if ($jabatan === '' || $nama === '' || $nipPejabat === '') {
+        if ($jabatan === '' || $nama === '') {
             $this->redirectWithMessage(
                 base_url('spj/sppd2/' . $suratTugasId . '/' . urlencode($nip)),
                 'error',
-                'Jabatan, nama, dan NIP pejabat instansi tujuan wajib diisi.'
+                'Jabatan dan nama pejabat instansi tujuan wajib diisi.'
             );
             return;
         }

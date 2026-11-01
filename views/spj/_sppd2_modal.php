@@ -29,13 +29,14 @@ $sppd2Base = rtrim(base_url(), '/') . '/';
                                maxlength="255" placeholder="Nama lengkap (dengan gelar bila ada)" required>
                     </div>
                     <div class="mb-1">
-                        <label class="form-label small fw-semibold" for="sppd2Nip">NIP</label>
+                        <label class="form-label small fw-semibold" for="sppd2Nip">NIP (opsional)</label>
                         <input type="text" class="form-control form-control-sm" id="sppd2Nip" name="nip"
-                               maxlength="30" inputmode="numeric" placeholder="18 digit NIP" required>
+                               maxlength="30" inputmode="numeric" placeholder="18 digit NIP (kosongkan bila tidak ada)">
                     </div>
                     <div class="form-text">
-                        Nama &amp; NIP dicetak rata kiri. Isian terakhir tersimpan per Surat Tugas dan
-                        akan muncul lagi saat cetak berikutnya.
+                        Nama &amp; NIP dicetak rata kiri. Bila NIP dikosongkan, dianggap pejabat tidak
+                        memiliki NIP sehingga tulisan &ldquo;NIP&rdquo; tidak dicetak. Isian terakhir tersimpan
+                        per Surat Tugas dan akan muncul lagi saat cetak berikutnya.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -84,7 +85,7 @@ $sppd2Base = rtrim(base_url(), '/') . '/';
                 const ada = !!(d.jabatan || d.nama || d.nip);
                 statusEl.textContent = ada
                     ? 'Isian terakhir dimuat. Ubah bila perlu, lalu cetak.'
-                    : 'Belum ada isian tersimpan. Lengkapi jabatan, nama, dan NIP pejabat tujuan.';
+                    : 'Belum ada isian tersimpan. Lengkapi jabatan dan nama pejabat tujuan (NIP opsional).';
                 btn.disabled = false;
                 inJabatan.focus();
             })
