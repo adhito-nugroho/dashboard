@@ -314,6 +314,7 @@ try {
 
         // Analisa Sisa Anggaran
         ['ANY', '/analisa-sisa-anggaran', fn($m) => $analisaSisaController->index()],
+        ['ANY', '/analisa-sisa-anggaran/export', fn($m) => $analisaSisaController->exportExcel()],
 
         // Rekening
         ['ANY', '/rekening', fn($m) => $rekeningController->index()],

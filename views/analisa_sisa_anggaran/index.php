@@ -461,8 +461,17 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
             </div>
         </div>
         <div class="asa-header__actions d-flex gap-2 flex-wrap">
+            <?php
+            $exportParams = $queryBase;
+            if ($minJuta > 0) {
+                $exportParams['min_juta'] = $minJuta;
+            }
+            ?>
+            <a href="<?= $baseUrl . '/export?' . http_build_query($exportParams) ?>" class="btn btn-primary asa-btn">
+                <i class="bi bi-file-earmark-excel"></i><span>Unduh Excel</span>
+            </a>
             <button type="button" class="btn btn-outline-secondary asa-btn" id="asaExportBtn">
-                <i class="bi bi-download"></i><span>Unduh CSV</span>
+                <i class="bi bi-filetype-csv"></i><span>Unduh CSV</span>
             </button>
         </div>
     </div>
