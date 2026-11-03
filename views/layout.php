@@ -191,6 +191,13 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'analisa_sisa') ? 'active' : '' ?>"
+                                    href="<?= base_url('analisa-sisa-anggaran') ?>">
+                                    <i class="bi bi-graph-up-arrow"></i>
+                                    <span>Analisa Sisa Anggaran</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link <?= (isset($activePage) && $activePage === 'rak') ? 'active' : '' ?>"
                                     href="<?= base_url('rak') ?>">
                                     <i class="bi bi-calendar-month"></i>

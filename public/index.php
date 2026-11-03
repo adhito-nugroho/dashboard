@@ -77,6 +77,7 @@ use App\Models\TransferPerjadin;
 use App\Controllers\TransferPerjadinController;
 use App\Models\PengajuanTu;
 use App\Controllers\PengajuanTuController;
+use App\Controllers\AnalisaSisaAnggaranController;
 
 try {
     // Get database connection
@@ -123,6 +124,7 @@ try {
     $transferPerjadinController = new TransferPerjadinController($transferPerjadinModel, $seksiModel);
     $pengajuanTuModel = new PengajuanTu($db);
     $pengajuanTuController = new PengajuanTuController($pengajuanTuModel, $kasBankModel);
+    $analisaSisaController = new AnalisaSisaAnggaranController($paguModel, $seksiModel);
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -309,6 +311,9 @@ try {
         ['GET', '/pagu/get-kegiatans', fn($m) => $paguController->getKegiatansByProgram()],
         ['GET', '/pagu/get-sub-kegiatans', fn($m) => $paguController->getSubKegiatansByKegiatan()],
         ['GET', '/pagu/get-rekenings', fn($m) => $paguController->getRekeningsBySubKegiatan()],
+
+        // Analisa Sisa Anggaran
+        ['ANY', '/analisa-sisa-anggaran', fn($m) => $analisaSisaController->index()],
 
         // Rekening
         ['ANY', '/rekening', fn($m) => $rekeningController->index()],
