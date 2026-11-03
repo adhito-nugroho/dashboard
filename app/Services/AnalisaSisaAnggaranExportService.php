@@ -124,6 +124,9 @@ class AnalisaSisaAnggaranExportService
         if (trim((string) ($filters['q'] ?? '')) !== '') {
             $parts[] = 'Pencarian: "' . $filters['q'] . '"';
         }
+        if (!empty($filters['show_zero'])) {
+            $parts[] = 'Rekening tanpa sisa: ditampilkan';
+        }
 
         $sheet->mergeCells('A3:' . self::LAST_COL . '3');
         $sheet->setCellValue('A3', implode('   •   ', $parts));
@@ -673,6 +676,9 @@ class AnalisaSisaAnggaranExportService
     {
         if ($sisa < 0) {
             return ['Over realisasi', 'B91C1C', 'FEE2E2'];
+        }
+        if ($sisa == 0.0) {
+            return ['Tanpa sisa', '475569', 'F1F5F9'];
         }
         if ($sisa >= 1_000_000_000) {
             return ['Sisa sangat besar', '166534', 'DCFCE7'];

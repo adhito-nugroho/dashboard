@@ -269,6 +269,24 @@
                                     <span><?= htmlspecialchars($tanggalId) ?></span>
                                 </div>
                             </div>
+                        <?php elseif (!empty($pageBreadcrumb)): ?>
+                            <div style="line-height:1.25;min-width:0;">
+                                <nav class="d-flex align-items-center gap-1 flex-wrap" aria-label="breadcrumb"
+                                    style="font-size:var(--fs-sm);color:var(--gray-500);">
+                                    <i class="bi bi-house-door"></i>
+                                    <?php foreach ($pageBreadcrumb as $crumbIndex => $crumb): ?>
+                                        <?php if ($crumbIndex > 0): ?>
+                                            <span style="opacity:0.6;">/</span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($crumb['url'])): ?>
+                                            <a href="<?= htmlspecialchars($crumb['url']) ?>"
+                                                style="color:var(--gray-500);text-decoration:none;"><?= htmlspecialchars($crumb['label']) ?></a>
+                                        <?php else: ?>
+                                            <span class="fw-semibold" style="color:#1e293b;"><?= htmlspecialchars($crumb['label']) ?></span>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </nav>
+                            </div>
                         <?php else: ?>
                             <h5 class="mb-0 fw-bold" style="color:#1e293b;">
                                 <?= htmlspecialchars($pageTitle ?? 'Dashboard') ?></h5>

@@ -20,11 +20,13 @@ $tahun = (int) ($filters['tahun'] ?? date('Y'));
 $seksiFilter = (int) ($filters['seksi'] ?? 0);
 $minJuta = (float) ($filters['min_juta'] ?? 0);
 $sort = (string) ($filters['sort'] ?? 'sisa_desc');
+$showZero = !empty($filters['show_zero']);
 
 $queryBase = ['tahun' => $tahun];
 if ($seksiFilter > 0) { $queryBase['seksi'] = $seksiFilter; }
 if ($q !== '') { $queryBase['q'] = $q; }
 if ($sort !== 'sisa_desc') { $queryBase['sort'] = $sort; }
+if ($showZero) { $queryBase['show_zero'] = 1; }
 
 $presetJuta = [
     ['label' => 'Semua sisa', 'value' => 0],
@@ -33,6 +35,12 @@ $presetJuta = [
     ['label' => '≥ 500 jt', 'value' => 500],
     ['label' => '≥ 1 M', 'value' => 1000],
 ];
+
+$resetUrl = $baseUrl . '?tahun=' . $tahun;
+$toggleQuery = $queryBase;
+if ($minJuta > 0) { $toggleQuery['min_juta'] = $minJuta; }
+$toggleQuery['show_zero'] = $showZero ? 0 : 1;
+$toggleZeroUrl = $baseUrl . '?' . http_build_query($toggleQuery);
 
 $pageUrl = static function (int $target) use ($queryBase, $minJuta, $baseUrl): string {
     $query = $queryBase;
@@ -101,21 +109,30 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     }
 
     .asa-filter__row {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
         gap: .65rem;
-        align-items: flex-end;
+        align-items: end;
     }
 
-    .asa-field { display: flex; flex-direction: column; gap: .3rem; }
-    .asa-field--grow { flex: 1 1 260px; }
+    .asa-field { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+    .asa-field--grow { width: 100%; }
+
+    /* Dua baris filter yang seimbang: 4 field di atas, cari + opsi + aksi di bawah. */
+    .asa-filter__row > .asa-field:nth-child(1) { grid-column: span 3; }
+    .asa-filter__row > .asa-field:nth-child(2) { grid-column: span 4; }
+    .asa-filter__row > .asa-field:nth-child(3) { grid-column: span 2; }
+    .asa-filter__row > .asa-field:nth-child(4) { grid-column: span 3; }
+    .asa-filter__row > .asa-field:nth-child(5) { grid-column: span 5; }
+    .asa-filter__row > .asa-field:nth-child(6) { grid-column: span 4; }
+    .asa-filter__row > .asa-field:nth-child(7) { grid-column: span 3; }
 
     .asa-field label {
-        font-size: .68rem;
+        font-size: .72rem;
         font-weight: 700;
-        letter-spacing: .06em;
+        letter-spacing: .05em;
         text-transform: uppercase;
-        color: var(--gray-500);
+        color: var(--gray-600);
     }
 
     .asa-control {
@@ -136,7 +153,7 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         box-shadow: 0 0 0 3px var(--primary-50);
     }
 
-    .asa-search { position: relative; flex: 1 1 240px; }
+    .asa-search { position: relative; width: 100%; }
     .asa-search i {
         position: absolute;
         left: .85rem;
@@ -172,11 +189,11 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     }
 
     .asa-presets__label {
-        font-size: .7rem;
+        font-size: .75rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: .05em;
-        color: var(--gray-400);
+        letter-spacing: .04em;
+        color: var(--gray-600);
         margin-right: .25rem;
     }
 
@@ -189,9 +206,11 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         border: 1px solid var(--gray-200);
         background: var(--gray-50);
         color: var(--gray-600);
+        font-family: inherit;
         font-size: .75rem;
         font-weight: 700;
         text-decoration: none;
+        cursor: pointer;
         transition: all var(--transition-fast);
     }
     .asa-chip:hover { border-color: var(--primary-100); color: var(--primary); background: var(--primary-50); }
@@ -230,11 +249,11 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         margin-bottom: .35rem;
     }
     .asa-stat__label {
-        font-size: .68rem;
+        font-size: .72rem;
         font-weight: 700;
-        letter-spacing: .07em;
+        letter-spacing: .06em;
         text-transform: uppercase;
-        color: var(--gray-500);
+        color: var(--gray-600);
     }
     .asa-stat__icon {
         width: 32px; height: 32px;
@@ -260,10 +279,10 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     }
     .asa-stat__value--sisa { color: var(--success); }
     .asa-stat__value--serapan { color: var(--warning); }
-    .asa-stat__cur { font-size: .8rem; font-weight: 600; color: var(--gray-400); margin-right: .2rem; }
+    .asa-stat__cur { font-size: .8rem; font-weight: 600; color: var(--gray-500); margin-right: .2rem; }
     .asa-stat__meta {
         display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
-        margin-top: .35rem; font-size: .73rem; color: var(--gray-500);
+        margin-top: .35rem; font-size: .75rem; color: var(--gray-600);
     }
 
     /* Panels */
@@ -289,10 +308,10 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         color: var(--gray-900);
         margin: 0;
     }
-    .asa-card__sub { font-size: .74rem; color: var(--gray-500); margin: .1rem 0 0; }
+    .asa-card__sub { font-size: .75rem; color: var(--gray-600); margin: .1rem 0 0; }
     .asa-card__body { padding: .75rem 1.15rem 1.15rem; }
 
-    .asa-chart-wrap { position: relative; width: 100%; height: 330px; }
+    .asa-chart-wrap { position: relative; width: 100%; height: 380px; }
     .asa-chart-wrap--donut { height: 300px; }
 
     .asa-legend-empty {
@@ -334,8 +353,8 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         line-height: 1.2;
         margin-top: .25rem;
     }
-    .asa-bucket__count small { font-size: .7rem; font-weight: 600; color: var(--gray-400); }
-    .asa-bucket__total { font-size: .74rem; color: var(--gray-500); font-variant-numeric: tabular-nums; }
+    .asa-bucket__count small { font-size: .72rem; font-weight: 600; color: var(--gray-600); }
+    .asa-bucket__total { font-size: .75rem; color: var(--gray-600); font-variant-numeric: tabular-nums; }
     .asa-bucket__bar {
         height: 3px; border-radius: 999px; background: var(--gray-100);
         margin-top: .5rem; overflow: hidden;
@@ -347,15 +366,15 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     .asa-bucket--d .asa-bucket__bar span { background: var(--success); }
 
     /* Table */
-    .asa-table { margin: 0; font-size: .82rem; }
+    .asa-table { margin: 0; font-size: .84rem; }
     .asa-table thead th {
         background: var(--gray-50);
         border-bottom: 1px solid var(--gray-200);
-        font-size: .68rem;
+        font-size: .75rem;
         font-weight: 700;
-        letter-spacing: .05em;
+        letter-spacing: .04em;
         text-transform: uppercase;
-        color: var(--gray-500);
+        color: var(--gray-600);
         padding: .7rem .75rem;
         white-space: nowrap;
         vertical-align: middle;
@@ -374,7 +393,7 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     .asa-chip-kode {
         display: inline-block;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: .7rem;
+        font-size: .75rem;
         font-weight: 700;
         color: var(--gray-700);
         background: var(--gray-100);
@@ -382,8 +401,8 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         padding: .1rem .4rem;
     }
     .asa-rek__name { display: block; font-weight: 600; color: var(--gray-800); margin-top: .2rem; }
-    .asa-meta { font-size: .72rem; color: var(--gray-500); }
-    .asa-meta strong { color: var(--gray-700); font-weight: 700; }
+    .asa-meta { font-size: .75rem; color: var(--gray-600); }
+    .asa-meta strong { color: var(--gray-800); font-weight: 700; }
 
     .asa-progress {
         display: flex; align-items: center; gap: .5rem;
@@ -397,18 +416,18 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     .asa-progress__fill--warn { background: var(--warning); }
     .asa-progress__fill--over { background: var(--danger); }
     .asa-progress__val {
-        font-size: .72rem; font-weight: 700; color: var(--gray-600);
+        font-size: .75rem; font-weight: 700; color: var(--gray-700);
         font-variant-numeric: tabular-nums; min-width: 42px; text-align: right;
     }
 
     .asa-badge {
         display: inline-flex; align-items: center; gap: .2rem;
         padding: .12rem .45rem; border-radius: 999px;
-        font-size: .68rem; font-weight: 700;
+        font-size: .75rem; font-weight: 700;
     }
-    .asa-badge--danger { background: var(--status-danger-bg); color: var(--danger); }
-    .asa-badge--success { background: var(--status-success-bg); color: var(--success); }
-    .asa-badge--warning { background: var(--status-warning-bg); color: var(--warning); }
+    .asa-badge--danger { background: var(--status-danger-bg); color: #b91c1c; }
+    .asa-badge--success { background: var(--status-success-bg); color: #047857; }
+    .asa-badge--warning { background: var(--status-warning-bg); color: #92400e; }
     .asa-badge--neutral { background: var(--gray-100); color: var(--gray-500); }
 
     .asa-empty {
@@ -444,6 +463,78 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     .asa-pager__link.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
     .asa-pager__link.is-disabled { opacity: .45; pointer-events: none; }
 
+    /* Aksi filter & hint */
+    .asa-filter__actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+    .asa-hint {
+        display: flex; align-items: center; gap: .4rem;
+        margin-top: .7rem; font-size: .78rem; font-weight: 600; color: #b45309;
+    }
+    .asa-switch {
+        display: inline-flex; align-items: center; gap: .5rem;
+        height: 42px; padding: 0 .75rem; white-space: nowrap;
+        border: 1px solid var(--gray-200); border-radius: 10px; background: #fff;
+        font-size: .78rem; font-weight: 600; color: var(--gray-700);
+        cursor: pointer; user-select: none;
+    }
+    .asa-switch input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+    /* Label switch jangan ikut gaya label filter (uppercase kecil). */
+    .asa-field label.asa-switch {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: .78rem;
+        color: var(--gray-700);
+    }
+
+    /* Status hasil */
+    .asa-resultbar {
+        display: flex; align-items: center; gap: .45rem; flex-wrap: wrap;
+        padding: .65rem 1.15rem;
+        border-bottom: 1px solid var(--gray-100);
+        background: var(--gray-50);
+        font-size: .78rem; color: var(--gray-700);
+    }
+    .asa-resultbar strong { color: var(--gray-900); font-weight: 800; }
+    .asa-resultbar__link {
+        color: var(--primary); font-weight: 700; text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .asa-resultbar__sep { color: var(--gray-400); }
+
+    /* Indikator loading, hanya tampil saat navigasi/filter diproses */
+    .asa-loading-bar {
+        position: fixed; top: 0; left: 0; z-index: 2000;
+        height: 3px; width: 0;
+        background: var(--primary);
+        box-shadow: 0 0 6px rgba(67, 56, 202, .45);
+        transition: width .35s ease;
+    }
+    .asa-loading-bar.is-loading { width: 85%; }
+    [hidden] { display: none !important; }
+
+    /* Ringkasan saat hanya ada satu seksi (pengganti donut) */
+    .asa-single {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        height: 100%; gap: .3rem; text-align: center;
+    }
+    .asa-single__value { font-size: 1.55rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; }
+    .asa-single__label { font-size: .78rem; color: var(--gray-600); }
+    .asa-single__meta { font-size: .78rem; color: var(--gray-700); }
+    .asa-single__meta strong { color: var(--gray-900); }
+
+    @media (max-width: 767.98px) {
+        .asa-header__actions { width: 100%; }
+        .asa-header__actions .asa-btn { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 .6rem; }
+        .asa-filter__row { grid-template-columns: 1fr; align-items: stretch; }
+        /* :nth-child(n) menyamakan spesifisitas dengan aturan span di atas agar override menang. */
+        .asa-filter__row > .asa-field:nth-child(n) { grid-column: auto; width: 100%; }
+        .asa-control, .asa-search input { width: 100%; min-width: 0; }
+        .asa-filter__actions { width: 100%; }
+        .asa-filter__actions .asa-btn { flex: 1 1 auto; justify-content: center; }
+        .asa-card__head { flex-direction: column; }
+        .asa-table { min-width: 880px; }
+        .asa-resultbar { align-items: flex-start; }
+    }
+
     @media (max-width: 575.98px) {
         .asa-header__heading { font-size: 1.3rem; }
         .asa-stat__value { font-size: 1.2rem; }
@@ -452,6 +543,9 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
 </style>
 
 <div class="container-fluid py-4">
+    <!-- Indikator loading: hanya tampil saat filter/navigasi diproses -->
+    <div class="asa-loading-bar" id="asaLoadingBar" aria-hidden="true" hidden></div>
+
     <div class="asa-header">
         <div class="asa-header__title">
             <div class="asa-header__icon"><i class="bi bi-graph-up-arrow"></i></div>
@@ -532,32 +626,47 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
             </div>
 
             <div class="asa-field">
-                <label class="visually-hidden">Terapkan</label>
-                <button type="submit" class="btn btn-primary asa-btn">
-                    <i class="bi bi-funnel"></i><span>Terapkan</span>
-                </button>
+                <label class="visually-hidden" for="asaShowZero">Opsi tampilan</label>
+                <label class="asa-switch" for="asaShowZero">
+                    <input type="checkbox" name="show_zero" id="asaShowZero" value="1" <?= $showZero ? 'checked' : '' ?>>
+                    <span>Tampilkan rekening tanpa sisa</span>
+                </label>
+            </div>
+
+            <div class="asa-field">
+                <label class="visually-hidden">Aksi filter</label>
+                <div class="asa-filter__actions">
+                    <button type="submit" class="btn btn-primary asa-btn" id="asaSubmit">
+                        <i class="bi bi-funnel"></i><span>Terapkan</span>
+                    </button>
+                    <a href="<?= $resetUrl ?>" class="btn btn-outline-secondary asa-btn" id="asaReset">
+                        <i class="bi bi-arrow-counterclockwise"></i><span>Reset</span>
+                    </a>
+                </div>
             </div>
         </div>
 
         <div class="asa-presets">
             <span class="asa-presets__label">Filter cepat</span>
             <?php foreach ($presetJuta as $preset): ?>
-                <?php
-                $pq = $queryBase;
-                if ($preset['value'] > 0) { $pq['min_juta'] = $preset['value']; }
-                $presetUrl = $baseUrl . '?' . http_build_query($pq);
-                $isActive = (float) $preset['value'] === (float) $minJuta;
-                ?>
-                <a href="<?= $presetUrl ?>" class="asa-chip <?= $isActive ? 'is-active' : '' ?>">
+                <?php $isActive = (float) $preset['value'] === (float) $minJuta; ?>
+                <button type="button"
+                        class="asa-chip <?= $isActive ? 'is-active' : '' ?>"
+                        data-juta="<?= (int) $preset['value'] ?>">
                     <?= $preset['value'] > 0 ? '<i class="bi bi-arrow-up-right"></i>' : '<i class="bi bi-grid"></i>' ?>
                     <?= htmlspecialchars($preset['label']) ?>
-                </a>
+                </button>
             <?php endforeach; ?>
+        </div>
+
+        <div class="asa-hint" id="asaDirtyHint" hidden>
+            <i class="bi bi-exclamation-circle"></i>
+            <span>Perubahan belum diterapkan — tekan Terapkan untuk memperbarui hasil.</span>
         </div>
     </form>
 
     <div class="row g-3 mb-3">
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-6 col-lg-3">
             <div class="asa-stat asa-stat--pagu">
                 <div class="asa-stat__top">
                     <span class="asa-stat__label">Total Pagu</span>
@@ -565,11 +674,15 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                 </div>
                 <div class="asa-stat__value"><span class="asa-stat__cur">Rp</span><?= $rp($totalPagu) ?></div>
                 <div class="asa-stat__meta">
-                    <span><?= number_format($total, 0, ',', '.') ?> rekening sesuai filter</span>
+                    <span><?= number_format($baseCount, 0, ',', '.') ?> rekening sesuai filter</span>
+                    <?php if ($hiddenZeroCount > 0): ?>
+                        <span>·</span>
+                        <span><?= number_format($hiddenZeroCount, 0, ',', '.') ?> tanpa sisa disembunyikan</span>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-6 col-lg-3">
             <div class="asa-stat asa-stat--realisasi">
                 <div class="asa-stat__top">
                     <span class="asa-stat__label">Realisasi</span>
@@ -581,7 +694,7 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-6 col-lg-3">
             <div class="asa-stat asa-stat--sisa">
                 <div class="asa-stat__top">
                     <span class="asa-stat__label">Sisa Anggaran</span>
@@ -593,7 +706,7 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-6 col-lg-3">
             <div class="asa-stat asa-stat--serapan">
                 <div class="asa-stat__top">
                     <span class="asa-stat__label">Serapan</span>
@@ -616,8 +729,23 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
             <div class="asa-card">
                 <div class="asa-card__head">
                     <div>
-                        <h3 class="asa-card__title">10 Rekening dengan Sisa Terbesar</h3>
-                        <p class="asa-card__sub">Kandidat prioritas percepatan realisasi</p>
+                        <?php
+                        $topShown = (int) ($chartData['topShown'] ?? 0);
+                        $topCandidates = (int) ($chartData['topCandidates'] ?? 0);
+                        ?>
+                        <h3 class="asa-card__title">
+                            Rekening dengan Sisa Terbesar
+                            <?php if ($topCandidates > 0): ?>
+                                (<?= $topShown ?> dari <?= $topCandidates ?>)
+                            <?php endif; ?>
+                        </h3>
+                        <p class="asa-card__sub">
+                            <?php if ($topCandidates > 0): ?>
+                                Diambil dari <?= number_format($topCandidates, 0, ',', '.') ?> rekening bersisa pada filter ini, urut sisa terbesar.
+                            <?php else: ?>
+                                Tidak ada rekening dengan sisa positif pada filter ini.
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
                 <div class="asa-card__body">
@@ -632,13 +760,38 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                 <div class="asa-card__head">
                     <div>
                         <h3 class="asa-card__title">Sebaran Sisa per Seksi</h3>
-                        <p class="asa-card__sub">Total sisa anggaran menurut penanggung jawab</p>
+                        <p class="asa-card__sub">
+                            <?php if (($seksiMeta['count'] ?? 0) > 0): ?>
+                                <?php if (!empty($seksiMeta['filterActive'])): ?>
+                                    Grafik menampilkan seluruh <?= (int) $seksiMeta['count'] ?> seksi; filter seksi hanya memengaruhi tabel.
+                                <?php else: ?>
+                                    <?= (int) $seksiMeta['count'] ?> seksi dengan sisa positif.
+                                <?php endif; ?>
+                            <?php else: ?>
+                                Belum ada sisa positif per seksi pada tahun ini.
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
                 <div class="asa-card__body">
-                    <div class="asa-chart-wrap asa-chart-wrap--donut">
-                        <canvas id="asaSeksiChart" aria-label="Grafik sebaran sisa per seksi" role="img"></canvas>
-                    </div>
+                    <?php $singleSeksi = $seksiMeta['single'] ?? null; ?>
+                    <?php if ($singleSeksi !== null): ?>
+                        <!-- Hanya satu seksi bersisa: donut tidak informatif, ganti angka ringkas. -->
+                        <div class="asa-chart-wrap asa-chart-wrap--donut">
+                            <div class="asa-single">
+                                <div class="asa-single__label">Total sisa — <?= htmlspecialchars($singleSeksi['nama']) ?></div>
+                                <div class="asa-single__value">Rp <?= $rp($singleSeksi['sisa']) ?></div>
+                                <div class="asa-single__meta">
+                                    <strong><?= number_format((float) $singleSeksi['persen'], 1, ',', '.') ?>%</strong>
+                                    dari pagu Rp <?= $rp($singleSeksi['pagu']) ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="asa-chart-wrap asa-chart-wrap--donut">
+                            <canvas id="asaSeksiChart" aria-label="Grafik sebaran sisa per seksi" role="img"></canvas>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -692,13 +845,42 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         <?php if (empty($rows)): ?>
             <div class="asa-empty">
                 <i class="bi bi-inbox"></i>
-                <h5>Tidak ada rekening yang cocok</h5>
-                <p>Coba turunkan ambang sisa minimal, ubah seksi, atau hapus kata kunci pencarian.</p>
-                <a href="<?= $baseUrl . '?tahun=' . $tahun ?>" class="btn btn-primary asa-btn">
+                <h5>Tidak ada rekening yang cocok dengan filter.</h5>
+                <p>
+                    <?php if ($q !== ''): ?>
+                        Pencarian &ldquo;<?= htmlspecialchars($q) ?>&rdquo; tidak menemukan hasil.
+                    <?php endif; ?>
+                    Coba turunkan ambang sisa minimal, ubah seksi, atau reset filter.
+                </p>
+                <?php if ($hiddenZeroCount > 0): ?>
+                    <p><?= number_format($hiddenZeroCount, 0, ',', '.') ?> rekening tanpa sisa disembunyikan.</p>
+                <?php endif; ?>
+                <a href="<?= $resetUrl ?>" class="btn btn-primary asa-btn">
                     <i class="bi bi-arrow-counterclockwise"></i> Reset filter
                 </a>
             </div>
         <?php else: ?>
+            <div class="asa-resultbar" id="asaResultBar">
+                <?php if ($q !== ''): ?>
+                    <span>Hasil pencarian &ldquo;<strong><?= htmlspecialchars($q) ?></strong>&rdquo;</span>
+                    <span class="asa-resultbar__sep">·</span>
+                <?php endif; ?>
+                <span><strong><?= number_format($rangeStart, 0, ',', '.') ?>–<?= number_format($rangeEnd, 0, ',', '.') ?></strong>
+                    dari <strong><?= number_format($total, 0, ',', '.') ?></strong> rekening</span>
+                <?php if ($seksiFilter > 0): ?>
+                    <span class="asa-resultbar__sep">·</span>
+                    <span>Seksi: <strong><?= htmlspecialchars($seksiMap[$seksiFilter] ?? '#' . $seksiFilter) ?></strong></span>
+                <?php endif; ?>
+                <?php if ($minJuta > 0): ?>
+                    <span class="asa-resultbar__sep">·</span>
+                    <span>Sisa ≥ <strong>Rp <?= $rp($minJuta * 1_000_000) ?></strong></span>
+                <?php endif; ?>
+                <?php if ($hiddenZeroCount > 0): ?>
+                    <span class="asa-resultbar__sep">·</span>
+                    <span><?= number_format($hiddenZeroCount, 0, ',', '.') ?> rekening tanpa sisa disembunyikan —
+                        <a class="asa-resultbar__link" href="<?= $toggleZeroUrl ?>">tampilkan</a></span>
+                <?php endif; ?>
+            </div>
             <div class="table-responsive">
                 <table class="table asa-table" id="asaTable">
                     <thead>
@@ -735,12 +917,16 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                                 </td>
                                 <td class="asa-num"><?= $rp($row['pagu']) ?></td>
                                 <td class="asa-num asa-num--muted"><?= $rp($row['realisasi']) ?></td>
-                                <td class="asa-num <?= $sisa < 0 ? 'asa-num--over' : 'asa-num--sisa' ?>">
-                                    <?= $rp($sisa) ?>
-                                    <?php if ($sisa >= 500_000_000): ?>
-                                        <span class="asa-badge asa-badge--success d-block mt-1">Sisa besar</span>
-                                    <?php elseif ($sisa < 0): ?>
-                                        <span class="asa-badge asa-badge--danger d-block mt-1">Over realisasi</span>
+                                <td class="asa-num <?= $sisa < 0 ? 'asa-num--over' : ($sisa == 0 ? 'asa-num--muted' : 'asa-num--sisa') ?>">
+                                    <?php if ($sisa == 0): ?>
+                                        <span class="asa-badge asa-badge--neutral">Tanpa sisa</span>
+                                    <?php else: ?>
+                                        <?= $rp($sisa) ?>
+                                        <?php if ($sisa >= 500_000_000): ?>
+                                            <span class="asa-badge asa-badge--success d-block mt-1">Sisa besar</span>
+                                        <?php elseif ($sisa < 0): ?>
+                                            <span class="asa-badge asa-badge--danger d-block mt-1">Over realisasi</span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -797,12 +983,48 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
 <script>
 (function () {
     const ASA = <?= $chartJson ?>;
-    const rupiah = (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(v || 0));
+    const numberFmt = new Intl.NumberFormat('id-ID');
+
+    // Format penuh: ribuan pakai titik (tooltip, CSV).
+    const rupiah = (v) => 'Rp ' + numberFmt.format(Math.round(Number(v) || 0));
+
+    // Format ringkas sumbu: "Rp 0", "Rp 0,5 jt", "Rp 1 jt", "Rp 1,5 jt", "Rp 2 M".
+    // Selalu satu gaya agar label sumbu tidak campur ("2 jt" vs "Rp 500.000").
     const shortRupiah = (v) => {
-        const abs = Math.abs(v);
-        if (abs >= 1e9) return (v / 1e9).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' M';
-        if (abs >= 1e6) return (v / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 0 }) + ' jt';
-        return rupiah(v);
+        const n = Number(v) || 0;
+        const abs = Math.abs(n);
+        if (abs >= 1e9) {
+            return 'Rp ' + (n / 1e9).toLocaleString('id-ID', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) + ' M';
+        }
+        if (abs >= 1e6) {
+            return 'Rp ' + (n / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 1, minimumFractionDigits: 0 }) + ' jt';
+        }
+        if (abs >= 1e3) {
+            return 'Rp ' + numberFmt.format(Math.round(n));
+        }
+        return 'Rp 0';
+    };
+
+    // Label kategori multi-baris supaya nama rekening tidak terpotong "..."
+    const wrapLabel = (text, maxLen = 30) => {
+        const words = String(text).split(' ');
+        const lines = [];
+        let current = '';
+        words.forEach((word) => {
+            const next = current ? current + ' ' + word : word;
+            if (next.length > maxLen && current) {
+                lines.push(current);
+                current = word;
+            } else {
+                current = next;
+            }
+        });
+        if (current) lines.push(current);
+        if (lines.length > 2) {
+            const rest = lines.slice(1).join(' ');
+            return [lines[0], rest.length > maxLen ? rest.slice(0, maxLen - 1) + '…' : rest];
+        }
+        return lines;
     };
 
     Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
@@ -814,11 +1036,9 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
         if (!ASA.topRekening.length) {
             topEl.parentElement.innerHTML = '<div class="asa-legend-empty">Belum ada rekening dengan sisa positif pada filter ini.</div>';
         } else {
-            const labels = ASA.topRekening.map((r) => {
-                const name = r.label.split(' · ')[1] || r.label;
-                return name.length > 34 ? name.slice(0, 34) + '…' : name;
-            });
-            const codes = ASA.topRekening.map((r) => r.label.split(' · ')[0]);
+            const labels = ASA.topRekening.map((r) => wrapLabel(r.nama));
+            const codes = ASA.topRekening.map((r) => r.kode);
+            const fullNames = ASA.topRekening.map((r) => r.nama);
             new Chart(topEl, {
                 type: 'bar',
                 data: {
@@ -836,15 +1056,19 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { left: 2, right: 4 } },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             backgroundColor: '#0f172a',
                             padding: 10,
                             callbacks: {
-                                title: (items) => codes[items[0].dataIndex] + ' · ' + labels[items[0].dataIndex],
+                                title: (items) => codes[items[0].dataIndex] + ' · ' + fullNames[items[0].dataIndex],
                                 label: (ctx) => ' Sisa: ' + rupiah(ctx.raw),
-                                afterLabel: (ctx) => ' Pagu: ' + rupiah(ASA.topRekening[ctx.dataIndex].pagu),
+                                afterLabel: (ctx) => [
+                                    ' Pagu: ' + rupiah(ASA.topRekening[ctx.dataIndex].pagu),
+                                    ' Seksi: ' + ASA.topRekening[ctx.dataIndex].seksi,
+                                ],
                             },
                         },
                     },
@@ -852,9 +1076,17 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                         x: {
                             beginAtZero: true,
                             grid: { color: '#f1f5f9' },
-                            ticks: { callback: (v) => shortRupiah(v), font: { size: 10 } },
+                            ticks: {
+                                callback: (v) => shortRupiah(v),
+                                maxTicksLimit: 6,
+                                font: { size: 11 },
+                                color: '#475569',
+                            },
                         },
-                        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                        y: {
+                            grid: { display: false },
+                            ticks: { font: { size: 11 }, color: '#334155', autoSkip: false },
+                        },
                     },
                 },
             });
@@ -901,6 +1133,77 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
             });
         }
     }
+
+    // ── Perilaku filter: chip cepat, hint perubahan, dan indikator loading ──
+    const form = document.getElementById('asaFilterForm');
+    const minInput = document.getElementById('asaMinJuta');
+    const dirtyHint = document.getElementById('asaDirtyHint');
+    const loadingBar = document.getElementById('asaLoadingBar');
+    const submitBtn = document.getElementById('asaSubmit');
+    const chips = document.querySelectorAll('.asa-chip[data-juta]');
+
+    const syncChipState = () => {
+        if (!minInput) return;
+        const current = minInput.value === '' ? 0 : Number(minInput.value);
+        chips.forEach((chip) => {
+            chip.classList.toggle('is-active', Number(chip.dataset.juta) === current);
+        });
+    };
+
+    chips.forEach((chip) => {
+        chip.addEventListener('click', () => {
+            if (!minInput || !form) return;
+            // Chip mengisi input lalu langsung menerapkan filter (satu pola dengan input manual).
+            minInput.value = chip.dataset.juta === '0' ? '' : chip.dataset.juta;
+            syncChipState();
+            form.requestSubmit();
+        });
+    });
+
+    const showLoading = () => {
+        if (!loadingBar) return;
+        loadingBar.hidden = false;
+        // Paksa reflow agar transisi lebar berjalan meski submit langsung navigasi.
+        void loadingBar.offsetWidth;
+        loadingBar.classList.add('is-loading');
+    };
+    const resetLoading = () => {
+        if (loadingBar) {
+            loadingBar.classList.remove('is-loading');
+            loadingBar.hidden = true;
+        }
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-funnel"></i><span>Terapkan</span>';
+        }
+    };
+
+    if (form) {
+        const serialize = () => new URLSearchParams(new FormData(form)).toString();
+        let initialState = serialize();
+
+        const updateDirty = () => {
+            if (dirtyHint) dirtyHint.hidden = serialize() === initialState;
+            syncChipState();
+        };
+        form.addEventListener('input', updateDirty);
+        form.addEventListener('change', updateDirty);
+
+        form.addEventListener('submit', () => {
+            if (dirtyHint) dirtyHint.hidden = true;
+            showLoading();
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Memuat…</span>';
+            }
+        });
+    }
+
+    // Tampilkan loading juga saat pindah halaman / mengunduh.
+    document.querySelectorAll('.asa-pager a, .asa-resultbar__link, .asa-header__actions a').forEach((link) => {
+        link.addEventListener('click', showLoading);
+    });
+    window.addEventListener('pageshow', resetLoading);
 
     // Unduh CSV (seluruh hasil filter, bukan hanya halaman aktif)
     const exportBtn = document.getElementById('asaExportBtn');
