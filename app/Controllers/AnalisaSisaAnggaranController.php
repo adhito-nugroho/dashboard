@@ -65,10 +65,11 @@ class AnalisaSisaAnggaranController
 
             include __DIR__ . '/../../views/layout.php';
         } catch (\Exception $e) {
-            http_response_code(500);
-            echo '<div class="container py-5"><div class="alert alert-danger">Gagal memuat analisa sisa anggaran: '
-                . htmlspecialchars($e->getMessage()) . '</div></div>';
             error_log('AnalisaSisaAnggaran error: ' . $e->getMessage());
+            $this->renderError(
+                'Data analisa sisa anggaran gagal dimuat.',
+                'Silakan coba lagi. Jika masalah berlanjut, hubungi administrator.'
+            );
         }
     }
 
@@ -79,10 +80,39 @@ class AnalisaSisaAnggaranController
             (new AnalisaSisaAnggaranExportService())->download($report);
         } catch (\Throwable $e) {
             error_log('AnalisaSisaAnggaran export error: ' . $e->getMessage());
-            http_response_code(500);
-            echo '<div class="container py-5"><div class="alert alert-danger">Gagal membuat export Excel: '
-                . htmlspecialchars($e->getMessage()) . '</div></div>';
+            $this->renderError(
+                'Export Excel gagal dibuat.',
+                'Silakan coba lagi atau reset filter, lalu unduh ulang.'
+            );
         }
+    }
+
+    /**
+     * Halaman error yang bisa dibaca pengguna (bukan area kosong / stack trace).
+     * Detail teknis tetap dicatat ke error_log.
+     */
+    private function renderError(string $title, string $message): void
+    {
+        http_response_code(500);
+        $retryUrl = htmlspecialchars(base_url('analisa-sisa-anggaran'), ENT_QUOTES);
+        echo '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Gagal Memuat Data</title>'
+            . '<style>body{font-family:Inter,system-ui,sans-serif;background:#eef1f8;color:#1e293b;margin:0;'
+            . 'display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}'
+            . '.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;max-width:520px;width:100%;'
+            . 'padding:24px;box-shadow:0 8px 24px rgba(15,23,42,.08)}'
+            . 'h1{font-size:1.15rem;margin:0 0 8px;color:#b91c1c}p{font-size:.9rem;line-height:1.6;color:#475569}'
+            . '.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}'
+            . 'a{display:inline-flex;align-items:center;padding:9px 14px;border-radius:10px;font-size:.85rem;'
+            . 'font-weight:700;text-decoration:none}'
+            . '.primary{background:#4338ca;color:#fff}.secondary{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}'
+            . '</style></head><body><div class="card">'
+            . '<h1>' . htmlspecialchars($title) . '</h1>'
+            . '<p>' . htmlspecialchars($message) . '</p>'
+            . '<div class="actions"><a class="primary" href="' . $retryUrl . '">Muat ulang halaman</a>'
+            . '<a class="secondary" href="' . $retryUrl . '?tahun=' . (int) date('Y') . '">Reset filter</a></div>'
+            . '</div></body></html>';
     }
 
     /**
@@ -281,11 +311,10 @@ class AnalisaSisaAnggaranController
             $buckets[$key]['total'] += $r['sisa'];
         }
 
-        // Top chart: dari displayRows positif, selalu urut sisa terbesar.
-        $positiveRows = array_values(array_filter($displayRows, fn($r) => $r['sisa'] > 0));
-        usort($positiveRows, fn($a, $b) => $b['sisa'] <=> $a['sisa']);
-        $topCandidates = count($positiveRows);
-        $topRows = array_slice($positiveRows, 0, 10);
+        // Chart batang: 10 baris teratas PERSIS dari urutan tabel yang aktif,
+        // sehingga jumlah & urutan batang selalu sama dengan tabel (permintaan pengguna).
+        $topRows = array_slice($displayRows, 0, 10);
+        $topCandidates = count($displayRows);
 
         // Donut: agregasi seluruh seksi (tanpa filter seksi), sisa positif saja.
         $seksiAgg = [];
@@ -375,8 +404,15 @@ class AnalisaSisaAnggaranController
                 'count' => $s['count'],
             ], $seksiAgg),
             'seksiMeta' => $seksiMeta,
-            'buckets' => array_values($buckets),
+            // Sertakan key bucket agar view bisa membedakan over-realisasi vs kelompok positif.
+            'buckets' => array_map(
+                static fn($key, $bucket) => ['key' => $key] + $bucket,
+                array_keys($buckets),
+                array_values($buckets)
+            ),
             'rows' => $displayRows,
+            // Satu sumber warna donut untuk PHP (legenda HTML) dan JS (chart).
+            'palette' => ['#4338ca', '#059669', '#0284c7', '#d97706', '#db2777', '#7c3aed', '#0891b2', '#65a30d', '#ea580c', '#475569'],
         ];
 
         return [
