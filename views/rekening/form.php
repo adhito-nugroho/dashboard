@@ -10,6 +10,7 @@ $kegiatanId = $rekening['kegiatan_id'] ?? '';
 $subKegiatanId = $rekening['sub_kegiatan_id'] ?? '';
 $kodeRekening = $rekening['kode_rekening'] ?? '';
 $namaRekening = $rekening['nama_rekening'] ?? '';
+$tagar = $rekening['tagar'] ?? '';
 $errors = $validationErrors ?? [];
 $action = $action ?? 'store';
 
@@ -173,6 +174,27 @@ $batchData = $batchData ?? null;
                         </div>
                     <?php else: ?>
                         <div class="form-text">Masukkan nama rekening (maksimal 255 karakter)</div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Tagar RKA -->
+                <div class="mb-3">
+                    <label for="tagar" class="form-label">
+                        Tagar RKA
+                    </label>
+                    <input type="text"
+                           class="form-control <?= isset($errors['tagar']) ? 'is-invalid' : '' ?>"
+                           id="tagar"
+                           name="tagar"
+                           value="<?= htmlspecialchars((string) $tagar) ?>"
+                           placeholder="Contoh: #NBS4_AGRI_INDUSTRI"
+                           maxlength="100">
+                    <?php if (isset($errors['tagar'])): ?>
+                        <div class="invalid-feedback">
+                            <?= htmlspecialchars($errors['tagar']) ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="form-text">Opsional. Diisi otomatis dari import RKA, bisa diubah manual.</div>
                     <?php endif; ?>
                 </div>
 

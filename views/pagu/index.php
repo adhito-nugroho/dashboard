@@ -474,6 +474,12 @@ $windowEnd = min($totalPages, $currentPage + 2);
         border: 1px solid #fde68a;
     }
 
+    .pagu-chip--tag {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+
     .pagu-sub {
         min-width: 210px;
         max-width: 290px;
@@ -872,6 +878,9 @@ $windowEnd = min($totalPages, $currentPage + 2);
                                     <div class="pagu-rek">
                                         <span class="pagu-chip pagu-chip--rek"><?= htmlspecialchars($pagu['kode_rekening']) ?></span>
                                         <span class="pagu-rek__name"><?= htmlspecialchars($pagu['nama_rekening']) ?></span>
+                                        <?php if (!empty($pagu['tagar'])): ?>
+                                            <span class="pagu-chip pagu-chip--tag" title="Tagar RKA"><?= htmlspecialchars($pagu['tagar']) ?></span>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td class="text-end pagu-num pagu-num--muted"><?= $rp($paguAwal) ?></td>

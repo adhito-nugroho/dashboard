@@ -97,17 +97,19 @@ class Rekening {
      * @param int $subKegiatanId
      * @param string $kodeRekening
      * @param string $namaRekening
+     * @param string|null $tagar Tagar RKA (opsional), mis. #NBS4_AGRI_INDUSTRI
      * @return int Inserted ID
      */
-    public function create(int $subKegiatanId, string $kodeRekening, string $namaRekening): int {
+    public function create(int $subKegiatanId, string $kodeRekening, string $namaRekening, ?string $tagar = null): int {
         try {
             $stmt = $this->db->prepare("
-                INSERT INTO rekening (sub_kegiatan_id, kode_rekening, nama_rekening)
-                VALUES (:sub_kegiatan_id, :kode_rekening, :nama_rekening)
+                INSERT INTO rekening (sub_kegiatan_id, kode_rekening, nama_rekening, tagar)
+                VALUES (:sub_kegiatan_id, :kode_rekening, :nama_rekening, :tagar)
             ");
             $stmt->bindParam(':sub_kegiatan_id', $subKegiatanId, PDO::PARAM_INT);
             $stmt->bindParam(':kode_rekening', $kodeRekening, PDO::PARAM_STR);
             $stmt->bindParam(':nama_rekening', $namaRekening, PDO::PARAM_STR);
+            $stmt->bindValue(':tagar', $tagar, $tagar === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->execute();
             return (int) $this->db->lastInsertId();
         } catch (PDOException $e) {
@@ -123,21 +125,27 @@ class Rekening {
      * @param int $subKegiatanId
      * @param string $kodeRekening
      * @param string $namaRekening
+     * @param string|null $tagar null = jangan ubah kolom tagar
      * @return bool
      */
-    public function update(int $id, int $subKegiatanId, string $kodeRekening, string $namaRekening): bool {
+    public function update(int $id, int $subKegiatanId, string $kodeRekening, string $namaRekening, ?string $tagar = null): bool {
         try {
+            $setTagar = $tagar !== null ? ', tagar = :tagar' : '';
             $stmt = $this->db->prepare("
                 UPDATE rekening
                 SET sub_kegiatan_id = :sub_kegiatan_id,
                     kode_rekening = :kode_rekening,
                     nama_rekening = :nama_rekening
+                    {$setTagar}
                 WHERE id = :id
             ");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->bindParam(':sub_kegiatan_id', $subKegiatanId, PDO::PARAM_INT);
             $stmt->bindParam(':kode_rekening', $kodeRekening, PDO::PARAM_STR);
             $stmt->bindParam(':nama_rekening', $namaRekening, PDO::PARAM_STR);
+            if ($tagar !== null) {
+                $stmt->bindValue(':tagar', $tagar, $tagar === '' ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            }
             return $stmt->execute();
         } catch (PDOException $e) {
             error_log('Error updating account: ' . $e->getMessage());

@@ -31,6 +31,7 @@
 - `sub_kegiatan_id` → Foreign Key to `sub_kegiatan.id`
 - `kode_rekening`
 - `nama_rekening`
+- `tagar` (nullable; tagar RKA SIPD, mis. `#NBS4_AGRI_INDUSTRI`)
 
 ### pagu
 - `id` (Primary Key)
@@ -92,6 +93,6 @@ program
 ## Notes
 
 - All table and column names must be used exactly as specified
-- No additional tables or fields should be created (exception: `pagu_riwayat` for PAPBD, approved 2026-10-10)
+- No additional tables or fields should be created (exceptions: `pagu_riwayat` for PAPBD, approved 2026-10-10; `rekening.tagar` for RKA tags, approved 2026-11-04)
 - Foreign key relationships must be maintained as defined
 

@@ -97,10 +97,14 @@ class RekeningController {
         }
         
         try {
+            $tagar = isset($_POST['tagar']) && trim((string) $_POST['tagar']) !== ''
+                ? trim((string) $_POST['tagar'])
+                : null;
             $this->rekeningModel->create(
                 (int) $_POST['sub_kegiatan_id'],
                 trim($_POST['kode_rekening']),
-                trim($_POST['nama_rekening'])
+                trim($_POST['nama_rekening']),
+                $tagar
             );
             
             $this->redirectWithMessage(base_url('rekening'), 'success', 'Rekening berhasil ditambahkan');
@@ -336,11 +340,15 @@ class RekeningController {
         }
         
         try {
+            // Field ada di form = ikut diubah (string kosong menghapus tagar);
+            // tidak ada di POST = biarkan nilai lama.
+            $tagar = array_key_exists('tagar', $_POST) ? trim((string) $_POST['tagar']) : null;
             $this->rekeningModel->update(
                 $id,
                 (int) $_POST['sub_kegiatan_id'],
                 trim($_POST['kode_rekening']),
-                trim($_POST['nama_rekening'])
+                trim($_POST['nama_rekening']),
+                $tagar
             );
             
             $this->redirectWithMessage(base_url('rekening'), 'success', 'Rekening berhasil diperbarui');
@@ -399,6 +407,11 @@ class RekeningController {
             $errors['nama_rekening'] = 'Nama rekening wajib diisi';
         } elseif (strlen(trim($data['nama_rekening'])) > 255) {
             $errors['nama_rekening'] = 'Nama rekening maksimal 255 karakter';
+        }
+
+        // tagar (opsional)
+        if (isset($data['tagar']) && strlen(trim((string) $data['tagar'])) > 100) {
+            $errors['tagar'] = 'Tagar maksimal 100 karakter';
         }
 
         return $errors;

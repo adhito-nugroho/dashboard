@@ -21,7 +21,7 @@ class Pagu {
         try {
             $stmt = $this->db->prepare("
                 SELECT p.*, 
-                       r.kode_rekening, r.nama_rekening,
+                       r.kode_rekening, r.nama_rekening, r.tagar,
                        sk.id AS sub_kegiatan_id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan, sk.seksi_id AS sub_kegiatan_seksi_id,
                        k.id AS kegiatan_id, k.kode_kegiatan, k.nama_kegiatan,
                        pr.id AS program_id, pr.kode_program, pr.nama_program
@@ -53,7 +53,7 @@ class Pagu {
         try {
             $stmt = $this->db->prepare("
                 SELECT p.*, 
-                       r.kode_rekening, r.nama_rekening,
+                       r.kode_rekening, r.nama_rekening, r.tagar,
                        sk.id AS sub_kegiatan_id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan, sk.seksi_id AS sub_kegiatan_seksi_id,
                        k.id AS kegiatan_id, k.kode_kegiatan, k.nama_kegiatan,
                        pr.id AS program_id, pr.kode_program, pr.nama_program
