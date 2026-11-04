@@ -148,6 +148,7 @@ class SeksiTransaksiController
             return;
         }
 
+        $nilaiTransaksi = (float) str_replace(['.', ','], '', $_POST['nilai'] ?? '');
         $errors = $this->validate($_POST, $db, $seksiId);
 
         $jenisTransaksi = in_array($_POST['jenis_transaksi'] ?? '', ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)
@@ -166,6 +167,19 @@ class SeksiTransaksiController
             ]]);
             if ($duplikat !== []) {
                 $errors[] = $this->duplikatMessage($duplikat);
+            }
+        }
+
+        // Kunci input: pengajuan yang melebihi sisa pagu tidak boleh disimpan.
+        if (empty($errors) && $this->rekeningMilikSeksi((int) ($_POST['rekening_id'] ?? 0), $seksiId, $db)) {
+            $blokir = $this->blokirMelebihiSisaAnggaran(
+                $nilaiTransaksi,
+                (int) ($_POST['rekening_id'] ?? 0),
+                (string) ($_POST['tanggal'] ?? ''),
+                $db
+            );
+            if ($blokir !== null) {
+                $errors[] = $blokir;
             }
         }
 
@@ -195,8 +209,6 @@ class SeksiTransaksiController
             return;
         }
 
-        $nilaiTransaksi = (float) str_replace(['.', ','], '', $_POST['nilai']);
-
         $id = $this->transaksiModel->createSeksi(
             $_POST['tanggal'],
             $seksiId,
@@ -218,17 +230,7 @@ class SeksiTransaksiController
 
         $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input transaksi oleh seksi menunggu verifikasi');
 
-        $peringatan = $this->peringatanMelebihiSisaAnggaran(
-            $nilaiTransaksi,
-            (int) $_POST['rekening_id'],
-            (string) $_POST['tanggal'],
-            $db
-        );
-        $this->redirectWithMessage(
-            base_url('seksi/transaksi'),
-            $peringatan === null ? 'success' : 'warning',
-            'Transaksi diajukan. Menunggu verifikasi admin.' . ($peringatan === null ? '' : ' ' . $peringatan)
-        );
+        $this->redirectWithMessage(base_url('seksi/transaksi'), 'success', 'Transaksi diajukan. Menunggu verifikasi admin.');
     }
 
     /**
@@ -245,7 +247,6 @@ class SeksiTransaksiController
         $tanggal = !empty($post['tanggal']) ? $post['tanggal'] : date('Y-m-d');
         $items = $post['items'];
         $createdCount = 0;
-        $totalPengajuan = 0;
         $errors = [];
 
         // Tolak seluruh pengajuan bila ada transaksi dobel untuk ST + pegawai
@@ -253,6 +254,19 @@ class SeksiTransaksiController
         $duplikat = $this->collectPerjadinDuplikat($items);
         if ($duplikat !== [] && (string) ($post['konfirmasi_dobel'] ?? '0') !== '1') {
             $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', $this->duplikatMessage($duplikat));
+            return;
+        }
+
+        // Kunci input: batalkan SELURUH batch sebelum ada baris tersimpan bila
+        // total pengajuan melebihi sisa pagu rekening.
+        $blokir = $this->blokirMelebihiSisaAnggaran(
+            $this->totalPengajuanItems($items),
+            $rekeningId,
+            (string) $tanggal,
+            $db
+        );
+        if ($blokir !== null) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', $blokir);
             return;
         }
 
@@ -331,7 +345,6 @@ class SeksiTransaksiController
                 );
                 $this->logAudit($userId, 'input_transaksi_seksi', 'transaksi', $id, 'Input batch transaksi Surat Tugas an. ' . $namaPenerima);
                 $createdCount++;
-                $totalPengajuan += $nilai;
 
                 if (!empty($detailsValid)) {
                     $stRefId    = !empty($item['surat_tugas_ref_id']) ? (int) $item['surat_tugas_ref_id'] : 0;
@@ -362,11 +375,7 @@ class SeksiTransaksiController
             if (!empty($errors)) {
                 $msg .= " Catatan: " . implode(' ', $errors);
             }
-            $peringatan = $this->peringatanMelebihiSisaAnggaran($totalPengajuan, $rekeningId, (string) $tanggal, $db);
-            if ($peringatan !== null) {
-                $msg .= ' ' . $peringatan;
-            }
-            $this->redirectWithMessage(base_url('seksi/transaksi'), $peringatan === null ? 'success' : 'warning', $msg);
+            $this->redirectWithMessage(base_url('seksi/transaksi'), 'success', $msg);
         } else {
             $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', 'Gagal menyimpan transaksi: ' . implode(' ', $errors));
         }
@@ -606,6 +615,23 @@ class SeksiTransaksiController
             return;
         }
 
+        // Kunci input: perubahan nilai juga tidak boleh melebihi sisa pagu.
+        // Transaksi yang sedang diedit dikecualikan dari hitungan komitmen.
+        $nilaiTransaksi = (float) str_replace(['.', ','], '', $_POST['nilai']);
+        $blokir = $this->blokirMelebihiSisaAnggaran(
+            $nilaiTransaksi,
+            (int) $_POST['rekening_id'],
+            (string) $_POST['tanggal'],
+            $db,
+            [$id]
+        );
+        if ($blokir !== null) {
+            $_SESSION['flash_message'] = $blokir;
+            $_SESSION['flash_type'] = 'error';
+            header('Location: ' . base_url('seksi/transaksi/edit/' . $id));
+            exit;
+        }
+
         $jenisTransaksi = in_array($_POST['jenis_transaksi'] ?? '', ['perjalanan_dinas', 'belanja', 'honorarium', 'lainnya'], true)
             ? $_POST['jenis_transaksi']
             : 'lainnya';
@@ -617,7 +643,7 @@ class SeksiTransaksiController
             $seksiId,
             (int) $_POST['rekening_id'],
             trim($_POST['uraian']),
-            (float) str_replace(['.', ','], '', $_POST['nilai']),
+            $nilaiTransaksi,
             trim($_POST['nomor_bukti']),
             !empty(trim($_POST['nama_penerima'] ?? '')) ? trim($_POST['nama_penerima']) : null,
             $jenisTransaksi,
@@ -650,6 +676,34 @@ class SeksiTransaksiController
         $errors = [];
 
         $rincianBiayaModel = new \App\Models\RincianBiaya($db);
+
+        // Kunci input: total batch tidak boleh melebihi sisa pagu. Baris yang
+        // sedang diedit dikecualikan agar nilainya tidak dihitung dua kali.
+        $excludeIds = [];
+        foreach ($items as $item) {
+            $itemId = (int) ($item['id'] ?? 0);
+            if ($itemId <= 0) {
+                continue;
+            }
+            $row = $this->transaksiModel->getById($itemId);
+            if ($row
+                && (int) ($row['input_by'] ?? 0) === $userId
+                && in_array($row['status'] ?? '', ['diajukan', 'ditolak'], true)
+                && (int) ($row['rekening_id'] ?? 0) === $rekeningId) {
+                $excludeIds[] = $itemId;
+            }
+        }
+        $blokir = $this->blokirMelebihiSisaAnggaran(
+            $this->totalPengajuanItems($items),
+            $rekeningId,
+            (string) $tanggal,
+            $db,
+            $excludeIds
+        );
+        if ($blokir !== null) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/edit/' . $sourceId), 'error', $blokir);
+            return;
+        }
 
         foreach ($items as $idx => $item) {
             $itemId       = !empty($item['id']) ? (int) $item['id'] : null;
@@ -974,12 +1028,22 @@ class SeksiTransaksiController
         }
 
         $pagu = (float) $paguVal;
-        $totalRealisasi = $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
-        $sisaPagu = $pagu - $totalRealisasi;
+        // Sisa untuk pengajuan = pagu - komitmen (diajukan + diverifikasi).
+        // Transaksi yang sedang diedit dikecualikan lewat ?exclude_ids=1,2.
+        $excludeIds = $this->validExcludeIds(
+            (string) ($_GET['exclude_ids'] ?? ''),
+            $rekeningId,
+            $seksiId,
+            $db
+        );
+        $komitmen = $this->transaksiModel->getTotalKomitmenByRekeningAndYear($rekeningId, $tahun, $excludeIds);
+        $sisaPagu = $pagu - $komitmen;
 
         echo json_encode([
             'pagu' => $pagu,
-            'realisasi' => $totalRealisasi,
+            'realisasi' => $komitmen,
+            'komitmen' => $komitmen,
+            'exclude_ids' => $excludeIds,
             'sisa_pagu' => $sisaPagu,
             'formatted_sisa' => 'Rp ' . number_format($sisaPagu, 0, ',', '.'),
             'formatted_pagu' => 'Rp ' . number_format($pagu, 0, ',', '.'),
@@ -1727,10 +1791,10 @@ class SeksiTransaksiController
     }
 
     /**
-     * Sisa pagu rekening pada tahun transaksi (pagu - total transaksi terverifikasi).
+     * Sisa pagu rekening untuk pengajuan = pagu - komitmen (diajukan + diverifikasi).
      * Null bila pagu belum ditetapkan.
      */
-    private function sisaPaguRekening(int $rekeningId, int $tahun, \PDO $db): ?float
+    private function sisaPaguRekening(int $rekeningId, int $tahun, \PDO $db, array $excludeIds = []): ?float
     {
         $stmt = $db->prepare("SELECT nilai_pagu FROM pagu WHERE rekening_id = ? AND tahun = ?");
         $stmt->execute([$rekeningId, $tahun]);
@@ -1740,24 +1804,89 @@ class SeksiTransaksiController
             return null;
         }
 
-        return (float) $pagu - $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
+        return (float) $pagu - $this->transaksiModel->getTotalKomitmenByRekeningAndYear($rekeningId, $tahun, $excludeIds);
     }
 
     /**
-     * Pesan peringatan bila total pengajuan melebihi sisa pagu rekening.
+     * Pesan BLOKIR bila total pengajuan melebihi sisa pagu rekening.
+     * Null = boleh disimpan.
+     * @param int[] $excludeIds
      */
-    private function peringatanMelebihiSisaAnggaran(float $totalNilai, int $rekeningId, string $tanggal, \PDO $db): ?string
+    private function blokirMelebihiSisaAnggaran(float $totalNilai, int $rekeningId, string $tanggal, \PDO $db, array $excludeIds = []): ?string
     {
         $ts = strtotime($tanggal);
         $tahun = $ts ? (int) date('Y', $ts) : (int) date('Y');
 
-        $sisa = $this->sisaPaguRekening($rekeningId, $tahun, $db);
-        if ($sisa === null || $totalNilai <= $sisa) {
+        $sisa = $this->sisaPaguRekening($rekeningId, $tahun, $db, $excludeIds);
+        if ($sisa === null || $totalNilai <= $sisa + 0.01) {
             return null;
         }
 
-        return 'Peringatan: nilai pengajuan (Rp ' . number_format($totalNilai, 0, ',', '.')
-            . ') melebihi sisa anggaran rekening (Rp ' . number_format($sisa, 0, ',', '.') . ').';
+        return 'Transaksi tidak dapat disimpan: nilai pengajuan (Rp ' . number_format($totalNilai, 0, ',', '.')
+            . ') melebihi sisa anggaran rekening (Rp ' . number_format(max(0, $sisa), 0, ',', '.') . ')'
+            . ($sisa < 0 ? ' — pagu rekening sudah terlampaui' : '')
+            . '. Kurangi nilai transaksi atau pilih rekening lain.';
+    }
+
+    /**
+     * Filter id transaksi yang boleh dikecualikan dari hitungan komitmen saat
+     * edit: harus milik seksi & rekening yang sama dan belum diverifikasi.
+     * @return int[]
+     */
+    private function validExcludeIds(string $raw, int $rekeningId, int $seksiId, \PDO $db): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', array_filter(explode(',', $raw), static fn ($v) => $v !== '')),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $db->prepare("
+            SELECT id FROM transaksi
+            WHERE id IN ($placeholders)
+              AND rekening_id = ?
+              AND seksi_id = ?
+              AND status IN ('diajukan', 'ditolak')
+        ");
+        $stmt->execute(array_merge($ids, [$rekeningId, $seksiId]));
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Total nilai pengajuan dari item batch, memakai fallback total rincian
+     * komponen yang sama dengan proses penyimpanan.
+     */
+    private function totalPengajuanItems(array $items): float
+    {
+        $total = 0.0;
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $nilai = (float) str_replace(['.', ','], '', (string) ($item['nilai'] ?? '0'));
+            if ($nilai <= 0) {
+                $rincian = 0.0;
+                $komponen = is_array($item['komponen'] ?? null) ? $item['komponen'] : [];
+                foreach ($komponen as $k) {
+                    if (!is_array($k) || trim((string) ($k['nama_komponen'] ?? '')) === '') {
+                        continue;
+                    }
+                    $harga = (float) str_replace(['.', ','], ['', '.'], (string) ($k['harga_satuan'] ?? '0'));
+                    $hari = isset($k['jumlah_hari']) && $k['jumlah_hari'] !== '' ? (float) $k['jumlah_hari'] : null;
+                    $jml = (float) str_replace(['.', ','], ['', '.'], (string) ($k['jumlah'] ?? '0'));
+                    if ($jml <= 0) {
+                        $jml = $hari !== null ? $harga * $hari : $harga;
+                    }
+                    $rincian += $jml;
+                }
+                $nilai = $rincian;
+            }
+            $total += $nilai;
+        }
+        return $total;
     }
 
     private function logAudit(int $userId, string $aksi, string $tabel, ?int $recordId, string $keterangan): void

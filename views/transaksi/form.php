@@ -224,6 +224,10 @@ $batchData = $batchData ?? null;
                             <div id="remainingPaguInfo" class="p-3 bg-light rounded">
                                 <p class="mb-0 text-muted">Pilih rekening dan tanggal untuk melihat sisa pagu</p>
                             </div>
+                            <div id="paguLockWarning" class="alert alert-danger py-2 px-3 mt-2 mb-0 d-none" role="alert">
+                                <i class="bi bi-lock-fill me-1"></i>
+                                Nilai transaksi melebihi sisa pagu. Tombol simpan dikunci sampai nilai dikurangi.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -396,6 +400,22 @@ $batchData = $batchData ?? null;
             const tanggalInput = document.getElementById('tanggal');
             const nilaiInput = document.getElementById('nilai');
             const remainingPaguInfo = document.getElementById('remainingPaguInfo');
+            const singleForm = document.getElementById('transaksiForm');
+
+            // Kunci tombol simpan selama nilai melebihi pagu (komitmen).
+            function applySingleSubmitLock(locked) {
+                const warn = document.getElementById('paguLockWarning');
+                if (warn) warn.classList.toggle('d-none', !locked);
+                if (!singleForm) return;
+                const btn = singleForm.querySelector('button[type="submit"]');
+                if (!btn) return;
+                btn.disabled = !!locked;
+                if (locked) {
+                    btn.title = 'Nilai melebihi sisa pagu — transaksi tidak dapat disimpan.';
+                } else {
+                    btn.removeAttribute('title');
+                }
+            }
 
             // Format number input
             if (nilaiInput) {
@@ -419,6 +439,7 @@ $batchData = $batchData ?? null;
                     if (remainingPaguInfo) {
                         remainingPaguInfo.innerHTML = '<p class="mb-0 text-muted">Pilih rekening dan tanggal untuk melihat sisa pagu</p>';
                     }
+                    applySingleSubmitLock(false);
                     return;
                 }
 
@@ -458,6 +479,10 @@ $batchData = $batchData ?? null;
                                 nilaiInput.classList.remove('is-invalid');
                             }
                         }
+
+                        // Batas input mengikuti server: pagu - komitmen (tanpa RAK).
+                        const batasInput = data.pagu - data.total_transaksi;
+                        applySingleSubmitLock(currentNilai > 0 && currentNilai > batasInput + 0.01);
                     })
                     .catch(error => {
                         console.error('Error:', error);
@@ -571,6 +596,12 @@ $batchData = $batchData ?? null;
 
             rekeningSelect?.addEventListener('change', checkRemainingPagu);
             tanggalInput?.addEventListener('change', checkRemainingPagu);
+
+            // Cek saat halaman dibuka (mis. setelah validasi server gagal),
+            // supaya tombol langsung terkunci bila nilai masih melebihi pagu.
+            if (singleForm) {
+                checkRemainingPagu();
+            }
 
             const btnAutoNoBukti = document.getElementById('btnAutoNoBukti');
             const noBuktiInput = document.getElementById('nomor_bukti');
@@ -895,7 +926,7 @@ $batchData = $batchData ?? null;
                 }
 
                 if (!isValid) {
-                    alert('Mohon lengkapi Uraian dan Nomor Bukti pada rekening yang diisi nilainya, serta pastikan tidak melebihi sisa anggaran.');
+                    alert('Transaksi tidak dapat disimpan: lengkapi Uraian dan Nomor Bukti, serta pastikan nilai tidak melebihi sisa anggaran.');
                     return false;
                 }
 

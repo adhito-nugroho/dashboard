@@ -372,7 +372,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                                 </div>
                                 <div class="sisa-pagu-badge unknown" id="sisaPaguError" style="display:none;">
                                     <i class="bi bi-exclamation-circle"></i>
-                                    <span>Sisa anggaran tidak dapat dimuat — transaksi tetap bisa diajukan tanpa validasi otomatis.</span>
+                                    <span>Sisa anggaran tidak dapat dimuat — validasi otomatis nonaktif, tetapi server tetap menolak pengajuan yang melebihi pagu.</span>
                                 </div>
                                 <div class="sisa-pagu-alert" id="sisaPaguWarning" role="alert" aria-live="polite">
                                     <i class="bi bi-exclamation-triangle-fill"></i>
@@ -562,7 +562,7 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
                 <a href="<?= base_url('seksi/transaksi') ?>" class="btn btn-ghost-secondary px-4">
                     Batal
                 </a>
-                <button type="submit" class="btn btn-submit-gold px-4 py-2">
+                <button type="submit" id="btnSubmitTransaksi" class="btn btn-submit-gold px-4 py-2">
                     <i class="bi <?= $isEdit ? 'bi-check-lg' : 'bi-send-fill' ?> me-1"></i>
                     <?= $isEdit ? 'Simpan Perubahan' : 'Ajukan Transaksi' ?>
                 </button>
@@ -696,6 +696,7 @@ const selectedKegiatan = '<?= (int)$kegiatanId ?>';
 const selectedSub = '<?= (int)$subKegiatanId ?>';
 const selectedRekening = '<?= (int)$rekeningId ?>';
 const isEditMode = <?= $isEdit ? 'true' : 'false' ?>;
+const editSingleId = <?= $isEdit ? (int) $transaksi['id'] : 0 ?>;
 const editBatchItems = <?= json_encode($batchItemsData ?? []) ?>;
 const editSTMetadata = <?= json_encode($stMetadata ?? null) ?>;
 const seksiBase = BASE_URL.replace(/\/$/, '');
@@ -761,28 +762,64 @@ function getTotalNilaiPengajuan() {
 function hideSisaPaguWarning() {
     const warning = document.getElementById('sisaPaguWarning');
     if (warning) warning.style.display = 'none';
+    setSubmitLocked(false);
+}
+
+// Transaksi yang sedang diedit tidak dihitung sebagai komitmen saat cek pagu.
+function getSisaPaguExcludeIds() {
+    const ids = [];
+    if (editSingleId) ids.push(editSingleId);
+    if (Array.isArray(editBatchItems)) {
+        editBatchItems.forEach(function (it) {
+            const id = parseInt(it && it.id, 10);
+            if (id > 0 && ids.indexOf(id) === -1) ids.push(id);
+        });
+    }
+    return ids;
+}
+
+// Kunci tombol simpan selama pengajuan melebihi sisa pagu.
+function setSubmitLocked(locked, reason) {
+    const btn = document.getElementById('btnSubmitTransaksi');
+    if (!btn) return;
+    btn.disabled = !!locked;
+    if (locked) {
+        btn.title = reason || 'Transaksi tidak dapat diajukan karena melebihi sisa anggaran.';
+        btn.classList.add('disabled');
+    } else {
+        btn.removeAttribute('title');
+        btn.classList.remove('disabled');
+    }
 }
 
 function updateSisaPaguWarning() {
     const warning = document.getElementById('sisaPaguWarning');
     const textEl = document.getElementById('sisaPaguWarningText');
-    if (!warning || !textEl) return;
+    if (!warning || !textEl) return false;
 
     const sisa = window.currentSisaPagu;
     if (sisa === null || sisa === undefined || isNaN(Number(sisa))) {
         warning.style.display = 'none';
-        return;
+        setSubmitLocked(false);
+        return false;
     }
 
     const total = getTotalNilaiPengajuan();
     if (total <= Number(sisa)) {
         warning.style.display = 'none';
-        return;
+        setSubmitLocked(false);
+        return false;
     }
 
     const fmt = (v) => 'Rp ' + Number(v).toLocaleString('id-ID');
-    textEl.innerText = 'Nilai pengajuan (' + fmt(total) + ') melebihi sisa anggaran (' + fmt(sisa) + ') sebesar ' + fmt(total - Number(sisa)) + '. Pengajuan tetap dapat dilanjutkan dan menunggu verifikasi admin.';
+    if (Number(sisa) < 0) {
+        textEl.innerText = 'Sisa anggaran rekening sudah terlampaui (' + fmt(sisa) + '). Transaksi TIDAK dapat diajukan — pilih rekening lain atau minta penyesuaian pagu.';
+    } else {
+        textEl.innerText = 'Nilai pengajuan (' + fmt(total) + ') melebihi sisa anggaran (' + fmt(sisa) + ') sebesar ' + fmt(total - Number(sisa)) + '. Transaksi TIDAK dapat diajukan — kurangi nilai atau pilih rekening lain.';
+    }
     warning.style.display = 'flex';
+    setSubmitLocked(true, textEl.innerText);
+    return true;
 }
 
 function updateSisaPagu() {
@@ -815,7 +852,10 @@ function updateSisaPagu() {
     badge.className = 'sisa-pagu-badge';
     if (spinnerSisa) spinnerSisa.style.display = 'inline-block';
 
-    fetch(`${seksiBase}/seksi/transaksi/sisa-pagu?rekening_id=${rekId}&tahun=${tahun}`)
+    const excludeIds = getSisaPaguExcludeIds();
+    const excludeQs = excludeIds.length ? `&exclude_ids=${excludeIds.join(',')}` : '';
+
+    fetch(`${seksiBase}/seksi/transaksi/sisa-pagu?rekening_id=${rekId}&tahun=${tahun}${excludeQs}`)
         .then(r => r.json())
         .then(res => {
             if (spinnerSisa) spinnerSisa.style.display = 'none';
@@ -1671,26 +1711,21 @@ document.getElementById('seksiTransaksiForm').addEventListener('submit', functio
 
     if (totalNilai === 0) return; // biar required yang handle
     if (totalNilai > sisa) {
+        // Kunci: pengajuan di atas sisa pagu tidak boleh dikirim.
+        e.preventDefault();
         updateSisaPaguWarning();
-        const sisaFmt = 'Rp ' + Number(sisa).toLocaleString('id-ID');
-        const totalFmt = 'Rp ' + Number(totalNilai).toLocaleString('id-ID');
-        const lebihFmt = 'Rp ' + Number(totalNilai - sisa).toLocaleString('id-ID');
-        const msg = `Nilai transaksi (${totalFmt}) melebihi sisa anggaran (${sisaFmt}) sebesar ${lebihFmt}. Tetap ajukan?`;
-        if (!confirm(msg)) {
-            e.preventDefault();
-            // Task C: scroll & focus ke field nilai relevan + highlight
-            let targetEl = null;
-            if (isBatchMode) {
-                const batchInputs = document.querySelectorAll('.batch-nilai-input');
-                targetEl = batchInputs.length ? batchInputs[0] : null;
-            } else {
-                targetEl = document.getElementById('nilai');
-            }
-            if (targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setTimeout(() => targetEl.focus(), 300);
-                highlightField(targetEl);
-            }
+        // Scroll & focus ke field nilai relevan + highlight
+        let targetEl = null;
+        if (isBatchMode) {
+            const batchInputs = document.querySelectorAll('.batch-nilai-input');
+            targetEl = batchInputs.length ? batchInputs[0] : null;
+        } else {
+            targetEl = document.getElementById('nilai');
+        }
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => targetEl.focus(), 300);
+            highlightField(targetEl);
         }
     }
 });

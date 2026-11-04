@@ -1388,6 +1388,51 @@ class Transaksi
         }
     }
 
+    /**
+     * Total nilai transaksi yang MENGIKAT anggaran: status 'diajukan' (menunggu
+     * verifikasi) + 'diverifikasi'. Dipakai khusus validasi input agar pengajuan
+     * yang belum diverifikasi ikut mengurangi sisa pagu — bukan untuk laporan
+     * realisasi (gunakan getTotalByRekeningAndYear()).
+     *
+     * @param int[] $excludeIds transaksi yang sedang diedit (nilainya tidak dihitung)
+     */
+    public function getTotalKomitmenByRekeningAndYear(int $rekeningId, int $tahun, array $excludeIds = []): float
+    {
+        try {
+            $excludeIds = array_values(array_unique(array_filter(
+                array_map('intval', $excludeIds),
+                static fn (int $id): bool => $id > 0
+            )));
+
+            $sql = "
+                SELECT COALESCE(SUM(nilai), 0) as total
+                FROM transaksi
+                WHERE rekening_id = :rekening_id
+                AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
+                AND status IN ('diajukan', 'diverifikasi')
+            ";
+            if ($excludeIds !== []) {
+                $placeholders = [];
+                foreach ($excludeIds as $i => $id) {
+                    $placeholders[] = ':ex' . $i;
+                }
+                $sql .= ' AND id NOT IN (' . implode(', ', $placeholders) . ')';
+            }
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':rekening_id', $rekeningId, PDO::PARAM_INT);
+            $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+            foreach ($excludeIds as $i => $id) {
+                $stmt->bindValue(':ex' . $i, $id, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return (float) ($stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+        } catch (PDOException $e) {
+            error_log('Error calculating komitmen transactions: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
     // ================================================================
     // Admin Dashboard Methods
     // ================================================================

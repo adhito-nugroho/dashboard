@@ -407,16 +407,18 @@ class TransaksiController
                         // Pagu belum ditetapkan — tetap izinkan transaksi, catat peringatan
                         error_log("Warning storeBatch: Pagu belum ditetapkan untuk rekening_id={$rekeningId} tahun={$tahun}");
                     } else {
-                        // Cek sisa: bandingkan pagu vs total transaksi SAJA (RAK = rencana, bukan pengurang)
-                        $totalTransaksi = $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
-                        $sisaPagu = (float) $pagu['nilai_pagu'] - $totalTransaksi;
+                        // Komitmen = diajukan + diverifikasi. Baris yang sudah
+                        // dibuat pada batch ini ikut terhitung pada iterasi
+                        // berikutnya sehingga total batch tidak bisa menembus pagu.
+                        $komitmen = $this->transaksiModel->getTotalKomitmenByRekeningAndYear($rekeningId, $tahun);
+                        $sisaPagu = (float) $pagu['nilai_pagu'] - $komitmen;
 
                         if ($nilai > $sisaPagu + 0.01) {
                             $errorMessages[] = sprintf(
-                                'Rekening ID %d: nilai (Rp %s) melebihi sisa anggaran (Rp %s)',
+                                'Rekening ID %d: nilai (Rp %s) melebihi sisa anggaran (Rp %s) — transaksi tidak disimpan',
                                 $rekeningId,
                                 number_format($nilai, 0, ',', '.'),
-                                number_format($sisaPagu, 0, ',', '.')
+                                number_format(max(0, $sisaPagu), 0, ',', '.')
                             );
                             continue;
                         }
@@ -792,8 +794,9 @@ class TransaksiController
             // Get total RAK
             $totalRak = $this->rakModel->getTotalByRekeningAndYear($rekeningId, $tahun);
 
-            // Get total transactions
-            $totalTransaksi = $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
+            // Get total komitmen (diajukan + diverifikasi) agar pengajuan pending
+            // ikut mengurangi sisa yang ditampilkan.
+            $totalTransaksi = $this->transaksiModel->getTotalKomitmenByRekeningAndYear($rekeningId, $tahun);
 
             // Calculate remaining pagu
             $remainingPagu = (float) $pagu['nilai_pagu'] - $totalRak - $totalTransaksi;
@@ -841,7 +844,7 @@ class TransaksiController
             foreach ($rekenings as $rekening) {
                 $rekeningId = (int) $rekening['id'];
                 $paguValue = $paguMap[$rekeningId] ?? null;
-                $totalTransaksi = $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
+                $totalTransaksi = $this->transaksiModel->getTotalKomitmenByRekeningAndYear($rekeningId, $tahun);
                 $sisaPagu = $paguValue !== null ? ($paguValue - $totalTransaksi) : null;
 
                 $result[] = [
@@ -961,28 +964,18 @@ class TransaksiController
                 // (transaksi tetap bisa diinput meskipun pagu belum ada)
                 error_log("Warning: Pagu belum ditetapkan untuk rekening_id={$rekeningId} tahun={$tahun}");
             } else {
-                // Bandingkan hanya dengan totalTransaksi (bukan dikurangi RAK)
-                // karena RAK adalah rencana, transaksi adalah realisasi aktual
-                $totalTransaksi = $this->transaksiModel->getTotalByRekeningAndYear($rekeningId, $tahun);
-
-                // Kurangi nilai transaksi saat ini jika update
-                if ($excludeId) {
-                    $currentTransaksi = $this->transaksiModel->getById($excludeId);
-                    if (
-                        $currentTransaksi && $currentTransaksi['rekening_id'] == $rekeningId &&
-                        (int) date('Y', strtotime($currentTransaksi['tanggal'])) == $tahun
-                    ) {
-                        $totalTransaksi -= (float) $currentTransaksi['nilai'];
-                    }
-                }
-
-                $sisaPagu = (float) $pagu['nilai_pagu'] - $totalTransaksi;
+                // Komitmen = transaksi 'diajukan' + 'diverifikasi'. Transaksi
+                // pending ikut mengurangi sisa agar beberapa pengajuan tidak
+                // menembus pagu. Saat update, transaksi ini dikecualikan.
+                $excludeIds = $excludeId ? [$excludeId] : [];
+                $komitmen = $this->transaksiModel->getTotalKomitmenByRekeningAndYear($rekeningId, $tahun, $excludeIds);
+                $sisaPagu = (float) $pagu['nilai_pagu'] - $komitmen;
 
                 if ($nilai > $sisaPagu + 0.01) { // toleransi pembulatan 1 sen
                     $errors['nilai'] = sprintf(
-                        'Nilai transaksi (Rp %s) melebihi sisa anggaran yang tersedia (Rp %s)',
+                        'Nilai transaksi (Rp %s) melebihi sisa anggaran yang tersedia (Rp %s). Transaksi tidak dapat disimpan.',
                         number_format($nilai, 0, ',', '.'),
-                        number_format($sisaPagu, 0, ',', '.')
+                        number_format(max(0, $sisaPagu), 0, ',', '.')
                     );
                 }
             }

@@ -578,6 +578,31 @@ class PengajuanTu
             $jenisTransaksi = 'belanja';
         }
 
+        // Kunci pagu: baris ini langsung berstatus 'diverifikasi', jadi nilainya
+        // harus muat dalam sisa pagu rekening (komitmen diajukan + diverifikasi).
+        $tahunPagu = (int) date('Y', strtotime($tanggal));
+        $stmtPagu = $this->db->prepare("SELECT nilai_pagu FROM pagu WHERE rekening_id = :rid AND tahun = :th LIMIT 1");
+        $stmtPagu->execute([':rid' => $rekeningId, ':th' => $tahunPagu]);
+        $paguVal = $stmtPagu->fetchColumn();
+        if ($paguVal !== false) {
+            $stmtKomitmen = $this->db->prepare("
+                SELECT COALESCE(SUM(nilai), 0)
+                FROM transaksi
+                WHERE rekening_id = :rid
+                  AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :th
+                  AND status IN ('diajukan', 'diverifikasi')
+            ");
+            $stmtKomitmen->execute([':rid' => $rekeningId, ':th' => $tahunPagu]);
+            $sisaPagu = (float) $paguVal - (float) $stmtKomitmen->fetchColumn();
+            if ($nilai > $sisaPagu + 0.01) {
+                throw new \RuntimeException(sprintf(
+                    'Nilai pembayaran (Rp %s) melebihi sisa pagu rekening (Rp %s). Pembayaran tidak dapat dicatat.',
+                    number_format($nilai, 0, ',', '.'),
+                    number_format(max(0, $sisaPagu), 0, ',', '.')
+                ));
+            }
+        }
+
         $stmt = $this->db->prepare("
             INSERT INTO transaksi
                 (tanggal, tanggal_lunas_dibayar, seksi_id, rekening_id, uraian,
