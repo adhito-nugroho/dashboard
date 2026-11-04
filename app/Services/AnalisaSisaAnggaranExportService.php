@@ -23,11 +23,13 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *
  * Sheet 1: daftar rekening + sisa anggaran, kartu ringkasan, dan status.
  * Sheet 2: distribusi sisa, rekap per seksi, top 10 rekening, plus grafik.
+ * Sheet 3: rekap pagu/realisasi/sisa/serapan per tagar + grafik.
  */
 class AnalisaSisaAnggaranExportService
 {
     private const SHEET_MAIN = 'Analisa Sisa';
     private const SHEET_SUMMARY = 'Ringkasan';
+    private const SHEET_TAG = 'Rekap Tagar';
     private const LAST_COL = 'L';
     private const HEADER_ROW = 8;
     private const FIRST_DATA_ROW = 9;
@@ -49,6 +51,7 @@ class AnalisaSisaAnggaranExportService
 
         $this->buildMainSheet($spreadsheet->getActiveSheet(), $report);
         $this->buildSummarySheet($spreadsheet->createSheet(), $report);
+        $this->buildTagSheet($spreadsheet->createSheet(), $report);
 
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -126,6 +129,10 @@ class AnalisaSisaAnggaranExportService
         }
         if (!empty($filters['show_zero'])) {
             $parts[] = 'Rekening tanpa sisa: ditampilkan';
+        }
+        $tagar = trim((string) ($filters['tagar'] ?? ''));
+        if ($tagar !== '') {
+            $parts[] = 'Tagar: ' . ($tagar === '__none__' ? 'Tanpa tagar' : $tagar);
         }
 
         $sheet->mergeCells('A3:' . self::LAST_COL . '3');
@@ -515,6 +522,286 @@ class AnalisaSisaAnggaranExportService
             ->setPaperSize(PageSetup::PAPERSIZE_A4)
             ->setFitToWidth(1)
             ->setFitToHeight(0);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // SHEET 3 — Rekap per tagar
+    // ──────────────────────────────────────────────────────────
+
+    private function writeTagSummaryCards(Worksheet $sheet, array $tagRecap): void
+    {
+        $pagu = 0.0;
+        $realisasi = 0.0;
+        foreach ($tagRecap as $tag) {
+            $pagu += (float) $tag['pagu'];
+            $realisasi += (float) $tag['realisasi'];
+        }
+        $sisa = $pagu - $realisasi;
+        $serapan = $pagu > 0 ? $realisasi / $pagu : 0.0;
+
+        $cards = [
+            ['A', 'B', 'TOTAL PAGU', $pagu, self::NUMBER_FORMAT, 'EEF2FF', self::NAVY],
+            ['C', 'D', 'REALISASI', $realisasi, self::NUMBER_FORMAT, 'E0F2FE', '0C4A6E'],
+            ['E', 'F', 'SISA ANGGARAN', $sisa, self::NUMBER_FORMAT, 'DCFCE7', '166534'],
+            ['G', 'H', 'SERAPAN', $serapan, self::PERCENT_FORMAT, 'FEF3C7', '92400E'],
+        ];
+
+        foreach ($cards as [$startCol, $endCol, $label, $value, $format, $bg, $fontColor]) {
+            $labelRange = $startCol . '5:' . $endCol . '5';
+            $valueRange = $startCol . '6:' . $endCol . '6';
+
+            $sheet->mergeCells($labelRange);
+            $sheet->mergeCells($valueRange);
+            $sheet->setCellValue($startCol . '5', $label);
+            $sheet->setCellValue($startCol . '6', $value);
+
+            $sheet->getStyle($labelRange)->applyFromArray([
+                'font' => ['bold' => true, 'size' => 8, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::NAVY]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+            ]);
+            $sheet->getStyle($valueRange)->applyFromArray([
+                'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => $fontColor]],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $bg]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+            ]);
+            $sheet->getStyle($startCol . '6')->getNumberFormat()->setFormatCode($format);
+        }
+
+        $sheet->getRowDimension(5)->setRowHeight(18);
+        $sheet->getRowDimension(6)->setRowHeight(26);
+        $sheet->getRowDimension(7)->setRowHeight(8);
+    }
+
+    private function buildTagSheet(Worksheet $sheet, array $report): void
+    {
+        $sheet->setTitle(self::SHEET_TAG);
+        $tahun = (int) ($report['tahun'] ?? date('Y'));
+        $tagRecap = $report['tagRecap'] ?? [];
+
+        $headerRow = 8;
+        $firstRow = 9;
+
+        $this->writeTitle($sheet, $tahun, 'REKAP REALISASI PER TAGAR');
+        $this->writeFilterInfo($sheet, $report);
+        $this->writeTagSummaryCards($sheet, $tagRecap);
+
+        // Catatan: rekap tagar sengaja mengabaikan filter tagar.
+        $sheet->mergeCells('A4:G4');
+        $sheet->setCellValue('A4', 'Catatan: rekap ini selalu menampilkan semua tagar; filter tagar hanya memengaruhi sheet "Analisa Sisa".');
+        $sheet->getStyle('A4')->applyFromArray([
+            'font' => ['size' => 8, 'italic' => true, 'color' => ['rgb' => '6B7280']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $sheet->getRowDimension(4)->setRowHeight(16);
+
+        $headers = [
+            'A' => 'NO',
+            'B' => 'TAGAR',
+            'C' => "JUMLAH\nREKENING",
+            'D' => "PAGU\n(Rp)",
+            'E' => "REALISASI\n(Rp)",
+            'F' => "SISA\n(Rp)",
+            'G' => "SERAPAN\n(%)",
+        ];
+        foreach ($headers as $col => $label) {
+            $sheet->setCellValue($col . $headerRow, $label);
+        }
+        $sheet->getStyle('A' . $headerRow . ':G' . $headerRow)->applyFromArray([
+            'font' => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::NAVY]],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension($headerRow)->setRowHeight(32);
+
+        if (empty($tagRecap)) {
+            $sheet->mergeCells('A' . $firstRow . ':G' . $firstRow);
+            $sheet->setCellValue('A' . $firstRow, 'Belum ada data tagar pada filter ini.');
+            $sheet->getStyle('A' . $firstRow . ':G' . $firstRow)->applyFromArray([
+                'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '6B7280']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+            ]);
+            $sheet->getRowDimension($firstRow)->setRowHeight(24);
+            $this->writeFooter($sheet, $firstRow + 2);
+        } else {
+            $row = $firstRow;
+            $no = 1;
+            foreach ($tagRecap as $tag) {
+                $sisa = (float) $tag['sisa'];
+                $serapan = (float) $tag['serapan'];
+                $isNone = ($tag['tagar'] ?? '') === '__none__';
+                $rowBg = ($no % 2) === 0 ? self::ZEBRA : 'FFFFFF';
+
+                $sheet->setCellValue('A' . $row, $no);
+                $sheet->setCellValue('B' . $row, (string) $tag['label']);
+                $sheet->setCellValue('C' . $row, (int) $tag['count']);
+                $sheet->setCellValue('D' . $row, (float) $tag['pagu']);
+                $sheet->setCellValue('E' . $row, (float) $tag['realisasi']);
+                $sheet->setCellValue('F' . $row, $sisa);
+                $sheet->setCellValue('G' . $row, $serapan / 100);
+
+                $sheet->getStyle('A' . $row . ':G' . $row)->applyFromArray([
+                    'font' => ['size' => 9, 'color' => ['rgb' => '1F2937']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $rowBg]],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+                ]);
+
+                foreach (['D', 'E', 'F'] as $col) {
+                    $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+                    $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                }
+                $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode(self::PERCENT_FORMAT);
+                $sheet->getStyle('G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('C' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                // Sisa diberi warna seperti sheet utama.
+                $sheet->getStyle('F' . $row)->getFont()->setBold(true);
+                $sheet->getStyle('F' . $row)->getFont()->getColor()->setRGB($sisa < 0 ? 'B91C1C' : '166534');
+                $sheet->getStyle('F' . $row)->getFill()
+                    ->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB($sisa < 0 ? 'FEE2E2' : 'F0FDF4');
+
+                // Tagar sebagai badge: hijau untuk tag, abu untuk tanpa tagar.
+                $sheet->getStyle('B' . $row)->getFont()->setBold(true);
+                $sheet->getStyle('B' . $row)->getFont()->getColor()->setRGB($isNone ? '475569' : '065F46');
+                $sheet->getStyle('B' . $row)->getFill()
+                    ->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB($isNone ? 'F1F5F9' : 'ECFDF5');
+
+                $sheet->getRowDimension($row)->setRowHeight(22);
+                $row++;
+                $no++;
+            }
+
+            $lastDataRow = $row - 1;
+            $sheet->mergeCells('A' . $row . ':B' . $row);
+            $sheet->setCellValue('A' . $row, 'JUMLAH TOTAL (' . count($tagRecap) . ' tagar)');
+            $sheet->setCellValue('C' . $row, '=SUM(C' . $firstRow . ':C' . $lastDataRow . ')');
+            $sheet->setCellValue('D' . $row, '=SUM(D' . $firstRow . ':D' . $lastDataRow . ')');
+            $sheet->setCellValue('E' . $row, '=SUM(E' . $firstRow . ':E' . $lastDataRow . ')');
+            $sheet->setCellValue('F' . $row, '=SUM(F' . $firstRow . ':F' . $lastDataRow . ')');
+            $sheet->setCellValue('G' . $row, '=IF(D' . $row . '=0,0,E' . $row . '/D' . $row . ')');
+
+            $sheet->getStyle('A' . $row . ':G' . $row)->applyFromArray([
+                'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::NAVY]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_LEFT],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'FFFFFF']]],
+            ]);
+            foreach (['D', 'E', 'F'] as $col) {
+                $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
+                $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            }
+            $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode(self::PERCENT_FORMAT);
+            $sheet->getStyle('G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('C' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getRowDimension($row)->setRowHeight(24);
+
+            $this->writeFooter($sheet, $row + 2);
+            $this->addTagChart($sheet, $tagRecap, $firstRow, $lastDataRow);
+        }
+
+        $widths = [
+            'A' => 5,
+            'B' => 34,
+            'C' => 13,
+            'D' => 17,
+            'E' => 17,
+            'F' => 17,
+            'G' => 10,
+        ];
+        foreach ($widths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+        if (!empty($tagRecap)) {
+            $lastDataRow = $firstRow + count($tagRecap) - 1;
+            $sheet->setAutoFilter('A' . $headerRow . ':G' . $lastDataRow);
+        }
+
+        $sheet->freezePane('A' . $firstRow);
+        $sheet->getPageSetup()
+            ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0)
+            ->setRowsToRepeatAtTopByStartAndEnd($headerRow, $headerRow);
+        $sheet->getPageMargins()
+            ->setTop(0.4)
+            ->setBottom(0.4)
+            ->setLeft(0.3)
+            ->setRight(0.3);
+    }
+
+    private function addTagChart(Worksheet $sheet, array $tagRecap, int $start, int $end): void
+    {
+        $count = $end - $start + 1;
+        if ($count <= 0) {
+            return;
+        }
+
+        $sheetRef = "'" . self::SHEET_TAG . "'";
+        $labels = array_map(static fn($t) => (string) $t['label'], $tagRecap);
+        $paguValues = array_map(static fn($t) => (float) $t['pagu'], $tagRecap);
+        $realisasiValues = array_map(static fn($t) => (float) $t['realisasi'], $tagRecap);
+
+        $categories = new DataSeriesValues(
+            DataSeriesValues::DATASERIES_TYPE_STRING,
+            $sheetRef . '!$B$' . $start . ':$B$' . $end,
+            null,
+            $count,
+            $labels
+        );
+        $paguSeries = new DataSeriesValues(
+            DataSeriesValues::DATASERIES_TYPE_NUMBER,
+            $sheetRef . '!$D$' . $start . ':$D$' . $end,
+            self::NUMBER_FORMAT,
+            $count,
+            $paguValues,
+            null,
+            '4338CA'
+        );
+        $realisasiSeries = new DataSeriesValues(
+            DataSeriesValues::DATASERIES_TYPE_NUMBER,
+            $sheetRef . '!$E$' . $start . ':$E$' . $end,
+            self::NUMBER_FORMAT,
+            $count,
+            $realisasiValues,
+            null,
+            '059669'
+        );
+
+        $series = new DataSeries(
+            DataSeries::TYPE_BARCHART,
+            DataSeries::GROUPING_CLUSTERED,
+            [0, 1],
+            [],
+            [$categories],
+            [$paguSeries, $realisasiSeries],
+            DataSeries::DIRECTION_BAR
+        );
+        $chart = new Chart(
+            'chartRekapTagar',
+            new Title('Pagu vs Realisasi per Tagar'),
+            null,
+            new PlotArea(null, [$series]),
+            true,
+            DataSeries::EMPTY_AS_GAP,
+            null,
+            new Title('Rupiah')
+        );
+        $chart->setTopLeftPosition('I8');
+        $chart->setBottomRightPosition('P28');
+        $sheet->addChart($chart);
     }
 
     private function writeSectionHeader(Worksheet $sheet, int $row, string $title, string $lastCol): int

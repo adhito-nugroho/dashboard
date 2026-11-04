@@ -1,13 +1,17 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Import RKA PAPBD 2026 (folder RLPM) ke server.
-:: Jalankan deploy-git.bat dulu supaya tools/import_rka.php + migrasi tagar
-:: sudah ada di server. Skrip ini akan meminta password SSH beberapa kali.
+:: ============================================================
+:: JALANKAN DI LAPTOP, BUKAN DI SERVER.
+:: Server tidak punya Python. Skrip ini mengekstrak PDF di laptop,
+:: meng-upload JSON ke server, lalu menjalankan importer PHP di server.
+:: Deploy dulu (deploy-git.bat) supaya tools/import_rka.php + migrasi
+:: tagar sudah ada di server.
+:: ============================================================
 
 set "SRC_DIR=C:\Users\user\Dropbox\!!!2026\keuangan\RKA PAPBD 2026\RLPM"
 set "LOCAL_APP=%~dp0.."
-set "LOCAL_JSON=%TEMP%\rka_rlpm_2026.json"
+set "LOCAL_JSON=%USERPROFILE%\Downloads\rka_rlpm_2026.json"
 
 set "SERVER_USER=adit"
 set "SERVER_IP=127.0.0.1"
@@ -19,11 +23,25 @@ set "REMOTE_JSON=C:/laragon/imports/rka_rlpm_2026.json"
 
 cd /d "%LOCAL_APP%"
 
+where python >nul 2>&1
+if errorlevel 1 (
+    echo Python tidak ditemukan di mesin ini.
+    echo Jalankan skrip ini di LAPTOP tempat folder PDF berada, bukan di server.
+    goto :err
+)
+if not exist "%SRC_DIR%" (
+    echo Folder PDF tidak ditemukan:
+    echo   %SRC_DIR%
+    echo Jalankan skrip ini di LAPTOP, bukan di server.
+    goto :err
+)
+
 echo ======================================================
 echo [1/4] Ekstrak PDF RKA PAPBD RLPM
 echo ======================================================
 python tools\rka_extract.py --dir "%SRC_DIR%" --match ".pdf" --out "%LOCAL_JSON%"
 if errorlevel 1 goto :err
+echo JSON: %LOCAL_JSON%
 
 echo.
 echo ======================================================

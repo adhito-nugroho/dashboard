@@ -18,6 +18,7 @@ $baseUrl = base_url('analisa-sisa-anggaran');
 $q = (string) ($filters['q'] ?? '');
 $tahun = (int) ($filters['tahun'] ?? date('Y'));
 $seksiFilter = (int) ($filters['seksi'] ?? 0);
+$tagarFilter = (string) ($filters['tagar'] ?? '');
 $minJuta = (float) ($filters['min_juta'] ?? 0);
 $sort = (string) ($filters['sort'] ?? 'sisa_desc');
 $showZero = !empty($filters['show_zero']);
@@ -33,6 +34,7 @@ $sortLabel = $sortLabels[$sort] ?? $sortLabels['sisa_desc'];
 
 $queryBase = ['tahun' => $tahun];
 if ($seksiFilter > 0) { $queryBase['seksi'] = $seksiFilter; }
+if ($tagarFilter !== '') { $queryBase['tagar'] = $tagarFilter; }
 if ($q !== '') { $queryBase['q'] = $q; }
 if ($sort !== 'sisa_desc') { $queryBase['sort'] = $sort; }
 if ($showZero) { $queryBase['show_zero'] = 1; }
@@ -132,9 +134,10 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     .asa-filter__row > .asa-field:nth-child(2) { grid-column: span 4; }
     .asa-filter__row > .asa-field:nth-child(3) { grid-column: span 2; }
     .asa-filter__row > .asa-field:nth-child(4) { grid-column: span 3; }
-    .asa-filter__row > .asa-field:nth-child(5) { grid-column: span 5; }
-    .asa-filter__row > .asa-field:nth-child(6) { grid-column: span 4; }
+    .asa-filter__row > .asa-field:nth-child(5) { grid-column: span 4; }
+    .asa-filter__row > .asa-field:nth-child(6) { grid-column: span 3; }
     .asa-filter__row > .asa-field:nth-child(7) { grid-column: span 3; }
+    .asa-filter__row > .asa-field:nth-child(8) { grid-column: span 2; }
 
     .asa-field label {
         font-size: .72rem;
@@ -475,6 +478,10 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     .asa-badge--success { background: var(--status-success-bg); color: #047857; }
     .asa-badge--warning { background: var(--status-warning-bg); color: #92400e; }
     .asa-badge--neutral { background: var(--gray-100); color: var(--gray-500); }
+    .asa-badge--tag { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .asa-tag-link { text-decoration: none; }
+    .asa-tag-link:hover .asa-badge--tag { filter: brightness(.96); }
+    .asa-tag-total td { font-weight: 800; background: var(--gray-50); }
 
     .asa-empty {
         text-align: center;
@@ -673,6 +680,21 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
             </div>
 
             <div class="asa-field">
+                <label for="asaTagar">Tagar</label>
+                <select name="tagar" id="asaTagar" class="asa-control">
+                    <option value="">Semua tagar</option>
+                    <?php foreach (($tagarList ?? []) as $tag): ?>
+                        <option value="<?= htmlspecialchars($tag) ?>" <?= $tagarFilter === $tag ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($tag) ?>
+                        </option>
+                    <?php endforeach; ?>
+                    <?php if (!empty($hasUntagged)): ?>
+                        <option value="__none__" <?= $tagarFilter === '__none__' ? 'selected' : '' ?>>Tanpa tagar</option>
+                    <?php endif; ?>
+                </select>
+            </div>
+
+            <div class="asa-field">
                 <label class="visually-hidden" for="asaShowZero">Opsi tampilan</label>
                 <label class="asa-switch" for="asaShowZero">
                     <input type="checkbox" name="show_zero" id="asaShowZero" value="1" <?= $showZero ? 'checked' : '' ?>>
@@ -761,6 +783,84 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                     <?php endif; ?>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Rekap per tagar: pagu, realisasi, sisa, serapan -->
+    <div class="asa-card mb-3">
+        <div class="asa-card__head">
+            <div>
+                <h3 class="asa-card__title">Realisasi per Tagar</h3>
+                <p class="asa-card__sub">
+                    Dikelompokkan dari tagar RKA tiap rekening.
+                    <?php if ($tagarFilter !== ''): ?>
+                        Rekap menampilkan semua tagar; filter tagar hanya memengaruhi tabel utama.
+                    <?php endif; ?>
+                </p>
+            </div>
+        </div>
+        <div class="asa-card__body">
+            <?php if (empty($tagRecap)): ?>
+                <div class="asa-empty py-4">Belum ada data tagar pada filter ini.</div>
+            <?php else: ?>
+                <?php
+                $tagTotalPagu = array_sum(array_map(fn($t) => (float) $t['pagu'], $tagRecap));
+                $tagTotalRealisasi = array_sum(array_map(fn($t) => (float) $t['realisasi'], $tagRecap));
+                $tagTotalSisa = $tagTotalPagu - $tagTotalRealisasi;
+                $tagTotalSerapan = $tagTotalPagu > 0 ? ($tagTotalRealisasi / $tagTotalPagu) * 100 : 0.0;
+                $tagTotalCount = array_sum(array_map(fn($t) => (int) $t['count'], $tagRecap));
+                ?>
+                <div class="table-responsive">
+                    <table class="table asa-table asa-tag-table">
+                        <thead>
+                            <tr>
+                                <th>Tagar</th>
+                                <th class="text-end">Rekening</th>
+                                <th class="text-end">Pagu (Rp)</th>
+                                <th class="text-end">Realisasi (Rp)</th>
+                                <th class="text-end">Sisa (Rp)</th>
+                                <th class="text-end">Serapan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($tagRecap as $t): ?>
+                                <?php
+                                $tParams = $queryBase;
+                                if ($minJuta > 0) { $tParams['min_juta'] = $minJuta; }
+                                $tParams['tagar'] = (string) $t['tagar'];
+                                $tUrl = $baseUrl . '?' . http_build_query($tParams);
+                                $tSisa = (float) $t['sisa'];
+                                ?>
+                                <tr>
+                                    <td>
+                                        <a class="asa-tag-link" href="<?= htmlspecialchars($tUrl) ?>"
+                                           title="Filter tagar <?= htmlspecialchars($t['label']) ?>">
+                                            <span class="asa-badge <?= $t['tagar'] === '__none__' ? 'asa-badge--neutral' : 'asa-badge--tag' ?>">
+                                                <?= htmlspecialchars($t['label']) ?>
+                                            </span>
+                                        </a>
+                                    </td>
+                                    <td class="asa-num"><?= number_format((int) $t['count'], 0, ',', '.') ?></td>
+                                    <td class="asa-num"><?= $rp($t['pagu']) ?></td>
+                                    <td class="asa-num asa-num--muted"><?= $rp($t['realisasi']) ?></td>
+                                    <td class="asa-num <?= $tSisa < 0 ? 'asa-num--over' : 'asa-num--sisa' ?>"><?= $rp($tSisa) ?></td>
+                                    <td class="asa-num"><?= number_format((float) $t['serapan'], 1, ',', '.') ?>%</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr class="asa-tag-total">
+                                <td>Total</td>
+                                <td class="asa-num"><?= number_format($tagTotalCount, 0, ',', '.') ?></td>
+                                <td class="asa-num"><?= $rp($tagTotalPagu) ?></td>
+                                <td class="asa-num"><?= $rp($tagTotalRealisasi) ?></td>
+                                <td class="asa-num <?= $tagTotalSisa < 0 ? 'asa-num--over' : 'asa-num--sisa' ?>"><?= $rp($tagTotalSisa) ?></td>
+                                <td class="asa-num"><?= number_format($tagTotalSerapan, 1, ',', '.') ?>%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -997,6 +1097,9 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                                 <td>
                                     <span class="asa-chip-kode"><?= htmlspecialchars($row['kode_rekening']) ?></span>
                                     <span class="asa-rek__name"><?= htmlspecialchars($row['nama_rekening']) ?></span>
+                                    <?php if (($row['tagar'] ?? '') !== ''): ?>
+                                        <span class="asa-badge asa-badge--tag"><?= htmlspecialchars($row['tagar']) ?></span>
+                                    <?php endif; ?>
                                     <span class="asa-meta"><?= htmlspecialchars($row['nama_program']) ?></span>
                                 </td>
                                 <td>
@@ -1304,12 +1407,13 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
     const exportBtn = document.getElementById('asaExportBtn');
     if (exportBtn) {
         exportBtn.addEventListener('click', function () {
-            const headers = ['Kode Rekening', 'Nama Rekening', 'Sub Kegiatan', 'Seksi', 'Pagu', 'Realisasi', 'Sisa', 'Serapan (%)'];
+            const headers = ['Kode Rekening', 'Nama Rekening', 'Tagar', 'Sub Kegiatan', 'Seksi', 'Pagu', 'Realisasi', 'Sisa', 'Serapan (%)'];
             const lines = [headers.join(';')];
             ASA.rows.forEach((r) => {
                 lines.push([
                     r.kode_rekening,
                     r.nama_rekening,
+                    r.tagar || '',
                     r.kode_sub_kegiatan + ' - ' + r.nama_sub_kegiatan,
                     r.nama_seksi,
                     Math.round(r.pagu),

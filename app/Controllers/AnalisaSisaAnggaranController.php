@@ -164,6 +164,8 @@ class AnalisaSisaAnggaranController
         $minJuta = isset($params['min_juta']) && is_numeric($params['min_juta']) ? max(0, (float) $params['min_juta']) : 0.0;
         $minSisa = $minJuta * 1_000_000;
         $q = trim((string) ($params['q'] ?? ''));
+        // '' = semua tagar, '__none__' = rekening tanpa tagar.
+        $tagarFilter = trim((string) ($params['tagar'] ?? ''));
         $sort = (string) ($params['sort'] ?? 'sisa_desc');
         $sortValid = ['sisa_desc', 'sisa_asc', 'pagu_desc', 'serapan_asc', 'serapan_desc', 'nama_asc'];
         if (!in_array($sort, $sortValid, true)) {
@@ -180,8 +182,9 @@ class AnalisaSisaAnggaranController
         }
 
         // Bangun baris
-        $baseRows = [];        // filter lengkap (termasuk seksi) -> KPI, bucket, tabel, export
+        $baseRows = [];        // filter lengkap (termasuk seksi & tagar) -> KPI, bucket, tabel, export
         $chartSeksiRows = [];  // tanpa filter seksi -> donut seluruh seksi
+        $tagRecapRows = [];    // tanpa filter tagar -> rekap semua tagar (tetap ikut filter seksi)
 
         foreach ($allPagus as $p) {
             if ((int) ($p['tahun'] ?? 0) !== $tahun) {
@@ -207,6 +210,7 @@ class AnalisaSisaAnggaranController
                     $p['nama_program'] ?? '',
                     $p['kode_kegiatan'] ?? '',
                     $p['nama_kegiatan'] ?? '',
+                    $p['tagar'] ?? '',
                 ]));
                 if (strpos($haystack, strtolower($q)) === false) {
                     continue;
@@ -217,6 +221,7 @@ class AnalisaSisaAnggaranController
                 'rekening_id' => $rid,
                 'kode_rekening' => (string) ($p['kode_rekening'] ?? ''),
                 'nama_rekening' => (string) ($p['nama_rekening'] ?? ''),
+                'tagar' => trim((string) ($p['tagar'] ?? '')),
                 'kode_sub_kegiatan' => (string) ($p['kode_sub_kegiatan'] ?? ''),
                 'nama_sub_kegiatan' => (string) ($p['nama_sub_kegiatan'] ?? ''),
                 'kode_kegiatan' => (string) ($p['kode_kegiatan'] ?? ''),
@@ -237,8 +242,65 @@ class AnalisaSisaAnggaranController
             if ($seksiFilter > 0 && $seksiId !== $seksiFilter) {
                 continue;
             }
+
+            // Rekap tagar mengabaikan filter tagar agar semua tag tetap terlihat.
+            $tagRecapRows[] = $row;
+
+            if ($tagarFilter !== '') {
+                $match = $tagarFilter === '__none__'
+                    ? $row['tagar'] === ''
+                    : strcasecmp($row['tagar'], $tagarFilter) === 0;
+                if (!$match) {
+                    continue;
+                }
+            }
             $baseRows[] = $row;
         }
+
+        // Rekap per tagar (dipakai halaman + sheet Excel).
+        $tagAgg = [];
+        $tagarSet = [];
+        $hasUntagged = false;
+        foreach ($tagRecapRows as $r) {
+            $tag = trim((string) ($r['tagar'] ?? ''));
+            if ($tag === '') {
+                $hasUntagged = true;
+                $key = '__none__';
+            } else {
+                $tagarSet[$tag] = true;
+                $key = $tag;
+            }
+            if (!isset($tagAgg[$key])) {
+                $tagAgg[$key] = [
+                    'tagar' => $key,
+                    'label' => $key === '__none__' ? 'Tanpa Tagar' : $key,
+                    'count' => 0,
+                    'pagu' => 0.0,
+                    'realisasi' => 0.0,
+                    'sisa' => 0.0,
+                    'serapan' => 0.0,
+                ];
+            }
+            $tagAgg[$key]['count']++;
+            $tagAgg[$key]['pagu'] += $r['pagu'];
+            $tagAgg[$key]['realisasi'] += $r['realisasi'];
+            $tagAgg[$key]['sisa'] += $r['sisa'];
+        }
+        foreach ($tagAgg as &$t) {
+            $t['serapan'] = $t['pagu'] > 0 ? ($t['realisasi'] / $t['pagu']) * 100 : 0.0;
+        }
+        unset($t);
+        uasort($tagAgg, fn($a, $b) => $b['pagu'] <=> $a['pagu']);
+        $tagRecap = array_values($tagAgg);
+        // Pastikan tagar yang sedang difilter tetap muncul di dropdown walau
+        // tidak ada rekeningnya pada filter seksi/pencarian saat ini.
+        if ($tagarFilter !== '' && $tagarFilter !== '__none__') {
+            $tagarSet[$tagarFilter] = true;
+        } elseif ($tagarFilter === '__none__') {
+            $hasUntagged = true;
+        }
+        $tagarList = array_keys($tagarSet);
+        sort($tagarList, SORT_NATURAL | SORT_FLAG_CASE);
 
         // Urutkan tabel sesuai pilihan (dipakai tabel + export + CSV).
         usort($baseRows, function (array $a, array $b) use ($sort): int {
@@ -381,6 +443,7 @@ class AnalisaSisaAnggaranController
         $filters = [
             'tahun' => $tahun,
             'seksi' => $seksiFilter,
+            'tagar' => $tagarFilter,
             'min_juta' => $minJuta,
             'q' => $q,
             'sort' => $sort,
@@ -439,6 +502,9 @@ class AnalisaSisaAnggaranController
             'showZero' => $showZero,
             'seksiMeta' => $seksiMeta,
             'seksiAgg' => $seksiAgg,
+            'tagRecap' => $tagRecap,
+            'tagarList' => $tagarList,
+            'hasUntagged' => $hasUntagged,
             'topRows' => $topRows,
             'bucketList' => array_values($buckets),
             'chartData' => $chartData,
