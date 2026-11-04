@@ -53,6 +53,9 @@ class AnalisaSisaAnggaranController
             $showZero = $report['showZero'];
             $chartData = $report['chartData'];
             $seksiMeta = $report['seksiMeta'];
+            $tagRecap = $report['tagRecap'];
+            $tagarList = $report['tagarList'];
+            $hasUntagged = $report['hasUntagged'];
 
             $pageTitle = 'Analisa Sisa Anggaran';
             $activePage = 'analisa_sisa';
