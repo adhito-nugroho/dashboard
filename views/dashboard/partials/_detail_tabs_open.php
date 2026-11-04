@@ -19,6 +19,11 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link custom-tab-btn" id="tab-tagar-btn" data-bs-toggle="tab" data-bs-target="#tab-tagar" type="button" role="tab" aria-controls="tab-tagar" aria-selected="false">
+                        <i class="bi bi-tags-fill me-1"></i>Tagar
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link custom-tab-btn" id="tab-deviasi-btn" data-bs-toggle="tab" data-bs-target="#tab-deviasi" type="button" role="tab" aria-controls="tab-deviasi" aria-selected="false">
                         <i class="bi bi-exclamation-triangle-fill me-1"></i>Deviasi RAK
                     </button>

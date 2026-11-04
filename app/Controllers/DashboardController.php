@@ -118,6 +118,9 @@ class DashboardController {
         // Get semester rekap (sisa dana per semester per rekening)
         $semesterRekap = $this->getSemesterRekapData($tahun, $filters);
 
+        // Rekap pagu & realisasi per tagar (mengikuti filter dashboard)
+        $tagRecap = $this->getTagRecap($tahun, $filters);
+
         // Page Title
         $pageTitle = 'CDK Wilayah Bojonegoro';
         $activePage = 'dashboard';
@@ -428,6 +431,50 @@ class DashboardController {
     }
     
     
+    /**
+     * Rekap pagu & realisasi per tagar RKA, mengikuti filter dashboard.
+     *
+     * @return array<int, array{tagar:string,label:string,count:int,pagu:float,realisasi:float,sisa:float,serapan:float}>
+     */
+    private function getTagRecap(int $tahun, array $filters = []): array
+    {
+        $agg = [];
+        foreach ($this->getPagusCache() as $p) {
+            if ((int) ($p['tahun'] ?? 0) !== $tahun || !$this->matchesFilters($p, $filters)) {
+                continue;
+            }
+
+            $tag = trim((string) ($p['tagar'] ?? ''));
+            $key = $tag !== '' ? $tag : '__none__';
+            if (!isset($agg[$key])) {
+                $agg[$key] = [
+                    'tagar' => $key,
+                    'label' => $key === '__none__' ? 'Tanpa Tagar' : $key,
+                    'count' => 0,
+                    'pagu' => 0.0,
+                    'realisasi' => 0.0,
+                    'sisa' => 0.0,
+                    'serapan' => 0.0,
+                ];
+            }
+
+            $pagu = (float) ($p['nilai_pagu'] ?? 0);
+            $realisasi = $this->getTransaksiTotalByRekeningAndYear((int) ($p['rekening_id'] ?? 0), $tahun);
+            $agg[$key]['count']++;
+            $agg[$key]['pagu'] += $pagu;
+            $agg[$key]['realisasi'] += $realisasi;
+            $agg[$key]['sisa'] += $pagu - $realisasi;
+        }
+
+        foreach ($agg as &$t) {
+            $t['serapan'] = $t['pagu'] > 0 ? ($t['realisasi'] / $t['pagu']) * 100 : 0.0;
+        }
+        unset($t);
+        uasort($agg, fn($a, $b) => $b['pagu'] <=> $a['pagu']);
+
+        return array_values($agg);
+    }
+
     /**
      * Get breakdown data for visualization
      * 
