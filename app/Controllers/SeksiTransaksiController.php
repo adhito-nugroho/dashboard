@@ -155,10 +155,10 @@ class SeksiTransaksiController
             ? $_POST['jenis_transaksi']
             : 'lainnya';
 
-        // Peringatan dobel perjalanan dinas (ST + pegawai). User harus
-        // mengonfirmasi lewat modal; server tetap memvalidasi flag ini.
-        if (empty($errors) && $jenisTransaksi === 'perjalanan_dinas'
-            && (string) ($_POST['konfirmasi_dobel'] ?? '0') !== '1') {
+        // Guard keras: satu pegawai pada satu Surat Tugas hanya boleh punya
+        // SATU transaksi perjalanan dinas (status selain 'ditolak'). Tidak ada
+        // lagi jalur konfirmasi untuk melanjutkan pengajuan dobel.
+        if (empty($errors) && $jenisTransaksi === 'perjalanan_dinas') {
             $duplikat = $this->collectPerjadinDuplikat([[
                 'surat_tugas_ref_id' => $_POST['surat_tugas_ref_id'] ?? 0,
                 'nomor_surat_tugas' => $_POST['nomor_surat_tugas'] ?? '',
@@ -249,11 +249,17 @@ class SeksiTransaksiController
         $createdCount = 0;
         $errors = [];
 
-        // Tolak seluruh pengajuan bila ada transaksi dobel untuk ST + pegawai
-        // yang sama dan user belum mengonfirmasi lewat modal peringatan.
+        // Guard keras: tolak seluruh pengajuan bila salah satu pegawai sudah
+        // punya transaksi perjalanan dinas pada Surat Tugas yang sama.
         $duplikat = $this->collectPerjadinDuplikat($items);
-        if ($duplikat !== [] && (string) ($post['konfirmasi_dobel'] ?? '0') !== '1') {
+        if ($duplikat !== []) {
             $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', $this->duplikatMessage($duplikat));
+            return;
+        }
+        // Guard dalam satu pengajuan: pegawai yang sama tidak boleh muncul 2x.
+        $duplikatBatch = $this->collectDuplikatDalamBatch($items);
+        if ($duplikatBatch !== []) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/create'), 'error', $this->duplikatBatchMessage($duplikatBatch));
             return;
         }
 
@@ -636,6 +642,23 @@ class SeksiTransaksiController
             ? $_POST['jenis_transaksi']
             : 'lainnya';
 
+        // Guard keras saat edit: jangan sampai perubahan ST/pegawai membuat
+        // transaksi ini bentrok dengan transaksi lain. Dirinya dikecualikan.
+        if ($jenisTransaksi === 'perjalanan_dinas') {
+            $duplikat = $this->collectPerjadinDuplikat([[
+                'surat_tugas_ref_id' => $_POST['surat_tugas_ref_id'] ?? 0,
+                'nomor_surat_tugas' => $_POST['nomor_surat_tugas'] ?? '',
+                'pegawai_nip' => $_POST['pegawai_nip'] ?? ($existing['pegawai_nip'] ?? ''),
+                'nama_penerima' => $_POST['nama_penerima'] ?? '',
+            ]], [$id]);
+            if ($duplikat !== []) {
+                $_SESSION['flash_message'] = $this->duplikatMessage($duplikat);
+                $_SESSION['flash_type'] = 'error';
+                header('Location: ' . base_url('seksi/transaksi/edit/' . $id));
+                exit;
+            }
+        }
+
         $ok = $this->transaksiModel->updateSeksi(
             $id,
             $userId,
@@ -688,8 +711,7 @@ class SeksiTransaksiController
             $row = $this->transaksiModel->getById($itemId);
             if ($row
                 && (int) ($row['input_by'] ?? 0) === $userId
-                && in_array($row['status'] ?? '', ['diajukan', 'ditolak'], true)
-                && (int) ($row['rekening_id'] ?? 0) === $rekeningId) {
+                && in_array($row['status'] ?? '', ['diajukan', 'ditolak'], true)) {
                 $excludeIds[] = $itemId;
             }
         }
@@ -702,6 +724,19 @@ class SeksiTransaksiController
         );
         if ($blokir !== null) {
             $this->redirectWithMessage(base_url('seksi/transaksi/edit/' . $sourceId), 'error', $blokir);
+            return;
+        }
+
+        // Guard keras saat edit batch: baris yang sedang diedit dikecualikan,
+        // tetapi bentrok dengan transaksi lain / duplikat dalam batch ditolak.
+        $duplikat = $this->collectPerjadinDuplikat($items, $excludeIds);
+        if ($duplikat !== []) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/edit/' . $sourceId), 'error', $this->duplikatMessage($duplikat));
+            return;
+        }
+        $duplikatBatch = $this->collectDuplikatDalamBatch($items);
+        if ($duplikatBatch !== []) {
+            $this->redirectWithMessage(base_url('seksi/transaksi/edit/' . $sourceId), 'error', $this->duplikatBatchMessage($duplikatBatch));
             return;
         }
 
@@ -1647,9 +1682,17 @@ class SeksiTransaksiController
         }
 
         try {
+            $rawExclude = $_POST['exclude_ids'] ?? [];
+            if (is_string($rawExclude)) {
+                $rawExclude = explode(',', $rawExclude);
+            }
+            $excludeIds = is_array($rawExclude)
+                ? array_map('intval', $rawExclude)
+                : [];
+
             echo json_encode([
                 'success' => true,
-                'duplikat' => $this->collectPerjadinDuplikat($items),
+                'duplikat' => $this->collectPerjadinDuplikat($items, $excludeIds),
             ]);
         } catch (\Throwable $e) {
             error_log('Error cekDobel: ' . $e->getMessage());
@@ -1663,9 +1706,10 @@ class SeksiTransaksiController
      * (Surat Tugas + pegawai sama), status selain 'ditolak'.
      *
      * @param array<int, array<string,mixed>> $items
+     * @param int[] $excludeIds transaksi yang sedang diedit (tidak dianggap dobel)
      * @return array<int, array{nama:string,nip:string,nomor_surat_tugas:string,transaksi:array<int,array<string,mixed>>}>
      */
-    private function collectPerjadinDuplikat(array $items): array
+    private function collectPerjadinDuplikat(array $items, array $excludeIds = []): array
     {
         $hasil = [];
         foreach ($items as $item) {
@@ -1684,7 +1728,7 @@ class SeksiTransaksiController
                 continue;
             }
 
-            $rows = $this->transaksiModel->findPerjadinDuplikat($stRef > 0 ? $stRef : null, $nomor, $nip, $nama);
+            $rows = $this->transaksiModel->findPerjadinDuplikat($stRef > 0 ? $stRef : null, $nomor, $nip, $nama, $excludeIds);
             if ($rows === []) {
                 continue;
             }
@@ -1718,7 +1762,55 @@ class SeksiTransaksiController
         if (count($duplikat) > $shown) {
             $msg .= ' dan ' . (count($duplikat) - $shown) . ' pegawai lainnya.';
         }
-        return $msg . ' Periksa kembali pengajuan Anda — centang konfirmasi pada peringatan untuk melanjutkan.';
+        return $msg . ' Transaksi tidak dapat diajukan lagi untuk pegawai tersebut pada Surat Tugas ini.';
+    }
+
+    /**
+     * Deteksi pegawai yang sama muncul lebih dari sekali dalam satu batch.
+     * @param array<int, array<string,mixed>> $items
+     * @return array<int, array{nama:string,nomor:string,jumlah:int}>
+     */
+    private function collectDuplikatDalamBatch(array $items): array
+    {
+        $seen = [];
+        $dup = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $nama = trim((string) ($item['nama_penerima'] ?? ''));
+            $nip = (string) preg_replace('/\s+/', '', (string) ($item['pegawai_nip'] ?? ''));
+            $nomor = trim((string) ($item['nomor_surat_tugas'] ?? ''));
+            $stRef = (int) ($item['surat_tugas_ref_id'] ?? 0);
+
+            if (($nip === '' && $nama === '') || ($stRef <= 0 && $nomor === '')) {
+                continue;
+            }
+            $key = ($stRef > 0 ? 'st:' . $stRef : 'no:' . strtoupper($nomor))
+                . '|' . ($nip !== '' ? 'nip:' . $nip : 'nama:' . strtoupper($nama));
+
+            if (isset($seen[$key])) {
+                $dup[$key] = [
+                    'nama' => $nama !== '' ? $nama : 'Pegawai',
+                    'nomor' => $nomor,
+                    'jumlah' => ($dup[$key]['jumlah'] ?? 1) + 1,
+                ];
+            } else {
+                $seen[$key] = true;
+            }
+        }
+        return array_values($dup);
+    }
+
+    /** @param array<int, array{nama:string,nomor:string,jumlah:int}> $duplikat */
+    private function duplikatBatchMessage(array $duplikat): string
+    {
+        $parts = [];
+        foreach (array_slice($duplikat, 0, 5) as $d) {
+            $parts[] = $d['nama'] . ($d['nomor'] !== '' ? ' (' . $d['nomor'] . ')' : '') . ' ×' . $d['jumlah'];
+        }
+        return 'Pegawai yang sama tidak boleh diajukan lebih dari sekali dalam satu Surat Tugas: '
+            . implode('; ', $parts) . '. Hapus baris duplikat lalu ajukan ulang.';
     }
 
     private function validate(array $data, \PDO $db, int $seksiId): array

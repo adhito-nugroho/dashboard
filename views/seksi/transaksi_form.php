@@ -292,8 +292,6 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
         <form method="POST" action="<?= $formAction ?>" id="seksiTransaksiForm" data-rupiah-normalize>
             <!-- Hidden field for Surat Tugas ID jika single -->
             <input type="hidden" name="surat_tugas_ref_id" id="surat_tugas_ref_id" value="<?= htmlspecialchars((string)$suratTugasRefId) ?>">
-            <!-- Diisi 1 oleh JS setelah user mengonfirmasi peringatan transaksi dobel -->
-            <input type="hidden" name="konfirmasi_dobel" id="konfirmasiDobelFlag" value="0">
 
             <!-- SECTION 1: KLASIFIKASI ANGGARAN -->
             <div class="form-section-card">
@@ -675,16 +673,14 @@ $formAction = $isEdit ? base_url('seksi/transaksi/update/' . $transaksi['id']) :
             <div class="modal-body p-3">
                 <p class="small text-muted mb-2">
                     Transaksi perjalanan dinas berikut sudah tercatat untuk <strong>Surat Tugas dan pegawai yang sama</strong>.
-                    Periksa kembali pengajuan Anda sebelum melanjutkan.
+                    Satu pegawai hanya boleh memiliki <strong>satu transaksi</strong> per Surat Tugas.
+                    Transaksi ini <strong>tidak dapat diajukan</strong>.
                 </p>
                 <div id="dobelList" style="max-height:300px;overflow-y:auto;"></div>
             </div>
             <div class="modal-footer py-2" style="background:#F7F5EF;border-top:1px solid #DBD5C6;">
-                <button type="button" class="btn btn-ghost-secondary btn-sm px-3" data-bs-dismiss="modal">
-                    <i class="bi bi-arrow-left me-1"></i>Batal &amp; Periksa Ulang
-                </button>
-                <button type="button" class="btn btn-sm px-4 fw-bold text-dark" id="btnKonfirmasiDobel" style="background:#FFC107;border-radius:6px;">
-                    <i class="bi bi-check-circle me-1"></i>Sudah Saya Cek, Lanjutkan
+                <button type="button" class="btn btn-sm px-4 fw-bold" data-bs-dismiss="modal" style="background:#B8874B;color:#fff;border-radius:6px;">
+                    <i class="bi bi-check2 me-1"></i>Mengerti, Periksa Ulang
                 </button>
             </div>
         </div>
@@ -1481,14 +1477,15 @@ function loadPegawaiST(idST) {
                     return `No. ${escapeHtml(d.nomor_bukti || '-')}${tgl ? ' · ' + tgl : ''} · ${escapeHtml(d.status || '-')} · Rp ${nilai}`;
                 }).join(' | ');
                 const dupHtml = dup.length
-                    ? `<div class="small text-warning-emphasis mt-1" style="font-size:.72rem;line-height:1.3;">
-                           <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Sudah ada ${dup.length} transaksi</strong>: ${dupText}${dup.length > 2 ? ' | ...' : ''}
+                    ? `<div class="small text-danger mt-1" style="font-size:.72rem;line-height:1.3;">
+                           <i class="bi bi-lock-fill me-1"></i><strong>Tidak dapat dipilih</strong> — sudah ada ${dup.length} transaksi: ${dupText}${dup.length > 2 ? ' | ...' : ''}
                        </div>`
                     : '';
+                const disabled = dup.length > 0 ? 'disabled' : 'checked';
                 html += `
                     <div class="form-check py-1 border-bottom">
-                        <input class="form-check-input check-pegawai-st" type="checkbox" value="${idx}" id="chkPegawai_${idx}" checked>
-                        <label class="form-check-label d-block cursor-pointer" for="chkPegawai_${idx}">
+                        <input class="form-check-input check-pegawai-st" type="checkbox" value="${idx}" id="chkPegawai_${idx}" ${disabled}>
+                        <label class="form-check-label d-block cursor-pointer ${dup.length ? 'text-muted' : ''}" for="chkPegawai_${idx}">
                             <strong>${p.nama}</strong>
                             <span class="text-muted small ms-1">(${p.nip || 'Non-NIP'}${p.jabatan ? ' · ' + p.jabatan : ''})</span>
                             ${dupHtml}
@@ -1506,15 +1503,15 @@ function loadPegawaiST(idST) {
 }
 
 function updateSelectedPegawaiCount() {
-    const checked = document.querySelectorAll('.check-pegawai-st:checked');
+    const checked = document.querySelectorAll('.check-pegawai-st:checked:not(:disabled)');
     const count = checked.length;
     document.getElementById('countSelectedPegawai').innerText = count;
     document.getElementById('btnApplyST').disabled = (count === 0);
 }
 
 document.getElementById('btnCheckAllPegawai').addEventListener('click', function() {
-    const checks = document.querySelectorAll('.check-pegawai-st');
-    const allChecked = Array.from(checks).every(c => c.checked);
+    const checks = Array.from(document.querySelectorAll('.check-pegawai-st:not(:disabled)'));
+    const allChecked = checks.length > 0 && checks.every(c => c.checked);
     checks.forEach(c => c.checked = !allChecked);
     updateSelectedPegawaiCount();
     this.innerText = allChecked ? 'Centang Semua' : 'Hapus Semua Centang';
@@ -1524,7 +1521,7 @@ document.getElementById('btnCheckAllPegawai').addEventListener('click', function
 document.getElementById('btnApplyST').addEventListener('click', function() {
     if (!selectedSTData) return;
 
-    const checkedBoxes = Array.from(document.querySelectorAll('.check-pegawai-st:checked'));
+    const checkedBoxes = Array.from(document.querySelectorAll('.check-pegawai-st:checked:not(:disabled)'));
     if (checkedBoxes.length === 0) return;
 
     isManualPerdinFallback = false;
@@ -1730,16 +1727,14 @@ document.getElementById('seksiTransaksiForm').addEventListener('submit', functio
     }
 });
 
-// ── Peringatan transaksi dobel perjalanan dinas (Surat Tugas + pegawai) ──
-// Cek ke server sebelum submit; bila dobel, tampilkan daftar transaksi lama
-// dan minta konfirmasi. Flag konfirmasi tetap divalidasi ulang di server.
+// ── Guard transaksi dobel perjalanan dinas (Surat Tugas + pegawai) ──
+// Satu pegawai hanya boleh punya satu transaksi per Surat Tugas. Bila dobel,
+// pengajuan DIBLOKIR (server juga memblokir) dan daftar transaksi lama ditampilkan.
 (function () {
     const form = document.getElementById('seksiTransaksiForm');
     if (!form) return;
-    const flag = document.getElementById('konfirmasiDobelFlag');
     const modalEl = document.getElementById('modalDobel');
     const listEl = document.getElementById('dobelList');
-    const btnKonfirmasi = document.getElementById('btnKonfirmasiDobel');
     let modalInstance = null;
 
     function isBatchMode() {
@@ -1792,8 +1787,6 @@ document.getElementById('seksiTransaksiForm').addEventListener('submit', functio
     }
 
     form.addEventListener('submit', function (e) {
-        if (isEditMode) return;
-        if (flag && flag.value === '1') return;
         if (e.defaultPrevented) return; // dibatalkan handler lain (mis. sisa pagu)
 
         const jenisEl = document.getElementById('jenis_transaksi');
@@ -1813,33 +1806,24 @@ document.getElementById('seksiTransaksiForm').addEventListener('submit', functio
         items.forEach((it, i) => {
             Object.keys(it).forEach((k) => fd.append(`items[${i}][${k}]`, it[k]));
         });
+        // Saat edit, transaksi ini sendiri tidak boleh dianggap dobel.
+        getSisaPaguExcludeIds().forEach((id) => fd.append('exclude_ids[]', id));
 
         fetch(`${seksiBase}/seksi/transaksi/cek-dobel`, { method: 'POST', body: fd })
             .then((r) => r.json())
             .then((res) => {
-                const duplikat = (res && res.success && Array.isArray(res.duplikat)) ? res.duplikat : [];
+                if (!res || !res.success) throw new Error('cek gagal');
+                const duplikat = Array.isArray(res.duplikat) ? res.duplikat : [];
                 if (duplikat.length === 0) {
-                    if (flag) flag.value = '1';
                     form.submit();
                     return;
                 }
                 tampilkanDobel(duplikat);
             })
             .catch(() => {
-                if (confirm('Gagal memeriksa transaksi dobel. Tetap ajukan sekarang?')) {
-                    if (flag) flag.value = '1';
-                    form.submit();
-                }
+                alert('Gagal memeriksa transaksi dobel. Transaksi tidak dikirim — coba lagi.');
             });
     });
-
-    if (btnKonfirmasi) {
-        btnKonfirmasi.addEventListener('click', function () {
-            if (flag) flag.value = '1';
-            if (modalInstance) modalInstance.hide();
-            form.submit();
-        });
-    }
 })();
 
 // Preload saat Edit

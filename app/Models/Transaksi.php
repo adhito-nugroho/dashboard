@@ -1020,9 +1020,10 @@ class Transaksi
      * @param string $nomorSuratTugas nomor surat tugas (fallback bila ref id kosong)
      * @param string $nip NIP pegawai (prioritas utama pencocokan)
      * @param string $nama nama penerima (fallback bila NIP kosong/tidak tercatat)
+     * @param int[] $excludeIds id transaksi yang tidak ikut diperiksa (sedang diedit)
      * @return array<int, array<string,mixed>>
      */
-    public function findPerjadinDuplikat(?int $suratTugasRefId, string $nomorSuratTugas, string $nip, string $nama): array
+    public function findPerjadinDuplikat(?int $suratTugasRefId, string $nomorSuratTugas, string $nip, string $nama, array $excludeIds = []): array
     {
         $stId = (int) ($suratTugasRefId ?? 0);
         $nomor = trim($nomorSuratTugas);
@@ -1038,6 +1039,20 @@ class Transaksi
             "status <> 'ditolak'",
         ];
         $params = [];
+
+        // Transaksi yang sedang diedit tidak boleh dianggap dobel dengan dirinya sendiri.
+        $excludeIds = array_values(array_unique(array_filter(
+            array_map('intval', $excludeIds),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($excludeIds !== []) {
+            $exPlaceholders = [];
+            foreach ($excludeIds as $i => $id) {
+                $exPlaceholders[] = ':ex' . $i;
+                $params[':ex' . $i] = $id;
+            }
+            $conds[] = 'id NOT IN (' . implode(', ', $exPlaceholders) . ')';
+        }
 
         if ($stId > 0 && $nomor !== '') {
             $conds[] = '(surat_tugas_ref_id = :st OR TRIM(COALESCE(nomor_surat_tugas, \'\')) = :no)';
