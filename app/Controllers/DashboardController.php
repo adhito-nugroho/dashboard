@@ -445,11 +445,14 @@ class DashboardController {
             }
 
             $tag = trim((string) ($p['tagar'] ?? ''));
-            $key = $tag !== '' ? $tag : '__none__';
+            if ($tag === '') {
+                $tag = '#PAD';
+            }
+            $key = $tag;
             if (!isset($agg[$key])) {
                 $agg[$key] = [
                     'tagar' => $key,
-                    'label' => $key === '__none__' ? 'Tanpa Tagar' : $key,
+                    'label' => $key,
                     'count' => 0,
                     'pagu' => 0.0,
                     'realisasi' => 0.0,

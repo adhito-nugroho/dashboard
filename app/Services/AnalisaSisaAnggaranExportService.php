@@ -132,7 +132,7 @@ class AnalisaSisaAnggaranExportService
         }
         $tagar = trim((string) ($filters['tagar'] ?? ''));
         if ($tagar !== '') {
-            $parts[] = 'Tagar: ' . ($tagar === '__none__' ? 'Tanpa tagar' : $tagar);
+            $parts[] = 'Tagar: ' . $tagar;
         }
 
         $sheet->mergeCells('A3:' . self::LAST_COL . '3');
@@ -637,7 +637,6 @@ class AnalisaSisaAnggaranExportService
             foreach ($tagRecap as $tag) {
                 $sisa = (float) $tag['sisa'];
                 $serapan = (float) $tag['serapan'];
-                $isNone = ($tag['tagar'] ?? '') === '__none__';
                 $rowBg = ($no % 2) === 0 ? self::ZEBRA : 'FFFFFF';
 
                 $sheet->setCellValue('A' . $row, $no);
@@ -671,12 +670,12 @@ class AnalisaSisaAnggaranExportService
                     ->setFillType(Fill::FILL_SOLID)
                     ->getStartColor()->setRGB($sisa < 0 ? 'FEE2E2' : 'F0FDF4');
 
-                // Tagar sebagai badge: hijau untuk tag, abu untuk tanpa tagar.
+                // Tagar sebagai badge hijau.
                 $sheet->getStyle('B' . $row)->getFont()->setBold(true);
-                $sheet->getStyle('B' . $row)->getFont()->getColor()->setRGB($isNone ? '475569' : '065F46');
+                $sheet->getStyle('B' . $row)->getFont()->getColor()->setRGB('065F46');
                 $sheet->getStyle('B' . $row)->getFill()
                     ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB($isNone ? 'F1F5F9' : 'ECFDF5');
+                    ->getStartColor()->setRGB('ECFDF5');
 
                 $sheet->getRowDimension($row)->setRowHeight(22);
                 $row++;

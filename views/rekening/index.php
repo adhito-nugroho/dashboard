@@ -148,9 +148,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                             <div class="fw-medium mt-1" style="line-height: 1.4; color: #1e293b;">
                                                 <?= htmlspecialchars($rekening['nama_rekening']) ?>
                                             </div>
-                                            <?php if (!empty($rekening['tagar'])): ?>
-                                                <span class="badge bg-success mt-1" title="Tagar RKA"><?= htmlspecialchars($rekening['tagar']) ?></span>
-                                            <?php endif; ?>
+                                            <?php
+                                            $tagarRek = trim((string) ($rekening['tagar'] ?? ''));
+                                            $tagarRek = $tagarRek !== '' ? $tagarRek : '#PAD';
+                                            ?>
+                                            <span class="badge bg-success mt-1" title="Tagar RKA"><?= htmlspecialchars($tagarRek) ?></span>
                                         </div>
                                     </td>
                                     <td class="text-center">

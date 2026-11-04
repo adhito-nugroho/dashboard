@@ -55,7 +55,6 @@ class AnalisaSisaAnggaranController
             $seksiMeta = $report['seksiMeta'];
             $tagRecap = $report['tagRecap'];
             $tagarList = $report['tagarList'];
-            $hasUntagged = $report['hasUntagged'];
 
             $pageTitle = 'Analisa Sisa Anggaran';
             $activePage = 'analisa_sisa';
@@ -167,8 +166,11 @@ class AnalisaSisaAnggaranController
         $minJuta = isset($params['min_juta']) && is_numeric($params['min_juta']) ? max(0, (float) $params['min_juta']) : 0.0;
         $minSisa = $minJuta * 1_000_000;
         $q = trim((string) ($params['q'] ?? ''));
-        // '' = semua tagar, '__none__' = rekening tanpa tagar.
+        // '' = semua tagar. Rekening tanpa tagar diperlakukan sebagai #PAD.
         $tagarFilter = trim((string) ($params['tagar'] ?? ''));
+        if ($tagarFilter === '__none__') {
+            $tagarFilter = '#PAD';
+        }
         $sort = (string) ($params['sort'] ?? 'sisa_desc');
         $sortValid = ['sisa_desc', 'sisa_asc', 'pagu_desc', 'serapan_asc', 'serapan_desc', 'nama_asc'];
         if (!in_array($sort, $sortValid, true)) {
@@ -220,11 +222,16 @@ class AnalisaSisaAnggaranController
                 }
             }
 
+            $rowTag = trim((string) ($p['tagar'] ?? ''));
+            if ($rowTag === '') {
+                $rowTag = '#PAD';
+            }
+
             $row = [
                 'rekening_id' => $rid,
                 'kode_rekening' => (string) ($p['kode_rekening'] ?? ''),
                 'nama_rekening' => (string) ($p['nama_rekening'] ?? ''),
-                'tagar' => trim((string) ($p['tagar'] ?? '')),
+                'tagar' => $rowTag,
                 'kode_sub_kegiatan' => (string) ($p['kode_sub_kegiatan'] ?? ''),
                 'nama_sub_kegiatan' => (string) ($p['nama_sub_kegiatan'] ?? ''),
                 'kode_kegiatan' => (string) ($p['kode_kegiatan'] ?? ''),
@@ -250,10 +257,7 @@ class AnalisaSisaAnggaranController
             $tagRecapRows[] = $row;
 
             if ($tagarFilter !== '') {
-                $match = $tagarFilter === '__none__'
-                    ? $row['tagar'] === ''
-                    : strcasecmp($row['tagar'], $tagarFilter) === 0;
-                if (!$match) {
+                if (strcasecmp($row['tagar'], $tagarFilter) !== 0) {
                     continue;
                 }
             }
@@ -263,20 +267,17 @@ class AnalisaSisaAnggaranController
         // Rekap per tagar (dipakai halaman + sheet Excel).
         $tagAgg = [];
         $tagarSet = [];
-        $hasUntagged = false;
         foreach ($tagRecapRows as $r) {
             $tag = trim((string) ($r['tagar'] ?? ''));
             if ($tag === '') {
-                $hasUntagged = true;
-                $key = '__none__';
-            } else {
-                $tagarSet[$tag] = true;
-                $key = $tag;
+                $tag = '#PAD';
             }
+            $tagarSet[$tag] = true;
+            $key = $tag;
             if (!isset($tagAgg[$key])) {
                 $tagAgg[$key] = [
                     'tagar' => $key,
-                    'label' => $key === '__none__' ? 'Tanpa Tagar' : $key,
+                    'label' => $key,
                     'count' => 0,
                     'pagu' => 0.0,
                     'realisasi' => 0.0,
@@ -297,10 +298,8 @@ class AnalisaSisaAnggaranController
         $tagRecap = array_values($tagAgg);
         // Pastikan tagar yang sedang difilter tetap muncul di dropdown walau
         // tidak ada rekeningnya pada filter seksi/pencarian saat ini.
-        if ($tagarFilter !== '' && $tagarFilter !== '__none__') {
+        if ($tagarFilter !== '') {
             $tagarSet[$tagarFilter] = true;
-        } elseif ($tagarFilter === '__none__') {
-            $hasUntagged = true;
         }
         $tagarList = array_keys($tagarSet);
         sort($tagarList, SORT_NATURAL | SORT_FLAG_CASE);
@@ -507,7 +506,6 @@ class AnalisaSisaAnggaranController
             'seksiAgg' => $seksiAgg,
             'tagRecap' => $tagRecap,
             'tagarList' => $tagarList,
-            'hasUntagged' => $hasUntagged,
             'topRows' => $topRows,
             'bucketList' => array_values($buckets),
             'chartData' => $chartData,

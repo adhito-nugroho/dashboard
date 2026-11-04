@@ -688,9 +688,6 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                             <?= htmlspecialchars($tag) ?>
                         </option>
                     <?php endforeach; ?>
-                    <?php if (!empty($hasUntagged)): ?>
-                        <option value="__none__" <?= $tagarFilter === '__none__' ? 'selected' : '' ?>>Tanpa tagar</option>
-                    <?php endif; ?>
                 </select>
             </div>
 
@@ -835,7 +832,7 @@ $chartJson = json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSO
                                     <td>
                                         <a class="asa-tag-link" href="<?= htmlspecialchars($tUrl) ?>"
                                            title="Filter tagar <?= htmlspecialchars($t['label']) ?>">
-                                            <span class="asa-badge <?= $t['tagar'] === '__none__' ? 'asa-badge--neutral' : 'asa-badge--tag' ?>">
+                                            <span class="asa-badge asa-badge--tag">
                                                 <?= htmlspecialchars($t['label']) ?>
                                             </span>
                                         </a>

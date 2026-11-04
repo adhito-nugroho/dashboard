@@ -10,7 +10,8 @@ $kegiatanId = $rekening['kegiatan_id'] ?? '';
 $subKegiatanId = $rekening['sub_kegiatan_id'] ?? '';
 $kodeRekening = $rekening['kode_rekening'] ?? '';
 $namaRekening = $rekening['nama_rekening'] ?? '';
-$tagar = $rekening['tagar'] ?? '';
+$tagar = trim((string) ($rekening['tagar'] ?? ''));
+$tagar = $tagar !== '' ? $tagar : '#PAD';
 $errors = $validationErrors ?? [];
 $action = $action ?? 'store';
 

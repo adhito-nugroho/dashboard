@@ -62,13 +62,10 @@
                                             </thead>
                                             <tbody>
                                                 <?php foreach ($tagRecap as $t): ?>
-                                                    <?php
-                                                    $isNone = ($t['tagar'] ?? '') === '__none__';
-                                                    $sisa = (float) $t['sisa'];
-                                                    ?>
+                                                    <?php $sisa = (float) $t['sisa']; ?>
                                                     <tr>
                                                         <td>
-                                                            <span class="badge" style="background:<?= $isNone ? '#f1f5f9' : '#ecfdf5' ?>;color:<?= $isNone ? '#475569' : '#065f46' ?>;border:1px solid <?= $isNone ? '#e2e8f0' : '#a7f3d0' ?>;font-weight:700;">
+                                                            <span class="badge" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-weight:700;">
                                                                 <?= htmlspecialchars($t['label']) ?>
                                                             </span>
                                                         </td>

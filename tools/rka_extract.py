@@ -108,12 +108,15 @@ def parse_pdf(path: Path) -> dict | None:
     while i < len(lines):
         line = lines[i]
 
-        # Baris tagar: "[ # ] #NBS4_AGRI_INDUSTRI". "[ # ] PAD" bukan tagar.
+        # Baris tagar: "[ # ] #NBS4_AGRI_INDUSTRI". "[ # ] PAD" = #PAD.
         m_tag = TAG_RE.match(line)
         if m_tag:
             tag = m_tag.group(1)
-            if last_rek >= 0 and tag.startswith("#"):
-                data["rekening"][last_rek]["tagar"] = tag
+            if last_rek >= 0:
+                if tag.startswith("#"):
+                    data["rekening"][last_rek]["tagar"] = tag
+                elif tag.upper() == "PAD":
+                    data["rekening"][last_rek]["tagar"] = "#PAD"
             last_rek = -1
             i += 1
             continue

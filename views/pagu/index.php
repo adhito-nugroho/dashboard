@@ -878,9 +878,11 @@ $windowEnd = min($totalPages, $currentPage + 2);
                                     <div class="pagu-rek">
                                         <span class="pagu-chip pagu-chip--rek"><?= htmlspecialchars($pagu['kode_rekening']) ?></span>
                                         <span class="pagu-rek__name"><?= htmlspecialchars($pagu['nama_rekening']) ?></span>
-                                        <?php if (!empty($pagu['tagar'])): ?>
-                                            <span class="pagu-chip pagu-chip--tag" title="Tagar RKA"><?= htmlspecialchars($pagu['tagar']) ?></span>
-                                        <?php endif; ?>
+                                        <?php
+                                        $tagarPagu = trim((string) ($pagu['tagar'] ?? ''));
+                                        $tagarPagu = $tagarPagu !== '' ? $tagarPagu : '#PAD';
+                                        ?>
+                                        <span class="pagu-chip pagu-chip--tag" title="Tagar RKA"><?= htmlspecialchars($tagarPagu) ?></span>
                                     </div>
                                 </td>
                                 <td class="text-end pagu-num pagu-num--muted"><?= $rp($paguAwal) ?></td>
