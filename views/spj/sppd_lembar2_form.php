@@ -13,6 +13,8 @@ $pejabat    = $pejabat    ?? ['jabatan' => '', 'nama' => '', 'nip' => ''];
 $suratTugas = $suratTugas ?? null;
 $pegawai    = $pegawai    ?? [];
 
+$elementOptions = \App\Services\SppdLembar2Service::elementOptions();
+
 $stId   = (int) ($suratTugas['id'] ?? 0);
 $nipKey = (string) ($values['pegawai_nip'] ?? ($pegawai['nip'] ?? ''));
 $formAction = base_url('spj/sppd2/cetak/' . $stId . '/' . urlencode($nipKey));
@@ -161,6 +163,35 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                     </div>
                 </div>
 
+                <div class="sppd2-card">
+                    <div class="sppd2-card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="bi bi-ui-checks me-1"></i>Komponen yang Dicetak</h5>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="sppd2SelectAll" checked>
+                            <label class="form-check-label small" for="sppd2SelectAll">Pilih semua</label>
+                        </div>
+                    </div>
+                    <div class="sppd2-card-body">
+                        <div class="row g-2">
+                            <?php foreach ($elementOptions as $key => $label): ?>
+                                <?php $elId = 'sppd2el_' . preg_replace('/[^a-z0-9_]/i', '_', (string) $key); ?>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input sppd2-el" type="checkbox"
+                                               id="<?= $elId ?>" name="cetak_elemen[]"
+                                               value="<?= htmlspecialchars((string) $key, ENT_QUOTES) ?>" checked>
+                                        <label class="form-check-label small" for="<?= $elId ?>">
+                                            <?= htmlspecialchars($label) ?>
+                                        </label>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <input type="hidden" name="cetak_elemen_present" value="1">
+                        <div class="form-text mt-2">Hilangkan centang komponen yang tidak ingin dicetak.</div>
+                    </div>
+                </div>
+
                 <div class="d-flex gap-2 mb-4">
                     <button type="submit" class="btn btn-danger">
                         <i class="bi bi-printer me-1"></i>Cetak Lembar 2 SPPD
@@ -185,3 +216,23 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const selectAll = document.getElementById('sppd2SelectAll');
+    const checks = Array.prototype.slice.call(document.querySelectorAll('.sppd2-el'));
+
+    function sync() {
+        const checked = checks.filter(function (c) { return c.checked; }).length;
+        selectAll.checked = checked === checks.length;
+        selectAll.indeterminate = checked > 0 && checked < checks.length;
+    }
+
+    selectAll.addEventListener('change', function () {
+        checks.forEach(function (c) { c.checked = selectAll.checked; });
+        sync();
+    });
+    checks.forEach(function (c) { c.addEventListener('change', sync); });
+    sync();
+})();
+</script>

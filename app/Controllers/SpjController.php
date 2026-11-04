@@ -624,8 +624,24 @@ class SpjController
         }
 
         $this->applySppdCalibration($svc);
+        $svc->setHiddenElements($this->resolveHiddenSppdElements($_POST));
         $svc->streamPdf($values, ['jabatan' => $jabatan, 'nama' => $nama, 'nip' => $nipPejabat]);
         exit;
+    }
+
+    /**
+     * Komponen lembar 2 yang tidak dicetak menurut pilihan checkbox form
+     * (name="cetak_elemen[]"). Form tanpa daftar komponen dianggap mencetak semua.
+     * @return string[]
+     */
+    private function resolveHiddenSppdElements(array $post): array
+    {
+        if (!isset($post['cetak_elemen']) && !isset($post['cetak_elemen_present'])) {
+            return [];
+        }
+        $selected = $post['cetak_elemen'] ?? [];
+        $selected = is_array($selected) ? array_map('strval', $selected) : [];
+        return array_values(array_diff(SppdLembar2Service::elementKeys(), $selected));
     }
 
     /** Halaman uji posisi (kalibrasi) lembar 2 SPPD. Akses: GET /spj/sppd2/uji */

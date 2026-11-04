@@ -5,6 +5,7 @@
  * atau panggil openSppd2(stId, nip) dari JS.
  */
 $sppd2Base = rtrim(base_url(), '/') . '/';
+$sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
 ?>
 <div class="modal fade" id="sppd2Modal" tabindex="-1" aria-labelledby="sppd2ModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -38,6 +39,31 @@ $sppd2Base = rtrim(base_url(), '/') . '/';
                         memiliki NIP sehingga tulisan &ldquo;NIP&rdquo; tidak dicetak. Isian terakhir tersimpan
                         per Surat Tugas dan akan muncul lagi saat cetak berikutnya.
                     </div>
+
+                    <div class="border-top pt-3 mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small fw-semibold mb-0">Komponen yang dicetak</label>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" id="sppd2SelectAll" checked>
+                                <label class="form-check-label small" for="sppd2SelectAll">Pilih semua</label>
+                            </div>
+                        </div>
+                        <div class="border rounded p-2" style="max-height:180px;overflow-y:auto;">
+                            <?php foreach ($sppd2Elements as $key => $label): ?>
+                                <?php $elId = 'sppd2el_' . preg_replace('/[^a-z0-9_]/i', '_', (string) $key); ?>
+                                <div class="form-check">
+                                    <input class="form-check-input sppd2-el" type="checkbox"
+                                           id="<?= $elId ?>" name="cetak_elemen[]"
+                                           value="<?= htmlspecialchars((string) $key, ENT_QUOTES) ?>" checked>
+                                    <label class="form-check-label small" for="<?= $elId ?>">
+                                        <?= htmlspecialchars($label) ?>
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <input type="hidden" name="cetak_elemen_present" value="1">
+                        <div class="form-text">Hilangkan centang komponen yang tidak ingin dicetak.</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
@@ -60,6 +86,21 @@ $sppd2Base = rtrim(base_url(), '/') . '/';
     const inNama = document.getElementById('sppd2Nama');
     const inNip = document.getElementById('sppd2Nip');
     let seq = 0;
+
+    const selectAll = document.getElementById('sppd2SelectAll');
+    const elChecks = Array.prototype.slice.call(form.querySelectorAll('.sppd2-el'));
+
+    function syncSelectAll() {
+        const checked = elChecks.filter(function (c) { return c.checked; }).length;
+        selectAll.checked = checked === elChecks.length;
+        selectAll.indeterminate = checked > 0 && checked < elChecks.length;
+    }
+    selectAll.addEventListener('change', function () {
+        elChecks.forEach(function (c) { c.checked = selectAll.checked; });
+        syncSelectAll();
+    });
+    elChecks.forEach(function (c) { c.addEventListener('change', syncSelectAll); });
+    syncSelectAll();
 
     window.openSppd2 = function (stId, nip) {
         const token = ++seq;

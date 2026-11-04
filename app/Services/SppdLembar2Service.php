@@ -29,6 +29,9 @@ class SppdLembar2Service
     /** Posisi efektif: key => ['x_mm','y_mm','max_width_mm','max_lines'] (mm A4). */
     private array $pos = [];
 
+    /** Elemen yang tidak dicetak (hasil pilihan pengguna saat cetak). */
+    private array $hidden = [];
+
     public function __construct(?SpdExportService $spd = null)
     {
         $this->spd = $spd ?? new SpdExportService();
@@ -37,6 +40,50 @@ class SppdLembar2Service
     public function getConfig(): array
     {
         return require self::CONFIG;
+    }
+
+    /**
+     * Daftar komponen yang bisa dicetak: key => label.
+     * Dipakai form cetak untuk menampilkan pilihan aktif/nonaktif.
+     * @return array<string,string>
+     */
+    public static function elementOptions(): array
+    {
+        $cfg = require self::CONFIG;
+        $out = [];
+        foreach (($cfg['elements'] ?? []) as $key => $el) {
+            $out[(string) $key] = (string) ($el['label'] ?? $key);
+        }
+        return $out;
+    }
+
+    /** @return string[] */
+    public static function elementKeys(): array
+    {
+        return array_keys(self::elementOptions());
+    }
+
+    /**
+     * Nonaktifkan komponen tertentu agar tidak ikut dicetak.
+     * Key yang tidak dikenal diabaikan.
+     * @param string[] $keys
+     */
+    public function setHiddenElements(array $keys): void
+    {
+        $valid = array_fill_keys(self::elementKeys(), true);
+        $this->hidden = [];
+        foreach ($keys as $key) {
+            $key = (string) $key;
+            if (isset($valid[$key])) {
+                $this->hidden[$key] = true;
+            }
+        }
+    }
+
+    /** @return string[] */
+    public function getHiddenElements(): array
+    {
+        return array_keys($this->hidden);
     }
 
     /**
@@ -196,6 +243,9 @@ class SppdLembar2Service
         $positions = $this->getPositions();
 
         foreach ($elements as $key => $el) {
+            if (isset($this->hidden[$key])) {
+                continue;
+            }
             $text = (string) ($texts[$key] ?? '');
             if ($text === '' || !isset($positions[$key])) {
                 continue;
