@@ -300,7 +300,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
         <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h5 class="card-title fw-bold mb-0 text-dark"><i class="bi bi-archive text-success me-2"></i>Konfigurasi Tersimpan</h5>
-                <small class="text-muted">Setiap konfigurasi tersimpan dapat diunduh sebagai Excel (sheet Detail + Rekap). <strong>Hapus</strong> konfigurasi untuk mengembalikan transaksinya ke daftar perjalanan dinas yang belum dikonfigurasi.</small>
+                <small class="text-muted">Setiap konfigurasi tersimpan dapat diunduh sebagai Excel (sheet Detail + Rekap) atau CSV Bank Jatim untuk upload internet banking. <strong>Hapus</strong> konfigurasi untuk mengembalikan transaksinya ke daftar perjalanan dinas yang belum dikonfigurasi.</small>
             </div>
             <span class="badge bg-success-subtle text-success border border-success-subtle text-nowrap"><?= (int) ($batchPagination['total'] ?? count($batches ?? [])) ?> konfigurasi</span>
         </div>
@@ -320,7 +320,7 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                 <th class="small align-top text-nowrap" style="width:150px;">Disimpan</th>
                                 <th class="text-end small align-top text-nowrap" style="width:120px;">Transaksi</th>
                                 <th class="text-end small align-top text-nowrap" style="width:150px;">Total Perjalanan Dinas</th>
-                                <th class="text-end small align-top text-nowrap" style="width:110px;">Unduh</th>
+                                <th class="text-end small align-top text-nowrap" style="width:170px;">Unduh</th>
                                 <th class="text-end pe-4 small align-top text-nowrap" style="width:90px;">Hapus</th>
                             </tr>
                         </thead>
@@ -337,9 +337,14 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                     <td class="align-top text-end font-monospace text-nowrap"><?= (int) $b['jml'] ?></td>
                                     <td class="align-top text-end font-monospace fw-medium text-nowrap">Rp <?= number_format($totalPerjadinBatch, 0, ',', '.') ?></td>
                                     <td class="align-top text-end text-nowrap">
-                                        <a href="<?= base_url('transfer-perjadin/export') ?>?batch_id=<?= (int) $b['id'] ?>" class="btn btn-sm btn-success text-nowrap">
-                                            <i class="bi bi-file-earmark-excel me-1"></i>Unduh
-                                        </a>
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="<?= base_url('transfer-perjadin/export') ?>?batch_id=<?= (int) $b['id'] ?>" class="btn btn-sm btn-success text-nowrap" title="Unduh Excel Detail + Rekap">
+                                                <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                            </a>
+                                            <a href="<?= base_url('transfer-perjadin/export-bank-jatim') ?>?batch_id=<?= (int) $b['id'] ?>" class="btn btn-sm btn-outline-primary text-nowrap" title="Unduh CSV Bank Jatim untuk upload internet banking">
+                                                <i class="bi bi-bank me-1"></i>CSV
+                                            </a>
+                                        </div>
                                     </td>
                                     <td class="align-top text-end pe-4">
                                         <form method="POST" action="<?= base_url('transfer-perjadin/delete/' . (int) $b['id']) ?>" onsubmit="return confirm('Hapus konfigurasi ini? Semua transaksinya akan kembali ke daftar perjalanan dinas yang belum dikonfigurasi dan file konfigurasi tidak dapat diunduh lagi.')">

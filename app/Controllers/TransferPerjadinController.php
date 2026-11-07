@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../config/helpers.php';
 
 use App\Models\Seksi;
 use App\Models\TransferPerjadin;
+use App\Services\BankJatimTransferService;
 use App\Services\TransferPerjadinExportService;
 
 /**
@@ -255,17 +256,7 @@ class TransferPerjadinController
             return;
         }
 
-        $configured = $this->model->getBatchTransaksi($batchId);
-        $rows = [];
-        foreach ($configured as $c) {
-            $rows[] = [
-                'uraian' => (string) ($c['uraian'] ?? ''),
-                'nama' => (string) ($c['nama_penerima'] ?? ''),
-                'nilai' => (float) ($c['nilai'] ?? 0),
-                'transfer_ke' => (string) ($c['transfer_ke'] ?? ''),
-                'potongan' => (float) ($c['potongan'] ?? 0),
-            ];
-        }
+        $rows = $this->getBatchExportRows($batchId);
 
         if ($rows === []) {
             $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi "' . $batch['nama'] . '" belum berisi transaksi.');
@@ -280,6 +271,44 @@ class TransferPerjadinController
         } catch (\Throwable $e) {
             error_log('TransferPerjadinController::export error: ' . $e->getMessage());
             $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Gagal membuat file Excel. Silakan coba lagi.');
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // EXPORT BANK JATIM (CSV)
+    // ──────────────────────────────────────────────────────────
+
+    public function exportBankJatim(): void
+    {
+        $this->requireAdmin();
+
+        $batchId = isset($_GET['batch_id']) ? (int) $_GET['batch_id'] : 0;
+        if ($batchId <= 0) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Pilih konfigurasi yang akan diunduh pada daftar konfigurasi tersimpan.');
+            return;
+        }
+
+        $batch = $this->model->getBatch($batchId);
+        if ($batch === null) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi tidak ditemukan.');
+            return;
+        }
+
+        $rows = $this->getBatchExportRows($batchId);
+        if ($rows === []) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi "' . $batch['nama'] . '" belum berisi transaksi.');
+            return;
+        }
+
+        $config = require __DIR__ . '/../../config/bank_jatim.php';
+        try {
+            (new BankJatimTransferService($config))->download($rows, (string) $batch['nama']);
+        } catch (\Throwable $e) {
+            error_log('TransferPerjadinController::exportBankJatim error: ' . $e->getMessage());
+            $message = $e instanceof \RuntimeException
+                ? $e->getMessage()
+                : 'Gagal membuat CSV Bank Jatim. Silakan coba lagi.';
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', $message);
         }
     }
 
@@ -315,6 +344,26 @@ class TransferPerjadinController
     // ──────────────────────────────────────────────────────────
     // HELPERS
     // ──────────────────────────────────────────────────────────
+
+    /**
+     * @return array<int, array{uraian:string,nama:string,nilai:float,transfer_ke:string,potongan:float,pegawai_nip:string}>
+     */
+    private function getBatchExportRows(int $batchId): array
+    {
+        $configured = $this->model->getBatchTransaksi($batchId);
+        $rows = [];
+        foreach ($configured as $c) {
+            $rows[] = [
+                'uraian' => (string) ($c['uraian'] ?? ''),
+                'nama' => (string) ($c['nama_penerima'] ?? ''),
+                'nilai' => (float) ($c['nilai'] ?? 0),
+                'transfer_ke' => (string) ($c['transfer_ke'] ?? ''),
+                'potongan' => (float) ($c['potongan'] ?? 0),
+                'pegawai_nip' => (string) ($c['pegawai_nip'] ?? ''),
+            ];
+        }
+        return $rows;
+    }
 
     private function parseRupiah($value): float
     {

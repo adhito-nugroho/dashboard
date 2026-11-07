@@ -445,6 +445,7 @@ try {
         ['ANY', '/transfer-perjadin', fn($m) => $transferPerjadinController->index()],
         ['POST', '/transfer-perjadin/save', fn($m) => $transferPerjadinController->save()],
         ['GET', '/transfer-perjadin/export', fn($m) => $transferPerjadinController->export()],
+        ['GET', '/transfer-perjadin/export-bank-jatim', fn($m) => $transferPerjadinController->exportBankJatim()],
         ['POST', '#^/transfer-perjadin/delete/(\d+)$#', fn($m) => $transferPerjadinController->delete((int) $m[1])],
     ];
 
