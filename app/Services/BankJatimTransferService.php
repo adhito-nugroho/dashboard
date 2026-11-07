@@ -12,8 +12,9 @@ namespace App\Services;
  *   Baris 2+: no_rekening,nama,nominal,keterangan,,,
  *
  * Satu baris CSV = satu penerima transfer (grup Transfer Ke), bukan per
- * transaksi. Nominal = penerimaan bersih (nilai - potongan) yang dijumlahkan
- * per penerima.
+ * transaksi. Nominal = penerimaan bruto (nilai) yang dijumlahkan per penerima.
+ * Potongan TIDAK dikurangkan di CSV karena dipotong masing-masing pegawai
+ * setelah dana diterima.
  */
 class BankJatimTransferService
 {
@@ -67,8 +68,8 @@ class BankJatimTransferService
                 throw new \RuntimeException('Masih ada baris dengan Transfer Ke kosong. Lengkapi konfigurasi transfer terlebih dahulu.');
             }
 
-            $net = (float) ($g['bersih'] ?? 0);
-            if ($net < 0) {
+            $nominal = (float) ($g['penerimaan'] ?? 0);
+            if ($nominal < 0) {
                 throw new \RuntimeException('Nominal transfer negatif untuk ' . $label . '.');
             }
 
@@ -76,9 +77,9 @@ class BankJatimTransferService
             // dua baris CSV untuk rekening yang sama.
             $key = $this->normName($label);
             if (!isset($recipients[$key])) {
-                $recipients[$key] = ['label' => $label, 'net' => 0.0];
+                $recipients[$key] = ['label' => $label, 'nominal' => 0.0];
             }
-            $recipients[$key]['net'] += $net;
+            $recipients[$key]['nominal'] += $nominal;
         }
 
         $missing = [];
@@ -88,8 +89,8 @@ class BankJatimTransferService
 
         foreach ($recipients as $key => $recipient) {
             $label = $recipient['label'];
-            $net = (int) round((float) $recipient['net']);
-            if ($net < 0) {
+            $nominal = (int) round((float) $recipient['nominal']);
+            if ($nominal < 0) {
                 throw new \RuntimeException('Nominal transfer negatif untuk ' . $label . '.');
             }
 
@@ -102,8 +103,8 @@ class BankJatimTransferService
                 throw new \RuntimeException('Nomor rekening tidak valid untuk ' . $label . '.');
             }
 
-            $lines[] = $account . ',' . $this->cleanName($label) . ',' . $net . ',' . $keterangan . ',,,';
-            $total += $net;
+            $lines[] = $account . ',' . $this->cleanName($label) . ',' . $nominal . ',' . $keterangan . ',,,';
+            $total += $nominal;
             $count++;
         }
 
