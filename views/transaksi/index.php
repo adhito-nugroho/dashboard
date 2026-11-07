@@ -397,6 +397,10 @@ $isFiltered = !empty($activeFilterLabels);
                 <i class="bi bi-file-earmark-excel"></i>
                 <span>Unduh BKU</span>
             </button>
+            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 px-3 fw-medium" id="btn-unduh-sipd" title="Unduh data BKU format SIPD (hanya transaksi terverifikasi)">
+                <i class="bi bi-file-earmark-excel"></i>
+                <span>Unduh SIPD</span>
+            </button>
             <a href="<?= base_url('transaksi/create') ?>" class="btn btn-cta px-3 py-2 shadow-sm" title="Input transaksi baru">
                 <i class="bi bi-plus-lg"></i>
                 <span>Input Transaksi (Batch)</span>
@@ -1543,46 +1547,65 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initial check state
     updateSelectionState();
 
-    // Tombol Unduh BKU CDK — mengikuti seluruh filter yang aktif
-    // (periode tanggal bila diisi, jika tidak memakai Bulan & Tahun)
+    // Tombol Unduh BKU CDK / SIPD — mengikuti filter yang aktif.
+    function buildBkuFilterParams() {
+        const params = new URLSearchParams();
+        const dariEl = document.getElementById('filter-dari');
+        const sampaiEl = document.getElementById('filter-sampai');
+        const dariVal = dariEl ? dariEl.value : '';
+        const sampaiVal = sampaiEl ? sampaiEl.value : '';
+        if (dariVal || sampaiVal) {
+            if (dariVal) params.set('dari', dariVal);
+            if (sampaiVal) params.set('sampai', sampaiVal);
+        } else {
+            const selBulan = document.getElementById('filter-bulan').value;
+            const selTahun = document.getElementById('filter-tahun').value;
+            if (!selBulan || !selTahun) {
+                alert('Pilih Bulan dan Tahun (atau isi Tanggal Dari/Sampai) terlebih dahulu untuk mengunduh');
+                return null;
+            }
+            params.set('bulan', selBulan);
+            params.set('tahun', selTahun);
+        }
+        const keg = document.getElementById('filter-kegiatan').value;
+        if (keg) params.set('kegiatan_id', keg);
+        const subKeg = document.getElementById('filter-sub-kegiatan').value;
+        if (subKeg) params.set('sub_kegiatan_id', subKeg);
+        const seksiEl = document.getElementById('filter-seksi');
+        if (seksiEl && seksiEl.value) params.set('seksi_id', seksiEl.value);
+        const statusEl = document.querySelector('.ux-status-pill.active');
+        const status = statusEl ? (statusEl.dataset.status || '') : '';
+        if (status) params.set('status', status);
+        // Filter "Diinput" (created_at) & pencarian kata kunci — ikut sesuai filter aktif
+        const inputDariEl = document.getElementById('filter-input-dari');
+        const inputSampaiEl = document.getElementById('filter-input-sampai');
+        if (inputDariEl && inputDariEl.value) params.set('input_dari', inputDariEl.value);
+        if (inputSampaiEl && inputSampaiEl.value) params.set('input_sampai', inputSampaiEl.value);
+        const qEl = document.getElementById('filter-q');
+        if (qEl && qEl.value.trim() !== '') params.set('q', qEl.value.trim());
+        return params;
+    }
+
     const btnBku = document.getElementById('btn-unduh-bku');
     if (btnBku) {
         btnBku.addEventListener('click', function () {
-            const params = new URLSearchParams();
-            const dariEl = document.getElementById('filter-dari');
-            const sampaiEl = document.getElementById('filter-sampai');
-            const dariVal = dariEl ? dariEl.value : '';
-            const sampaiVal = sampaiEl ? sampaiEl.value : '';
-            if (dariVal || sampaiVal) {
-                if (dariVal) params.set('dari', dariVal);
-                if (sampaiVal) params.set('sampai', sampaiVal);
-            } else {
-                const selBulan = document.getElementById('filter-bulan').value;
-                const selTahun = document.getElementById('filter-tahun').value;
-                if (!selBulan || !selTahun) {
-                    alert('Pilih Bulan dan Tahun (atau isi Tanggal Dari/Sampai) terlebih dahulu untuk mengunduh BKU');
-                    return;
-                }
-                params.set('bulan', selBulan);
-                params.set('tahun', selTahun);
-            }
-            const keg = document.getElementById('filter-kegiatan').value;
-            if (keg) params.set('kegiatan_id', keg);
-            const subKeg = document.getElementById('filter-sub-kegiatan').value;
-            if (subKeg) params.set('sub_kegiatan_id', subKeg);
-            const seksiEl = document.getElementById('filter-seksi');
-            if (seksiEl && seksiEl.value) params.set('seksi_id', seksiEl.value);
-            const statusEl = document.querySelector('.ux-status-pill.active');
-            const status = statusEl ? (statusEl.dataset.status || '') : '';
-            if (status) params.set('status', status);
-            // Filter "Diinput" (created_at) & pencarian kata kunci — ikut sesuai filter aktif
-            const inputDariEl = document.getElementById('filter-input-dari');
-            const inputSampaiEl = document.getElementById('filter-input-sampai');
-            if (inputDariEl && inputDariEl.value) params.set('input_dari', inputDariEl.value);
-            if (inputSampaiEl && inputSampaiEl.value) params.set('input_sampai', inputSampaiEl.value);
-            const qEl = document.getElementById('filter-q');
-            if (qEl && qEl.value.trim() !== '') params.set('q', qEl.value.trim());
+            const params = buildBkuFilterParams();
+            if (!params) return;
             window.location.href = VERIF_BASE + '/transaksi/bku-cdk?' + params.toString();
+        });
+    }
+
+    const btnSipd = document.getElementById('btn-unduh-sipd');
+    if (btnSipd) {
+        btnSipd.addEventListener('click', function () {
+            const params = buildBkuFilterParams();
+            if (!params) return;
+            // SIPD hanya butuh periode/wilayah, bukan filter status/input/pencarian.
+            params.delete('status');
+            params.delete('input_dari');
+            params.delete('input_sampai');
+            params.delete('q');
+            window.location.href = VERIF_BASE + '/transaksi/bku-sipd?' + params.toString();
         });
     }
 });

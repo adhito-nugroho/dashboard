@@ -1871,4 +1871,322 @@ class TransaksiController
         @unlink($tmpFile);
         exit;
     }
+
+    /**
+     * Export data BKU untuk input SIPD.
+     * Kolom: No, Tanggal Bayar, Uraian, Penerima, No Bukti, Nominal, Saldo Kas.
+     * Hanya pengeluaran UP terverifikasi. Saldo kas mengikuti arus kas seperti BKU.
+     *
+     * Akses: GET /transaksi/bku-sipd?bulan=&tahun= atau ?dari=&sampai=
+     */
+    public function downloadBkuSipd(): void
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        @ini_set('display_errors', '0');
+
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . base_url('login'));
+            exit;
+        }
+
+        $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
+        $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : null;
+        $dari = isset($_GET['dari']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['dari'])) && strtotime(trim((string) $_GET['dari']))
+            ? trim((string) $_GET['dari']) : null;
+        $sampai = isset($_GET['sampai']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $_GET['sampai'])) && strtotime(trim((string) $_GET['sampai']))
+            ? trim((string) $_GET['sampai']) : null;
+        if ($dari !== null && $sampai !== null && $dari > $sampai) {
+            [$dari, $sampai] = [$sampai, $dari];
+        }
+        $modePeriode = $dari !== null || $sampai !== null;
+
+        if (!$modePeriode && ($bulan === null || $tahun === null || $bulan < 1 || $bulan > 12 || $tahun < 2000)) {
+            http_response_code(400);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Pilih Bulan dan Tahun (atau isi Tanggal Dari/Sampai) terlebih dahulu untuk mengunduh SIPD';
+            exit;
+        }
+
+        $filterKegiatan = isset($_GET['kegiatan_id']) && $_GET['kegiatan_id'] !== '' ? (int) $_GET['kegiatan_id'] : null;
+        $filterSubKegiatan = isset($_GET['sub_kegiatan_id']) && $_GET['sub_kegiatan_id'] !== '' ? (int) $_GET['sub_kegiatan_id'] : null;
+        $filterSeksi = isset($_GET['seksi_id']) && $_GET['seksi_id'] !== '' ? (int) $_GET['seksi_id'] : null;
+
+        $db = \Database::getConnection();
+        $tglEfektif = 'COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)';
+
+        $conditions = ["t.sumber_dana = 'UP'", "t.status = 'diverifikasi'"];
+        $params = [];
+        if ($modePeriode) {
+            if ($dari !== null) {
+                $conditions[] = "DATE({$tglEfektif}) >= :dari";
+                $params[':dari'] = $dari;
+            }
+            if ($sampai !== null) {
+                $conditions[] = "DATE({$tglEfektif}) <= :sampai";
+                $params[':sampai'] = $sampai;
+            }
+        } else {
+            $conditions[] = "MONTH({$tglEfektif}) = :bulan";
+            $conditions[] = "YEAR({$tglEfektif}) = :tahun";
+            $params[':bulan'] = $bulan;
+            $params[':tahun'] = $tahun;
+        }
+        if ($filterSubKegiatan !== null) {
+            $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
+            $params[':sub_kegiatan_id'] = $filterSubKegiatan;
+        } elseif ($filterKegiatan !== null) {
+            $conditions[] = 'sk.kegiatan_id = :kegiatan_id';
+            $params[':kegiatan_id'] = $filterKegiatan;
+        }
+        if ($filterSeksi !== null) {
+            $conditions[] = 's.id = :seksi_id';
+            $params[':seksi_id'] = $filterSeksi;
+        }
+
+        $stmt = $db->prepare("
+            SELECT t.id, {$tglEfektif} AS tanggal_efektif,
+                   t.uraian, t.nama_penerima, t.nomor_bukti, t.nilai
+            FROM transaksi t
+            INNER JOIN seksi s ON t.seksi_id = s.id
+            INNER JOIN rekening r ON t.rekening_id = r.id
+            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            WHERE " . implode(' AND ', $conditions) . "
+            ORDER BY {$tglEfektif} ASC, t.nomor_bukti ASC, t.id ASC
+        ");
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
+        $stmt->execute();
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Penerimaan kas hanya dipakai untuk saldo, tidak ditampilkan sebagai baris.
+        $kasRows = [];
+        if ($filterKegiatan === null && $filterSubKegiatan === null && $filterSeksi === null) {
+            $kasConditions = ["status = 'cair'"];
+            $kasParams = [];
+            if ($modePeriode) {
+                if ($dari !== null) {
+                    $kasConditions[] = 'DATE(COALESCE(tanggal_cair, tanggal)) >= :dari';
+                    $kasParams[':dari'] = $dari;
+                }
+                if ($sampai !== null) {
+                    $kasConditions[] = 'DATE(COALESCE(tanggal_cair, tanggal)) <= :sampai';
+                    $kasParams[':sampai'] = $sampai;
+                }
+            } else {
+                $kasConditions[] = 'MONTH(COALESCE(tanggal_cair, tanggal)) = :bulan';
+                $kasConditions[] = 'YEAR(COALESCE(tanggal_cair, tanggal)) = :tahun';
+                $kasParams[':bulan'] = $bulan;
+                $kasParams[':tahun'] = $tahun;
+            }
+            $stmtKas = $db->prepare("
+                SELECT id, tanggal, tanggal_cair, nominal
+                FROM kas_bank
+                WHERE " . implode(' AND ', $kasConditions) . "
+                ORDER BY COALESCE(tanggal_cair, tanggal) ASC, id ASC
+            ");
+            $stmtKas->execute($kasParams);
+            $kasRows = $stmtKas->fetchAll(\PDO::FETCH_ASSOC);
+        }
+
+        $items = [];
+        foreach ($kasRows as $k) {
+            $tglKas = !empty($k['tanggal_cair']) ? $k['tanggal_cair'] : ($k['tanggal'] ?? null);
+            $items[] = [
+                'type' => 'penerimaan',
+                'tanggal' => $tglKas ? date('Y-m-d', strtotime((string) $tglKas)) : '',
+                'id' => (int) ($k['id'] ?? 0),
+                'nominal' => (float) ($k['nominal'] ?? 0),
+            ];
+        }
+        foreach ($rows as $t) {
+            $items[] = [
+                'type' => 'pengeluaran',
+                'tanggal' => (string) ($t['tanggal_efektif'] ?? ''),
+                'nomor_bukti' => (string) ($t['nomor_bukti'] ?? ''),
+                'pengeluaran' => (float) ($t['nilai'] ?? 0),
+                'raw' => $t,
+            ];
+        }
+        usort($items, static function (array $a, array $b): int {
+            if ($a['tanggal'] !== $b['tanggal']) {
+                return strcmp($a['tanggal'], $b['tanggal']);
+            }
+            if ($a['type'] !== $b['type']) {
+                return $a['type'] === 'penerimaan' ? -1 : 1;
+            }
+            if ($a['type'] === 'pengeluaran') {
+                return strnatcasecmp((string) ($a['nomor_bukti'] ?? ''), (string) ($b['nomor_bukti'] ?? ''));
+            }
+            return ((int) ($a['id'] ?? 0)) <=> ((int) ($b['id'] ?? 0));
+        });
+
+        $awalPeriode = $dari
+            ?? ($modePeriode ? '1970-01-01' : sprintf('%04d-%02d-01', $tahun, $bulan));
+        $sebelumPeriode = date('Y-m-d', strtotime($awalPeriode . ' -1 day'));
+        $kasBankModel = new \App\Models\KasBank($db);
+        $saldo = $kasBankModel->getSaldoPerTanggal($sebelumPeriode);
+
+        $output = [];
+        foreach ($items as $item) {
+            if ($item['type'] === 'penerimaan') {
+                $saldo += (float) $item['nominal'];
+                continue;
+            }
+            $saldo -= (float) $item['pengeluaran'];
+            $output[] = ['t' => $item['raw'], 'saldo' => $saldo];
+        }
+
+        $namaBulanMap = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+        $namaBulan = $modePeriode
+            ? trim(($dari ?? 'awal') . ' s.d. ' . ($sampai ?? 'akhir'))
+            : (($namaBulanMap[$bulan] ?? (string) $bulan) . ' ' . $tahun);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('SIPD');
+
+        $sheet->mergeCells('A1:G1');
+        $sheet->setCellValue('A1', 'DATA BKU UNTUK INPUT SIPD');
+        $sheet->mergeCells('A2:G2');
+        $sheet->setCellValue('A2', 'CABANG DINAS KEHUTANAN (CDK) WILAYAH BOJONEGORO');
+        $sheet->mergeCells('A3:G3');
+        $sheet->setCellValue('A3', 'Periode: ' . $namaBulan . ' — hanya pengeluaran UP terverifikasi');
+
+        foreach (['A1', 'A2'] as $cell) {
+            $sheet->getStyle($cell)->applyFromArray([
+                'font' => ['bold' => true, 'size' => $cell === 'A1' ? 14 : 11],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            ]);
+        }
+        $sheet->getStyle('A3')->applyFromArray([
+            'font' => ['italic' => true, 'size' => 9, 'color' => ['rgb' => '6B7280']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $headers = ['No', 'Tanggal Bayar', 'Uraian', 'Penerima', 'No Bukti', 'Nominal (Rp)', 'Saldo Kas (Rp)'];
+        foreach ($headers as $i => $label) {
+            $sheet->setCellValue(chr(65 + $i) . '5', $label);
+        }
+        $sheet->getStyle('A5:G5')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension(5)->setRowHeight(24);
+
+        $row = 6;
+        $no = 1;
+        foreach ($output as $out) {
+            $t = $out['t'];
+            $uraian = trim((string) ($t['uraian'] ?? ''));
+            if (!str_starts_with($uraian, '123.6.6')) {
+                $uraian = '123.6.6 ' . $uraian;
+            }
+            $penerima = trim((string) ($t['nama_penerima'] ?? ''));
+            if ($penerima === '' && $uraian !== '') {
+                if (preg_match('/(?:An\.|a\.n\.|A\.n\.)\s+([^,\.\n\r]+)/i', $uraian, $m)) {
+                    $penerima = trim($m[1]);
+                }
+            }
+
+            $sheet->setCellValue('A' . $row, $no);
+            $sheet->setCellValue('B' . $row, date('d/m/Y', strtotime((string) $t['tanggal_efektif'])));
+            $sheet->setCellValue('C' . $row, $uraian);
+            $sheet->setCellValue('D' . $row, $penerima !== '' ? $penerima : '-');
+            $sheet->setCellValue('E' . $row, $t['nomor_bukti'] ?? '-');
+            $sheet->setCellValue('F' . $row, (float) $t['nilai']);
+            $sheet->setCellValue('G' . $row, (float) $out['saldo']);
+
+            $sheet->getStyle('A' . $row . ':G' . $row)->applyFromArray([
+                'font' => ['size' => 9],
+                'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER, 'wrapText' => true],
+                'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+            ]);
+            foreach (['F', 'G'] as $col) {
+                $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            }
+            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getRowDimension($row)->setRowHeight(32);
+            $row++;
+            $no++;
+        }
+
+        $lastSaldo = $output !== [] ? (float) end($output)['saldo'] : $saldo;
+        $totalRow = $row;
+        $sheet->mergeCells('A' . $totalRow . ':E' . $totalRow);
+        $sheet->setCellValue('A' . $totalRow, 'JUMLAH TOTAL (' . count($output) . ' transaksi)');
+        $sheet->setCellValue('F' . $totalRow, $output !== [] ? '=SUM(F6:F' . ($totalRow - 1) . ')' : 0);
+        $sheet->setCellValue('G' . $totalRow, $lastSaldo);
+        $sheet->getStyle('A' . $totalRow . ':G' . $totalRow)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        foreach (['F', 'G'] as $col) {
+            $sheet->getStyle($col . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle($col . $totalRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
+
+        $sheet->mergeCells('A' . ($totalRow + 2) . ':G' . ($totalRow + 2));
+        $sheet->setCellValue('A' . ($totalRow + 2), 'Dicetak ' . date('d-m-Y H:i') . ' dari Dashboard Anggaran CDK Wilayah Bojonegoro.');
+        $sheet->getStyle('A' . ($totalRow + 2))->applyFromArray([
+            'font' => ['italic' => true, 'size' => 8, 'color' => ['rgb' => '6B7280']],
+        ]);
+
+        $widths = ['A' => 5, 'B' => 14, 'C' => 70, 'D' => 28, 'E' => 28, 'F' => 18, 'G' => 18];
+        foreach ($widths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+        $sheet->getPageSetup()
+            ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0);
+        $sheet->freezePane('A6');
+
+        $fileName = $modePeriode
+            ? 'SIPD_CDK_Bojonegoro_' . ($dari ?? 'awal') . '_sd_' . ($sampai ?? 'akhir') . '.xlsx'
+            : 'SIPD_CDK_Bojonegoro_' . str_replace(' ', '_', $namaBulan) . '.xlsx';
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tmpFile = tempnam(sys_get_temp_dir(), 'bku_sipd_');
+        if ($tmpFile === false) {
+            http_response_code(500);
+            echo 'Gagal menyiapkan file sementara untuk unduhan SIPD';
+            exit;
+        }
+        try {
+            $writer->save($tmpFile);
+        } catch (\Throwable $e) {
+            @unlink($tmpFile);
+            error_log('downloadBkuSipd gagal menyusun xlsx: ' . $e->getMessage());
+            http_response_code(500);
+            echo 'Gagal menyusun file SIPD. Detail tercatat di log server.';
+            exit;
+        }
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        $fileSize = filesize($tmpFile);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        header('Content-Length: ' . $fileSize);
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+        readfile($tmpFile);
+        @unlink($tmpFile);
+        exit;
+    }
 }

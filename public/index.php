@@ -360,6 +360,7 @@ try {
         ['GET', '/transaksi/get-rekenings-with-budget', fn($m) => $transaksiController->getRekeningsWithBudget()],
         ['GET', '/transaksi/cari-klasifikasi', fn($m) => $transaksiController->cariKlasifikasi()],
         ['GET', '/transaksi/bku-cdk', fn($m) => $transaksiController->downloadBkuCdk()],
+        ['GET', '/transaksi/bku-sipd', fn($m) => $transaksiController->downloadBkuSipd()],
         ['ANY', '#^/transaksi/show/(\d+)$#', fn($m) => $transaksiController->show((int) $m[1])],
 
         // SPJ Rincian Biaya Perjalanan Dinas
