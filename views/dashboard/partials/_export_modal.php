@@ -40,6 +40,7 @@
                   <option value="detail-bulan">Detail Penyerapan per Bulan</option>
                   <option value="deviasi">Deviasi RAK</option>
                   <option value="breakdown">Ringkasan Serapan per Unit</option>
+                  <option value="tagar">Realisasi per Tagar</option>
                 </optgroup>
               </select>
             </div>

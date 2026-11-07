@@ -136,11 +136,13 @@ document.getElementById('btnDownloadExcel').addEventListener('click', function()
     var tahun = document.getElementById('exportTahun').value;
 
     // Laporan tabel halaman ini: langsung unduh via SheetJS (data sesuai filter layar).
-    if (jenis === 'detail-bulan' || jenis === 'deviasi' || jenis === 'breakdown') {
+    if (jenis === 'detail-bulan' || jenis === 'deviasi' || jenis === 'breakdown' || jenis === 'tagar') {
         if (jenis === 'detail-bulan') {
             exportTableToExcel('table-detail-bulan', 'detail-bulan-' + tahun + '.xlsx');
         } else if (jenis === 'deviasi') {
             exportDeviasiToExcel('deviasi-rak-' + tahun + '.xlsx');
+        } else if (jenis === 'tagar') {
+            exportTagarToExcel('realisasi-tagar-' + tahun + '.xlsx');
         } else {
             exportBreakdownToExcel('breakdown-seksi-' + tahun + '.xlsx');
         }
@@ -212,7 +214,8 @@ document.getElementById('btnDownloadExcel').addEventListener('click', function()
         rak: 'File Excel berisi <strong>Rencana Anggaran Kas (RAK)</strong> tahun yang dipilih.',
         'detail-bulan': 'Mengunduh <strong>tabel Detail Penyerapan per Bulan yang tampil di halaman ini</strong> (mengikuti filter layar aktif).',
         deviasi: 'Mengunduh <strong>daftar Deviasi RAK yang tampil di halaman ini</strong> (mengikuti filter layar aktif).',
-        breakdown: 'Mengunduh <strong>ringkasan serapan per unit yang tampil di halaman ini</strong> (mengikuti filter layar aktif).'
+        breakdown: 'Mengunduh <strong>ringkasan serapan per unit yang tampil di halaman ini</strong> (mengikuti filter layar aktif).',
+        tagar: 'Mengunduh <strong>rekap realisasi per tagar yang tampil di halaman ini</strong> (mengikuti filter layar aktif).'
     };
     function refreshExportModal() {
         var jenis = jenisEl ? jenisEl.value : 'laporan';
@@ -373,6 +376,22 @@ function exportBreakdownToExcel(filename) {
         var wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Breakdown");
         XLSX.writeFile(wb, filename || 'breakdown-seksi.xlsx');
+    }
+}
+
+// Helper: Export Rekap Tagar to Excel
+function exportTagarToExcel(filename) {
+    var data = [
+        ["Tagar", "Jumlah Rekening", "Pagu (Rp)", "Realisasi (Rp)", "Sisa (Rp)", "Serapan (%)"]
+    ];
+    (DashboardBoot.tagRecapRows || []).forEach(function(r) { data.push(r); });
+    if (typeof XLSX !== 'undefined') {
+        var ws = XLSX.utils.aoa_to_sheet(data);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Realisasi Tagar");
+        XLSX.writeFile(wb, filename || 'realisasi-tagar.xlsx');
+    } else {
+        alert('Library Excel sedang dimuat, silakan coba lagi.');
     }
 }
 

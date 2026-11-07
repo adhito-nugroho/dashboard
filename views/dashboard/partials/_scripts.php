@@ -58,6 +58,19 @@ if (!empty($breakdownData)) {
     }
 }
 
+// Baris export Rekap Tagar: [tagar, jumlah rekening, pagu, realisasi, sisa, %].
+$bootTagRecapRows = [];
+foreach (($tagRecap ?? []) as $tag) {
+    $bootTagRecapRows[] = [
+        (string) $tag['label'],
+        (int) $tag['count'],
+        (float) $tag['pagu'],
+        (float) $tag['realisasi'],
+        (float) $tag['sisa'],
+        round((float) $tag['serapan'], 2),
+    ];
+}
+
 $bootAlertTypes = [];
 foreach (($monthlyData['alerts'] ?? []) as $a) {
     $bootAlertTypes[$a['bulan']] = $a['type'];
@@ -85,6 +98,7 @@ $boot = [
     'breakdown' => $breakdownData,
     'breakdownRows' => $bootBreakdownRows,
     'deviasiRows' => $bootDeviasiRows,
+    'tagRecapRows' => $bootTagRecapRows,
 ];
 ?>
 <script>
