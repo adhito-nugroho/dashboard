@@ -1314,6 +1314,8 @@ class TransaksiController
                 t.tanggal,
                 t.tanggal_lunas_dibayar,
                 t.diverifikasi_at,
+                t.surat_tugas_ref_id,
+                t.nomor_surat_tugas,
                 s.nama_seksi,
                 t.uraian,
                 t.nama_penerima,
@@ -1430,6 +1432,8 @@ class TransaksiController
                 'pengeluaran'   => (float) ($t['nilai'] ?? 0),
                 'status'        => $t['status'] ?? '',
                 'jenis'         => 'pengeluaran',
+                'spt_ref'       => (int) ($t['surat_tugas_ref_id'] ?? 0),
+                'spt_nomor'     => trim((string) ($t['nomor_surat_tugas'] ?? '')),
             ];
         }
 
@@ -1474,6 +1478,34 @@ class TransaksiController
 
             return strnatcasecmp($nbA, $nbB);
         });
+
+        // Balik urutan baris PENGELUARAN yang tanggalnya sama dan Surat
+        // Tugasnya sama. Posisi baris lain tidak berubah, jadi urutan global
+        // tetap seperti semula; hanya isi grup SPT yang dibalik.
+        $sptGroups = [];
+        foreach ($bkuItems as $i => $item) {
+            if (($item['type'] ?? '') !== 'pengeluaran') {
+                continue;
+            }
+            $sptRef = (int) ($item['spt_ref'] ?? 0);
+            $sptNomor = trim((string) ($item['spt_nomor'] ?? ''));
+            if ($sptRef <= 0 && $sptNomor === '') {
+                continue;
+            }
+            $tgl = (string) ($item['tanggal_raw'] ?? $item['tanggal_sort'] ?? '');
+            $key = $tgl . '|' . ($sptRef > 0 ? 'ref:' . $sptRef : 'no:' . strtoupper($sptNomor));
+            $sptGroups[$key][] = $i;
+        }
+        foreach ($sptGroups as $indices) {
+            if (count($indices) < 2) {
+                continue;
+            }
+            $items = array_map(static fn($i) => $bkuItems[$i], $indices);
+            $items = array_reverse($items);
+            foreach ($indices as $pos => $index) {
+                $bkuItems[$index] = $items[$pos];
+            }
+        }
 
         // ── Konstanta ──────────────────────────────────────────────────────
         $namaBulanMap = [

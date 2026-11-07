@@ -1125,7 +1125,8 @@ class SeksiTransaksiController
         // (lunas dibayar / verifikasi / tanggal bukti), urut tanggal efektif ASC lalu id ASC.
         // BKU kas seksi hanya mencatat arus kas bendahara (UP); LS dikecualikan.
         $stmt = $db->prepare("
-            SELECT t.tanggal, t.tanggal_lunas_dibayar, t.diverifikasi_at, t.uraian, t.nomor_bukti, t.nilai, t.nama_penerima, t.status
+            SELECT t.tanggal, t.tanggal_lunas_dibayar, t.diverifikasi_at, t.uraian, t.nomor_bukti, t.nilai, t.nama_penerima, t.status,
+                   t.surat_tugas_ref_id, t.nomor_surat_tugas
             FROM transaksi t
             WHERE t.seksi_id = :seksi_id
               AND t.sumber_dana = 'UP'
@@ -1135,6 +1136,32 @@ class SeksiTransaksiController
         ");
         $stmt->execute([':seksi_id' => $seksiId, ':bulan' => $bulan, ':tahun' => $tahun]);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Balik urutan baris dengan tanggal efektif sama + Surat Tugas sama.
+        // Posisi baris lain tidak berubah; hanya isi grup SPT yang dibalik.
+        $sptGroups = [];
+        foreach ($rows as $i => $t) {
+            $sptRef = (int) ($t['surat_tugas_ref_id'] ?? 0);
+            $sptNomor = trim((string) ($t['nomor_surat_tugas'] ?? ''));
+            if ($sptRef <= 0 && $sptNomor === '') {
+                continue;
+            }
+            $tgl = !empty($t['tanggal_lunas_dibayar'])
+                ? date('Y-m-d', strtotime($t['tanggal_lunas_dibayar']))
+                : (!empty($t['diverifikasi_at']) ? date('Y-m-d', strtotime($t['diverifikasi_at'])) : (string) ($t['tanggal'] ?? ''));
+            $key = $tgl . '|' . ($sptRef > 0 ? 'ref:' . $sptRef : 'no:' . strtoupper($sptNomor));
+            $sptGroups[$key][] = $i;
+        }
+        foreach ($sptGroups as $indices) {
+            if (count($indices) < 2) {
+                continue;
+            }
+            $items = array_map(static fn($i) => $rows[$i], $indices);
+            $items = array_reverse($items);
+            foreach ($indices as $pos => $index) {
+                $rows[$index] = $items[$pos];
+            }
+        }
 
         // Label status Indonesia
         $statusLabel = [
