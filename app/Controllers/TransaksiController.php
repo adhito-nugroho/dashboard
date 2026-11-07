@@ -2117,7 +2117,8 @@ class TransaksiController
             }
             $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getRowDimension($row)->setRowHeight(32);
+            // Tinggi baris dibiarkan auto-fit seperti BKU agar uraian panjang
+            // langsung terbaca tanpa terpotong.
             $row++;
             $no++;
         }
