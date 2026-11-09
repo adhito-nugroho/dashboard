@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Export tagihan Listrik & Air per bulan ke Excel.
+ * Export tagihan Listrik, Air & BBM per bulan ke Excel.
  *
  * Jalankan di server:
  *   php tools/export_tagihan_listrik_air.php
@@ -71,6 +71,7 @@ $labelPeriode = $dari === $sampai
 $daftar = [
     ['jenis' => 'Listrik', 'kode' => '5.1.02.02.01.0061', 'nama' => 'Belanja Tagihan Listrik'],
     ['jenis' => 'Air', 'kode' => '5.1.02.02.01.0060', 'nama' => 'Belanja Tagihan Air'],
+    ['jenis' => 'BBM', 'kode' => '5.1.02.01.01.0004', 'nama' => 'Belanja Bahan-Bahan Bakar dan Pelumas'],
 ];
 
 $db = Database::getConnection();

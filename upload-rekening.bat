@@ -11,6 +11,40 @@ set "REMOTE_DIR=C:\laragon\www\dashboard"
 set "REMOTE_STORAGE=%REMOTE_DIR%\storage"
 set "LOCAL_JSON=storage\rekening_pegawai.json"
 
+:: Cari ssh/scp absolut: PATH cmd kadang tidak memuat OpenSSH.
+set "SSH_EXE="
+set "SCP_EXE="
+for %%P in (
+    "C:\Windows\System32\OpenSSH\ssh.exe"
+    "C:\Program Files\OpenSSH\ssh.exe"
+    "C:\Program Files\Git\usr\bin\ssh.exe"
+) do (
+    if not defined SSH_EXE if exist "%%~P" set "SSH_EXE=%%~P"
+)
+for %%P in (
+    "C:\Windows\System32\OpenSSH\scp.exe"
+    "C:\Program Files\OpenSSH\scp.exe"
+    "C:\Program Files\Git\usr\bin\scp.exe"
+) do (
+    if not defined SCP_EXE if exist "%%~P" set "SCP_EXE=%%~P"
+)
+if not defined SSH_EXE (
+    for /f "delims=" %%P in ('where ssh 2^>nul') do if not defined SSH_EXE set "SSH_EXE=%%P"
+)
+if not defined SCP_EXE (
+    for /f "delims=" %%P in ('where scp 2^>nul') do if not defined SCP_EXE set "SCP_EXE=%%P"
+)
+if not defined SSH_EXE (
+    echo ssh.exe tidak ditemukan. Install OpenSSH Client atau sesuaikan path di batch ini.
+    pause
+    exit /b 1
+)
+if not defined SCP_EXE (
+    echo scp.exe tidak ditemukan. Install OpenSSH Client atau sesuaikan path di batch ini.
+    pause
+    exit /b 1
+)
+
 cd /d "%~dp0"
 
 echo ======================================================
@@ -52,7 +86,7 @@ if not exist "%LOCAL_JSON%" (
 echo.
 echo [2/3] Memastikan folder storage ada di server...
 echo *(Jika diminta password SSH, masukkan password akun server)*
-ssh -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "if not exist %REMOTE_STORAGE% mkdir %REMOTE_STORAGE%"
+"%SSH_EXE%" -p %SERVER_PORT% %SERVER_USER%@%SERVER_IP% "if not exist %REMOTE_STORAGE% mkdir %REMOTE_STORAGE%"
 if errorlevel 1 (
     echo.
     echo Gagal membuat folder storage di server. Periksa koneksi/password SSH.
@@ -62,7 +96,7 @@ if errorlevel 1 (
 
 echo.
 echo [3/3] Mengunggah %LOCAL_JSON% ke server...
-scp -P %SERVER_PORT% "%LOCAL_JSON%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/rekening_pegawai.json"
+"%SCP_EXE%" -P %SERVER_PORT% "%LOCAL_JSON%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/rekening_pegawai.json"
 if errorlevel 1 (
     echo.
     echo Upload gagal. Pastikan folder tujuan ada dan password SSH benar.
