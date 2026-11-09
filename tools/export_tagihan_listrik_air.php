@@ -72,6 +72,13 @@ $daftar = [
     ['jenis' => 'Listrik', 'kode' => '5.1.02.02.01.0061', 'nama' => 'Belanja Tagihan Listrik'],
     ['jenis' => 'Air', 'kode' => '5.1.02.02.01.0060', 'nama' => 'Belanja Tagihan Air'],
     ['jenis' => 'BBM', 'kode' => '5.1.02.01.01.0004', 'nama' => 'Belanja Bahan-Bahan Bakar dan Pelumas'],
+    [
+        'jenis' => 'Perjalanan Dinas',
+        'kodes' => ['5.1.02.04.01.0001', '5.1.02.04.01.0003'],
+        'nama' => 'Belanja Perjalanan Dinas Biasa & Dalam Kota',
+        'judul' => 'PERJALANAN DINAS',
+        'file_prefix' => 'Perjalanan_Dinas',
+    ],
 ];
 
 $db = Database::getConnection();
@@ -82,10 +89,12 @@ if (!is_dir($outDir) && !mkdir($outDir, 0775, true) && !is_dir($outDir)) {
 }
 
 foreach ($daftar as $item) {
-    $rows = ambilTransaksi($db, $item['kode'], $tahun, $dari, $sampai, $allStatus);
+    $kodes = $item['kodes'] ?? [$item['kode']];
+    $rows = ambilTransaksi($db, $kodes, $tahun, $dari, $sampai, $allStatus);
     $spreadsheet = buatSpreadsheet($item, $rows, $tahun, $dari, $sampai, $allStatus, $bulanMap);
+    $filePrefix = $item['file_prefix'] ?? ('Tagihan_' . $item['jenis']);
     $file = rtrim($outDir, '/\\') . DIRECTORY_SEPARATOR
-        . 'Tagihan_' . $item['jenis'] . '_' . $labelPeriode . '_' . $tahun . '.xlsx';
+        . $filePrefix . '_' . $labelPeriode . '_' . $tahun . '.xlsx';
 
     try {
         (new Xlsx($spreadsheet))->save($file);
@@ -99,7 +108,7 @@ foreach ($daftar as $item) {
         $total += (float) $row['nilai'];
     }
     echo sprintf(
-        "%-8s : %d transaksi, total Rp %s -> %s\n",
+        "%-18s : %d transaksi, total Rp %s -> %s\n",
         $item['jenis'],
         count($rows),
         number_format($total, 0, ',', '.'),
@@ -108,17 +117,28 @@ foreach ($daftar as $item) {
 }
 
 /**
+ * @param string[] $kodes
  * @return array<int, array<string, mixed>>
  */
-function ambilTransaksi(\PDO $db, string $kode, int $tahun, int $dari, int $sampai, bool $allStatus): array
+function ambilTransaksi(\PDO $db, array $kodes, int $tahun, int $dari, int $sampai, bool $allStatus): array
 {
+    $kodes = array_values(array_unique(array_filter(array_map('trim', $kodes), static fn ($k) => $k !== '')));
+    if ($kodes === []) {
+        return [];
+    }
+
+    $placeholders = [];
+    foreach ($kodes as $i => $kode) {
+        $placeholders[] = ':kode' . $i;
+    }
+
     $sql = "
         SELECT t.id, t.tanggal, t.tanggal_lunas_dibayar, t.uraian, t.nomor_bukti,
-               t.nilai, t.status, s.nama_seksi
+               t.nilai, t.status, s.nama_seksi, r.kode_rekening, r.nama_rekening
         FROM transaksi t
         INNER JOIN rekening r ON r.id = t.rekening_id
         LEFT JOIN seksi s ON s.id = t.seksi_id
-        WHERE TRIM(r.kode_rekening) = :kode
+        WHERE TRIM(r.kode_rekening) IN (" . implode(',', $placeholders) . ")
           AND YEAR(t.tanggal) = :tahun
           AND MONTH(t.tanggal) BETWEEN :dari AND :sampai
     ";
@@ -128,7 +148,9 @@ function ambilTransaksi(\PDO $db, string $kode, int $tahun, int $dari, int $samp
     $sql .= " ORDER BY t.tanggal ASC, t.id ASC";
 
     $stmt = $db->prepare($sql);
-    $stmt->bindValue(':kode', $kode, \PDO::PARAM_STR);
+    foreach ($kodes as $i => $kode) {
+        $stmt->bindValue(':kode' . $i, $kode, \PDO::PARAM_STR);
+    }
     $stmt->bindValue(':tahun', $tahun, \PDO::PARAM_INT);
     $stmt->bindValue(':dari', $dari, \PDO::PARAM_INT);
     $stmt->bindValue(':sampai', $sampai, \PDO::PARAM_INT);
@@ -157,8 +179,12 @@ function buatRekap(Worksheet $sheet, array $item, array $rows, int $tahun, int $
 {
     $sheet->setTitle('Rekap');
 
+    $judul = $item['judul'] ?? ('TAGIHAN ' . strtoupper((string) $item['jenis']));
+    $kodes = $item['kodes'] ?? [$item['kode']];
+    $kodeLabel = implode(' & ', $kodes);
+
     $sheet->mergeCells('A1:D1');
-    $sheet->setCellValue('A1', 'REKAP TAGIHAN ' . strtoupper((string) $item['jenis']));
+    $sheet->setCellValue('A1', 'REKAP ' . $judul);
     $sheet->getStyle('A1')->applyFromArray([
         'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
@@ -167,7 +193,7 @@ function buatRekap(Worksheet $sheet, array $item, array $rows, int $tahun, int $
     $sheet->getRowDimension(1)->setRowHeight(26);
 
     $sheet->mergeCells('A2:D2');
-    $sheet->setCellValue('A2', 'Rekening: ' . $item['kode'] . ' — ' . $item['nama']);
+    $sheet->setCellValue('A2', 'Rekening: ' . $kodeLabel . ' — ' . $item['nama']);
     $sheet->getStyle('A2')->applyFromArray([
         'font' => ['bold' => true, 'size' => 10],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -176,7 +202,9 @@ function buatRekap(Worksheet $sheet, array $item, array $rows, int $tahun, int $
     $sheet->mergeCells('A3:D3');
     $sheet->setCellValue(
         'A3',
-        'Periode: ' . $bulanMap[$dari] . ' s.d. ' . $bulanMap[$sampai] . ' ' . $tahun
+        'Periode: ' . ($dari === $sampai
+            ? $bulanMap[$dari]
+            : $bulanMap[$dari] . ' s.d. ' . $bulanMap[$sampai]) . ' ' . $tahun
         . ' — ' . ($allStatus ? 'semua status' : 'hanya transaksi diverifikasi')
     );
     $sheet->getStyle('A3')->applyFromArray([
@@ -269,8 +297,12 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
 {
     $sheet->setTitle('Detail');
 
-    $sheet->mergeCells('A1:H1');
-    $sheet->setCellValue('A1', 'DETAIL TAGIHAN ' . strtoupper((string) $item['jenis']));
+    $judul = $item['judul'] ?? ('TAGIHAN ' . strtoupper((string) $item['jenis']));
+    $kodes = $item['kodes'] ?? [$item['kode']];
+    $kodeLabel = implode(' & ', $kodes);
+
+    $sheet->mergeCells('A1:I1');
+    $sheet->setCellValue('A1', 'DETAIL ' . $judul);
     $sheet->getStyle('A1')->applyFromArray([
         'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
@@ -278,17 +310,19 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
     ]);
     $sheet->getRowDimension(1)->setRowHeight(26);
 
-    $sheet->mergeCells('A2:H2');
-    $sheet->setCellValue('A2', 'Rekening: ' . $item['kode'] . ' — ' . $item['nama']);
+    $sheet->mergeCells('A2:I2');
+    $sheet->setCellValue('A2', 'Rekening: ' . $kodeLabel . ' — ' . $item['nama']);
     $sheet->getStyle('A2')->applyFromArray([
         'font' => ['bold' => true, 'size' => 10],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
     ]);
 
-    $sheet->mergeCells('A3:H3');
+    $sheet->mergeCells('A3:I3');
     $sheet->setCellValue(
         'A3',
-        'Periode: ' . $bulanMap[$dari] . ' s.d. ' . $bulanMap[$sampai] . ' ' . $tahun
+        'Periode: ' . ($dari === $sampai
+            ? $bulanMap[$dari]
+            : $bulanMap[$dari] . ' s.d. ' . $bulanMap[$sampai]) . ' ' . $tahun
         . ' — ' . ($allStatus ? 'semua status' : 'hanya transaksi diverifikasi')
     );
     $sheet->getStyle('A3')->applyFromArray([
@@ -296,11 +330,11 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
     ]);
 
-    $headers = ['No', 'Tanggal', 'Tanggal Bayar', 'Uraian', 'No Bukti', 'Seksi', 'Status', 'Nominal (Rp)'];
+    $headers = ['No', 'Tanggal', 'Tanggal Bayar', 'Uraian', 'Jenis', 'No Bukti', 'Seksi', 'Status', 'Nominal (Rp)'];
     foreach ($headers as $i => $label) {
         $sheet->setCellValue(chr(65 + $i) . '5', $label);
     }
-    $sheet->getStyle('A5:H5')->applyFromArray([
+    $sheet->getStyle('A5:I5')->applyFromArray([
         'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
@@ -313,13 +347,17 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
         'diverifikasi' => 'Diverifikasi',
         'ditolak' => 'Ditolak',
     ];
+    $jenisByKode = [
+        '5.1.02.04.01.0001' => 'Perjalanan Dinas Biasa',
+        '5.1.02.04.01.0003' => 'Perjalanan Dinas Dalam Kota',
+    ];
 
     $rowNumber = 6;
     $no = 1;
     $totalNominal = 0.0;
 
     if ($rows === []) {
-        $sheet->mergeCells('A6:H6');
+        $sheet->mergeCells('A6:I6');
         $sheet->setCellValue('A6', 'Tidak ada transaksi pada periode ini.');
         $sheet->getStyle('A6')->applyFromArray([
             'font' => ['italic' => true, 'color' => ['rgb' => '64748B']],
@@ -333,17 +371,20 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
                 : '-';
             $status = (string) ($row['status'] ?? '');
             $nilai = (float) ($row['nilai'] ?? 0);
+            $kodeRek = (string) ($row['kode_rekening'] ?? '');
+            $jenisTampil = $jenisByKode[$kodeRek] ?? (string) ($item['jenis'] ?? '');
 
             $sheet->setCellValue('A' . $rowNumber, $no);
             $sheet->setCellValue('B' . $rowNumber, $tanggal);
             $sheet->setCellValue('C' . $rowNumber, $tanggalBayar);
             $sheet->setCellValue('D' . $rowNumber, (string) ($row['uraian'] ?? ''));
-            $sheet->setCellValue('E' . $rowNumber, (string) ($row['nomor_bukti'] ?? '-'));
-            $sheet->setCellValue('F' . $rowNumber, (string) ($row['nama_seksi'] ?? '-'));
-            $sheet->setCellValue('G' . $rowNumber, $statusLabel[$status] ?? ucfirst($status));
-            $sheet->setCellValue('H' . $rowNumber, $nilai);
+            $sheet->setCellValue('E' . $rowNumber, $jenisTampil);
+            $sheet->setCellValue('F' . $rowNumber, (string) ($row['nomor_bukti'] ?? '-'));
+            $sheet->setCellValue('G' . $rowNumber, (string) ($row['nama_seksi'] ?? '-'));
+            $sheet->setCellValue('H' . $rowNumber, $statusLabel[$status] ?? ucfirst($status));
+            $sheet->setCellValue('I' . $rowNumber, $nilai);
 
-            $sheet->getStyle('A' . $rowNumber . ':H' . $rowNumber)->applyFromArray([
+            $sheet->getStyle('A' . $rowNumber . ':I' . $rowNumber)->applyFromArray([
                 'font' => ['size' => 9],
                 'alignment' => ['vertical' => Alignment::VERTICAL_TOP],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
@@ -352,9 +393,10 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
             $sheet->getStyle('B' . $rowNumber)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('C' . $rowNumber)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('D' . $rowNumber)->getAlignment()->setWrapText(true);
-            $sheet->getStyle('G' . $rowNumber)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('H' . $rowNumber)->getNumberFormat()->setFormatCode('#,##0');
-            $sheet->getStyle('H' . $rowNumber)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('E' . $rowNumber)->getAlignment()->setWrapText(true);
+            $sheet->getStyle('H' . $rowNumber)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('I' . $rowNumber)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('I' . $rowNumber)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
             $totalNominal += $nilai;
             $rowNumber++;
@@ -362,20 +404,20 @@ function buatDetail(Worksheet $sheet, array $item, array $rows, int $tahun, int 
         }
 
         $totalRow = $rowNumber;
-        $sheet->mergeCells('A' . $totalRow . ':G' . $totalRow);
+        $sheet->mergeCells('A' . $totalRow . ':H' . $totalRow);
         $sheet->setCellValue('A' . $totalRow, 'TOTAL (' . count($rows) . ' transaksi)');
-        $sheet->setCellValue('H' . $totalRow, $totalNominal);
-        $sheet->getStyle('A' . $totalRow . ':H' . $totalRow)->applyFromArray([
+        $sheet->setCellValue('I' . $totalRow, $totalNominal);
+        $sheet->getStyle('A' . $totalRow . ':I' . $totalRow)->applyFromArray([
             'font' => ['bold' => true],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D8F3DC']],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '93C5FD']]],
         ]);
         $sheet->getStyle('A' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('H' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('H' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('I' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('I' . $totalRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }
 
-    foreach (['A' => 5, 'B' => 12, 'C' => 14, 'D' => 60, 'E' => 28, 'F' => 22, 'G' => 20, 'H' => 18] as $col => $width) {
+    foreach (['A' => 5, 'B' => 12, 'C' => 14, 'D' => 55, 'E' => 24, 'F' => 26, 'G' => 20, 'H' => 20, 'I' => 18] as $col => $width) {
         $sheet->getColumnDimension($col)->setWidth($width);
     }
 

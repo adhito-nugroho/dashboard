@@ -19,6 +19,7 @@ set SAMPAI=10
 set "FILE_LISTRIK=Tagihan_Listrik_Maret-Oktober_%TAHUN%.xlsx"
 set "FILE_AIR=Tagihan_Air_Maret-Oktober_%TAHUN%.xlsx"
 set "FILE_BBM=Tagihan_BBM_Maret-Oktober_%TAHUN%.xlsx"
+set "FILE_PERJADIN=Perjalanan_Dinas_Maret-Oktober_%TAHUN%.xlsx"
 
 :: Cari ssh/scp absolut: PATH cmd kadang tidak memuat OpenSSH.
 set "SSH_EXE="
@@ -56,8 +57,10 @@ if not defined SCP_EXE (
 
 cd /d "%~dp0"
 
+if not exist "%LOCAL_DIR%" mkdir "%LOCAL_DIR%"
+
 echo ======================================================
-echo EXPORT TAGIHAN LISTRIK, AIR ^& BBM - MARET S.D. OKTOBER
+echo EXPORT TAGIHAN LISTRIK, AIR, BBM ^& PERJALANAN DINAS - MARET S.D. OKTOBER
 echo ======================================================
 echo.
 
@@ -67,14 +70,17 @@ echo *(Jika diminta password SSH, masukkan password akun server)*
 if errorlevel 1 (
     echo.
     echo Gagal membuat file Excel di server.
-    echo Pastikan script sudah di-deploy dan data rekening listrik/air tersedia.
+    echo Jika muncul "Connection refused" ke 127.0.0.1:2222:
+    echo   - Jalankan batch ini dari LAPTOP, bukan dari dalam sesi SSH server.
+    echo   - Pastikan Cloudflare SSH tunnel aktif di laptop.
+    echo Selain itu, pastikan script sudah di-deploy dan data rekening listrik/air/BBM/perjalanan dinas tersedia.
     pause
     exit /b 1
 )
 
 echo.
 echo [2/2] Mengunduh file ke %LOCAL_DIR% ...
-"%SCP_EXE%" -P %SERVER_PORT% %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_LISTRIK%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_AIR%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_BBM%" "%LOCAL_DIR%\"
+"%SCP_EXE%" -P %SERVER_PORT% %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_LISTRIK%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_AIR%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_BBM%" %SERVER_USER%@%SERVER_IP%:"C:/laragon/www/dashboard/storage/exports/%FILE_PERJADIN%" "%LOCAL_DIR%"
 if errorlevel 1 (
     echo.
     echo Download gagal. Periksa koneksi/password SSH dan nama file di server.
@@ -89,6 +95,7 @@ echo File ada di: %LOCAL_DIR%
 echo - %FILE_LISTRIK%
 echo - %FILE_AIR%
 echo - %FILE_BBM%
+echo - %FILE_PERJADIN%
 echo ======================================================
 echo.
 
