@@ -52,7 +52,7 @@
 
 <body>
     <div class="wrapper d-flex">
-        <?php $hideSidebar = (isset($activePage) && $activePage === 'dashboard') && empty($_SESSION['is_admin']); ?>
+        <?php $hideSidebar = (isset($activePage) && in_array($activePage, ['dashboard', 'analisa_sisa'], true)) && empty($_SESSION['is_admin']); ?>
         <?php if (!$hideSidebar): ?>
             <!-- Sidebar -->
             <aside id="sidebar" class="sidebar">

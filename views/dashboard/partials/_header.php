@@ -7,7 +7,12 @@
             </h2>
             <p style="color:var(--gray-400);font-size:var(--fs-base);margin:0;">Monitoring Realisasi Anggaran Cabang Dinas Kehutanan Wilayah Bojonegoro &mdash; Tahun <strong style="color:var(--gray-600);"><?= $stats['tahun'] ?></strong></p>
         </div>
-        <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+        <div class="d-flex align-items-center gap-2 mt-2 mt-md-0 flex-wrap">
+        <a href="<?= base_url('analisa-sisa-anggaran') ?>" class="btn btn-sm fw-semibold"
+           title="Buka analisa sisa anggaran per rekening"
+           style="background:#fff;color:var(--primary);border:1px solid var(--gray-200);border-radius:var(--radius-full);padding:0.4rem 1.1rem;font-size:var(--fs-sm, 0.75rem);box-shadow:var(--shadow-xs);display:inline-flex;align-items:center;gap:0.4rem;text-decoration:none;">
+            <i class="bi bi-graph-up-arrow"></i> Analisa Sisa
+        </a>
         <form method="GET" action="<?= base_url() ?>" class="" style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-full);padding:0.35rem 0.5rem 0.35rem 1rem;display:inline-flex;align-items:center;gap:0.5rem;box-shadow:var(--shadow-xs);">
             <i class="bi bi-calendar3" style="color:var(--primary);font-size:var(--fs-md);"></i>
             <select class="form-select form-select-sm border-0 bg-transparent fw-bold py-0" id="tahun" name="tahun" onchange="this.form.submit()" style="width:auto;cursor:pointer;box-shadow:none;color:var(--primary);font-size:var(--fs-base);">

@@ -192,7 +192,8 @@ try {
     $publicRoutes = [
         '/', '', '/dashboard', '/dashboard/', '/login', '/logout',
         '/export/laporan', '/export/serapan-bulanan', '/export/serapan-triwulan', '/export/sisa-semester',
-        '/rak/export'
+        '/rak/export',
+        '/analisa-sisa-anggaran', '/analisa-sisa-anggaran/', '/analisa-sisa-anggaran/export',
     ];
     
     // Check authentication for protected routes
@@ -209,7 +210,8 @@ try {
             || preg_match('#^/seksi/transaksi#', $path)
             || preg_match('#^/kuitansi/cetak/\d+$#', $path)
             || preg_match('#^/kuitansi/kalibrasi#', $path)
-            || preg_match('#^/spj#', $path);
+            || preg_match('#^/spj#', $path)
+            || preg_match('#^/analisa-sisa-anggaran#', $path);
         if (!$seksiAllowed) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
                 http_response_code(403);
