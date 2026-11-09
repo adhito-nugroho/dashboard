@@ -1549,6 +1549,11 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
         .then(res => {
             const nomorList = res.success ? res.list : [];
             const jmlHari = hitungJumlahHari(selectedSTData.tanggal_mulai, selectedSTData.tanggal_selesai);
+            // Tempat & Tanggal cetak otomatis memakai tanggal terakhir perjalanan dinas
+            // (utamakan input "s/d Tanggal" jika pengguna mengubahnya manual)
+            const tglSelesaiEl = document.getElementById('tanggal_pelaksanaan_selesai');
+            const tglSelesaiVal = (tglSelesaiEl && tglSelesaiEl.value) || selectedSTData.tanggal_selesai;
+            const tglCetak = 'Bojonegoro, ' + (formatTglIndo(tglSelesaiVal) || todayStr());
             let batchHtml = '';
             selectedPegawais.forEach((p, idx) => {
                 const draft = buildDraftUraian(
@@ -1653,7 +1658,7 @@ document.getElementById('btnApplyST').addEventListener('click', function() {
                                     <input type="text" name="items[${idx}][tempat_tanggal]"
                                         class="form-control form-control-sm custom-form-input"
                                         placeholder="Bojonegoro, 31 Agustus 2026"
-                                        value="Bojonegoro, ${todayStr()}">
+                                        value="${tglCetak}">
                                 </div>
                             </div><!-- /rincian-biaya-body -->
                         </div><!-- /rincian-biaya-section -->
@@ -1864,6 +1869,15 @@ function todayStr() {
     const d = new Date();
     const bl = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     return `${d.getDate()} ${bl[d.getMonth()+1]} ${d.getFullYear()}`;
+}
+
+// Format YYYY-MM-DD -> "9 November 2026" untuk field Tempat & Tanggal (cetak)
+function formatTglIndo(dateStr) {
+    if (!dateStr) return '';
+    const m = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return '';
+    const bl = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    return `${parseInt(m[3], 10)} ${bl[parseInt(m[2], 10)]} ${m[1]}`;
 }
 
 const DEFAULT_KOMPONEN = [
@@ -2087,7 +2101,9 @@ function renderEditBatchItems() {
         const nilaiFmt = item.nilai > 0 ? Math.floor(item.nilai).toLocaleString('id-ID') : '';
         const detFmt = item.ditetapkan_sejumlah > 0 ? Math.floor(item.ditetapkan_sejumlah).toLocaleString('id-ID') : '';
         const dibFmt = item.dibayar_semula > 0 ? Math.floor(item.dibayar_semula).toLocaleString('id-ID') : '';
-        const tptTgl = item.tempat_tanggal || ('Bojonegoro, ' + todayStr());
+        const tptTgl = item.tempat_tanggal || ('Bojonegoro, ' + (
+            formatTglIndo((selectedSTData && selectedSTData.tanggal_selesai) || item.tanggal_pelaksanaan) || todayStr()
+        ));
 
         let compRowsHtml = '';
         if (Array.isArray(item.komponen) && item.komponen.length > 0) {
