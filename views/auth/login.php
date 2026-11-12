@@ -87,26 +87,25 @@
             justify-content: space-between;
             gap: 32px;
         }
-        .brand-top { display: flex; flex-direction: column; gap: 2px; }
-        .brand-app {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: var(--fs-2);
-            font-weight: var(--fw-strong);
-            line-height: 1.3;
-            color: #fff;
+        .brand-top { display: flex; align-items: center; gap: 14px; }
+        .brand-logo {
+            flex: none;
+            height: 54px;
+            width: auto;
+            display: block;
         }
-        .brand-app::before {
-            content: "";
-            width: 2px;
-            height: 12px;
-            border-radius: 1px;
-            background: var(--gold-500);
+        .brand-lockup { min-width: 0; }
+        .brand-lockup h1 {
+            margin: 0;
+            font-size: var(--fs-3);
+            font-weight: var(--fw-strong);
+            line-height: 1.2;
+            letter-spacing: -.01em;
+            color: #fff;
         }
         .brand-org {
             display: block;
-            padding-left: 10px;
+            margin-top: 2px;
             font-size: var(--fs-1);
             line-height: 1.3;
             color: #a6b6a9;
@@ -116,9 +115,20 @@
             border-top: 1px solid rgba(255, 255, 255, .14);
         }
         .brand-kicker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             margin: 0 0 8px;
-            font-size: var(--fs-1);
-            color: #c9d6cc;
+            font-size: var(--fs-2);
+            font-weight: var(--fw-strong);
+            color: #fff;
+        }
+        .brand-kicker::before {
+            content: "";
+            width: 2px;
+            height: 14px;
+            border-radius: 1px;
+            background: var(--gold-500);
         }
         .brand-main h1 {
             margin: 0;
@@ -337,14 +347,16 @@
         <!-- Panel identitas -->
         <section class="brand-panel" aria-label="Identitas aplikasi">
             <div class="brand-top">
-                <span class="brand-app">Monitoring Anggaran</span>
-                <span class="brand-org">Dinas Kehutanan Provinsi Jawa Timur</span>
+                <img class="brand-logo" src="<?= base_url('images/logo_jatim.png') ?>" alt="">
+                <div class="brand-lockup">
+                    <h1>CDK Wilayah Bojonegoro</h1>
+                    <span class="brand-org">Dinas Kehutanan Provinsi Jawa Timur</span>
+                </div>
             </div>
 
             <div class="brand-main">
-                <p class="brand-kicker">Aplikasi internal</p>
-                <h1>CDK Wilayah<br>Bojonegoro</h1>
-                <p class="brand-desc">Pengelolaan pagu, RAK, realisasi, dan verifikasi transaksi per seksi.</p>
+                <p class="brand-kicker">Monitoring Anggaran</p>
+                <p class="brand-desc">Aplikasi internal untuk pengelolaan pagu, RAK, realisasi, dan verifikasi transaksi per seksi.</p>
             </div>
 
             <div class="brand-foot">
