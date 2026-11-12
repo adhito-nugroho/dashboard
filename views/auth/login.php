@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* Token desain — sama dengan dashboard monitoring (SMART-HUT). */
+        /* Token desain — dipakai juga oleh prototipe dashboard monitoring. */
         :root {
             --forest-950: #14271c;
             --forest-900: #1b3225;
@@ -354,7 +354,7 @@
                 </div>
                 <div>
                     <span class="brand-org">Dinas Kehutanan Provinsi Jawa Timur</span>
-                    <span class="brand-app">SMART-HUT · Monitoring Anggaran</span>
+                    <span class="brand-app">Monitoring Anggaran</span>
                 </div>
             </div>
 
@@ -366,7 +366,7 @@
 
             <div class="brand-foot">
                 <span class="ta">TA <?= date('Y') ?></span>
-                <span>SMART-HUT v2.4</span>
+                <span>CDK Wilayah Bojonegoro</span>
             </div>
         </section>
 
