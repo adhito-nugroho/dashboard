@@ -87,50 +87,38 @@
             justify-content: space-between;
             gap: 32px;
         }
-        .brand-top { display: flex; align-items: center; gap: 12px; }
-        .brand-mark {
-            flex: none;
-            width: 44px;
-            height: 44px;
-            padding: 4px;
-            display: grid;
-            place-items: center;
-            background: var(--surface);
-            border-radius: var(--radius-sm);
-        }
-        .brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .brand-org {
-            display: block;
-            font-size: var(--fs-1);
-            line-height: 1.3;
-            color: #a6b6a9;
-        }
+        .brand-top { display: flex; flex-direction: column; gap: 2px; }
         .brand-app {
-            display: block;
-            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-size: var(--fs-2);
             font-weight: var(--fw-strong);
             line-height: 1.3;
             color: #fff;
+        }
+        .brand-app::before {
+            content: "";
+            width: 2px;
+            height: 12px;
+            border-radius: 1px;
+            background: var(--gold-500);
+        }
+        .brand-org {
+            display: block;
+            padding-left: 10px;
+            font-size: var(--fs-1);
+            line-height: 1.3;
+            color: #a6b6a9;
         }
         .brand-main {
             padding-top: 28px;
             border-top: 1px solid rgba(255, 255, 255, .14);
         }
         .brand-kicker {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             margin: 0 0 8px;
             font-size: var(--fs-1);
             color: #c9d6cc;
-        }
-        .brand-kicker::before {
-            content: "";
-            width: 2px;
-            height: 12px;
-            border-radius: 1px;
-            background: var(--gold-500);
         }
         .brand-main h1 {
             margin: 0;
@@ -349,24 +337,19 @@
         <!-- Panel identitas -->
         <section class="brand-panel" aria-label="Identitas aplikasi">
             <div class="brand-top">
-                <div class="brand-mark">
-                    <img src="<?= base_url('images/logo_jatim.png') ?>" alt="Logo Jawa Timur">
-                </div>
-                <div>
-                    <span class="brand-org">Dinas Kehutanan Provinsi Jawa Timur</span>
-                    <span class="brand-app">Monitoring Anggaran</span>
-                </div>
+                <span class="brand-app">Monitoring Anggaran</span>
+                <span class="brand-org">Dinas Kehutanan Provinsi Jawa Timur</span>
             </div>
 
             <div class="brand-main">
-                <p class="brand-kicker">Cabang Dinas Kehutanan</p>
-                <h1>Wilayah Bojonegoro</h1>
-                <p class="brand-desc">Pagu, RAK, realisasi, dan verifikasi transaksi per seksi dalam satu dashboard.</p>
+                <p class="brand-kicker">Aplikasi internal</p>
+                <h1>CDK Wilayah<br>Bojonegoro</h1>
+                <p class="brand-desc">Pengelolaan pagu, RAK, realisasi, dan verifikasi transaksi per seksi.</p>
             </div>
 
             <div class="brand-foot">
                 <span class="ta">TA <?= date('Y') ?></span>
-                <span>CDK Wilayah Bojonegoro</span>
+                <span>Akses terbatas</span>
             </div>
         </section>
 
@@ -375,7 +358,7 @@
             <div class="form-inner">
                 <header class="form-head">
                     <h2 id="loginTitle">Masuk ke akun</h2>
-                    <p>Gunakan akun seksi yang terdaftar untuk melanjutkan.</p>
+                    <p>Gunakan akun CDK Wilayah Bojonegoro yang terdaftar untuk melanjutkan.</p>
                 </header>
 
                 <?php if (isset($_SESSION['error'])): ?>
