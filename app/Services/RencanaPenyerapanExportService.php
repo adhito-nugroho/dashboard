@@ -17,17 +17,20 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *
  * Sheet 1: ringkasan KPI + rekap per status.
  * Sheet 2: satu baris per kode rekening (pagu, rencana, realisasi, sisa, status).
- * Sheet 3: detail bentuk kegiatan manual + rencana otomatis dari TU.
+ * Sheet 3: proyeksi otomatis bulan berjalan + bulan berikutnya per rekening.
+ * Sheet 4: detail bentuk kegiatan manual + rencana otomatis dari TU.
  */
 class RencanaPenyerapanExportService
 {
     private const SHEET_SUMMARY = 'Ringkasan';
     private const SHEET_MAIN = 'Rekap Rekening';
+    private const SHEET_PROJECTION = 'Proyeksi Bulanan';
     private const SHEET_DETAIL = 'Detail Rencana';
 
     private const HEADER_ROW = 6;
     private const FIRST_DATA_ROW = 7;
     private const LAST_COL = 'Q';
+    private const PROJ_LAST_COL = 'W';
     private const DETAIL_LAST_COL = 'J';
 
     private const NUMBER_FORMAT = '#,##0';
@@ -54,6 +57,7 @@ class RencanaPenyerapanExportService
 
         $this->buildSummarySheet($spreadsheet->getActiveSheet(), $report);
         $this->buildMainSheet($spreadsheet->createSheet(), $report);
+        $this->buildProjectionSheet($spreadsheet->createSheet(), $report);
         $this->buildDetailSheet($spreadsheet->createSheet(), $report);
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -497,7 +501,213 @@ class RencanaPenyerapanExportService
     }
 
     // ──────────────────────────────────────────────────────────
-    // SHEET 3 — Detail rencana
+    // SHEET 3 — Proyeksi bulanan
+    // ──────────────────────────────────────────────────────────
+
+    private function buildProjectionSheet(Worksheet $sheet, array $report): void
+    {
+        $sheet->setTitle(self::SHEET_PROJECTION);
+
+        $this->writeTitleBlock($sheet, 'PROYEKSI RENCANA PENYERAPAN OTOMATIS PER REKENING', 23, $report);
+
+        $projection = $report['projection'] ?? null;
+        if (empty($projection['rows'])) {
+            $sheet->mergeCells('A' . self::HEADER_ROW . ':' . self::PROJ_LAST_COL . self::HEADER_ROW);
+            $sheet->setCellValue('A' . self::HEADER_ROW, 'Tidak ada rekening ber-pagu pada filter ini.');
+            $sheet->getStyle('A' . self::HEADER_ROW . ':' . self::PROJ_LAST_COL . self::HEADER_ROW)->applyFromArray([
+                'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '6B7280']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $this->configureProjectionSheet($sheet, 0);
+            return;
+        }
+
+        $bulan = (int) $projection['bulan'];
+        $bulanDepan = $projection['bulan_depan'] !== null ? (int) $projection['bulan_depan'] : null;
+        $labelBulan = self::BULAN[$bulan] ?? '';
+        $labelDepan = $bulanDepan !== null ? (self::BULAN[$bulanDepan] ?? '') : '—';
+        $look = $projection['lookback_labels'] ?? [];
+        $lookRange = count($look) === 3 ? $look[0] . '–' . $look[2] : implode(', ', $look);
+
+        $headers = [
+            'A' => 'NO',
+            'B' => 'SEKSI',
+            'C' => 'PROGRAM',
+            'D' => 'KEGIATAN',
+            'E' => 'SUB KEGIATAN',
+            'F' => 'KODE REKENING',
+            'G' => 'NAMA REKENING',
+            'H' => "PAGU\n(Rp)",
+            'I' => "REALISASI\nS/D " . strtoupper($labelBulan) . "\n(Rp)",
+            'J' => "RATA-RATA\n" . strtoupper($lookRange) . "\n(Rp)",
+            'K' => $labelBulan . "\nGU (Rp)",
+            'L' => $labelBulan . "\nTU (Rp)",
+            'M' => $labelBulan . "\nLS (Rp)",
+            'N' => $labelBulan . "\nJUMLAH (Rp)",
+            'O' => $labelDepan . "\nGU (Rp)",
+            'P' => $labelDepan . "\nTU (Rp)",
+            'Q' => $labelDepan . "\nLS (Rp)",
+            'R' => $labelDepan . "\nJUMLAH (Rp)",
+            'S' => "PROYEKSI\nSERAPAN (Rp)",
+            'T' => "%\nPAGU",
+            'U' => "SISA SETELAH\nPROYEKSI (Rp)",
+            'V' => "POTENSI\nKEKURANGAN (Rp)",
+            'W' => 'KETERANGAN',
+        ];
+        foreach ($headers as $col => $label) {
+            $sheet->setCellValue($col . self::HEADER_ROW, $label);
+        }
+        $sheet->getStyle('A' . self::HEADER_ROW . ':' . self::PROJ_LAST_COL . self::HEADER_ROW)->applyFromArray([
+            'font' => ['bold' => true, 'size' => 8, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::NAVY]],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $sheet->getRowDimension(self::HEADER_ROW)->setRowHeight(40);
+
+        $row = self::FIRST_DATA_ROW;
+        $index = 1;
+        foreach ($projection['rows'] as $data) {
+            $isZebra = ($index % 2) === 0;
+            $rowBg = $isZebra ? self::ZEBRA : 'FFFFFF';
+
+            $sheet->setCellValue('A' . $row, $index);
+            $sheet->setCellValue('B' . $row, (string) ($data['nama_seksi'] ?? ''));
+            $sheet->setCellValue('C' . $row, trim(($data['kode_program'] ?? '') . ' — ' . ($data['nama_program'] ?? ''), ' —'));
+            $sheet->setCellValue('D' . $row, trim(($data['kode_kegiatan'] ?? '') . ' — ' . ($data['nama_kegiatan'] ?? ''), ' —'));
+            $sheet->setCellValue('E' . $row, trim(($data['kode_sub_kegiatan'] ?? '') . ' — ' . ($data['nama_sub_kegiatan'] ?? ''), ' —'));
+            $sheet->setCellValue('F' . $row, (string) $data['kode_rekening']);
+            $sheet->setCellValue('G' . $row, (string) $data['nama_rekening']);
+            $sheet->setCellValue('H' . $row, (float) $data['pagu']);
+            $sheet->setCellValue('I' . $row, (float) $data['realisasi_sd']);
+            $sheet->setCellValue('J' . $row, (float) $data['rata_rata']);
+            $sheet->setCellValue('K' . $row, (float) $data['plan_bulan']['GU']);
+            $sheet->setCellValue('L' . $row, (float) $data['plan_bulan']['TU']);
+            $sheet->setCellValue('M' . $row, (float) $data['plan_bulan']['LS']);
+            $sheet->setCellValue('N' . $row, (float) $data['plan_bulan']['total']);
+            $sheet->setCellValue('O' . $row, (float) $data['plan_depan']['GU']);
+            $sheet->setCellValue('P' . $row, (float) $data['plan_depan']['TU']);
+            $sheet->setCellValue('Q' . $row, (float) $data['plan_depan']['LS']);
+            $sheet->setCellValue('R' . $row, (float) $data['plan_depan']['total']);
+            $sheet->setCellValue('S' . $row, (float) $data['proyeksi']);
+            $sheet->setCellValue('T' . $row, (float) $data['pct_proyeksi']);
+            $sheet->setCellValue('U' . $row, (float) $data['sisa_proyeksi']);
+            $sheet->setCellValue('V' . $row, (float) $data['kekurangan']);
+            $sheet->setCellValue('W' . $row, (string) $data['keterangan']);
+
+            $sheet->getStyle('A' . $row . ':' . self::PROJ_LAST_COL . $row)->applyFromArray([
+                'font' => ['size' => 9, 'color' => ['rgb' => '1F2937']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $rowBg]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+            ]);
+            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $this->formatNumberCells($sheet, ['H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'U', 'V'], $row);
+            $sheet->getStyle('T' . $row)->getNumberFormat()->setFormatCode(self::PERCENT_FORMAT);
+            $sheet->getStyle('T' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('N' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('R' . $row)->getFont()->setBold(true);
+
+            if ((float) $data['sisa_proyeksi'] < -0.5) {
+                $sheet->getStyle('U' . $row)->getFont()->setBold(true)->getColor()->setRGB('B91C1C');
+            }
+            if ((float) $data['kekurangan'] > 0.5) {
+                $sheet->getStyle('V' . $row)->getFont()->setBold(true)->getColor()->setRGB('B91C1C');
+                $sheet->getStyle('W' . $row)->getFont()->getColor()->setRGB('B91C1C');
+            } elseif ((float) $data['rata_rata'] <= 0) {
+                $sheet->getStyle('J' . $row)->getFont()->getColor()->setRGB('9CA3AF');
+            }
+
+            $sheet->getRowDimension($row)->setRowHeight(26);
+            $row++;
+            $index++;
+        }
+
+        $lastDataRow = $row - 1;
+        $totals = $projection['totals'];
+        $sheet->mergeCells('A' . $row . ':G' . $row);
+        $sheet->setCellValue('A' . $row, 'JUMLAH TOTAL (' . (int) $totals['count'] . ' rekening)');
+        $sheet->setCellValue('H' . $row, (float) $totals['pagu']);
+        $sheet->setCellValue('I' . $row, (float) $totals['realisasi_sd']);
+        $sheet->setCellValue('J' . $row, (float) $totals['rata_rata']);
+        $sheet->setCellValue('K' . $row, (float) $totals['plan_bulan']['GU']);
+        $sheet->setCellValue('L' . $row, (float) $totals['plan_bulan']['TU']);
+        $sheet->setCellValue('M' . $row, (float) $totals['plan_bulan']['LS']);
+        $sheet->setCellValue('N' . $row, (float) $totals['plan_bulan']['total']);
+        $sheet->setCellValue('O' . $row, (float) $totals['plan_depan']['GU']);
+        $sheet->setCellValue('P' . $row, (float) $totals['plan_depan']['TU']);
+        $sheet->setCellValue('Q' . $row, (float) $totals['plan_depan']['LS']);
+        $sheet->setCellValue('R' . $row, (float) $totals['plan_depan']['total']);
+        $sheet->setCellValue('S' . $row, (float) $totals['proyeksi']);
+        $sheet->setCellValue('T' . $row, (float) $totals['pagu'] > 0 ? (float) $totals['proyeksi'] / (float) $totals['pagu'] : 0);
+        $sheet->setCellValue('U' . $row, (float) $totals['sisa_proyeksi']);
+        $sheet->setCellValue('V' . $row, (float) $totals['kekurangan']);
+        $sheet->setCellValue('W' . $row, (float) $totals['kekurangan'] > 0.5 ? 'Kekurangan pagu' : 'Cukup');
+        $sheet->getStyle('A' . $row . ':' . self::PROJ_LAST_COL . $row)->applyFromArray([
+            'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::NAVY]],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+        $this->formatNumberCells($sheet, ['H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'U', 'V'], $row);
+        $sheet->getStyle('T' . $row)->getNumberFormat()->setFormatCode(self::PERCENT_FORMAT);
+        $sheet->getStyle('T' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getRowDimension($row)->setRowHeight(24);
+        $row++;
+
+        $notes = [
+            'Rutin = rata-rata realisasi ' . $lookRange . ' dibulatkan; dibatasi sisa pagu (pagu − realisasi − rencana manual − TU).',
+            'Rencana ' . $labelBulan . ' = sisa kebutuhan setelah realisasi ' . $labelBulan . ' yang sudah tercatat. '
+                . ($bulanDepan !== null ? 'Rencana ' . $labelDepan . ' = satu bulan penuh.' : ''),
+            'Rencana manual bentuk kegiatan dan TU sudah dikurangkan dari sisa pagu; kolom TU berasal dari pengajuan TU berjalan.',
+            'Proyeksi = realisasi s/d ' . $labelBulan . ' + rencana manual + TU + rencana rutin dua bulan.',
+            'GU/LS rutin mengikuti proporsi realisasi ' . $lookRange . '; tanpa pola historis dibebankan ke GU.',
+        ];
+        foreach ($notes as $note) {
+            $sheet->mergeCells('A' . $row . ':' . self::PROJ_LAST_COL . $row);
+            $sheet->setCellValue('A' . $row, '• ' . $note);
+            $sheet->getStyle('A' . $row)->applyFromArray([
+                'font' => ['size' => 8, 'italic' => true, 'color' => ['rgb' => '6B7280']],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+            ]);
+            $row++;
+        }
+
+        $this->configureProjectionSheet($sheet, $lastDataRow);
+    }
+
+    private function configureProjectionSheet(Worksheet $sheet, int $lastDataRow): void
+    {
+        $widths = [
+            'A' => 5, 'B' => 16, 'C' => 30, 'D' => 30, 'E' => 32, 'F' => 16, 'G' => 38,
+            'H' => 15, 'I' => 15, 'J' => 16, 'K' => 13, 'L' => 13, 'M' => 13, 'N' => 15,
+            'O' => 13, 'P' => 13, 'Q' => 13, 'R' => 15, 'S' => 16, 'T' => 9, 'U' => 16,
+            'V' => 15, 'W' => 48,
+        ];
+        foreach ($widths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+
+        if ($lastDataRow >= self::FIRST_DATA_ROW) {
+            $sheet->setAutoFilter('A' . self::HEADER_ROW . ':' . self::PROJ_LAST_COL . $lastDataRow);
+        }
+
+        $sheet->freezePane('A' . self::FIRST_DATA_ROW);
+        $sheet->getPageSetup()
+            ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0)
+            ->setRowsToRepeatAtTopByStartAndEnd(self::HEADER_ROW, self::HEADER_ROW);
+        $sheet->getPageMargins()->setTop(0.4)->setBottom(0.4)->setLeft(0.3)->setRight(0.3);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // SHEET 4 — Detail rencana
     // ──────────────────────────────────────────────────────────
 
     private function buildDetailSheet(Worksheet $sheet, array $report): void

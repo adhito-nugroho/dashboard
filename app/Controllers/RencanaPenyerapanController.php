@@ -13,6 +13,7 @@ use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\Rak;
 use App\Services\RencanaPenyerapanExportService;
+use App\Services\RencanaPenyerapanProjectionService;
 
 /**
  * Perencanaan timeline penyerapan anggaran per kode rekening.
@@ -83,6 +84,23 @@ class RencanaPenyerapanController
         return [$tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q, $status];
     }
 
+    /** Bulan proyeksi: parameter ?bulan=, default bulan berjalan pada tahun yang dipilih. */
+    private function projectionMonth(int $tahun): int
+    {
+        $bulan = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : 0;
+        if ($bulan >= 1 && $bulan <= 12) {
+            return $bulan;
+        }
+        if ($tahun < (int) date('Y')) {
+            return 12;
+        }
+        if ($tahun > (int) date('Y')) {
+            return 1;
+        }
+
+        return (int) date('n');
+    }
+
     public function index(): void
     {
         $this->requireAdmin();
@@ -93,8 +111,9 @@ class RencanaPenyerapanController
         unset($_SESSION['rp_inline']);
 
         [$tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q, $status] = $this->filtersFromQuery();
+        $bulanProyeksi = $this->projectionMonth($tahun);
 
-        $data = $this->loadRencanaData($tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q);
+        $data = $this->loadRencanaData($tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q, $bulanProyeksi);
 
         $groups = $data['groups'];
         $totalRencana = $data['totalRencana'];
@@ -105,6 +124,7 @@ class RencanaPenyerapanController
         $selesaiList = $data['selesaiList'];
         $belumDirencanakan = $data['belumDirencanakan'];
         $belumCount = $data['belumCount'];
+        $projection = $data['projection'];
         $belumDirencanakan = array_slice($belumDirencanakan, 0, 100);
 
         if ($status === 'selesai') {
@@ -146,6 +166,7 @@ class RencanaPenyerapanController
             'sub_kegiatan_id' => $subKegiatanId,
             'mekanisme'       => $mekanisme,
             'status'          => $status,
+            'bulan'           => $bulanProyeksi,
             'q'               => $q,
         ], fn($v) => $v !== null && $v !== '');
 
@@ -172,7 +193,8 @@ class RencanaPenyerapanController
         ?int $kegiatanId,
         ?int $subKegiatanId,
         ?string $mekanisme,
-        string $q
+        string $q,
+        int $bulanProyeksi
     ): array {
         $plans = $this->model->getAllWithFilters($tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q ?: null);
         $paguMap = $this->model->getPaguMap($tahun, $kegiatanId, $subKegiatanId);
@@ -181,6 +203,18 @@ class RencanaPenyerapanController
         $tuBulananMap = $this->model->getTuPlanMonthlyMap($tahun, $kegiatanId, $subKegiatanId);
         $selesaiMap = $this->model->getSelesaiMap($tahun);
         $pickerRekening = $this->model->getRekeningPickerList($tahun, $kegiatanId, $subKegiatanId);
+
+        $prevYearBulanan = $bulanProyeksi <= 3
+            ? $this->model->getRealisasiMonthlyMap($tahun - 1, $kegiatanId, $subKegiatanId)
+            : [];
+        $projection = (new RencanaPenyerapanProjectionService())->build(
+            $tahun,
+            $bulanProyeksi,
+            $pickerRekening,
+            $realisasiBulananMap,
+            $tuBulananMap,
+            $prevYearBulanan
+        );
 
         $tuTotalMap = [];
         foreach ($tuBulananMap as $rekeningId => $bulanan) {
@@ -297,6 +331,7 @@ class RencanaPenyerapanController
         return [
             'plans'             => $plans,
             'groups'            => $groups,
+            'projection'        => $projection,
             'totalRencana'      => $totalRencana,
             'totalTuPlan'       => $totalTuPlan,
             'totalPagu'         => $totalPagu,
@@ -340,7 +375,8 @@ class RencanaPenyerapanController
         string $q,
         string $status
     ): array {
-        $data = $this->loadRencanaData($tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q);
+        $bulanProyeksi = $this->projectionMonth($tahun);
+        $data = $this->loadRencanaData($tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q, $bulanProyeksi);
         $groups = $data['groups'];
 
         if ($status === 'selesai') {
@@ -605,6 +641,9 @@ class RencanaPenyerapanController
             'Sub kegiatan: ' . $subKegiatanLabel,
             'Mekanisme: ' . ($mekanisme !== null ? ($mekanismeLabels[$mekanisme] ?? $mekanisme) : 'Semua'),
             'Status: ' . ($status !== '' ? ($statusLabels[$status] ?? $status) : 'Semua'),
+            'Proyeksi: ' . $data['projection']['label_bulan']
+                . ($data['projection']['label_bulan_depan'] !== null ? '–' . $data['projection']['label_bulan_depan'] : '')
+                . ' ' . $tahun,
         ];
         if ($q !== '') {
             $filterParts[] = 'Pencarian: "' . $q . '"';
@@ -614,6 +653,7 @@ class RencanaPenyerapanController
             'tahun'         => $tahun,
             'rows'          => $rows,
             'detail'        => $detail,
+            'projection'    => $data['projection'],
             'totals'        => $totals,
             'statusGroups'  => $orderedStatusGroups,
             'filterText'    => implode('   •   ', $filterParts),

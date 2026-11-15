@@ -15,6 +15,7 @@ $totalRencana = $totalRencana ?? 0;
 $totalTuPlan = $totalTuPlan ?? 0;
 $totalRealisasi = $totalRealisasi ?? 0;
 $selesaiList = $selesaiList ?? [];
+$projection = $projection ?? null;
 $tahun = $tahun ?? (int) date('Y');
 
 $bulanShort = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -535,6 +536,110 @@ $mekanismeMeta = [
     .rp-if .form-control.is-invalid,
     .rp-if .form-select.is-invalid { border-color: #dc2626; }
 
+    .rp-proj-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+        overflow: hidden;
+    }
+    .rp-proj-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 16px 18px 14px;
+        background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .rp-proj-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        padding: 14px 18px 0;
+    }
+    .rp-proj-stat {
+        border: 1px solid #e2e8f0;
+        border-radius: 11px;
+        padding: 9px 12px;
+        background: #f8fafc;
+    }
+    .rp-proj-stat__label {
+        font-size: .64rem;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .rp-proj-stat__value {
+        font-size: .98rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.3;
+    }
+    .rp-proj-scroll {
+        max-height: 480px;
+        overflow: auto;
+        margin-top: 12px;
+        border-top: 1px solid #e2e8f0;
+    }
+    .rp-proj-table {
+        font-size: .72rem;
+        margin: 0;
+        min-width: 1440px;
+    }
+    .rp-proj-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #1e3a5f;
+        color: #fff;
+        font-size: .6rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        vertical-align: middle;
+        padding: 7px 8px;
+        border-color: #33507a;
+    }
+    .rp-proj-table tbody td {
+        padding: 6px 8px;
+        vertical-align: middle;
+        white-space: nowrap;
+        border-color: #eef2f7;
+    }
+    .rp-proj-table tfoot td {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        padding: 8px;
+        background: #e2e8f0;
+        font-weight: 700;
+        white-space: nowrap;
+        border-color: #cbd5e1;
+    }
+    .rp-proj-table .rp-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .rp-proj-table td.rp-proj-ket { white-space: normal; min-width: 200px; max-width: 320px; }
+    .rp-proj-rek strong { display: block; font-size: .73rem; color: #0f172a; }
+    .rp-proj-rek span { display: block; font-size: .64rem; color: #64748b; }
+    .rp-proj-avg { color: #166534; font-weight: 700; }
+    .rp-proj-tu { color: #1d4ed8; font-weight: 600; }
+    .rp-proj-total { font-weight: 700; }
+    .rp-proj-kurang { color: #b91c1c; font-weight: 700; }
+    .rp-proj-ok { color: #166534; }
+    .rp-proj-row--over td { background: #fef2f2; }
+    .rp-proj-row--warn td { background: #fffbeb; }
+    .rp-proj-table:not(.show-empty) tr.rp-proj-row--empty { display: none; }
+    .rp-proj-notes {
+        padding: 10px 18px 14px;
+        font-size: .68rem;
+        color: #64748b;
+        line-height: 1.55;
+    }
+    .rp-proj-notes strong { color: #475569; }
+
     @media (max-width: 767.98px) {
         .rp-timeline-head { display: none; }
         .rp-timeline-row { grid-template-columns: 1fr; gap: 9px; }
@@ -546,6 +651,7 @@ $mekanismeMeta = [
         .rp-if { padding: 14px; }
         .rp-if-mek { grid-template-columns: 1fr; }
         .rp-if-foot .btn { flex: 1 1 auto; }
+        .rp-proj-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 </style>
 
@@ -733,6 +839,213 @@ $mekanismeMeta = [
         cascade();
     })();
     </script>
+
+    <?php if (!empty($projection['rows'])): ?>
+        <?php
+            $proj = $projection;
+            $projTotals = $proj['totals'];
+            $bulanProj = (int) $proj['bulan'];
+            $bulanDepanProj = $proj['bulan_depan'] !== null ? (int) $proj['bulan_depan'] : null;
+            $shortProj = $bulanShort[$bulanProj] ?? '';
+            $shortDepan = $bulanDepanProj !== null ? ($bulanShort[$bulanDepanProj] ?? '') : '';
+            $lookLabels = $proj['lookback_labels'];
+            $lookRange = count($lookLabels) === 3
+                ? $lookLabels[0] . '–' . $lookLabels[2]
+                : implode(', ', $lookLabels);
+            $lookYear = $bulanProj <= 3 ? ' ' . ((int) $proj['tahun'] - 1) : '';
+            $projPct = (float) $projTotals['pagu'] > 0
+                ? ((float) $projTotals['proyeksi'] / (float) $projTotals['pagu']) * 100
+                : 0;
+            $projNum = static function (float $value): string {
+                return abs($value) < 0.5 ? '–' : number_format($value, 0, ',', '.');
+            };
+        ?>
+        <div class="rp-proj-card mb-4" id="rpProyeksi">
+            <div class="rp-proj-head">
+                <div>
+                    <h5 class="mb-1">
+                        <i class="bi bi-graph-up-arrow text-success me-2"></i>
+                        Proyeksi Rencana <?= htmlspecialchars($proj['label_bulan']) ?><?= $proj['label_bulan_depan'] !== null ? '–' . htmlspecialchars($proj['label_bulan_depan']) : '' ?> <?= (int) $proj['tahun'] ?>
+                    </h5>
+                    <p class="text-muted small mb-0">
+                        Rutin = rata-rata realisasi <?= htmlspecialchars($lookRange . $lookYear) ?> dibulatkan, dibatasi sisa pagu.
+                        Mengikuti filter tahun, kegiatan, dan sub kegiatan.
+                    </p>
+                </div>
+                <form method="GET" action="<?= base_url('rencana-penyerapan') ?>" class="d-flex align-items-center gap-2">
+                    <?php foreach ($queryParams as $paramKey => $paramVal): ?>
+                        <?php if ($paramKey === 'bulan') { continue; } ?>
+                        <input type="hidden" name="<?= htmlspecialchars((string) $paramKey) ?>" value="<?= htmlspecialchars((string) $paramVal) ?>">
+                    <?php endforeach; ?>
+                    <label for="rp-proj-bulan" class="form-label small fw-semibold mb-0">Bulan proyeksi</label>
+                    <select name="bulan" id="rp-proj-bulan" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <?php for ($b = 1; $b <= 12; $b++): ?>
+                            <option value="<?= $b ?>" <?= $b === $bulanProj ? 'selected' : '' ?>><?= $bulanFull[$b] ?></option>
+                        <?php endfor; ?>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-repeat"></i></button>
+                </form>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="rpProjShowEmpty">
+                    <label class="form-check-label small text-muted" for="rpProjShowEmpty">Tampilkan semua rekening</label>
+                </div>
+            </div>
+
+            <div class="rp-proj-stats">
+                <div class="rp-proj-stat">
+                    <div class="rp-proj-stat__label">Pagu (filter)</div>
+                    <div class="rp-proj-stat__value">Rp <?= number_format((float) $projTotals['pagu'], 0, ',', '.') ?></div>
+                </div>
+                <div class="rp-proj-stat">
+                    <div class="rp-proj-stat__label">Realisasi s/d <?= htmlspecialchars($shortProj) ?></div>
+                    <div class="rp-proj-stat__value text-success">Rp <?= number_format((float) $projTotals['realisasi_sd'], 0, ',', '.') ?></div>
+                </div>
+                <div class="rp-proj-stat">
+                    <div class="rp-proj-stat__label">Rencana rutin <?= htmlspecialchars($shortProj) ?> (+ TU)</div>
+                    <div class="rp-proj-stat__value text-primary">Rp <?= number_format((float) $projTotals['plan_bulan']['total'], 0, ',', '.') ?></div>
+                </div>
+                <div class="rp-proj-stat">
+                    <div class="rp-proj-stat__label">Potensi kekurangan pagu</div>
+                    <div class="rp-proj-stat__value <?= (float) $projTotals['kekurangan'] > 0.5 ? 'text-danger' : '' ?>">
+                        Rp <?= number_format((float) $projTotals['kekurangan'], 0, ',', '.') ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rp-proj-scroll">
+                <table class="table table-sm table-hover align-middle rp-proj-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center">No</th>
+                            <th>Rekening</th>
+                            <th class="text-end">Pagu</th>
+                            <th class="text-end">Real. s/d <?= htmlspecialchars($shortProj) ?></th>
+                            <th class="text-end">Rata-rata<br><?= htmlspecialchars($lookRange) ?></th>
+                            <th class="text-end"><?= htmlspecialchars($shortProj) ?> GU</th>
+                            <th class="text-end"><?= htmlspecialchars($shortProj) ?> TU</th>
+                            <th class="text-end"><?= htmlspecialchars($shortProj) ?> LS</th>
+                            <th class="text-end"><?= htmlspecialchars($shortProj) ?> Jml</th>
+                            <?php if ($bulanDepanProj !== null): ?>
+                                <th class="text-end"><?= htmlspecialchars($shortDepan) ?> GU</th>
+                                <th class="text-end"><?= htmlspecialchars($shortDepan) ?> TU</th>
+                                <th class="text-end"><?= htmlspecialchars($shortDepan) ?> LS</th>
+                                <th class="text-end"><?= htmlspecialchars($shortDepan) ?> Jml</th>
+                            <?php endif; ?>
+                            <th class="text-end">Proyeksi</th>
+                            <th class="text-end">% Pagu</th>
+                            <th class="text-end">Sisa setelah proyeksi</th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php $projNo = 0; ?>
+                        <?php foreach ($proj['rows'] as $projRow): ?>
+                            <?php
+                                $projNo++;
+                                $rowClass = '';
+                                if ((float) $projRow['sisa_awal'] < -0.5) {
+                                    $rowClass = 'rp-proj-row--over';
+                                } elseif ((float) $projRow['kekurangan'] > 0.5) {
+                                    $rowClass = 'rp-proj-row--warn';
+                                }
+                                $projEmpty = (float) $projRow['rata_rata'] <= 0.5
+                                    && (float) $projRow['realisasi_sd'] <= 0.5
+                                    && (float) $projRow['rencana_manual'] <= 0.5
+                                    && (float) $projRow['tu_plan'] <= 0.5
+                                    && (float) $projRow['plan_bulan']['total'] <= 0.5
+                                    && (float) $projRow['plan_depan']['total'] <= 0.5;
+                                if ($projEmpty) {
+                                    $rowClass .= ' rp-proj-row--empty';
+                                }
+                                $projSisa = (float) $projRow['sisa_proyeksi'];
+                            ?>
+                            <tr class="<?= $rowClass ?>">
+                                <td class="text-center text-muted"><?= $projNo ?></td>
+                                <td class="rp-proj-rek">
+                                    <strong><?= htmlspecialchars($projRow['kode_rekening']) ?></strong>
+                                    <span><?= htmlspecialchars($projRow['nama_rekening']) ?></span>
+                                    <?php if ($projRow['kode_sub_kegiatan'] !== ''): ?>
+                                        <span><?= htmlspecialchars($projRow['kode_sub_kegiatan'] . ' · ' . $projRow['nama_sub_kegiatan']) ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="rp-num"><?= $projNum((float) $projRow['pagu']) ?></td>
+                                <td class="rp-num"><?= $projNum((float) $projRow['realisasi_sd']) ?></td>
+                                <td class="rp-num rp-proj-avg"><?= $projNum((float) $projRow['rata_rata']) ?></td>
+                                <td class="rp-num"><?= $projNum((float) $projRow['plan_bulan']['GU']) ?></td>
+                                <td class="rp-num rp-proj-tu"><?= $projNum((float) $projRow['plan_bulan']['TU']) ?></td>
+                                <td class="rp-num"><?= $projNum((float) $projRow['plan_bulan']['LS']) ?></td>
+                                <td class="rp-num rp-proj-total"><?= $projNum((float) $projRow['plan_bulan']['total']) ?></td>
+                                <?php if ($bulanDepanProj !== null): ?>
+                                    <td class="rp-num"><?= $projNum((float) $projRow['plan_depan']['GU']) ?></td>
+                                    <td class="rp-num rp-proj-tu"><?= $projNum((float) $projRow['plan_depan']['TU']) ?></td>
+                                    <td class="rp-num"><?= $projNum((float) $projRow['plan_depan']['LS']) ?></td>
+                                    <td class="rp-num rp-proj-total"><?= $projNum((float) $projRow['plan_depan']['total']) ?></td>
+                                <?php endif; ?>
+                                <td class="rp-num rp-proj-total"><?= $projNum((float) $projRow['proyeksi']) ?></td>
+                                <td class="rp-num"><?= number_format((float) $projRow['pct_proyeksi'] * 100, 1, ',', '.') ?>%</td>
+                                <td class="rp-num <?= $projSisa < -0.5 ? 'text-danger fw-bold' : '' ?>"><?= $projNum($projSisa) ?></td>
+                                <td class="rp-proj-ket <?= (float) $projRow['kekurangan'] > 0.5 ? 'rp-proj-kurang' : ($projRow['keterangan'] === 'Cukup' ? 'rp-proj-ok' : 'text-muted') ?>">
+                                    <?= htmlspecialchars($projRow['keterangan']) ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2">JUMLAH TOTAL (<?= (int) $projTotals['count'] ?> rekening)</td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['pagu']) ?></td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['realisasi_sd']) ?></td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['rata_rata']) ?></td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['plan_bulan']['GU']) ?></td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['plan_bulan']['TU']) ?></td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['plan_bulan']['LS']) ?></td>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['plan_bulan']['total']) ?></td>
+                            <?php if ($bulanDepanProj !== null): ?>
+                                <td class="rp-num"><?= $projNum((float) $projTotals['plan_depan']['GU']) ?></td>
+                                <td class="rp-num"><?= $projNum((float) $projTotals['plan_depan']['TU']) ?></td>
+                                <td class="rp-num"><?= $projNum((float) $projTotals['plan_depan']['LS']) ?></td>
+                                <td class="rp-num"><?= $projNum((float) $projTotals['plan_depan']['total']) ?></td>
+                            <?php endif; ?>
+                            <td class="rp-num"><?= $projNum((float) $projTotals['proyeksi']) ?></td>
+                            <td class="rp-num"><?= number_format($projPct, 1, ',', '.') ?>%</td>
+                            <td class="rp-num <?= (float) $projTotals['sisa_proyeksi'] < -0.5 ? 'text-danger' : '' ?>"><?= $projNum((float) $projTotals['sisa_proyeksi']) ?></td>
+                            <td class="<?= (float) $projTotals['kekurangan'] > 0.5 ? 'rp-proj-kurang' : 'rp-proj-ok' ?>">
+                                <?= (float) $projTotals['kekurangan'] > 0.5
+                                    ? 'Kekurangan Rp ' . number_format((float) $projTotals['kekurangan'], 0, ',', '.')
+                                    : 'Cukup' ?>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="rp-proj-notes">
+                <strong>Rumus:</strong>
+                rencana <?= htmlspecialchars($proj['label_bulan']) ?> = sisa kebutuhan setelah realisasi <?= htmlspecialchars($proj['label_bulan']) ?> yang sudah tercatat;
+                <?php if ($bulanDepanProj !== null): ?>
+                    rencana <?= htmlspecialchars($proj['label_bulan_depan']) ?> = satu bulan penuh;
+                    keduanya dibatasi sisa pagu (pagu − realisasi − rencana manual − TU).
+                <?php else: ?>
+                    dibatasi sisa pagu (pagu − realisasi − rencana manual − TU).
+                <?php endif; ?>
+                Proyeksi = realisasi s/d <?= htmlspecialchars($shortProj) ?> + rencana manual + TU + rencana rutin
+                <?= htmlspecialchars($shortProj) ?><?= $shortDepan !== '' ? '–' . htmlspecialchars($shortDepan) : '' ?>.
+                GU/LS rutin mengikuti proporsi realisasi <?= htmlspecialchars($lookRange . $lookYear) ?>; tanpa pola → GU.
+                Rencana manual tetap diinput lewat tombol Tambah Bentuk Kegiatan pada kartu rekening.
+                Baris tanpa pola rutin dan tanpa rencana disembunyikan; centang "Tampilkan semua rekening" untuk melihat semuanya.
+            </div>
+        </div>
+        <script>
+        (function () {
+            const cb = document.getElementById('rpProjShowEmpty');
+            const table = document.querySelector('.rp-proj-table');
+            if (!cb || !table) return;
+            cb.addEventListener('change', function () {
+                table.classList.toggle('show-empty', cb.checked);
+            });
+        })();
+        </script>
+    <?php endif; ?>
 
     <?php if (empty($groups) && $filterStatus !== 'belum'): ?>
         <div class="card">
