@@ -566,6 +566,11 @@ $mekanismeMeta = [
                 <p class="text-muted mb-0">Timeline penyerapan anggaran per kode rekening berdasarkan bentuk kegiatan dan mekanisme pembayaran.</p>
             </div>
             <div class="d-flex gap-2">
+                <?php $exportQuery = http_build_query($queryParams); ?>
+                <a href="<?= base_url('rencana-penyerapan/export' . ($exportQuery !== '' ? '?' . $exportQuery : '')) ?>"
+                   class="btn btn-outline-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Unduh Excel
+                </a>
                 <button type="button" class="btn btn-primary" data-rp-open-belum>
                     <i class="bi bi-plus-circle me-1"></i> Tambah Rencana
                 </button>

@@ -341,6 +341,7 @@ try {
 
         // Rencana Penyerapan (timeline per kode rekening)
         ['ANY', '/rencana-penyerapan', fn($m) => $rencanaPenyerapanController->index()],
+        ['GET', '/rencana-penyerapan/export', fn($m) => $rencanaPenyerapanController->export()],
         ['GET', '/rencana-penyerapan/create', fn($m) => $rencanaPenyerapanController->create()],
         ['POST', '/rencana-penyerapan/store', fn($m) => $rencanaPenyerapanController->store()],
         ['GET', '/rencana-penyerapan/rekening-info', fn($m) => $rencanaPenyerapanController->rekeningInfo()],

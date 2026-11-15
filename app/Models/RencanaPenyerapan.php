@@ -743,6 +743,7 @@ class RencanaPenyerapan
                        sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
                        k.kode_kegiatan, k.nama_kegiatan,
                        p2.kode_program, p2.nama_program,
+                       s.nama_seksi,
                        SUM(p.nilai_pagu) AS nilai_pagu,
                        COALESCE(MAX(rea.total_realisasi), 0) AS total_realisasi,
                        COALESCE(MAX(tui.tu_selesai_count), 0) AS tu_selesai_count,
@@ -754,6 +755,7 @@ class RencanaPenyerapan
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
                 INNER JOIN program p2 ON k.program_id = p2.id
                 INNER JOIN pagu p ON p.rekening_id = r.id
+                LEFT JOIN seksi s ON sk.seksi_id = s.id
                 LEFT JOIN (
                     SELECT t.rekening_id, SUM(t.nilai) AS total_realisasi
                     FROM transaksi t
@@ -777,7 +779,7 @@ class RencanaPenyerapan
                 GROUP BY r.id, r.kode_rekening, r.nama_rekening,
                          sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
                          k.kode_kegiatan, k.nama_kegiatan,
-                         p2.kode_program, p2.nama_program
+                         p2.kode_program, p2.nama_program, s.nama_seksi
                 HAVING SUM(p.nilai_pagu) - COALESCE(MAX(rea.total_realisasi), 0) > 0.005
                 ORDER BY p2.kode_program ASC, k.kode_kegiatan ASC, sk.kode_sub_kegiatan ASC, r.kode_rekening ASC
             ");
