@@ -43,13 +43,15 @@ $bulanSekarang = $tahunInt < (int) date('Y') ? 12 : ($tahunInt === (int) date('Y
 $filterKegiatan = $filterKegiatan ?? null;
 $filterSubKegiatan = $filterSubKegiatan ?? null;
 $filterMekanisme = $filterMekanisme ?? null;
+$filterStatus = $filterStatus ?? '';
 $filterQ = $filterQ ?? '';
-$isFiltered = $filterKegiatan !== null || $filterSubKegiatan !== null || $filterMekanisme !== null || $filterQ !== '';
+$isFiltered = $filterKegiatan !== null || $filterSubKegiatan !== null || $filterMekanisme !== null || $filterStatus !== '' || $filterQ !== '';
 
 $paginationBase = base_url('rencana-penyerapan');
 if (!empty($queryParams)) {
     $paginationBase .= '?' . http_build_query($queryParams);
 }
+$backQuery = !empty($queryParams) ? http_build_query($queryParams) : '';
 $sep = str_contains($paginationBase, '?') ? '&' : '?';
 
 $mekanismeMeta = [
@@ -514,7 +516,7 @@ $mekanismeMeta = [
         <div class="card-body py-3">
             <form method="GET" action="<?= base_url('rencana-penyerapan') ?>" id="rpFilterForm">
                 <div class="row g-3">
-                    <div class="col-6 col-md-2">
+                    <div class="col-6 col-md-1">
                         <label for="filter-tahun" class="form-label fw-semibold mb-1">
                             <i class="bi bi-calendar-year me-1 text-primary"></i>Tahun
                         </label>
@@ -524,7 +526,7 @@ $mekanismeMeta = [
                             <?php endfor; ?>
                         </select>
                     </div>
-                    <div class="col-12 col-md-3">
+                    <div class="col-12 col-md-2">
                         <label for="filter-kegiatan" class="form-label fw-semibold mb-1">
                             <i class="bi bi-layers me-1 text-primary"></i>Kegiatan
                         </label>
@@ -561,6 +563,17 @@ $mekanismeMeta = [
                             <option value="GU" <?= $filterMekanisme === 'GU' ? 'selected' : '' ?>>GU — Ganti Uang</option>
                             <option value="TU" <?= $filterMekanisme === 'TU' ? 'selected' : '' ?>>TU — Tambah Uang</option>
                             <option value="LS" <?= $filterMekanisme === 'LS' ? 'selected' : '' ?>>LS — Langsung</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="filter-status" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-check2-square me-1 text-primary"></i>Status
+                        </label>
+                        <select name="status" id="filter-status" class="form-select">
+                            <option value="">-- Semua Status --</option>
+                            <option value="selesai" <?= $filterStatus === 'selesai' ? 'selected' : '' ?>>Selesai</option>
+                            <option value="sudah" <?= $filterStatus === 'sudah' ? 'selected' : '' ?>>Sudah ada rencana</option>
+                            <option value="belum" <?= $filterStatus === 'belum' ? 'selected' : '' ?>>Belum ada rencana</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-2">
@@ -614,13 +627,17 @@ $mekanismeMeta = [
     })();
     </script>
 
-    <?php if (empty($groups)): ?>
+    <?php if (empty($groups) && $filterStatus !== 'belum'): ?>
         <div class="card">
             <div class="card-body">
                 <div class="empty-state">
                     <i class="bi bi-calendar3-range"></i>
                     <p>
-                        <?php if ($isFiltered): ?>
+                        <?php if ($filterStatus === 'selesai'): ?>
+                            Tidak ada rekening berstatus selesai dengan filter yang dipilih.
+                        <?php elseif ($filterStatus === 'sudah'): ?>
+                            Tidak ada rekening yang sudah punya rencana dengan filter yang dipilih.
+                        <?php elseif ($isFiltered): ?>
                             Tidak ada rencana penyerapan dengan filter yang dipilih.
                         <?php else: ?>
                             Belum ada rencana penyerapan untuk tahun <?= (int) $tahun ?>.
@@ -632,7 +649,7 @@ $mekanismeMeta = [
                 </div>
             </div>
         </div>
-    <?php else: ?>
+    <?php elseif (!empty($groups)): ?>
         <div class="d-grid gap-3">
             <?php foreach ($groups as $group): ?>
                 <?php
@@ -685,6 +702,7 @@ $mekanismeMeta = [
                                     <form method="POST" action="<?= base_url('rencana-penyerapan/selesai/batal') ?>" class="m-0">
                                         <input type="hidden" name="rekening_id" value="<?= (int) $group['rekening_id'] ?>">
                                         <input type="hidden" name="tahun" value="<?= (int) $group['tahun'] ?>">
+                                        <input type="hidden" name="back" value="<?= htmlspecialchars($backQuery) ?>">
                                         <button type="submit" class="btn btn-sm btn-outline-secondary">
                                             <i class="bi bi-arrow-counterclockwise me-1"></i>Batal selesai
                                         </button>
@@ -694,6 +712,7 @@ $mekanismeMeta = [
                                           onsubmit="return confirm('Tandai rekening ini selesai? Tidak perlu input rencana lagi.');">
                                         <input type="hidden" name="rekening_id" value="<?= (int) $group['rekening_id'] ?>">
                                         <input type="hidden" name="tahun" value="<?= (int) $group['tahun'] ?>">
+                                        <input type="hidden" name="back" value="<?= htmlspecialchars($backQuery) ?>">
                                         <button type="submit" class="btn btn-sm btn-outline-success">
                                             <i class="bi bi-check2-circle me-1"></i>Tandai selesai
                                         </button>
@@ -925,15 +944,16 @@ $mekanismeMeta = [
         <?php endif; ?>
     <?php endif; ?>
 
+    <?php if ($filterStatus === '' || $filterStatus === 'belum'): ?>
     <!-- Rekening ber-pagu yang belum punya rencana -->
     <div class="card mt-4">
-        <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpBelumBox" aria-expanded="false" aria-controls="rpBelumBox">
+        <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpBelumBox" aria-expanded="<?= $filterStatus === 'belum' ? 'true' : 'false' ?>" aria-controls="rpBelumBox">
             <i class="bi bi-exclamation-circle text-warning"></i>
             Rekening ber-pagu yang belum direncanakan
             <span class="badge <?= $belumCount > 0 ? 'bg-warning text-dark' : 'bg-success' ?>"><?= (int) $belumCount ?></span>
             <i class="bi bi-chevron-down ms-auto"></i>
         </button>
-        <div class="collapse" id="rpBelumBox">
+        <div class="collapse <?= $filterStatus === 'belum' ? 'show' : '' ?>" id="rpBelumBox">
             <div class="card-body pt-0">
                 <?php if (empty($belumDirencanakan)): ?>
                     <div class="alert alert-success mb-0">
@@ -977,6 +997,7 @@ $mekanismeMeta = [
                                                       onsubmit="return confirm('Tandai rekening ini selesai? Tidak perlu input rencana lagi.');">
                                                     <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
                                                     <input type="hidden" name="tahun" value="<?= (int) $tahun ?>">
+                                                    <input type="hidden" name="back" value="<?= htmlspecialchars($backQuery) ?>">
                                                     <button type="submit" class="btn btn-sm btn-outline-success">
                                                         <i class="bi bi-check2-circle me-1"></i>Selesai
                                                     </button>
@@ -992,15 +1013,17 @@ $mekanismeMeta = [
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
+    <?php if ($filterStatus !== 'belum'): ?>
     <div class="card mt-4">
-        <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpSelesaiBox" aria-expanded="false" aria-controls="rpSelesaiBox">
+        <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpSelesaiBox" aria-expanded="<?= $filterStatus === 'selesai' ? 'true' : 'false' ?>" aria-controls="rpSelesaiBox">
             <i class="bi bi-check2-circle text-success"></i>
             Rekening ditandai selesai
             <span class="badge bg-success"><?= count($selesaiList) ?></span>
             <i class="bi bi-chevron-down ms-auto"></i>
         </button>
-        <div class="collapse" id="rpSelesaiBox">
+        <div class="collapse <?= $filterStatus === 'selesai' ? 'show' : '' ?>" id="rpSelesaiBox">
             <div class="card-body pt-0">
                 <?php if (empty($selesaiList)): ?>
                     <p class="text-muted small mb-0">Belum ada rekening yang ditandai selesai. Rekening dengan sisa kapasitas 0 otomatis dianggap selesai tanpa perlu ditandai.</p>
@@ -1030,6 +1053,7 @@ $mekanismeMeta = [
                                             <form method="POST" action="<?= base_url('rencana-penyerapan/selesai/batal') ?>" class="m-0">
                                                 <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
                                                 <input type="hidden" name="tahun" value="<?= (int) $tahun ?>">
+                                                <input type="hidden" name="back" value="<?= htmlspecialchars($backQuery) ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">
                                                     <i class="bi bi-arrow-counterclockwise me-1"></i>Batal
                                                 </button>
@@ -1044,4 +1068,5 @@ $mekanismeMeta = [
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>

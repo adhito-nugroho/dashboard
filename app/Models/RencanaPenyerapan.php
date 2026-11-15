@@ -629,6 +629,7 @@ class RencanaPenyerapan
 
             $stmt = $this->db->prepare("
                 SELECT r.id, r.kode_rekening, r.nama_rekening,
+                       r.sub_kegiatan_id, sk.seksi_id,
                        sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
                        k.kode_kegiatan, k.nama_kegiatan,
                        p.kode_program, p.nama_program,

@@ -72,6 +72,10 @@ class RencanaPenyerapanController
             $mekanisme = null;
         }
         $q = trim((string) ($_GET['q'] ?? ''));
+        $status = trim((string) ($_GET['status'] ?? ''));
+        if (!in_array($status, ['selesai', 'sudah', 'belum'], true)) {
+            $status = '';
+        }
 
         $plans = $this->model->getAllWithFilters($tahun, $kegiatanId, $subKegiatanId, $mekanisme, $q ?: null);
         $paguMap = $this->model->getPaguMap($tahun, $kegiatanId, $subKegiatanId);
@@ -195,6 +199,14 @@ class RencanaPenyerapanController
         $belumCount = count($belumDirencanakan);
         $belumDirencanakan = array_slice($belumDirencanakan, 0, 100);
 
+        if ($status === 'selesai') {
+            $groups = array_values(array_filter($groups, fn($g) => !empty($g['selesai'])));
+        } elseif ($status === 'sudah') {
+            $groups = array_values(array_filter($groups, fn($g) => empty($g['selesai'])));
+        } elseif ($status === 'belum') {
+            $groups = [];
+        }
+
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $totalGroups = count($groups);
         $totalPages = max(1, (int) ceil($totalGroups / self::PER_PAGE));
@@ -216,6 +228,7 @@ class RencanaPenyerapanController
             'kegiatan_id'     => $kegiatanId,
             'sub_kegiatan_id' => $subKegiatanId,
             'mekanisme'       => $mekanisme,
+            'status'          => $status,
             'q'               => $q,
         ], fn($v) => $v !== null && $v !== '');
 
@@ -224,6 +237,7 @@ class RencanaPenyerapanController
         $filterKegiatan = $kegiatanId;
         $filterSubKegiatan = $subKegiatanId;
         $filterMekanisme = $mekanisme;
+        $filterStatus = $status;
         $filterQ = $q;
 
         $pageTitle = 'Rencana Penyerapan';
@@ -242,7 +256,7 @@ class RencanaPenyerapanController
             'rekening_id'      => 0,
             'tahun'            => isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y'),
             'bentuk_kegiatan'  => '',
-            'mekanisme'        => 'GU',
+            'mekanisme'        => '',
             'bulan_mulai'      => (int) date('n'),
             'bulan_selesai'    => (int) date('n'),
             'nilai_rencana'    => '',
@@ -356,6 +370,7 @@ class RencanaPenyerapanController
         $rekeningId = (int) ($_POST['rekening_id'] ?? 0);
         $tahun = (int) ($_POST['tahun'] ?? date('Y'));
         $redirect = (string) ($_POST['redirect'] ?? 'index');
+        $back = $this->safeBackQuery();
 
         if ($rekeningId <= 0 || !$this->rekeningModel->getById($rekeningId)) {
             $this->redirectWithMessage(base_url('rencana-penyerapan?tahun=' . $tahun), 'error', 'Rekening tidak ditemukan.');
@@ -365,7 +380,7 @@ class RencanaPenyerapanController
             $this->model->markSelesai($rekeningId, $tahun, (int) ($_SESSION['user_id'] ?? 0) ?: null);
             $url = $redirect === 'create'
                 ? base_url('rencana-penyerapan/create?tahun=' . $tahun)
-                : base_url('rencana-penyerapan?tahun=' . $tahun . '#rek-' . $rekeningId);
+                : base_url('rencana-penyerapan' . ($back !== '' ? '?' . $back : '?tahun=' . $tahun) . '#rek-' . $rekeningId);
             $this->redirectWithMessage($url, 'success', 'Rekening ditandai selesai. Tidak perlu input rencana lagi.');
         } catch (\Throwable $e) {
             error_log('Gagal menandai rekening selesai: ' . $e->getMessage());
@@ -380,12 +395,13 @@ class RencanaPenyerapanController
         $rekeningId = (int) ($_POST['rekening_id'] ?? 0);
         $tahun = (int) ($_POST['tahun'] ?? date('Y'));
         $redirect = (string) ($_POST['redirect'] ?? 'index');
+        $back = $this->safeBackQuery();
 
         try {
             $this->model->unmarkSelesai($rekeningId, $tahun);
             $url = $redirect === 'create'
                 ? base_url('rencana-penyerapan/create?tahun=' . $tahun)
-                : base_url('rencana-penyerapan?tahun=' . $tahun . '#rek-' . $rekeningId);
+                : base_url('rencana-penyerapan' . ($back !== '' ? '?' . $back : '?tahun=' . $tahun) . '#rek-' . $rekeningId);
             $this->redirectWithMessage($url, 'success', 'Status selesai dibatalkan. Rekening perlu rencana penyerapan kembali.');
         } catch (\Throwable $e) {
             error_log('Gagal membatalkan status selesai: ' . $e->getMessage());
@@ -445,9 +461,9 @@ class RencanaPenyerapanController
 
     private function collectForm(array $input): array
     {
-        $mekanisme = strtoupper(trim((string) ($input['mekanisme'] ?? 'GU')));
+        $mekanisme = strtoupper(trim((string) ($input['mekanisme'] ?? '')));
         if (!in_array($mekanisme, ['GU', 'TU', 'LS'], true)) {
-            $mekanisme = 'GU';
+            $mekanisme = '';
         }
 
         return [
@@ -492,7 +508,7 @@ class RencanaPenyerapanController
             $errors['keterangan'] = 'Keterangan maksimal 255 karakter.';
         }
         if (!in_array($data['mekanisme'], ['GU', 'TU', 'LS'], true)) {
-            $errors['mekanisme'] = 'Mekanisme pembayaran tidak valid.';
+            $errors['mekanisme'] = 'Pilih salah satu mekanisme pembayaran.';
         }
         if ($data['bulan_mulai'] < 1 || $data['bulan_mulai'] > 12) {
             $errors['bulan_mulai'] = 'Bulan mulai tidak valid.';
@@ -505,6 +521,25 @@ class RencanaPenyerapanController
         }
         if ($data['nilai_rencana'] <= 0) {
             $errors['nilai_rencana'] = 'Nilai rencana harus lebih dari 0.';
+        } elseif ($data['rekening_id'] > 0 && empty($errors['rekening_id'])) {
+            $pagu = $this->model->getPaguForRekening((int) $data['rekening_id'], (int) $data['tahun']);
+            if ($pagu !== null) {
+                $totalRencana = $this->model->getTotalByRekeningAndYear((int) $data['rekening_id'], (int) $data['tahun'], $excludeId);
+                $tuPlan = $this->model->getTuPlanForRekening((int) $data['rekening_id'], (int) $data['tahun']);
+                $realisasi = $this->model->getRealisasiForRekening((int) $data['rekening_id'], (int) $data['tahun']);
+                $sisaKapasitas = (float) $pagu - (float) $realisasi['total'] - $totalRencana - $tuPlan;
+                if ($data['nilai_rencana'] > $sisaKapasitas + 0.005) {
+                    $errors['nilai_rencana'] = 'Nilai rencana melebihi sisa kapasitas (Rp '
+                        . number_format(max(0, $sisaKapasitas), 0, ',', '.') . ').';
+                }
+            }
+
+            if ($excludeId === null) {
+                $selesaiMap = $this->model->getSelesaiMap((int) $data['tahun']);
+                if (isset($selesaiMap[(int) $data['rekening_id']])) {
+                    $errors['rekening_id'] = 'Rekening ini sudah ditandai selesai. Batalkan status selesai bila perlu membuat rencana baru.';
+                }
+            }
         }
 
         return $errors;
@@ -522,9 +557,19 @@ class RencanaPenyerapanController
 
         $pageTitle = $title;
         $activePage = 'rencana_penyerapan';
+        $pageBreadcrumb = [
+            ['label' => 'Rencana Penyerapan', 'url' => base_url('rencana-penyerapan?tahun=' . urlencode((string) $formTahun))],
+            ['label' => $isEdit ? 'Edit Rencana' : 'Tambah Rencana'],
+        ];
         $viewFile = __DIR__ . '/../../views/rencana_penyerapan/form.php';
 
         include __DIR__ . '/../../views/layout.php';
+    }
+
+    private function safeBackQuery(): string
+    {
+        $back = trim((string) ($_POST['back'] ?? ''));
+        return preg_match('/^[A-Za-z0-9_=&%+.\-]*$/', $back) ? $back : '';
     }
 
     private function flashAfterSave(array $form, string $message, ?int $excludeId = null): void
