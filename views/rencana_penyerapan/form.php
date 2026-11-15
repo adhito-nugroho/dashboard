@@ -14,6 +14,15 @@ $bulanShort = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep
 $nilaiDisplay = ((float) $form['nilai_rencana']) > 0 ? number_format((float) $form['nilai_rencana'], 0, ',', '.') : '';
 $mekanisme = $form['mekanisme'] ?? 'GU';
 
+$rekenings = $rekenings ?? [];
+$selectedRekening = $selectedRekening ?? null;
+$canEditDetail = $isEdit || (int) ($form['rekening_id'] ?? 0) > 0;
+$currentTahun = (int) date('Y');
+$formTahun = (int) ($form['tahun'] ?? $currentTahun);
+$selectedLabel = $selectedRekening
+    ? ($selectedRekening['kode_rekening'] . ' · ' . $selectedRekening['nama_rekening'])
+    : '';
+
 $bentukSuggestions = [
     'Pengadaan Barang',
     'Pengadaan Bibit',
@@ -240,9 +249,92 @@ $bentukSuggestions = [
         padding: 0 16px 16px;
     }
 
+    .rp-picker-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+        overflow: hidden;
+    }
+
+    .rp-picker-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .rp-picker-head h6 { margin: 0; font-weight: 800; color: #0f172a; }
+    .rp-picker-head small { color: #64748b; font-size: .72rem; }
+
+    .rp-picker-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 18px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .rp-picker-toolbar .form-control { max-width: 420px; }
+
+    .rp-picker-scroll { max-height: 440px; overflow-y: auto; }
+
+    .rp-picker-table { margin: 0; font-size: .78rem; min-width: 820px; }
+
+    .rp-picker-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        font-size: .66rem;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #64748b;
+        white-space: nowrap;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .rp-picker-table tbody tr.is-selected > td { background: #eef2ff; }
+    .rp-picker-table .rp-pick-name { font-weight: 700; color: #0f172a; }
+    .rp-picker-table .rp-pick-sub { font-size: .68rem; color: #64748b; line-height: 1.4; }
+    .rp-picker-table td { vertical-align: middle; }
+    .rp-picker-table .rp-pick-value { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+    .rp-selected-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        background: #f8fafc;
+        font-size: .8rem;
+        color: #475569;
+    }
+
+    .rp-selected-banner.is-active {
+        border-color: #a7f3d0;
+        background: #ecfdf5;
+        color: #065f46;
+    }
+
+    .rp-selected-banner .bi { margin-top: 1px; }
+
+    fieldset.rp-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+    fieldset.rp-fieldset[disabled] { opacity: .55; }
+
     @media (max-width: 767.98px) {
         .rp-mek-options { grid-template-columns: 1fr; }
         .rp-side-card { position: static; }
+        .rp-picker-toolbar .form-control { max-width: none; }
+        .rp-picker-toolbar { padding: 10px 14px; }
+        .rp-picker-head { padding: 12px 14px; }
     }
 </style>
 
@@ -261,6 +353,96 @@ $bentukSuggestions = [
         </div>
     <?php endif; ?>
 
+    <?php if (!$isEdit): ?>
+        <div class="rp-picker-card mb-4" id="rpPickerCard">
+            <div class="rp-picker-head">
+                <div>
+                    <h6><i class="bi bi-list-ul text-primary me-1"></i>Pilih Rekening</h6>
+                    <small>Semua rekening yang memiliki pagu tahun <?= $formTahun ?>. Klik Pilih, lalu isi detail rencana di bawah.</small>
+                </div>
+                <form method="GET" action="<?= base_url('rencana-penyerapan/create') ?>" class="d-flex align-items-end gap-2 m-0">
+                    <div>
+                        <label for="picker-tahun" class="form-label fw-semibold mb-1" style="font-size:.7rem;">Tahun</label>
+                        <select name="tahun" id="picker-tahun" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <?php for ($y = $currentTahun + 1; $y >= $currentTahun - 5; $y--): ?>
+                                <option value="<?= $y ?>" <?= $formTahun === $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                    <noscript><button type="submit" class="btn btn-sm btn-primary">Tampilkan</button></noscript>
+                </form>
+            </div>
+            <div class="rp-picker-toolbar">
+                <input type="search" id="rpRekeningSearch" class="form-control form-control-sm"
+                       placeholder="Cari kode rekening, nama, sub kegiatan, seksi...">
+                <span class="small text-muted" id="rpRekeningCount"><?= count($rekenings) ?> rekening</span>
+            </div>
+            <div class="table-responsive rp-picker-scroll">
+                <table class="table table-sm table-hover rp-picker-table">
+                    <thead>
+                        <tr>
+                            <th>Kode Rekening</th>
+                            <th>Rekening</th>
+                            <th class="text-end">Pagu</th>
+                            <th class="text-end">Realisasi</th>
+                            <th class="text-end">Rencana</th>
+                            <th class="text-end">Sisa Kapasitas</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($rekenings)): ?>
+                            <tr><td colspan="7" class="text-center text-muted py-4">Tidak ada rekening dengan pagu pada tahun <?= $formTahun ?>.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($rekenings as $rek): ?>
+                                <?php
+                                    $paguRek = (float) $rek['total_pagu'];
+                                    $realRek = (float) $rek['total_realisasi'];
+                                    $rencanaRek = (float) $rek['total_rencana'];
+                                    $sisaRek = $paguRek - $realRek - $rencanaRek;
+                                    $isSelected = (int) ($form['rekening_id'] ?? 0) === (int) $rek['id'];
+                                    $searchText = mb_strtolower(implode(' ', array_filter([
+                                        $rek['kode_rekening'], $rek['nama_rekening'],
+                                        $rek['kode_program'], $rek['nama_program'],
+                                        $rek['kode_kegiatan'], $rek['nama_kegiatan'],
+                                        $rek['kode_sub_kegiatan'], $rek['nama_sub_kegiatan'],
+                                        $rek['nama_seksi'],
+                                    ])));
+                                ?>
+                                <tr data-rekening-row
+                                    data-rekening-id="<?= (int) $rek['id'] ?>"
+                                    data-kode="<?= htmlspecialchars($rek['kode_rekening']) ?>"
+                                    data-nama="<?= htmlspecialchars($rek['nama_rekening']) ?>"
+                                    data-search="<?= htmlspecialchars($searchText) ?>"
+                                    class="<?= $isSelected ? 'is-selected' : '' ?>">
+                                    <td><span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span></td>
+                                    <td>
+                                        <div class="rp-pick-name"><?= htmlspecialchars($rek['nama_rekening']) ?></div>
+                                        <div class="rp-pick-sub">
+                                            <?= htmlspecialchars($rek['kode_sub_kegiatan'] . ' · ' . $rek['nama_sub_kegiatan']) ?>
+                                            <?php if (!empty($rek['nama_seksi'])): ?>
+                                                <span> · <?= htmlspecialchars($rek['nama_seksi']) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td class="text-end rp-pick-value">Rp <?= number_format($paguRek, 0, ',', '.') ?></td>
+                                    <td class="text-end rp-pick-value text-success">Rp <?= number_format($realRek, 0, ',', '.') ?></td>
+                                    <td class="text-end rp-pick-value text-primary">Rp <?= number_format($rencanaRek, 0, ',', '.') ?></td>
+                                    <td class="text-end rp-pick-value <?= $sisaRek < 0 ? 'text-danger fw-semibold' : '' ?>">Rp <?= number_format($sisaRek, 0, ',', '.') ?></td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm <?= $isSelected ? 'btn-primary' : 'btn-outline-primary' ?>" data-pick-rekening>
+                                            <?= $isSelected ? 'Dipilih' : 'Pilih' ?>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <form method="POST" action="<?= $formAction ?>" id="rpForm" novalidate>
         <?php if ($isEdit): ?>
             <input type="hidden" name="id" value="<?= (int) $form['id'] ?>">
@@ -273,70 +455,48 @@ $bentukSuggestions = [
                         <h6><i class="bi bi-diagram-3 text-primary me-1"></i>Rekening Sasaran</h6>
                     </div>
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="program_id" class="form-label fw-semibold">Program <span class="text-danger">*</span></label>
-                                <select class="form-select" id="program_id" name="program_id" required>
-                                    <option value="">-- Pilih Program --</option>
-                                    <?php foreach ($programs as $program): ?>
-                                        <option value="<?= (int) $program['id'] ?>" <?= $form['program_id'] == $program['id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($program['kode_program'] . ' - ' . $program['nama_program'] . ' (' . $program['tahun'] . ')') ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                        <input type="hidden" name="rekening_id" id="rekening_id" value="<?= (int) ($form['rekening_id'] ?? 0) ?>">
+                        <?php if ($isEdit): ?>
+                            <div class="rp-selected-banner is-active mb-3">
+                                <i class="bi bi-check-circle"></i>
+                                <div>
+                                    <div class="fw-bold" id="rpSelectedLabel"><?= htmlspecialchars($selectedLabel) ?></div>
+                                    <small id="rpSelectedHint">Rekening tidak dapat diubah saat edit. Hapus lalu buat rencana baru bila perlu pindah rekening.</small>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label for="kegiatan_id" class="form-label fw-semibold">Kegiatan <span class="text-danger">*</span></label>
-                                <select class="form-select" id="kegiatan_id" name="kegiatan_id" required <?= empty($form['program_id']) ? 'disabled' : '' ?>>
-                                    <option value="">-- Pilih Kegiatan --</option>
-                                    <?php foreach ($kegiatans as $kegiatan): ?>
-                                        <option value="<?= (int) $kegiatan['id'] ?>" <?= $form['kegiatan_id'] == $kegiatan['id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($kegiatan['kode_kegiatan'] . ' - ' . $kegiatan['nama_kegiatan']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="tahun" class="form-label fw-semibold">Tahun Anggaran <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control <?= isset($errors['tahun']) ? 'is-invalid' : '' ?>" id="tahun" name="tahun"
+                                           value="<?= (int) $form['tahun'] ?>" min="2000" max="2100" required>
+                                    <?php if (isset($errors['tahun'])): ?>
+                                        <div class="invalid-feedback"><?= htmlspecialchars($errors['tahun']) ?></div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label for="sub_kegiatan_id" class="form-label fw-semibold">Sub Kegiatan <span class="text-danger">*</span></label>
-                                <select class="form-select" id="sub_kegiatan_id" name="sub_kegiatan_id" required <?= empty($form['kegiatan_id']) ? 'disabled' : '' ?>>
-                                    <option value="">-- Pilih Sub Kegiatan --</option>
-                                    <?php foreach ($subKegiatans as $subKegiatan): ?>
-                                        <option value="<?= (int) $subKegiatan['id'] ?>" <?= $form['sub_kegiatan_id'] == $subKegiatan['id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($subKegiatan['kode_sub_kegiatan'] . ' - ' . $subKegiatan['nama_sub_kegiatan']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                        <?php else: ?>
+                            <input type="hidden" id="tahun" name="tahun" value="<?= $formTahun ?>">
+                            <div class="rp-selected-banner <?= $selectedRekening ? 'is-active' : '' ?>" id="rpSelectedBanner">
+                                <i class="bi <?= $selectedRekening ? 'bi-check-circle' : 'bi-info-circle' ?>"></i>
+                                <div>
+                                    <div class="fw-bold" id="rpSelectedLabel"><?= $selectedRekening ? htmlspecialchars($selectedLabel) : 'Belum ada rekening dipilih' ?></div>
+                                    <small id="rpSelectedHint"><?= $selectedRekening
+                                        ? 'Nilai rencana akan dicatat untuk rekening ini · Tahun ' . $formTahun
+                                        : 'Pilih salah satu rekening pada tabel di atas untuk mulai mengisi detail rencana.' ?></small>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label for="rekening_id" class="form-label fw-semibold">Rekening <span class="text-danger">*</span></label>
-                                <select class="form-select <?= isset($errors['rekening_id']) ? 'is-invalid' : '' ?>" id="rekening_id" name="rekening_id" required <?= empty($form['sub_kegiatan_id']) ? 'disabled' : '' ?>>
-                                    <option value="">-- Pilih Rekening --</option>
-                                    <?php foreach ($rekenings as $rekening): ?>
-                                        <option value="<?= (int) $rekening['id'] ?>" <?= $form['rekening_id'] == $rekening['id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($rekening['kode_rekening'] . ' - ' . $rekening['nama_rekening']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <?php if (isset($errors['rekening_id'])): ?>
-                                    <div class="invalid-feedback d-block"><?= htmlspecialchars($errors['rekening_id']) ?></div>
-                                <?php endif; ?>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="tahun" class="form-label fw-semibold">Tahun Anggaran <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control <?= isset($errors['tahun']) ? 'is-invalid' : '' ?>" id="tahun" name="tahun"
-                                       value="<?= (int) $form['tahun'] ?>" min="2000" max="2100" required>
-                                <?php if (isset($errors['tahun'])): ?>
-                                    <div class="invalid-feedback"><?= htmlspecialchars($errors['tahun']) ?></div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                        <?php endif; ?>
+                        <?php if (isset($errors['rekening_id'])): ?>
+                            <div class="alert alert-danger py-2 px-3 mt-3 mb-0" style="font-size:.8rem;"><?= htmlspecialchars($errors['rekening_id']) ?></div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <div class="rp-form-card mb-4">
+                <div class="rp-form-card mb-4" id="rpDetailCard">
                     <div class="card-header">
                         <h6><i class="bi bi-clipboard-check text-primary me-1"></i>Detail Rencana Kegiatan</h6>
                     </div>
+                    <fieldset class="rp-fieldset" id="rpDetailFieldset" <?= $canEditDetail ? '' : 'disabled' ?>>
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="bentuk_kegiatan" class="form-label fw-semibold">Bentuk Kegiatan <span class="text-danger">*</span></label>
@@ -445,6 +605,7 @@ $bentukSuggestions = [
                             <?php endif; ?>
                         </div>
                     </div>
+                    </fieldset>
                 </div>
             </div>
 
@@ -512,7 +673,7 @@ $bentukSuggestions = [
                         <a href="<?= base_url('rencana-penyerapan?tahun=' . urlencode((string) $form['tahun'])) ?>" class="btn btn-outline-secondary flex-fill">
                             <i class="bi bi-arrow-left me-1"></i>Kembali
                         </a>
-                        <button type="submit" class="btn btn-primary flex-fill">
+                        <button type="submit" class="btn btn-primary flex-fill" data-rp-submit <?= $canEditDetail ? '' : 'disabled' ?>>
                             <i class="bi bi-check-circle me-1"></i><?= $isEdit ? 'Simpan' : 'Simpan Rencana' ?>
                         </button>
                     </div>
@@ -525,7 +686,7 @@ $bentukSuggestions = [
                 <i class="bi bi-arrow-left me-1"></i>Kembali
             </a>
             <span></span>
-            <button type="submit" class="btn btn-primary d-lg-none">
+            <button type="submit" class="btn btn-primary d-lg-none" data-rp-submit <?= $canEditDetail ? '' : 'disabled' ?>>
                 <i class="bi bi-check-circle me-1"></i><?= $isEdit ? 'Simpan Perubahan' : 'Simpan Rencana' ?>
             </button>
         </div>
@@ -538,9 +699,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const isEdit = <?= $isEdit ? 'true' : 'false' ?>;
     const excludeId = <?= $isEdit ? (int) $form['id'] : 'null' ?>;
 
-    const programSel = document.getElementById('program_id');
-    const kegiatanSel = document.getElementById('kegiatan_id');
-    const subKegiatanSel = document.getElementById('sub_kegiatan_id');
     const rekeningSel = document.getElementById('rekening_id');
     const tahunInput = document.getElementById('tahun');
     const bulanMulai = document.getElementById('bulan_mulai');
@@ -550,6 +708,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const previewText = document.getElementById('rpPreviewText');
     const paguWarning = document.getElementById('rpPaguWarning');
     const form = document.getElementById('rpForm');
+
+    const detailFieldset = document.getElementById('rpDetailFieldset');
+    const submitButtons = document.querySelectorAll('[data-rp-submit]');
+    const selectedBanner = document.getElementById('rpSelectedBanner');
+    const selectedLabel = document.getElementById('rpSelectedLabel');
+    const selectedHint = document.getElementById('rpSelectedHint');
+    const pickerSearch = document.getElementById('rpRekeningSearch');
+    const pickerCount = document.getElementById('rpRekeningCount');
+    const pickerRows = Array.from(document.querySelectorAll('[data-rekening-row]'));
+    const formTahun = <?= (int) $formTahun ?>;
 
     const infoRekening = document.getElementById('rpInfoRekening');
     const infoPagu = document.getElementById('rpInfoPagu');
@@ -735,72 +903,78 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    function clearSelect(select, placeholder) {
-        select.innerHTML = '<option value="">' + placeholder + '</option>';
-        select.disabled = true;
+    function enableDetail() {
+        if (detailFieldset) detailFieldset.disabled = false;
+        submitButtons.forEach(function (btn) { btn.disabled = false; });
     }
 
-    programSel.addEventListener('change', function () {
-        clearSelect(kegiatanSel, '-- Pilih Kegiatan --');
-        clearSelect(subKegiatanSel, '-- Pilih Sub Kegiatan --');
-        clearSelect(rekeningSel, '-- Pilih Rekening --');
-        resetInfo();
+    function selectRekening(row, scroll) {
+        rekeningSel.value = row.dataset.rekeningId;
 
-        if (!this.value) return;
+        pickerRows.forEach(function (item) {
+            const active = item === row;
+            item.classList.toggle('is-selected', active);
 
-        kegiatanSel.disabled = false;
-        fetch(BASE + 'pagu/get-kegiatans?program_id=' + encodeURIComponent(this.value))
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                (data || []).forEach(function (item) {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.kode_kegiatan + ' - ' + item.nama_kegiatan;
-                    kegiatanSel.appendChild(opt);
-                });
-            });
+            const btn = item.querySelector('[data-pick-rekening]');
+            if (btn) {
+                btn.classList.toggle('btn-primary', active);
+                btn.classList.toggle('btn-outline-primary', !active);
+                btn.textContent = active ? 'Dipilih' : 'Pilih';
+            }
+        });
+
+        enableDetail();
+
+        if (selectedBanner) {
+            selectedBanner.classList.add('is-active');
+            const icon = selectedBanner.querySelector('.bi');
+            if (icon) {
+                icon.classList.remove('bi-info-circle');
+                icon.classList.add('bi-check-circle');
+            }
+        }
+
+        if (selectedLabel) selectedLabel.textContent = row.dataset.kode + ' · ' + row.dataset.nama;
+        if (selectedHint) selectedHint.textContent = 'Nilai rencana akan dicatat untuk rekening ini · Tahun ' + (tahunInput.value || formTahun);
+
+        fetchInfo();
+
+        if (scroll) {
+            const card = document.getElementById('rpDetailCard');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const bentuk = document.getElementById('bentuk_kegiatan');
+            if (bentuk) bentuk.focus({ preventScroll: true });
+        }
+    }
+
+    function filterPicker() {
+        const terms = String(pickerSearch.value || '').toLowerCase().split(/\s+/).filter(Boolean);
+        let shown = 0;
+
+        pickerRows.forEach(function (row) {
+            const haystack = row.dataset.search || '';
+            const match = terms.every(function (term) { return haystack.indexOf(term) !== -1; });
+            row.classList.toggle('d-none', !match);
+            if (match) shown++;
+        });
+
+        if (pickerCount) {
+            pickerCount.textContent = terms.length
+                ? 'Menampilkan ' + shown + ' dari ' + pickerRows.length + ' rekening'
+                : pickerRows.length + ' rekening';
+        }
+    }
+
+    if (pickerSearch) pickerSearch.addEventListener('input', filterPicker);
+
+    pickerRows.forEach(function (row) {
+        const btn = row.querySelector('[data-pick-rekening]');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            selectRekening(row, true);
+        });
     });
 
-    kegiatanSel.addEventListener('change', function () {
-        clearSelect(subKegiatanSel, '-- Pilih Sub Kegiatan --');
-        clearSelect(rekeningSel, '-- Pilih Rekening --');
-        resetInfo();
-
-        if (!this.value) return;
-
-        subKegiatanSel.disabled = false;
-        fetch(BASE + 'pagu/get-sub-kegiatans?kegiatan_id=' + encodeURIComponent(this.value))
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                (data || []).forEach(function (item) {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.kode_sub_kegiatan + ' - ' + item.nama_sub_kegiatan;
-                    subKegiatanSel.appendChild(opt);
-                });
-            });
-    });
-
-    subKegiatanSel.addEventListener('change', function () {
-        clearSelect(rekeningSel, '-- Pilih Rekening --');
-        resetInfo();
-
-        if (!this.value) return;
-
-        rekeningSel.disabled = false;
-        fetch(BASE + 'pagu/get-rekenings?sub_kegiatan_id=' + encodeURIComponent(this.value))
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                (data || []).forEach(function (item) {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.kode_rekening + ' - ' + item.nama_rekening;
-                    rekeningSel.appendChild(opt);
-                });
-            });
-    });
-
-    rekeningSel.addEventListener('change', fetchInfo);
     tahunInput.addEventListener('change', function () {
         updatePreviewPastMarks();
         fetchInfo();
@@ -819,9 +993,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initial state
     updatePreview();
     updatePreviewPastMarks();
-    renderMonthlyReal({}, Number(tahunInput.value || 0));
     if (rekeningSel.value && tahunInput.value) {
         fetchInfo();
+    } else {
+        renderMonthlyReal({}, Number(tahunInput.value || 0));
+        if (miniRealText) miniRealText.textContent = 'Pilih rekening untuk melihat rincian realisasi bulanan.';
     }
 });
 </script>

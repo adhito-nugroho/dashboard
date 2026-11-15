@@ -9,7 +9,6 @@ require_once __DIR__ . '/../../config/helpers.php';
 
 use App\Models\RencanaPenyerapan;
 use App\Models\Rekening;
-use App\Models\Program;
 use App\Models\Kegiatan;
 use App\Models\SubKegiatan;
 use App\Models\Rak;
@@ -32,7 +31,6 @@ class RencanaPenyerapanController
 
     private RencanaPenyerapan $model;
     private Rekening $rekeningModel;
-    private Program $programModel;
     private Kegiatan $kegiatanModel;
     private SubKegiatan $subKegiatanModel;
     private Rak $rakModel;
@@ -40,14 +38,12 @@ class RencanaPenyerapanController
     public function __construct(
         RencanaPenyerapan $model,
         Rekening $rekeningModel,
-        Program $programModel,
         Kegiatan $kegiatanModel,
         SubKegiatan $subKegiatanModel,
         Rak $rakModel
     ) {
         $this->model = $model;
         $this->rekeningModel = $rekeningModel;
-        $this->programModel = $programModel;
         $this->kegiatanModel = $kegiatanModel;
         $this->subKegiatanModel = $subKegiatanModel;
         $this->rakModel = $rakModel;
@@ -178,20 +174,11 @@ class RencanaPenyerapanController
             'bulan_selesai'    => (int) date('n'),
             'nilai_rencana'    => '',
             'keterangan'       => '',
-            'program_id'       => 0,
-            'kegiatan_id'      => 0,
-            'sub_kegiatan_id'  => 0,
         ];
 
         $rekeningId = (int) ($_GET['rekening_id'] ?? 0);
-        if ($rekeningId > 0) {
-            $rekening = $this->rekeningModel->getById($rekeningId);
-            if ($rekening) {
-                $form['rekening_id'] = $rekeningId;
-                $form['program_id'] = (int) ($rekening['program_id'] ?? 0);
-                $form['kegiatan_id'] = (int) ($rekening['kegiatan_id'] ?? 0);
-                $form['sub_kegiatan_id'] = (int) ($rekening['sub_kegiatan_id'] ?? 0);
-            }
+        if ($rekeningId > 0 && $this->rekeningModel->getById($rekeningId)) {
+            $form['rekening_id'] = $rekeningId;
         }
 
         $this->showForm('Tambah Rencana Penyerapan', 'Tentukan bentuk kegiatan, mekanisme pembayaran, dan periode penyerapan.', $form, [], 'store');
@@ -241,9 +228,6 @@ class RencanaPenyerapanController
             'bulan_selesai'    => (int) $plan['bulan_selesai'],
             'nilai_rencana'    => (float) $plan['nilai_rencana'],
             'keterangan'       => $plan['keterangan'] ?? '',
-            'program_id'       => (int) ($plan['program_id'] ?? 0),
-            'kegiatan_id'      => (int) ($plan['kegiatan_id'] ?? 0),
-            'sub_kegiatan_id'  => (int) ($plan['sub_kegiatan_id'] ?? 0),
         ];
 
         $this->showForm('Edit Rencana Penyerapan', 'Ubah detail rencana kegiatan dan periode penyerapan.', $form, [], 'update');
@@ -356,9 +340,6 @@ class RencanaPenyerapanController
             'bulan_selesai'   => (int) ($input['bulan_selesai'] ?? 1),
             'nilai_rencana'   => $this->normalizeNilai((string) ($input['nilai_rencana'] ?? '')),
             'keterangan'      => trim((string) ($input['keterangan'] ?? '')),
-            'program_id'      => (int) ($input['program_id'] ?? 0),
-            'kegiatan_id'     => (int) ($input['kegiatan_id'] ?? 0),
-            'sub_kegiatan_id' => (int) ($input['sub_kegiatan_id'] ?? 0),
         ];
     }
 
@@ -414,10 +395,13 @@ class RencanaPenyerapanController
 
     private function showForm(string $title, string $subtitle, array $form, array $errors, string $action): void
     {
-        $programs = $this->programModel->getAll();
-        $kegiatans = $form['program_id'] ? $this->kegiatanModel->getByProgramId((int) $form['program_id']) : [];
-        $subKegiatans = $form['kegiatan_id'] ? $this->subKegiatanModel->getByKegiatanId((int) $form['kegiatan_id']) : [];
-        $rekenings = $form['sub_kegiatan_id'] ? $this->rekeningModel->getBySubKegiatanId((int) $form['sub_kegiatan_id']) : [];
+        $isEdit = $action === 'update';
+        $formTahun = (int) ($form['tahun'] ?? date('Y'));
+
+        $rekenings = $isEdit ? [] : $this->model->getRekeningPickerList($formTahun);
+        $selectedRekening = (int) ($form['rekening_id'] ?? 0) > 0
+            ? $this->rekeningModel->getById((int) $form['rekening_id'])
+            : null;
 
         $pageTitle = $title;
         $activePage = 'rencana_penyerapan';

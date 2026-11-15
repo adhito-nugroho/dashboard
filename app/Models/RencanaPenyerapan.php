@@ -470,6 +470,59 @@ class RencanaPenyerapan
         return $result;
     }
 
+    /**
+     * Semua rekening yang punya pagu pada tahun tertentu, lengkap dengan nilai
+     * pagu/realisasi/rencana untuk memilih rekening saat menambah rencana.
+     */
+    public function getRekeningPickerList(int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT r.id, r.kode_rekening, r.nama_rekening,
+                       sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
+                       k.kode_kegiatan, k.nama_kegiatan,
+                       p.kode_program, p.nama_program,
+                       s.nama_seksi,
+                       COALESCE(pg.total_pagu, 0) AS total_pagu,
+                       COALESCE(rpl.total_rencana, 0) AS total_rencana,
+                       COALESCE(rea.total_realisasi, 0) AS total_realisasi
+                FROM rekening r
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
+                INNER JOIN program p ON k.program_id = p.id
+                LEFT JOIN seksi s ON sk.seksi_id = s.id
+                INNER JOIN (
+                    SELECT rekening_id, SUM(nilai_pagu) AS total_pagu
+                    FROM pagu
+                    WHERE tahun = :tahun_pagu
+                    GROUP BY rekening_id
+                ) pg ON pg.rekening_id = r.id
+                LEFT JOIN (
+                    SELECT rekening_id, SUM(nilai_rencana) AS total_rencana
+                    FROM rencana_penyerapan
+                    WHERE tahun = :tahun_rencana
+                    GROUP BY rekening_id
+                ) rpl ON rpl.rekening_id = r.id
+                LEFT JOIN (
+                    SELECT t.rekening_id, SUM(t.nilai) AS total_realisasi
+                    FROM transaksi t
+                    WHERE t.status = 'diverifikasi'
+                      AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun_realisasi
+                    GROUP BY t.rekening_id
+                ) rea ON rea.rekening_id = r.id
+                ORDER BY r.kode_rekening ASC
+            ");
+            $stmt->bindValue(':tahun_pagu', $tahun, PDO::PARAM_INT);
+            $stmt->bindValue(':tahun_rencana', $tahun, PDO::PARAM_INT);
+            $stmt->bindValue(':tahun_realisasi', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching rekening picker: ' . $e->getMessage());
+            return [];
+        }
+    }
+
     /** Rekening ber-pagu yang belum punya rencana pada tahun tsb. */
     public function getRekeningBelumDirencanakan(
         int $tahun,

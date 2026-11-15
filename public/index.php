@@ -131,7 +131,6 @@ try {
     $rencanaPenyerapanController = new RencanaPenyerapanController(
         $rencanaPenyerapanModel,
         $rekeningModel,
-        $programModel,
         $kegiatanModel,
         $subKegiatanModel,
         $rakModel
