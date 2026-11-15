@@ -727,6 +727,7 @@ class RencanaPenyerapan
                 ':tahun_tu'      => $tahun,
                 ':tahun_selesai' => $tahun,
                 ':tahun_realisasi' => $tahun,
+                ':tahun_tu_info' => $tahun,
             ];
 
             if ($subKegiatanId !== null) {
@@ -743,7 +744,11 @@ class RencanaPenyerapan
                        k.kode_kegiatan, k.nama_kegiatan,
                        p2.kode_program, p2.nama_program,
                        SUM(p.nilai_pagu) AS nilai_pagu,
-                       COALESCE(MAX(rea.total_realisasi), 0) AS total_realisasi
+                       COALESCE(MAX(rea.total_realisasi), 0) AS total_realisasi,
+                       COALESCE(MAX(tui.tu_selesai_count), 0) AS tu_selesai_count,
+                       COALESCE(MAX(tui.tu_ditolak_count), 0) AS tu_ditolak_count,
+                       COALESCE(MAX(tui.tu_selesai_total), 0) AS tu_selesai_total,
+                       COALESCE(MAX(tui.tu_ditolak_total), 0) AS tu_ditolak_total
                 FROM rekening r
                 INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
@@ -756,6 +761,18 @@ class RencanaPenyerapan
                       AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun_realisasi
                     GROUP BY t.rekening_id
                 ) rea ON rea.rekening_id = r.id
+                LEFT JOIN (
+                    SELECT tr.rekening_id,
+                           COUNT(DISTINCT CASE WHEN pt.status = 'selesai' THEN pt.id END) AS tu_selesai_count,
+                           COUNT(DISTINCT CASE WHEN pt.status = 'ditolak' THEN pt.id END) AS tu_ditolak_count,
+                           SUM(CASE WHEN pt.status = 'selesai' THEN tr.nominal ELSE 0 END) AS tu_selesai_total,
+                           SUM(CASE WHEN pt.status = 'ditolak' THEN tr.nominal ELSE 0 END) AS tu_ditolak_total
+                    FROM pengajuan_tu pt
+                    INNER JOIN pengajuan_tu_rekening tr ON tr.pengajuan_tu_id = pt.id
+                    WHERE pt.tahun = :tahun_tu_info
+                      AND pt.status IN ('selesai', 'ditolak')
+                    GROUP BY tr.rekening_id
+                ) tui ON tui.rekening_id = r.id
                 WHERE " . implode(' AND ', $conditions) . "
                 GROUP BY r.id, r.kode_rekening, r.nama_rekening,
                          sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,

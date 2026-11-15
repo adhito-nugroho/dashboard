@@ -430,6 +430,20 @@ $mekanismeMeta = [
 
     .rp-belum-toggle:focus-visible { outline: 2px solid #4338ca; outline-offset: -2px; }
 
+    .rp-rek-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 5px;
+        font-size: .72rem;
+        line-height: 1.35;
+        color: #475569;
+    }
+    .rp-rek-note + .rp-rek-note { margin-top: 3px; }
+    .rp-rek-note i { margin-top: 1px; }
+    .rp-rek-note--real { color: #047857; }
+    .rp-rek-note--tu { color: #b45309; }
+    .rp-rek-note--tolak { color: #64748b; }
+
     @media (max-width: 991.98px) {
         .rp-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .rp-rek-head { flex-direction: column; }
@@ -1084,12 +1098,21 @@ $mekanismeMeta = [
                                     <th>Kegiatan / Sub Kegiatan</th>
                                     <th class="text-end">Pagu</th>
                                     <th class="text-end">Sisa</th>
+                                    <th>Keterangan</th>
                                     <th class="text-center" style="width:190px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($belumDirencanakan as $rek): ?>
-                                    <?php $sisaRek = (float) $rek['nilai_pagu'] - (float) ($rek['total_realisasi'] ?? 0); ?>
+                                    <?php
+                                        $sisaRek = (float) $rek['nilai_pagu'] - (float) ($rek['total_realisasi'] ?? 0);
+                                        $realisasiRek = (float) ($rek['total_realisasi'] ?? 0);
+                                        $tuSelesaiCount = (int) ($rek['tu_selesai_count'] ?? 0);
+                                        $tuDitolakCount = (int) ($rek['tu_ditolak_count'] ?? 0);
+                                        $tuSelesaiTotal = (float) ($rek['tu_selesai_total'] ?? 0);
+                                        $tuDitolakTotal = (float) ($rek['tu_ditolak_total'] ?? 0);
+                                        $adaKeterangan = $realisasiRek > 0.005 || $tuSelesaiCount > 0 || $tuDitolakCount > 0;
+                                    ?>
                                     <tr id="rek-<?= (int) $rek['id'] ?>" data-rek-row="<?= (int) $rek['id'] ?>">
                                         <td>
                                             <span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span>
@@ -1101,6 +1124,29 @@ $mekanismeMeta = [
                                         </td>
                                         <td class="text-end fw-semibold">Rp <?= number_format((float) $rek['nilai_pagu'], 0, ',', '.') ?></td>
                                         <td class="text-end">Rp <?= number_format($sisaRek, 0, ',', '.') ?></td>
+                                        <td>
+                                            <?php if ($realisasiRek > 0.005): ?>
+                                                <div class="rp-rek-note rp-rek-note--real" title="Transaksi terverifikasi tahun ini; nilainya sudah mengurangi sisa kapasitas.">
+                                                    <i class="bi bi-check2-circle"></i>
+                                                    <span>Realisasi <strong>Rp <?= number_format($realisasiRek, 0, ',', '.') ?></strong></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if ($tuSelesaiCount > 0): ?>
+                                                <div class="rp-rek-note rp-rek-note--tu" title="Pengajuan TU dengan SPJ selesai; nilainya sudah tercatat sebagai realisasi.">
+                                                    <i class="bi bi-lightning-charge"></i>
+                                                    <span>TU selesai<?= $tuSelesaiCount > 1 ? ' (' . $tuSelesaiCount . ' pengajuan)' : '' ?> <strong>Rp <?= number_format($tuSelesaiTotal, 0, ',', '.') ?></strong></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if ($tuDitolakCount > 0): ?>
+                                                <div class="rp-rek-note rp-rek-note--tolak" title="Pengajuan TU ditolak; tidak dihitung sebagai rencana maupun realisasi.">
+                                                    <i class="bi bi-x-circle"></i>
+                                                    <span>TU ditolak<?= $tuDitolakCount > 1 ? ' (' . $tuDitolakCount . ' pengajuan)' : '' ?> <strong>Rp <?= number_format($tuDitolakTotal, 0, ',', '.') ?></strong></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!$adaKeterangan): ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="text-center">
                                             <div class="d-flex justify-content-center gap-1">
                                                 <button type="button" class="btn btn-sm btn-outline-primary" data-rp-create
@@ -1329,7 +1375,7 @@ window.RP_INLINE = <?= json_encode([
             const host = document.createElement('tr');
             host.className = 'rp-if-row';
             const cell = document.createElement('td');
-            cell.colSpan = 5;
+            cell.colSpan = 6;
             host.appendChild(cell);
             row.after(host);
             return { host: host, root: cell };
