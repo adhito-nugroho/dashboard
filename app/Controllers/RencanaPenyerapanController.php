@@ -77,6 +77,14 @@ class RencanaPenyerapanController
         $paguMap = $this->model->getPaguMap($tahun, $kegiatanId, $subKegiatanId);
         $realisasiMap = $this->model->getRealisasiMap($tahun, $kegiatanId, $subKegiatanId);
         $realisasiBulananMap = $this->model->getRealisasiMonthlyMap($tahun, $kegiatanId, $subKegiatanId);
+        $tuBulananMap = $this->model->getTuPlanMonthlyMap($tahun, $kegiatanId, $subKegiatanId);
+        $selesaiMap = $this->model->getSelesaiMap($tahun);
+        $pickerRekening = $this->model->getRekeningPickerList($tahun, $kegiatanId, $subKegiatanId);
+
+        $tuTotalMap = [];
+        foreach ($tuBulananMap as $rekeningId => $bulanan) {
+            $tuTotalMap[$rekeningId] = array_sum($bulanan);
+        }
 
         $groups = [];
         foreach ($plans as $plan) {
@@ -104,18 +112,84 @@ class RencanaPenyerapanController
             $groups[$rekeningId]['plans'][] = $plan;
             $groups[$rekeningId]['total_rencana'] += (float) $plan['nilai_rencana'];
         }
+
+        $pickerIndex = [];
+        foreach ($pickerRekening as $rek) {
+            $pickerIndex[(int) $rek['id']] = $rek;
+        }
+
+        foreach ($tuTotalMap as $rekeningId => $totalTu) {
+            if ($totalTu <= 0 || isset($groups[$rekeningId])) {
+                continue;
+            }
+            $rek = $pickerIndex[(int) $rekeningId] ?? null;
+            if (!$rek || (float) $rek['total_pagu'] <= 0) {
+                continue;
+            }
+            $groups[(int) $rekeningId] = [
+                'rekening_id'       => (int) $rekeningId,
+                'kode_rekening'     => $rek['kode_rekening'],
+                'nama_rekening'     => $rek['nama_rekening'],
+                'kode_program'      => $rek['kode_program'],
+                'nama_program'      => $rek['nama_program'],
+                'kode_kegiatan'     => $rek['kode_kegiatan'],
+                'nama_kegiatan'     => $rek['nama_kegiatan'],
+                'kode_sub_kegiatan' => $rek['kode_sub_kegiatan'],
+                'nama_sub_kegiatan' => $rek['nama_sub_kegiatan'],
+                'nama_seksi'        => $rek['nama_seksi'] ?? null,
+                'tahun'             => $tahun,
+                'pagu'              => (float) $rek['total_pagu'],
+                'realisasi'         => $realisasiMap[(int) $rekeningId] ?? ['total' => 0, 'GU' => 0, 'TU' => 0, 'LS' => 0, 'UP' => 0],
+                'realisasi_bulanan' => $realisasiBulananMap[(int) $rekeningId] ?? [],
+                'plans'             => [],
+                'total_rencana'     => 0,
+            ];
+        }
+
+        foreach ($groups as &$group) {
+            $rekeningId = (int) $group['rekening_id'];
+            $group['tu_plan'] = (float) ($tuTotalMap[$rekeningId] ?? 0);
+            $group['tu_bulanan'] = $tuBulananMap[$rekeningId] ?? [];
+            $group['sisa_kapasitas'] = (float) $group['pagu']
+                - (float) $group['realisasi']['total']
+                - (float) $group['total_rencana']
+                - $group['tu_plan'];
+            $group['selesai_manual'] = isset($selesaiMap[$rekeningId]);
+            $group['selesai_otomatis'] = !$group['selesai_manual']
+                && (float) $group['pagu'] > 0
+                && $group['sisa_kapasitas'] <= 0.005;
+            $group['selesai'] = $group['selesai_manual'] || $group['selesai_otomatis'];
+        }
+        unset($group);
+
         $groups = array_values($groups);
 
         $totalRencana = 0.0;
         foreach ($groups as $group) {
             $totalRencana += $group['total_rencana'];
         }
+        $totalTuPlan = array_sum($tuTotalMap);
         $totalPagu = array_sum($paguMap);
         $totalRealisasi = 0.0;
         foreach ($realisasiMap as $row) {
             $totalRealisasi += (float) $row['total'];
         }
-        $totalSisaKapasitas = $totalPagu - $totalRealisasi - $totalRencana;
+        $totalSisaKapasitas = $totalPagu - $totalRealisasi - $totalRencana - $totalTuPlan;
+
+        $selesaiList = [];
+        foreach ($pickerRekening as $rek) {
+            if (empty($rek['selesai_id'])) {
+                continue;
+            }
+            $rekeningId = (int) $rek['id'];
+            $paguRek = (float) $rek['total_pagu'];
+            $realRek = (float) $rek['total_realisasi'];
+            $rencanaRek = (float) $rek['total_rencana'];
+            $tuRek = (float) $rek['total_tu'];
+            $rek['sisa_kapasitas'] = $paguRek - $realRek - $rencanaRek - $tuRek;
+            $rek['keterangan_selesai'] = $selesaiMap[$rekeningId]['keterangan'] ?? null;
+            $selesaiList[] = $rek;
+        }
 
         $belumDirencanakan = $this->model->getRekeningBelumDirencanakan($tahun, $kegiatanId, $subKegiatanId);
         $belumCount = count($belumDirencanakan);
@@ -168,7 +242,6 @@ class RencanaPenyerapanController
             'rekening_id'      => 0,
             'tahun'            => isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y'),
             'bentuk_kegiatan'  => '',
-            'uraian'           => '',
             'mekanisme'        => 'GU',
             'bulan_mulai'      => (int) date('n'),
             'bulan_selesai'    => (int) date('n'),
@@ -222,7 +295,6 @@ class RencanaPenyerapanController
             'rekening_id'      => (int) $plan['rekening_id'],
             'tahun'            => (int) $plan['tahun'],
             'bentuk_kegiatan'  => $plan['bentuk_kegiatan'],
-            'uraian'           => $plan['uraian'] ?? '',
             'mekanisme'        => $plan['mekanisme'],
             'bulan_mulai'      => (int) $plan['bulan_mulai'],
             'bulan_selesai'    => (int) $plan['bulan_selesai'],
@@ -277,6 +349,50 @@ class RencanaPenyerapanController
         }
     }
 
+    public function markSelesai(): void
+    {
+        $this->requireAdmin();
+
+        $rekeningId = (int) ($_POST['rekening_id'] ?? 0);
+        $tahun = (int) ($_POST['tahun'] ?? date('Y'));
+        $redirect = (string) ($_POST['redirect'] ?? 'index');
+
+        if ($rekeningId <= 0 || !$this->rekeningModel->getById($rekeningId)) {
+            $this->redirectWithMessage(base_url('rencana-penyerapan?tahun=' . $tahun), 'error', 'Rekening tidak ditemukan.');
+        }
+
+        try {
+            $this->model->markSelesai($rekeningId, $tahun, (int) ($_SESSION['user_id'] ?? 0) ?: null);
+            $url = $redirect === 'create'
+                ? base_url('rencana-penyerapan/create?tahun=' . $tahun)
+                : base_url('rencana-penyerapan?tahun=' . $tahun . '#rek-' . $rekeningId);
+            $this->redirectWithMessage($url, 'success', 'Rekening ditandai selesai. Tidak perlu input rencana lagi.');
+        } catch (\Throwable $e) {
+            error_log('Gagal menandai rekening selesai: ' . $e->getMessage());
+            $this->redirectWithMessage(base_url('rencana-penyerapan?tahun=' . $tahun), 'error', 'Gagal menandai rekening selesai.');
+        }
+    }
+
+    public function batalSelesai(): void
+    {
+        $this->requireAdmin();
+
+        $rekeningId = (int) ($_POST['rekening_id'] ?? 0);
+        $tahun = (int) ($_POST['tahun'] ?? date('Y'));
+        $redirect = (string) ($_POST['redirect'] ?? 'index');
+
+        try {
+            $this->model->unmarkSelesai($rekeningId, $tahun);
+            $url = $redirect === 'create'
+                ? base_url('rencana-penyerapan/create?tahun=' . $tahun)
+                : base_url('rencana-penyerapan?tahun=' . $tahun . '#rek-' . $rekeningId);
+            $this->redirectWithMessage($url, 'success', 'Status selesai dibatalkan. Rekening perlu rencana penyerapan kembali.');
+        } catch (\Throwable $e) {
+            error_log('Gagal membatalkan status selesai: ' . $e->getMessage());
+            $this->redirectWithMessage(base_url('rencana-penyerapan?tahun=' . $tahun), 'error', 'Gagal membatalkan status selesai.');
+        }
+    }
+
     public function rekeningInfo(): void
     {
         $this->requireAdmin();
@@ -301,9 +417,12 @@ class RencanaPenyerapanController
 
         $pagu = $this->model->getPaguForRekening($rekeningId, $tahun);
         $totalRencana = $this->model->getTotalByRekeningAndYear($rekeningId, $tahun, $excludeId);
+        $tuPlan = $this->model->getTuPlanForRekening($rekeningId, $tahun);
         $realisasi = $this->model->getRealisasiForRekening($rekeningId, $tahun);
         $realisasiBulanan = $this->model->getRealisasiMonthlyForRekening($rekeningId, $tahun);
         $totalRak = $this->rakModel->getTotalByRekeningAndYear($rekeningId, $tahun);
+        $selesaiMap = $this->model->getSelesaiMap($tahun);
+        $selesai = isset($selesaiMap[$rekeningId]);
 
         echo json_encode([
             'ok' => true,
@@ -314,8 +433,10 @@ class RencanaPenyerapanController
             ],
             'pagu'              => $pagu,
             'total_rencana'     => $totalRencana,
-            'sisa_rencana'      => $pagu !== null ? $pagu - $totalRencana : null,
-            'sisa_kapasitas'    => $pagu !== null ? $pagu - (float) $realisasi['total'] - $totalRencana : null,
+            'total_tu'          => $tuPlan,
+            'selesai'           => $selesai,
+            'sisa_rencana'      => $pagu !== null ? $pagu - $totalRencana - $tuPlan : null,
+            'sisa_kapasitas'    => $pagu !== null ? $pagu - (float) $realisasi['total'] - $totalRencana - $tuPlan : null,
             'total_rak'         => $totalRak,
             'realisasi'         => $realisasi,
             'realisasi_bulanan' => $realisasiBulanan,
@@ -334,7 +455,6 @@ class RencanaPenyerapanController
             'rekening_id'     => (int) ($input['rekening_id'] ?? 0),
             'tahun'           => (int) ($input['tahun'] ?? date('Y')),
             'bentuk_kegiatan' => trim((string) ($input['bentuk_kegiatan'] ?? '')),
-            'uraian'          => trim((string) ($input['uraian'] ?? '')),
             'mekanisme'       => $mekanisme,
             'bulan_mulai'     => (int) ($input['bulan_mulai'] ?? 1),
             'bulan_selesai'   => (int) ($input['bulan_selesai'] ?? 1),
@@ -367,9 +487,6 @@ class RencanaPenyerapanController
             $errors['bentuk_kegiatan'] = 'Bentuk kegiatan wajib diisi.';
         } elseif (mb_strlen($data['bentuk_kegiatan']) > 150) {
             $errors['bentuk_kegiatan'] = 'Bentuk kegiatan maksimal 150 karakter.';
-        }
-        if (mb_strlen((string) $data['uraian']) > 500) {
-            $errors['uraian'] = 'Uraian maksimal 500 karakter.';
         }
         if (mb_strlen((string) $data['keterangan']) > 255) {
             $errors['keterangan'] = 'Keterangan maksimal 255 karakter.';
@@ -414,11 +531,12 @@ class RencanaPenyerapanController
     {
         $pagu = $this->model->getPaguForRekening((int) $form['rekening_id'], (int) $form['tahun']);
         $total = $this->model->getTotalByRekeningAndYear((int) $form['rekening_id'], (int) $form['tahun'], $excludeId);
+        $tuPlan = $this->model->getTuPlanForRekening((int) $form['rekening_id'], (int) $form['tahun']);
         $realisasi = $this->model->getRealisasiForRekening((int) $form['rekening_id'], (int) $form['tahun']);
-        $terpakai = $total + (float) $realisasi['total'];
+        $terpakai = $total + $tuPlan + (float) $realisasi['total'];
 
         if ($pagu !== null && $terpakai > $pagu) {
-            $_SESSION['flash_message'] = $message . ' Perhatian: total rencana + realisasi (Rp ' . number_format($terpakai, 0, ',', '.')
+            $_SESSION['flash_message'] = $message . ' Perhatian: total rencana + rencana TU + realisasi (Rp ' . number_format($terpakai, 0, ',', '.')
                 . ') melebihi pagu rekening (Rp ' . number_format($pagu, 0, ',', '.') . ').';
             $_SESSION['flash_type'] = 'warning';
             return;

@@ -12,7 +12,9 @@ $belumDirencanakan = $belumDirencanakan ?? [];
 $belumCount = $belumCount ?? count($belumDirencanakan);
 $totalPagu = $totalPagu ?? 0;
 $totalRencana = $totalRencana ?? 0;
+$totalTuPlan = $totalTuPlan ?? 0;
 $totalRealisasi = $totalRealisasi ?? 0;
+$selesaiList = $selesaiList ?? [];
 $tahun = $tahun ?? (int) date('Y');
 
 $bulanShort = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -31,9 +33,9 @@ $shortRupiah = function (float $value): string {
     return 'Rp ' . number_format($value, 0, ',', '.');
 };
 
-$pctRencana = $totalPagu > 0 ? ($totalRencana / $totalPagu) * 100 : 0;
+$pctRencana = $totalPagu > 0 ? (($totalRencana + $totalTuPlan) / $totalPagu) * 100 : 0;
 $pctRealisasi = $totalPagu > 0 ? ($totalRealisasi / $totalPagu) * 100 : 0;
-$totalSisaKapasitas = $totalSisaKapasitas ?? ($totalPagu - $totalRealisasi - $totalRencana);
+$totalSisaKapasitas = $totalSisaKapasitas ?? ($totalPagu - $totalRealisasi - $totalRencana - $totalTuPlan);
 
 $tahunInt = (int) $tahun;
 $bulanSekarang = $tahunInt < (int) date('Y') ? 12 : ($tahunInt === (int) date('Y') ? (int) date('n') : 0);
@@ -384,6 +386,13 @@ $mekanismeMeta = [
         margin-top: 6px;
     }
 
+    .rp-timeline-row--tu {
+        background: #f0fdfa;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-top: 6px;
+    }
+
     .rp-cell--real { position: relative; }
 
     .rp-vbar {
@@ -478,8 +487,13 @@ $mekanismeMeta = [
         </div>
         <div class="rp-kpi">
             <div class="rp-kpi__label"><i class="bi bi-calendar3-range"></i> Total Rencana</div>
-            <div class="rp-kpi__value text-primary">Rp <?= number_format($totalRencana, 0, ',', '.') ?></div>
-            <div class="rp-kpi__sub"><?= number_format($pctRencana, 1, ',', '.') ?>% dari pagu<?= $isFiltered ? ' (sesuai filter)' : '' ?></div>
+            <div class="rp-kpi__value text-primary">Rp <?= number_format($totalRencana + $totalTuPlan, 0, ',', '.') ?></div>
+            <div class="rp-kpi__sub">
+                <?= number_format($pctRencana, 1, ',', '.') ?>% dari pagu<?= $isFiltered ? ' (sesuai filter)' : '' ?>
+                <?php if ($totalTuPlan > 0): ?>
+                    <br>Rp <?= number_format($totalRencana, 0, ',', '.') ?> manual · Rp <?= number_format($totalTuPlan, 0, ',', '.') ?> dari TU
+                <?php endif; ?>
+            </div>
         </div>
         <div class="rp-kpi">
             <div class="rp-kpi__label"><i class="bi bi-check2-circle"></i> Realisasi Terverifikasi</div>
@@ -490,7 +504,7 @@ $mekanismeMeta = [
             <div class="rp-kpi__label"><i class="bi bi-pie-chart"></i> Sisa Kapasitas</div>
             <div class="rp-kpi__value <?= $totalSisaKapasitas < 0 ? 'text-danger' : '' ?>">Rp <?= number_format($totalSisaKapasitas, 0, ',', '.') ?></div>
             <div class="rp-kpi__sub <?= $totalSisaKapasitas < 0 ? 'text-danger fw-semibold' : '' ?>">
-                <?= $totalSisaKapasitas < 0 ? 'Rencana + realisasi melebihi pagu' : 'Pagu − realisasi − rencana' ?>
+                <?= $totalSisaKapasitas < 0 ? 'Rencana + realisasi melebihi pagu' : 'Pagu − realisasi − rencana (termasuk TU)' ?>
             </div>
         </div>
     </div>
@@ -624,11 +638,16 @@ $mekanismeMeta = [
                 <?php
                     $pagu = (float) $group['pagu'];
                     $rencana = (float) $group['total_rencana'];
+                    $tuPlan = (float) ($group['tu_plan'] ?? 0);
+                    $tuBulanan = $group['tu_bulanan'] ?? [];
+                    $rencanaTotal = $rencana + $tuPlan;
                     $real = $group['realisasi'];
-                    $pctRencanaRek = $pagu > 0 ? ($rencana / $pagu) * 100 : null;
-                    $pctRealRek = $rencana > 0 ? min(100, ($real['total'] / $rencana) * 100) : 0;
-                    $sisaKapasitasRek = $pagu - (float) $real['total'] - $rencana;
-                    $overPagu = $pagu > 0 && ($rencana + (float) $real['total']) > $pagu;
+                    $pctRencanaRek = $pagu > 0 ? ($rencanaTotal / $pagu) * 100 : null;
+                    $pctRealRek = $rencanaTotal > 0 ? min(100, ($real['total'] / $rencanaTotal) * 100) : 0;
+                    $sisaKapasitasRek = (float) ($group['sisa_kapasitas'] ?? ($pagu - (float) $real['total'] - $rencanaTotal));
+                    $overPagu = $pagu > 0 && ($rencanaTotal + (float) $real['total']) > $pagu;
+                    $selesaiManual = !empty($group['selesai_manual']);
+                    $selesaiOtomatis = !empty($group['selesai_otomatis']);
 
                     $realBulanan = [];
                     $maxBulanReal = 0.0;
@@ -644,6 +663,11 @@ $mekanismeMeta = [
                             <div class="rp-rek-title">
                                 <span class="badge bg-warning text-dark me-1"><?= htmlspecialchars($group['kode_rekening']) ?></span>
                                 <?= htmlspecialchars($group['nama_rekening']) ?>
+                                <?php if ($selesaiManual): ?>
+                                    <span class="badge bg-success ms-1"><i class="bi bi-check-circle me-1"></i>Selesai</span>
+                                <?php elseif ($selesaiOtomatis): ?>
+                                    <span class="badge bg-success ms-1" title="Pagu sudah habis terpakai realisasi, rencana, dan TU"><i class="bi bi-check-circle me-1"></i>Selesai (sisa 0)</span>
+                                <?php endif; ?>
                                 <?php if ($overPagu): ?>
                                     <span class="badge bg-danger ms-1" title="Rencana ditambah realisasi melebihi pagu rekening">Rencana + Realisasi &gt; Pagu</span>
                                 <?php endif; ?>
@@ -656,6 +680,26 @@ $mekanismeMeta = [
                                 <i class="bi bi-building me-1"></i><?= htmlspecialchars($group['nama_seksi'] ?: 'Seksi belum ditentukan') ?>
                                 &middot; Tahun <?= (int) $group['tahun'] ?>
                             </div>
+                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                <?php if ($selesaiManual): ?>
+                                    <form method="POST" action="<?= base_url('rencana-penyerapan/selesai/batal') ?>" class="m-0">
+                                        <input type="hidden" name="rekening_id" value="<?= (int) $group['rekening_id'] ?>">
+                                        <input type="hidden" name="tahun" value="<?= (int) $group['tahun'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Batal selesai
+                                        </button>
+                                    </form>
+                                <?php elseif (!$selesaiOtomatis): ?>
+                                    <form method="POST" action="<?= base_url('rencana-penyerapan/selesai') ?>" class="m-0"
+                                          onsubmit="return confirm('Tandai rekening ini selesai? Tidak perlu input rencana lagi.');">
+                                        <input type="hidden" name="rekening_id" value="<?= (int) $group['rekening_id'] ?>">
+                                        <input type="hidden" name="tahun" value="<?= (int) $group['tahun'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-check2-circle me-1"></i>Tandai selesai
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <div class="rp-rek-summary">
                             <div class="rp-sum-item">
@@ -664,9 +708,12 @@ $mekanismeMeta = [
                             </div>
                             <div class="rp-sum-item">
                                 <small>Rencana</small>
-                                <strong class="text-primary">Rp <?= number_format($rencana, 0, ',', '.') ?></strong>
+                                <strong class="text-primary">Rp <?= number_format($rencanaTotal, 0, ',', '.') ?></strong>
                                 <?php if ($pctRencanaRek !== null): ?>
                                     <span class="rp-pct"><?= number_format($pctRencanaRek, 1, ',', '.') ?>% pagu</span>
+                                <?php endif; ?>
+                                <?php if ($tuPlan > 0): ?>
+                                    <span class="rp-pct">termasuk TU Rp <?= number_format($tuPlan, 0, ',', '.') ?></span>
                                 <?php endif; ?>
                             </div>
                             <div class="rp-sum-item">
@@ -680,7 +727,7 @@ $mekanismeMeta = [
                         </div>
                     </div>
 
-                    <?php if ($rencana > 0): ?>
+                    <?php if ($rencanaTotal > 0): ?>
                         <div class="rp-rek-progress">
                             <div class="rp-rek-progress-label">
                                 <span>Realisasi terhadap rencana</span>
@@ -738,9 +785,6 @@ $mekanismeMeta = [
                                         <span class="rp-mek rp-mek--<?= htmlspecialchars($mek) ?>"><?= htmlspecialchars($mek) ?></span>
                                         <span><?= htmlspecialchars($plan['bentuk_kegiatan']) ?></span>
                                     </div>
-                                    <?php if (!empty($plan['uraian'])): ?>
-                                        <div class="rp-plan-uraian"><?= htmlspecialchars($plan['uraian']) ?></div>
-                                    <?php endif; ?>
                                     <div class="rp-plan-meta">
                                         <span><i class="bi bi-calendar-range me-1"></i><?= htmlspecialchars($periodeLabel) ?></span>
                                         <span class="fw-bold text-dark">Rp <?= number_format($nilaiPlan, 0, ',', '.') ?></span>
@@ -774,6 +818,33 @@ $mekanismeMeta = [
                                 </div>
                             </div>
                         <?php endforeach; ?>
+
+                        <?php if ($tuPlan > 0): ?>
+                            <div class="rp-timeline-row rp-timeline-row--tu">
+                                <div>
+                                    <div class="rp-plan-title">
+                                        <span class="rp-mek rp-mek--TU">TU</span>
+                                        <span>Rencana otomatis dari pengajuan TU</span>
+                                    </div>
+                                    <div class="rp-plan-uraian">Pengajuan TU berjalan dihitung sebagai rencana rekening ini, tidak perlu entri ulang.</div>
+                                    <div class="rp-plan-meta">
+                                        <span class="fw-bold text-dark">Rp <?= number_format($tuPlan, 0, ',', '.') ?></span>
+                                        <span class="text-muted"><i class="bi bi-lightning-charge me-1"></i>Otomatis</span>
+                                    </div>
+                                </div>
+                                <div class="rp-track-wrap">
+                                    <div class="rp-track">
+                                        <?php for ($c = 1; $c <= 12; $c++): ?><div class="rp-cell<?= $c <= $bulanSekarang ? ' rp-cell--past' : '' ?>"></div><?php endfor; ?>
+                                        <?php foreach ($tuBulanan as $bulanTu => $nilaiTu): ?>
+                                            <?php if ((float) $nilaiTu <= 0) continue; ?>
+                                            <div class="rp-bar rp-bar--TU"
+                                                 style="grid-column: <?= max(1, min(12, (int) $bulanTu)) ?> / span 1;"
+                                                 title="<?= htmlspecialchars($bulanFull[$bulanTu] . ': Rp ' . number_format((float) $nilaiTu, 0, ',', '.') . ' (pengajuan TU)') ?>"></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
 
                         <div class="rp-timeline-row rp-timeline-row--real">
                             <div>
@@ -866,7 +937,7 @@ $mekanismeMeta = [
             <div class="card-body pt-0">
                 <?php if (empty($belumDirencanakan)): ?>
                     <div class="alert alert-success mb-0">
-                        <i class="bi bi-check-circle me-1"></i>Semua rekening yang memiliki pagu pada filter ini sudah punya rencana penyerapan.
+                        <i class="bi bi-check-circle me-1"></i>Semua rekening yang memiliki pagu pada filter ini sudah punya rencana, tertutup TU, atau ditandai selesai.
                     </div>
                 <?php else: ?>
                     <?php if ($belumCount > count($belumDirencanakan)): ?>
@@ -879,11 +950,13 @@ $mekanismeMeta = [
                                     <th>Rekening</th>
                                     <th>Kegiatan / Sub Kegiatan</th>
                                     <th class="text-end">Pagu</th>
-                                    <th class="text-center" style="width:110px;">Aksi</th>
+                                    <th class="text-end">Sisa</th>
+                                    <th class="text-center" style="width:190px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($belumDirencanakan as $rek): ?>
+                                    <?php $sisaRek = (float) $rek['nilai_pagu'] - (float) ($rek['total_realisasi'] ?? 0); ?>
                                     <tr>
                                         <td>
                                             <span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span>
@@ -894,10 +967,73 @@ $mekanismeMeta = [
                                             <div><?= htmlspecialchars($rek['nama_sub_kegiatan']) ?></div>
                                         </td>
                                         <td class="text-end fw-semibold">Rp <?= number_format((float) $rek['nilai_pagu'], 0, ',', '.') ?></td>
+                                        <td class="text-end">Rp <?= number_format($sisaRek, 0, ',', '.') ?></td>
                                         <td class="text-center">
-                                            <a href="<?= base_url('rencana-penyerapan/create?rekening_id=' . (int) $rek['id'] . '&tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-plus-circle me-1"></i>Buat
-                                            </a>
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <a href="<?= base_url('rencana-penyerapan/create?rekening_id=' . (int) $rek['id'] . '&tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-plus-circle me-1"></i>Buat
+                                                </a>
+                                                <form method="POST" action="<?= base_url('rencana-penyerapan/selesai') ?>" class="m-0"
+                                                      onsubmit="return confirm('Tandai rekening ini selesai? Tidak perlu input rencana lagi.');">
+                                                    <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
+                                                    <input type="hidden" name="tahun" value="<?= (int) $tahun ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                                        <i class="bi bi-check2-circle me-1"></i>Selesai
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpSelesaiBox" aria-expanded="false" aria-controls="rpSelesaiBox">
+            <i class="bi bi-check2-circle text-success"></i>
+            Rekening ditandai selesai
+            <span class="badge bg-success"><?= count($selesaiList) ?></span>
+            <i class="bi bi-chevron-down ms-auto"></i>
+        </button>
+        <div class="collapse" id="rpSelesaiBox">
+            <div class="card-body pt-0">
+                <?php if (empty($selesaiList)): ?>
+                    <p class="text-muted small mb-0">Belum ada rekening yang ditandai selesai. Rekening dengan sisa kapasitas 0 otomatis dianggap selesai tanpa perlu ditandai.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Rekening</th>
+                                    <th>Sub Kegiatan</th>
+                                    <th class="text-end">Pagu</th>
+                                    <th class="text-end">Sisa kapasitas</th>
+                                    <th class="text-center" style="width:130px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($selesaiList as $rek): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span>
+                                            <div class="small"><?= htmlspecialchars($rek['nama_rekening']) ?></div>
+                                        </td>
+                                        <td class="small text-muted"><?= htmlspecialchars($rek['kode_sub_kegiatan'] . ' · ' . $rek['nama_sub_kegiatan']) ?></td>
+                                        <td class="text-end">Rp <?= number_format((float) $rek['total_pagu'], 0, ',', '.') ?></td>
+                                        <td class="text-end <?= (float) $rek['sisa_kapasitas'] < 0 ? 'text-danger' : '' ?>">Rp <?= number_format((float) $rek['sisa_kapasitas'], 0, ',', '.') ?></td>
+                                        <td class="text-center">
+                                            <form method="POST" action="<?= base_url('rencana-penyerapan/selesai/batal') ?>" class="m-0">
+                                                <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
+                                                <input type="hidden" name="tahun" value="<?= (int) $tahun ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Batal
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

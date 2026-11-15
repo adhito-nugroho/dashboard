@@ -347,6 +347,8 @@ try {
         ['GET', '#^/rencana-penyerapan/edit/(\d+)$#', fn($m) => $rencanaPenyerapanController->edit((int) $m[1])],
         ['POST', '#^/rencana-penyerapan/update/(\d+)$#', fn($m) => $rencanaPenyerapanController->update((int) $m[1])],
         ['POST', '#^/rencana-penyerapan/delete/(\d+)$#', fn($m) => $rencanaPenyerapanController->delete((int) $m[1])],
+        ['POST', '/rencana-penyerapan/selesai', fn($m) => $rencanaPenyerapanController->markSelesai()],
+        ['POST', '/rencana-penyerapan/selesai/batal', fn($m) => $rencanaPenyerapanController->batalSelesai()],
 
         // RAK
         ['GET', '/rak/export', fn($m) => $rakController->export()],

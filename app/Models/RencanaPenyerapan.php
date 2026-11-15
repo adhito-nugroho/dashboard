@@ -44,13 +44,12 @@ class RencanaPenyerapan
                 $params[':mekanisme'] = $mekanisme;
             }
             if ($q !== null && trim($q) !== '') {
-                $conditions[] = '(rp.bentuk_kegiatan LIKE :q1 OR rp.uraian LIKE :q2 OR rp.keterangan LIKE :q3 OR r.kode_rekening LIKE :q4 OR r.nama_rekening LIKE :q5)';
+                $conditions[] = '(rp.bentuk_kegiatan LIKE :q1 OR rp.keterangan LIKE :q2 OR r.kode_rekening LIKE :q3 OR r.nama_rekening LIKE :q4)';
                 $kw = '%' . trim($q) . '%';
                 $params[':q1'] = $kw;
                 $params[':q2'] = $kw;
                 $params[':q3'] = $kw;
                 $params[':q4'] = $kw;
-                $params[':q5'] = $kw;
             }
 
             $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
@@ -116,16 +115,15 @@ class RencanaPenyerapan
         try {
             $stmt = $this->db->prepare("
                 INSERT INTO rencana_penyerapan
-                    (rekening_id, tahun, bentuk_kegiatan, uraian, mekanisme,
+                    (rekening_id, tahun, bentuk_kegiatan, mekanisme,
                      bulan_mulai, bulan_selesai, nilai_rencana, keterangan, created_by)
                 VALUES
-                    (:rekening_id, :tahun, :bentuk_kegiatan, :uraian, :mekanisme,
+                    (:rekening_id, :tahun, :bentuk_kegiatan, :mekanisme,
                      :bulan_mulai, :bulan_selesai, :nilai_rencana, :keterangan, :created_by)
             ");
             $stmt->bindValue(':rekening_id', (int) $data['rekening_id'], PDO::PARAM_INT);
             $stmt->bindValue(':tahun', (int) $data['tahun'], PDO::PARAM_INT);
             $stmt->bindValue(':bentuk_kegiatan', trim((string) $data['bentuk_kegiatan']), PDO::PARAM_STR);
-            $stmt->bindValue(':uraian', $this->nullIfEmpty($data['uraian'] ?? null), $this->nullIfEmpty($data['uraian'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':mekanisme', $data['mekanisme'], PDO::PARAM_STR);
             $stmt->bindValue(':bulan_mulai', (int) $data['bulan_mulai'], PDO::PARAM_INT);
             $stmt->bindValue(':bulan_selesai', (int) $data['bulan_selesai'], PDO::PARAM_INT);
@@ -148,7 +146,6 @@ class RencanaPenyerapan
                 SET rekening_id = :rekening_id,
                     tahun = :tahun,
                     bentuk_kegiatan = :bentuk_kegiatan,
-                    uraian = :uraian,
                     mekanisme = :mekanisme,
                     bulan_mulai = :bulan_mulai,
                     bulan_selesai = :bulan_selesai,
@@ -160,7 +157,6 @@ class RencanaPenyerapan
             $stmt->bindValue(':rekening_id', (int) $data['rekening_id'], PDO::PARAM_INT);
             $stmt->bindValue(':tahun', (int) $data['tahun'], PDO::PARAM_INT);
             $stmt->bindValue(':bentuk_kegiatan', trim((string) $data['bentuk_kegiatan']), PDO::PARAM_STR);
-            $stmt->bindValue(':uraian', $this->nullIfEmpty($data['uraian'] ?? null), $this->nullIfEmpty($data['uraian'] ?? null) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':mekanisme', $data['mekanisme'], PDO::PARAM_STR);
             $stmt->bindValue(':bulan_mulai', (int) $data['bulan_mulai'], PDO::PARAM_INT);
             $stmt->bindValue(':bulan_selesai', (int) $data['bulan_selesai'], PDO::PARAM_INT);
@@ -471,12 +467,166 @@ class RencanaPenyerapan
     }
 
     /**
+     * Rencana otomatis dari pengajuan TU per rekening dan per bulan.
+     *
+     * Pengajuan TU yang masih berjalan (diajukan/disetujui/cair) dianggap
+     * sebagai rencana rekening tersebut, sehingga tidak perlu diinput ulang.
+     * Nilai transaksi verifikasi yang sudah dikaitkan ke TU dikurangkan agar
+     * tidak terhitung ganda dengan realisasi.
+     *
+     * @return array<int,array<int,float>> rekening_id => [bulan => nilai]
+     */
+    public function getTuPlanMonthlyMap(int $tahun, ?int $kegiatanId = null, ?int $subKegiatanId = null): array
+    {
+        $map = [];
+        foreach ($this->fetchTuPlanRows($tahun, $kegiatanId, $subKegiatanId) as $row) {
+            $map[(int) $row['rekening_id']][(int) $row['bulan']] = (float) $row['total'];
+        }
+        return $map;
+    }
+
+    /** Total rencana otomatis dari pengajuan TU untuk satu rekening. */
+    public function getTuPlanForRekening(int $rekeningId, int $tahun): float
+    {
+        $total = 0.0;
+        foreach ($this->fetchTuPlanRows($tahun, null, null, $rekeningId) as $row) {
+            $total += (float) $row['total'];
+        }
+        return $total;
+    }
+
+    /** @return array<int,array{rekening_id:int|string,bulan:int|string,total:float|string}> */
+    private function fetchTuPlanRows(
+        int $tahun,
+        ?int $kegiatanId = null,
+        ?int $subKegiatanId = null,
+        ?int $rekeningId = null
+    ): array {
+        try {
+            $conditions = [
+                'pt.tahun = :tahun',
+                "pt.status IN ('diajukan', 'disetujui', 'cair')",
+            ];
+            $params = [':tahun' => $tahun];
+
+            if ($rekeningId !== null) {
+                $conditions[] = 'tr.rekening_id = :rekening_id';
+                $params[':rekening_id'] = $rekeningId;
+            }
+            if ($subKegiatanId !== null) {
+                $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
+                $params[':sub_kegiatan_id'] = $subKegiatanId;
+            } elseif ($kegiatanId !== null) {
+                $conditions[] = 'sk.kegiatan_id = :kegiatan_id';
+                $params[':kegiatan_id'] = $kegiatanId;
+            }
+
+            $stmt = $this->db->prepare("
+                SELECT tr.rekening_id, pt.bulan,
+                       SUM(GREATEST(tr.nominal - COALESCE(v.verified, 0), 0)) AS total
+                FROM pengajuan_tu pt
+                INNER JOIN pengajuan_tu_rekening tr ON tr.pengajuan_tu_id = pt.id
+                INNER JOIN rekening r ON tr.rekening_id = r.id
+                INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+                LEFT JOIN (
+                    SELECT t.pengajuan_tu_id, t.rekening_id, SUM(t.nilai) AS verified
+                    FROM transaksi t
+                    WHERE t.status = 'diverifikasi' AND t.pengajuan_tu_id IS NOT NULL
+                    GROUP BY t.pengajuan_tu_id, t.rekening_id
+                ) v ON v.pengajuan_tu_id = pt.id AND v.rekening_id = tr.rekening_id
+                WHERE " . implode(' AND ', $conditions) . "
+                GROUP BY tr.rekening_id, pt.bulan
+            ");
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val, PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Error fetching rencana TU: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /** @return array<int,array{id:int,keterangan:?string,created_at:string}> rekening_id => status selesai */
+    public function getSelesaiMap(int $tahun): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id, rekening_id, keterangan, created_at
+                FROM rencana_penyerapan_selesai
+                WHERE tahun = :tahun
+            ");
+            $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $map = [];
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $map[(int) $row['rekening_id']] = [
+                    'id'         => (int) $row['id'],
+                    'keterangan' => $row['keterangan'] ?? null,
+                    'created_at' => (string) $row['created_at'],
+                ];
+            }
+            return $map;
+        } catch (PDOException $e) {
+            error_log('Error fetching status selesai: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function markSelesai(int $rekeningId, int $tahun, ?int $createdBy = null, ?string $keterangan = null): void
+    {
+        $stmt = $this->db->prepare("
+            INSERT INTO rencana_penyerapan_selesai (rekening_id, tahun, keterangan, created_by)
+            VALUES (:rekening_id, :tahun, :keterangan, :created_by)
+            ON DUPLICATE KEY UPDATE
+                keterangan = VALUES(keterangan),
+                created_by = VALUES(created_by)
+        ");
+        $stmt->bindValue(':rekening_id', $rekeningId, PDO::PARAM_INT);
+        $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+        $stmt->bindValue(':keterangan', $this->nullIfEmpty($keterangan), $this->nullIfEmpty($keterangan) === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':created_by', $createdBy, $createdBy === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    public function unmarkSelesai(int $rekeningId, int $tahun): void
+    {
+        $stmt = $this->db->prepare("
+            DELETE FROM rencana_penyerapan_selesai
+            WHERE rekening_id = :rekening_id AND tahun = :tahun
+        ");
+        $stmt->bindValue(':rekening_id', $rekeningId, PDO::PARAM_INT);
+        $stmt->bindValue(':tahun', $tahun, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    /**
      * Semua rekening yang punya pagu pada tahun tertentu, lengkap dengan nilai
      * pagu/realisasi/rencana untuk memilih rekening saat menambah rencana.
      */
-    public function getRekeningPickerList(int $tahun): array
+    public function getRekeningPickerList(int $tahun, ?int $kegiatanId = null, ?int $subKegiatanId = null): array
     {
         try {
+            $conditions = [];
+            $params = [
+                ':tahun_pagu'       => $tahun,
+                ':tahun_rencana'    => $tahun,
+                ':tahun_realisasi'  => $tahun,
+                ':tahun_tu'         => $tahun,
+                ':tahun_selesai'    => $tahun,
+            ];
+
+            if ($subKegiatanId !== null) {
+                $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
+                $params[':sub_kegiatan_id'] = $subKegiatanId;
+            } elseif ($kegiatanId !== null) {
+                $conditions[] = 'sk.kegiatan_id = :kegiatan_id';
+                $params[':kegiatan_id'] = $kegiatanId;
+            }
+            $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
             $stmt = $this->db->prepare("
                 SELECT r.id, r.kode_rekening, r.nama_rekening,
                        sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
@@ -485,7 +635,9 @@ class RencanaPenyerapan
                        s.nama_seksi,
                        COALESCE(pg.total_pagu, 0) AS total_pagu,
                        COALESCE(rpl.total_rencana, 0) AS total_rencana,
-                       COALESCE(rea.total_realisasi, 0) AS total_realisasi
+                       COALESCE(rea.total_realisasi, 0) AS total_realisasi,
+                       COALESCE(tu.total_tu, 0) AS total_tu,
+                       rs.id AS selesai_id
                 FROM rekening r
                 INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
@@ -510,11 +662,29 @@ class RencanaPenyerapan
                       AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun_realisasi
                     GROUP BY t.rekening_id
                 ) rea ON rea.rekening_id = r.id
+                LEFT JOIN (
+                    SELECT tr.rekening_id,
+                           SUM(GREATEST(tr.nominal - COALESCE(v.verified, 0), 0)) AS total_tu
+                    FROM pengajuan_tu pt
+                    INNER JOIN pengajuan_tu_rekening tr ON tr.pengajuan_tu_id = pt.id
+                    LEFT JOIN (
+                        SELECT t.pengajuan_tu_id, t.rekening_id, SUM(t.nilai) AS verified
+                        FROM transaksi t
+                        WHERE t.status = 'diverifikasi' AND t.pengajuan_tu_id IS NOT NULL
+                        GROUP BY t.pengajuan_tu_id, t.rekening_id
+                    ) v ON v.pengajuan_tu_id = pt.id AND v.rekening_id = tr.rekening_id
+                    WHERE pt.tahun = :tahun_tu
+                      AND pt.status IN ('diajukan', 'disetujui', 'cair')
+                    GROUP BY tr.rekening_id
+                ) tu ON tu.rekening_id = r.id
+                LEFT JOIN rencana_penyerapan_selesai rs
+                       ON rs.rekening_id = r.id AND rs.tahun = :tahun_selesai
+                {$where}
                 ORDER BY r.kode_rekening ASC
             ");
-            $stmt->bindValue(':tahun_pagu', $tahun, PDO::PARAM_INT);
-            $stmt->bindValue(':tahun_rencana', $tahun, PDO::PARAM_INT);
-            $stmt->bindValue(':tahun_realisasi', $tahun, PDO::PARAM_INT);
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val, PDO::PARAM_INT);
+            }
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -523,7 +693,12 @@ class RencanaPenyerapan
         }
     }
 
-    /** Rekening ber-pagu yang belum punya rencana pada tahun tsb. */
+    /**
+     * Rekening ber-pagu yang masih perlu rencana pada tahun tsb.
+     *
+     * Rekening yang sudah punya TU berjalan, sudah ditandai selesai, atau
+     * kapasitasnya habis (pagu - realisasi <= 0) tidak ditampilkan.
+     */
     public function getRekeningBelumDirencanakan(
         int $tahun,
         ?int $kegiatanId = null,
@@ -533,8 +708,25 @@ class RencanaPenyerapan
             $conditions = [
                 'p.tahun = :tahun',
                 'NOT EXISTS (SELECT 1 FROM rencana_penyerapan rp WHERE rp.rekening_id = r.id AND rp.tahun = :tahun_rencana)',
+                "NOT EXISTS (
+                    SELECT 1 FROM pengajuan_tu_rekening tr
+                    INNER JOIN pengajuan_tu pt ON pt.id = tr.pengajuan_tu_id
+                    WHERE tr.rekening_id = r.id
+                      AND pt.tahun = :tahun_tu
+                      AND pt.status IN ('diajukan', 'disetujui', 'cair')
+                )",
+                'NOT EXISTS (
+                    SELECT 1 FROM rencana_penyerapan_selesai rs
+                    WHERE rs.rekening_id = r.id AND rs.tahun = :tahun_selesai
+                )',
             ];
-            $params = [':tahun' => $tahun, ':tahun_rencana' => $tahun];
+            $params = [
+                ':tahun'         => $tahun,
+                ':tahun_rencana' => $tahun,
+                ':tahun_tu'      => $tahun,
+                ':tahun_selesai' => $tahun,
+                ':tahun_realisasi' => $tahun,
+            ];
 
             if ($subKegiatanId !== null) {
                 $conditions[] = 'r.sub_kegiatan_id = :sub_kegiatan_id';
@@ -549,17 +741,26 @@ class RencanaPenyerapan
                        sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
                        k.kode_kegiatan, k.nama_kegiatan,
                        p2.kode_program, p2.nama_program,
-                       SUM(p.nilai_pagu) AS nilai_pagu
+                       SUM(p.nilai_pagu) AS nilai_pagu,
+                       COALESCE(MAX(rea.total_realisasi), 0) AS total_realisasi
                 FROM rekening r
                 INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
                 INNER JOIN kegiatan k ON sk.kegiatan_id = k.id
                 INNER JOIN program p2 ON k.program_id = p2.id
                 INNER JOIN pagu p ON p.rekening_id = r.id
+                LEFT JOIN (
+                    SELECT t.rekening_id, SUM(t.nilai) AS total_realisasi
+                    FROM transaksi t
+                    WHERE t.status = 'diverifikasi'
+                      AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun_realisasi
+                    GROUP BY t.rekening_id
+                ) rea ON rea.rekening_id = r.id
                 WHERE " . implode(' AND ', $conditions) . "
                 GROUP BY r.id, r.kode_rekening, r.nama_rekening,
                          sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
                          k.kode_kegiatan, k.nama_kegiatan,
                          p2.kode_program, p2.nama_program
+                HAVING SUM(p.nilai_pagu) - COALESCE(MAX(rea.total_realisasi), 0) > 0.005
                 ORDER BY p2.kode_program ASC, k.kode_kegiatan ASC, sk.kode_sub_kegiatan ASC, r.kode_rekening ASC
             ");
             foreach ($params as $key => $val) {

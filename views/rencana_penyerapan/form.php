@@ -3,6 +3,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$flashMessage = $_SESSION['flash_message'] ?? null;
+$flashType = $_SESSION['flash_type'] ?? 'info';
+unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+
 $isEdit = ($action ?? 'store') === 'update' && !empty($form['id']);
 $errors = $errors ?? [];
 $formAction = $isEdit
@@ -285,7 +289,7 @@ $bentukSuggestions = [
 
     .rp-picker-scroll { max-height: 440px; overflow-y: auto; }
 
-    .rp-picker-table { margin: 0; font-size: .78rem; min-width: 820px; }
+    .rp-picker-table { margin: 0; font-size: .78rem; min-width: 980px; }
 
     .rp-picker-table thead th {
         position: sticky;
@@ -346,6 +350,13 @@ $bentukSuggestions = [
         <p class="text-muted mb-0"><?= htmlspecialchars($subtitle ?? '') ?></p>
     </div>
 
+    <?php if ($flashMessage): ?>
+        <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'warning' ? 'warning' : ($flashType === 'success' ? 'success' : 'info')) ?> alert-dismissible fade show" role="alert">
+            <?= htmlspecialchars($flashMessage) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($errors['umum'])): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <?= htmlspecialchars($errors['umum']) ?>
@@ -386,20 +397,25 @@ $bentukSuggestions = [
                             <th class="text-end">Pagu</th>
                             <th class="text-end">Realisasi</th>
                             <th class="text-end">Rencana</th>
+                            <th class="text-end">Rencana TU</th>
                             <th class="text-end">Sisa Kapasitas</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($rekenings)): ?>
-                            <tr><td colspan="7" class="text-center text-muted py-4">Tidak ada rekening dengan pagu pada tahun <?= $formTahun ?>.</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted py-4">Tidak ada rekening dengan pagu pada tahun <?= $formTahun ?>.</td></tr>
                         <?php else: ?>
                             <?php foreach ($rekenings as $rek): ?>
                                 <?php
                                     $paguRek = (float) $rek['total_pagu'];
                                     $realRek = (float) $rek['total_realisasi'];
                                     $rencanaRek = (float) $rek['total_rencana'];
-                                    $sisaRek = $paguRek - $realRek - $rencanaRek;
+                                    $tuRek = (float) ($rek['total_tu'] ?? 0);
+                                    $sisaRek = $paguRek - $realRek - $rencanaRek - $tuRek;
+                                    $selesaiManual = !empty($rek['selesai_id']);
+                                    $selesaiOtomatis = !$selesaiManual && $paguRek > 0 && $sisaRek <= 0.005;
+                                    $isSelesai = $selesaiManual || $selesaiOtomatis;
                                     $isSelected = (int) ($form['rekening_id'] ?? 0) === (int) $rek['id'];
                                     $searchText = mb_strtolower(implode(' ', array_filter([
                                         $rek['kode_rekening'], $rek['nama_rekening'],
@@ -407,6 +423,7 @@ $bentukSuggestions = [
                                         $rek['kode_kegiatan'], $rek['nama_kegiatan'],
                                         $rek['kode_sub_kegiatan'], $rek['nama_sub_kegiatan'],
                                         $rek['nama_seksi'],
+                                        $selesaiManual ? 'selesai' : '',
                                     ])));
                                 ?>
                                 <tr data-rekening-row
@@ -417,7 +434,14 @@ $bentukSuggestions = [
                                     class="<?= $isSelected ? 'is-selected' : '' ?>">
                                     <td><span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span></td>
                                     <td>
-                                        <div class="rp-pick-name"><?= htmlspecialchars($rek['nama_rekening']) ?></div>
+                                        <div class="rp-pick-name">
+                                            <?= htmlspecialchars($rek['nama_rekening']) ?>
+                                            <?php if ($selesaiManual): ?>
+                                                <span class="badge bg-success ms-1">Selesai</span>
+                                            <?php elseif ($selesaiOtomatis): ?>
+                                                <span class="badge bg-success ms-1" title="Sisa kapasitas sudah 0">Selesai (sisa 0)</span>
+                                            <?php endif; ?>
+                                        </div>
                                         <div class="rp-pick-sub">
                                             <?= htmlspecialchars($rek['kode_sub_kegiatan'] . ' · ' . $rek['nama_sub_kegiatan']) ?>
                                             <?php if (!empty($rek['nama_seksi'])): ?>
@@ -428,11 +452,32 @@ $bentukSuggestions = [
                                     <td class="text-end rp-pick-value">Rp <?= number_format($paguRek, 0, ',', '.') ?></td>
                                     <td class="text-end rp-pick-value text-success">Rp <?= number_format($realRek, 0, ',', '.') ?></td>
                                     <td class="text-end rp-pick-value text-primary">Rp <?= number_format($rencanaRek, 0, ',', '.') ?></td>
+                                    <td class="text-end rp-pick-value text-success" title="Rencana otomatis dari pengajuan TU berjalan"><?= $tuRek > 0 ? 'Rp ' . number_format($tuRek, 0, ',', '.') : '-' ?></td>
                                     <td class="text-end rp-pick-value <?= $sisaRek < 0 ? 'text-danger fw-semibold' : '' ?>">Rp <?= number_format($sisaRek, 0, ',', '.') ?></td>
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-sm <?= $isSelected ? 'btn-primary' : 'btn-outline-primary' ?>" data-pick-rekening>
-                                            <?= $isSelected ? 'Dipilih' : 'Pilih' ?>
-                                        </button>
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <?php if (!$isSelesai): ?>
+                                                <button type="button" class="btn btn-sm <?= $isSelected ? 'btn-primary' : 'btn-outline-primary' ?>" data-pick-rekening>
+                                                    <?= $isSelected ? 'Dipilih' : 'Pilih' ?>
+                                                </button>
+                                                <form method="POST" action="<?= base_url('rencana-penyerapan/selesai') ?>" class="m-0"
+                                                      onsubmit="return confirm('Tandai rekening ini selesai? Tidak perlu input rencana lagi.');">
+                                                    <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
+                                                    <input type="hidden" name="tahun" value="<?= $formTahun ?>">
+                                                    <input type="hidden" name="redirect" value="create">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">Selesai</button>
+                                                </form>
+                                            <?php elseif ($selesaiManual): ?>
+                                                <form method="POST" action="<?= base_url('rencana-penyerapan/selesai/batal') ?>" class="m-0">
+                                                    <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
+                                                    <input type="hidden" name="tahun" value="<?= $formTahun ?>">
+                                                    <input type="hidden" name="redirect" value="create">
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Batal selesai</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="badge bg-success align-self-center">Selesai</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -516,12 +561,13 @@ $bentukSuggestions = [
                         </div>
 
                         <div class="mb-3">
-                            <label for="uraian" class="form-label fw-semibold">Uraian Kegiatan</label>
-                            <textarea class="form-control <?= isset($errors['uraian']) ? 'is-invalid' : '' ?>"
-                                      id="uraian" name="uraian" rows="2" maxlength="500"
-                                      placeholder="Detail singkat kegiatan yang akan dilaksanakan"><?= htmlspecialchars((string) $form['uraian']) ?></textarea>
-                            <?php if (isset($errors['uraian'])): ?>
-                                <div class="invalid-feedback d-block"><?= htmlspecialchars($errors['uraian']) ?></div>
+                            <label for="keterangan" class="form-label fw-semibold">Keterangan</label>
+                            <input type="text" class="form-control <?= isset($errors['keterangan']) ? 'is-invalid' : '' ?>"
+                                   id="keterangan" name="keterangan" maxlength="255"
+                                   value="<?= htmlspecialchars((string) $form['keterangan']) ?>"
+                                   placeholder="Opsional, mis. nama rekanan atau catatan pelaksanaan">
+                            <?php if (isset($errors['keterangan'])): ?>
+                                <div class="invalid-feedback d-block"><?= htmlspecialchars($errors['keterangan']) ?></div>
                             <?php endif; ?>
                         </div>
 
@@ -593,17 +639,6 @@ $bentukSuggestions = [
                                 </div>
                             </div>
                         </div>
-
-                        <div class="mt-3">
-                            <label for="keterangan" class="form-label fw-semibold">Keterangan Tambahan</label>
-                            <input type="text" class="form-control <?= isset($errors['keterangan']) ? 'is-invalid' : '' ?>"
-                                   id="keterangan" name="keterangan" maxlength="255"
-                                   value="<?= htmlspecialchars((string) $form['keterangan']) ?>"
-                                   placeholder="Opsional, mis. nama rekanan atau catatan pelaksanaan">
-                            <?php if (isset($errors['keterangan'])): ?>
-                                <div class="invalid-feedback d-block"><?= htmlspecialchars($errors['keterangan']) ?></div>
-                            <?php endif; ?>
-                        </div>
                     </div>
                     </fieldset>
                 </div>
@@ -623,6 +658,10 @@ $bentukSuggestions = [
                         <div class="rp-info-row">
                             <span>Rencana tersimpan</span>
                             <strong id="rpInfoRencana">-</strong>
+                        </div>
+                        <div class="rp-info-row">
+                            <span>Rencana TU (otomatis)</span>
+                            <strong id="rpInfoTu">-</strong>
                         </div>
                         <div class="rp-info-row">
                             <span>Sisa pagu (rencana)</span>
@@ -666,7 +705,7 @@ $bentukSuggestions = [
 
                         <div class="alert alert-warning mt-3 mb-0 d-none" id="rpPaguWarning" role="alert" style="font-size:.75rem;"></div>
                         <div class="alert alert-info mt-3 mb-0" style="font-size:.75rem;">
-                            <i class="bi bi-lightbulb me-1"></i>Sisa kapasitas = pagu − realisasi terverifikasi − rencana tersimpan. Realisasi dirinci per bulan dari transaksi terverifikasi.
+                            <i class="bi bi-lightbulb me-1"></i>Sisa kapasitas = pagu − realisasi terverifikasi − rencana tersimpan − rencana TU otomatis. Pengajuan TU berjalan sudah dihitung sebagai rencana, tidak perlu diinput ulang.
                         </div>
                     </div>
                     <div class="rp-side-actions">
@@ -722,6 +761,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const infoRekening = document.getElementById('rpInfoRekening');
     const infoPagu = document.getElementById('rpInfoPagu');
     const infoRencana = document.getElementById('rpInfoRencana');
+    const infoTu = document.getElementById('rpInfoTu');
     const infoSisa = document.getElementById('rpInfoSisa');
     const infoRealisasi = document.getElementById('rpInfoRealisasi');
     const infoSisaKapasitas = document.getElementById('rpInfoSisaKapasitas');
@@ -836,13 +876,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const rencanaBaru = Number(infoData.total_rencana || 0) + parseNominal(nilaiInput.value);
+        const rencanaBaru = Number(infoData.total_rencana || 0) + Number(infoData.total_tu || 0) + parseNominal(nilaiInput.value);
         const realisasi = Number((infoData.realisasi && infoData.realisasi.total) || 0);
         const kapasitas = Number(infoData.pagu) - realisasi;
         const totalSemua = rencanaBaru + realisasi;
+        const sisaTersimpan = kapasitas - Number(infoData.total_rencana || 0) - Number(infoData.total_tu || 0);
 
         if (rencanaBaru > kapasitas) {
-            paguWarning.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Total rencana + realisasi (' + rp(totalSemua) + ') melebihi pagu rekening (' + rp(infoData.pagu) + '). Sisa kapasitas ' + rp(kapasitas) + '. Simpan hanya jika memang direncanakan melebihi pagu.';
+            paguWarning.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Total rencana manual + rencana TU + realisasi (' + rp(totalSemua) + ') melebihi pagu rekening (' + rp(infoData.pagu) + '). Sisa kapasitas sebelum rencana ini ' + rp(sisaTersimpan) + '. Simpan hanya jika memang direncanakan melebihi pagu.';
             paguWarning.classList.remove('d-none');
         } else {
             paguWarning.classList.add('d-none');
@@ -854,6 +895,7 @@ document.addEventListener('DOMContentLoaded', function () {
         infoRekening.textContent = message || 'Pilih rekening untuk melihat pagu dan realisasi.';
         infoPagu.textContent = '-';
         infoRencana.textContent = '-';
+        if (infoTu) infoTu.textContent = '-';
         infoSisa.textContent = '-';
         infoRealisasi.textContent = '-';
         infoSisaKapasitas.textContent = '-';
@@ -889,6 +931,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 infoRekening.textContent = data.rekening.kode_rekening + ' · ' + data.rekening.nama_rekening;
                 infoPagu.textContent = data.pagu !== null ? rp(data.pagu) : 'Belum ditetapkan';
                 infoRencana.textContent = rp(data.total_rencana);
+                if (infoTu) infoTu.textContent = rp(data.total_tu);
                 infoSisa.textContent = data.sisa_rencana !== null ? rp(data.sisa_rencana) : '-';
                 infoSisa.classList.toggle('text-danger', data.sisa_rencana !== null && data.sisa_rencana < 0);
                 infoRealisasi.textContent = rp(data.realisasi.total);
@@ -896,6 +939,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 infoSisaKapasitas.classList.toggle('text-danger', data.sisa_kapasitas !== null && data.sisa_kapasitas !== undefined && data.sisa_kapasitas < 0);
                 infoRak.textContent = rp(data.total_rak);
                 renderMonthlyReal(data.realisasi_bulanan, Number(tahunInput.value));
+                if (selectedBanner && selectedHint) {
+                    selectedHint.textContent = data.selesai
+                        ? 'Rekening ini sudah ditandai selesai · Tahun ' + tahun + '. Batal selesai bila perlu input rencana.'
+                        : 'Nilai rencana akan dicatat untuk rekening ini · Tahun ' + tahun;
+                }
                 checkPagu();
             })
             .catch(function () {
