@@ -436,6 +436,91 @@ $mekanismeMeta = [
         .rp-rek-summary { justify-content: flex-start; min-width: 0; }
     }
 
+    /* Panel entri rencana inline di bawah baris rekening */
+    .rp-if-row > td { padding: 0 !important; border-top: 0; background: #f8fafc; }
+    .rp-if-row--card { border-top: 1px dashed #c7d2fe; background: #f8fafc; }
+    .rp-if { padding: 16px 18px; border-left: 3px solid #4338ca; }
+    .rp-if-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    .rp-if-title { font-size: .86rem; font-weight: 800; color: #0f172a; line-height: 1.4; }
+    .rp-if-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 18px;
+        margin-top: 4px;
+        font-size: .74rem;
+        color: #475569;
+    }
+    .rp-if-meta strong { color: #0f172a; }
+    .rp-if .form-label {
+        font-size: .7rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #334155;
+        margin-bottom: 4px;
+    }
+    .rp-if-mek {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .rp-if-mek-opt {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        margin: 0;
+        padding: 8px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+    }
+    .rp-if-mek-opt:hover { border-color: #c7d2fe; }
+    .rp-if-mek-opt:has(input:checked) {
+        border-color: #4338ca;
+        background: #eef2ff;
+        box-shadow: 0 0 0 3px rgba(67, 56, 202, .1);
+    }
+    .rp-if-mek-opt input { margin-top: 3px; flex: 0 0 auto; }
+    .rp-if-mek-opt strong { display: block; font-size: .78rem; color: #0f172a; }
+    .rp-if-mek-opt small { display: block; font-size: .7rem; color: #475569; line-height: 1.3; }
+    .rp-if-hint { margin-top: 3px; font-size: .7rem; color: #475569; }
+    .rp-if-err { margin-top: 3px; font-size: .7rem; color: #b91c1c; }
+    .rp-if-err:empty { display: none; }
+    .rp-if-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding: 9px 12px;
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-size: .78rem;
+    }
+    .rp-if-alert[hidden] { display: none; }
+    .rp-if-foot {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid #e2e8f0;
+    }
+    .rp-if-status { font-size: .72rem; color: #475569; }
+    .rp-if-status.is-invalid { color: #b91c1c; font-weight: 600; }
+    .rp-if .form-control.is-invalid,
+    .rp-if .form-select.is-invalid { border-color: #dc2626; }
+
     @media (max-width: 767.98px) {
         .rp-timeline-head { display: none; }
         .rp-timeline-row { grid-template-columns: 1fr; gap: 9px; }
@@ -444,6 +529,9 @@ $mekanismeMeta = [
         .rp-rek-head { padding: 14px; }
         .rp-rek-progress { padding: 0 14px 12px; }
         .rp-mek-breakdown { padding: 10px 14px 0; }
+        .rp-if { padding: 14px; }
+        .rp-if-mek { grid-template-columns: 1fr; }
+        .rp-if-foot .btn { flex: 1 1 auto; }
     }
 </style>
 
@@ -464,9 +552,9 @@ $mekanismeMeta = [
                 <p class="text-muted mb-0">Timeline penyerapan anggaran per kode rekening berdasarkan bentuk kegiatan dan mekanisme pembayaran.</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="<?= base_url('rencana-penyerapan/create?tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-primary">
+                <button type="button" class="btn btn-primary" data-rp-open-belum>
                     <i class="bi bi-plus-circle me-1"></i> Tambah Rencana
-                </a>
+                </button>
             </div>
         </div>
     </div>
@@ -643,9 +731,9 @@ $mekanismeMeta = [
                             Belum ada rencana penyerapan untuk tahun <?= (int) $tahun ?>.
                         <?php endif; ?>
                     </p>
-                    <a href="<?= base_url('rencana-penyerapan/create?tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-primary">
+                    <button type="button" class="btn btn-primary" data-rp-open-belum>
                         <i class="bi bi-plus-circle me-1"></i> Tambah Rencana Pertama
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -698,6 +786,17 @@ $mekanismeMeta = [
                                 &middot; Tahun <?= (int) $group['tahun'] ?>
                             </div>
                             <div class="mt-2 d-flex flex-wrap gap-2">
+                                <?php if (!$selesaiManual && !$selesaiOtomatis && $sisaKapasitasRek > 0.005): ?>
+                                    <button type="button" class="btn btn-sm btn-primary" data-rp-create
+                                            data-rek-id="<?= (int) $group['rekening_id'] ?>"
+                                            data-tahun="<?= (int) $group['tahun'] ?>"
+                                            data-kode="<?= htmlspecialchars($group['kode_rekening']) ?>"
+                                            data-nama="<?= htmlspecialchars($group['nama_rekening']) ?>"
+                                            data-pagu="<?= $pagu ?>"
+                                            data-sisa="<?= $sisaKapasitasRek ?>">
+                                        <i class="bi bi-plus-lg me-1"></i>Tambah Bentuk Kegiatan
+                                    </button>
+                                <?php endif; ?>
                                 <?php if ($selesaiManual): ?>
                                     <form method="POST" action="<?= base_url('rencana-penyerapan/selesai/batal') ?>" class="m-0">
                                         <input type="hidden" name="rekening_id" value="<?= (int) $group['rekening_id'] ?>">
@@ -815,9 +914,23 @@ $mekanismeMeta = [
                                         <?php endif; ?>
                                     </div>
                                     <div class="rp-plan-actions">
-                                        <a href="<?= base_url('rencana-penyerapan/edit/' . (int) $plan['id']) ?>" class="btn btn-outline-primary" title="Edit rencana">
+                                        <button type="button" class="btn btn-outline-primary" title="Edit rencana"
+                                                data-rp-edit
+                                                data-plan-id="<?= (int) $plan['id'] ?>"
+                                                data-rek-id="<?= (int) $group['rekening_id'] ?>"
+                                                data-tahun="<?= (int) $group['tahun'] ?>"
+                                                data-kode="<?= htmlspecialchars($group['kode_rekening']) ?>"
+                                                data-nama="<?= htmlspecialchars($group['nama_rekening']) ?>"
+                                                data-pagu="<?= $pagu ?>"
+                                                data-sisa="<?= $sisaKapasitasRek ?>"
+                                                data-bentuk="<?= htmlspecialchars($plan['bentuk_kegiatan']) ?>"
+                                                data-keterangan="<?= htmlspecialchars($plan['keterangan'] ?? '') ?>"
+                                                data-mek="<?= htmlspecialchars($mek) ?>"
+                                                data-mulai="<?= (int) $plan['bulan_mulai'] ?>"
+                                                data-selesai="<?= (int) $plan['bulan_selesai'] ?>"
+                                                data-nilai="<?= (float) $plan['nilai_rencana'] ?>">
                                             <i class="bi bi-pencil"></i>
-                                        </a>
+                                        </button>
                                         <form method="POST" action="<?= base_url('rencana-penyerapan/delete/' . (int) $plan['id']) ?>" onsubmit="return confirm('Hapus rencana <?= htmlspecialchars(addslashes($plan['bentuk_kegiatan'])) ?>?');" style="display:inline;">
                                             <button type="submit" class="btn btn-outline-danger" title="Hapus rencana">
                                                 <i class="bi bi-trash"></i>
@@ -946,7 +1059,7 @@ $mekanismeMeta = [
 
     <?php if ($filterStatus === '' || $filterStatus === 'belum'): ?>
     <!-- Rekening ber-pagu yang belum punya rencana -->
-    <div class="card mt-4">
+    <div class="card mt-4" id="rpBelumCard">
         <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpBelumBox" aria-expanded="<?= $filterStatus === 'belum' ? 'true' : 'false' ?>" aria-controls="rpBelumBox">
             <i class="bi bi-exclamation-circle text-warning"></i>
             Rekening ber-pagu yang belum direncanakan
@@ -977,7 +1090,7 @@ $mekanismeMeta = [
                             <tbody>
                                 <?php foreach ($belumDirencanakan as $rek): ?>
                                     <?php $sisaRek = (float) $rek['nilai_pagu'] - (float) ($rek['total_realisasi'] ?? 0); ?>
-                                    <tr>
+                                    <tr id="rek-<?= (int) $rek['id'] ?>" data-rek-row="<?= (int) $rek['id'] ?>">
                                         <td>
                                             <span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span>
                                             <div class="small"><?= htmlspecialchars($rek['nama_rekening']) ?></div>
@@ -990,9 +1103,15 @@ $mekanismeMeta = [
                                         <td class="text-end">Rp <?= number_format($sisaRek, 0, ',', '.') ?></td>
                                         <td class="text-center">
                                             <div class="d-flex justify-content-center gap-1">
-                                                <a href="<?= base_url('rencana-penyerapan/create?rekening_id=' . (int) $rek['id'] . '&tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-sm btn-outline-primary">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" data-rp-create
+                                                        data-rek-id="<?= (int) $rek['id'] ?>"
+                                                        data-tahun="<?= (int) $tahun ?>"
+                                                        data-kode="<?= htmlspecialchars($rek['kode_rekening']) ?>"
+                                                        data-nama="<?= htmlspecialchars($rek['nama_rekening']) ?>"
+                                                        data-pagu="<?= (float) $rek['nilai_pagu'] ?>"
+                                                        data-sisa="<?= $sisaRek ?>">
                                                     <i class="bi bi-plus-circle me-1"></i>Buat
-                                                </a>
+                                                </button>
                                                 <form method="POST" action="<?= base_url('rencana-penyerapan/selesai') ?>" class="m-0"
                                                       onsubmit="return confirm('Tandai rekening ini selesai? Tidak perlu input rencana lagi.');">
                                                     <input type="hidden" name="rekening_id" value="<?= (int) $rek['id'] ?>">
@@ -1070,3 +1189,470 @@ $mekanismeMeta = [
     </div>
     <?php endif; ?>
 </div>
+
+<datalist id="rpBentukList">
+    <?php foreach ([
+        'Pengadaan Barang', 'Pengadaan Bibit', 'Pengadaan Jasa', 'Pengadaan Jasa Konsultansi',
+        'Belanja Modal', 'Perjalanan Dinas', 'Honorarium / Narasumber', 'Belanja ATK',
+        'Sewa', 'Pemeliharaan', 'Lainnya',
+    ] as $bentukOpt): ?>
+        <option value="<?= htmlspecialchars($bentukOpt) ?>"></option>
+    <?php endforeach; ?>
+</datalist>
+
+<template id="rpInlineFormTpl">
+    <form class="rp-if" method="post" novalidate>
+        <div class="rp-if-head">
+            <div class="min-w-0">
+                <div class="rp-if-title">
+                    <span class="badge bg-warning text-dark me-1 rp-if-kode"></span>
+                    <span class="rp-if-nama"></span>
+                </div>
+                <div class="rp-if-meta">
+                    <span>Pagu <strong class="rp-if-pagu">-</strong></span>
+                    <span>Sisa kapasitas <strong class="rp-if-sisa">menghitung…</strong></span>
+                </div>
+            </div>
+            <button type="button" class="btn-close rp-if-close" aria-label="Tutup form rencana"></button>
+        </div>
+
+        <div class="rp-if-alert" data-err="umum" hidden>
+            <i class="bi bi-exclamation-triangle"></i><span class="rp-if-alert-text"></span>
+        </div>
+
+        <input type="hidden" name="rekening_id" value="">
+        <input type="hidden" name="tahun" value="">
+        <input type="hidden" name="id" value="">
+
+        <div class="row g-3">
+            <div class="col-12 col-lg-5">
+                <label class="form-label">Bentuk kegiatan</label>
+                <input type="text" name="bentuk_kegiatan" class="form-control" list="rpBentukList"
+                       maxlength="150" placeholder="Contoh: Pengadaan Bibit" autocomplete="off">
+                <div class="rp-if-err" data-err="bentuk_kegiatan"></div>
+            </div>
+            <div class="col-12 col-lg-7">
+                <label class="form-label">Mekanisme pembayaran</label>
+                <div class="rp-if-mek">
+                    <label class="rp-if-mek-opt">
+                        <input type="radio" name="mekanisme" value="GU">
+                        <span><strong>GU</strong><small>Ganti Uang</small></span>
+                    </label>
+                    <label class="rp-if-mek-opt">
+                        <input type="radio" name="mekanisme" value="TU">
+                        <span><strong>TU</strong><small>Tambah Uang</small></span>
+                    </label>
+                    <label class="rp-if-mek-opt">
+                        <input type="radio" name="mekanisme" value="LS">
+                        <span><strong>LS</strong><small>Langsung</small></span>
+                    </label>
+                </div>
+                <div class="rp-if-err" data-err="mekanisme"></div>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">Bulan mulai</label>
+                <select name="bulan_mulai" class="form-select"></select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">Bulan selesai</label>
+                <select name="bulan_selesai" class="form-select"></select>
+                <div class="rp-if-err" data-err="bulan"></div>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label d-flex justify-content-between align-items-center">
+                    <span>Nilai rencana</span>
+                    <button type="button" class="btn btn-link btn-sm p-0 rp-if-fill" hidden>Isi sisa</button>
+                </label>
+                <input type="text" name="nilai_rencana" class="form-control text-end" inputmode="numeric"
+                       placeholder="0" autocomplete="off">
+                <div class="rp-if-hint rp-if-limit"></div>
+                <div class="rp-if-err" data-err="nilai_rencana"></div>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">Keterangan (opsional)</label>
+                <input type="text" name="keterangan" class="form-control" maxlength="255"
+                       placeholder="Nama rekanan / catatan" autocomplete="off">
+                <div class="rp-if-err" data-err="keterangan"></div>
+            </div>
+        </div>
+
+        <div class="rp-if-foot">
+            <div class="rp-if-status" aria-live="polite"></div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary rp-if-cancel">Batal</button>
+                <button type="submit" class="btn btn-primary rp-if-save" disabled>
+                    <i class="bi bi-check-circle me-1"></i><span class="rp-if-save-label">Simpan Rencana</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</template>
+
+<script>
+window.RP_BASE = <?= json_encode(base_url()) ?>;
+window.RP_BULAN = <?= json_encode($bulanFull, JSON_UNESCAPED_UNICODE) ?>;
+window.RP_INLINE = <?= json_encode([
+    'form'   => $inlineForm,
+    'errors' => $inlineErrors,
+    'action' => $inlineAction,
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: 'null' ?>;
+</script>
+
+<script>
+(function () {
+    const tpl = document.getElementById('rpInlineFormTpl');
+    if (!tpl) return;
+
+    const BASE = window.RP_BASE || '';
+    const BULAN = window.RP_BULAN || {};
+    let current = null;
+
+    const parseNilai = function (raw) {
+        const digits = String(raw || '').replace(/[^\d]/g, '');
+        return digits ? Number(digits) : 0;
+    };
+    const rp = function (value) {
+        return 'Rp ' + Math.round(Number(value) || 0).toLocaleString('id-ID');
+    };
+
+    function closeForm() {
+        if (!current) return;
+        if (current.host && current.host.parentNode) {
+            current.host.parentNode.removeChild(current.host);
+        }
+        current = null;
+    }
+
+    function insertHost(btn) {
+        const row = btn.closest('tr[data-rek-row]');
+        if (row) {
+            const host = document.createElement('tr');
+            host.className = 'rp-if-row';
+            const cell = document.createElement('td');
+            cell.colSpan = 5;
+            host.appendChild(cell);
+            row.after(host);
+            return { host: host, root: cell };
+        }
+
+        const timelineRow = btn.closest('.rp-timeline-row');
+        if (timelineRow) {
+            const host = document.createElement('div');
+            host.className = 'rp-if-row rp-if-row--card';
+            timelineRow.after(host);
+            return { host: host, root: host };
+        }
+
+        const head = btn.closest('.rp-rek-card') && btn.closest('.rp-rek-card').querySelector('.rp-rek-head');
+        if (head) {
+            const host = document.createElement('div');
+            host.className = 'rp-if-row rp-if-row--card';
+            head.after(host);
+            return { host: host, root: host };
+        }
+
+        return null;
+    }
+
+    function showBelumBox(anchor) {
+        if (!anchor || !anchor.closest('#rpBelumBox')) return;
+        const box = document.getElementById('rpBelumBox');
+        if (!box || box.classList.contains('show')) return;
+        if (window.bootstrap && window.bootstrap.Collapse) {
+            window.bootstrap.Collapse.getOrCreateInstance(box).show();
+        } else {
+            box.classList.add('show');
+        }
+    }
+
+    function openForm(btn, opts) {
+        opts = opts || {};
+        closeForm();
+
+        const formData = opts.form || null;
+        const rekId = Number((formData && formData.rekening_id) || btn.dataset.rekId || 0);
+        const tahun = Number((formData && formData.tahun) || btn.dataset.tahun || 0);
+        const planId = Number((formData && formData.id) || btn.dataset.planId || 0);
+        if (rekId <= 0 || tahun <= 0) return;
+
+        showBelumBox(btn);
+        const placed = insertHost(btn);
+        if (!placed) return;
+
+        placed.root.appendChild(tpl.content.cloneNode(true));
+        const form = placed.root.querySelector('form');
+        const d = btn.dataset;
+
+        const inst = {
+            form: form,
+            host: placed.host,
+            rekId: rekId,
+            tahun: tahun,
+            planId: planId || null,
+            limit: null,
+            seq: 0,
+            touched: { bentuk: false, mekanisme: false, nilai: false, bulan: false },
+        };
+
+        form.action = planId
+            ? BASE + 'rencana-penyerapan/update/' + planId
+            : BASE + 'rencana-penyerapan/store';
+
+        form.querySelector('[name="rekening_id"]').value = String(rekId);
+        form.querySelector('[name="tahun"]').value = String(tahun);
+        form.querySelector('[name="id"]').value = planId ? String(planId) : '';
+
+        form.querySelector('.rp-if-kode').textContent = d.kode || '';
+        form.querySelector('.rp-if-nama').textContent = d.nama || '';
+        if (d.pagu !== undefined && d.pagu !== '') {
+            form.querySelector('.rp-if-pagu').textContent = rp(d.pagu);
+        }
+        if (d.sisa !== undefined && d.sisa !== '') {
+            form.querySelector('.rp-if-sisa').textContent = rp(d.sisa);
+        }
+        form.querySelector('.rp-if-save-label').textContent = planId ? 'Simpan Perubahan' : 'Simpan Rencana';
+
+        const mulaiSel = form.querySelector('[name="bulan_mulai"]');
+        const selesaiSel = form.querySelector('[name="bulan_selesai"]');
+        const nowMonth = new Date().getMonth() + 1;
+        for (let i = 1; i <= 12; i++) {
+            const opt = document.createElement('option');
+            opt.value = String(i);
+            opt.textContent = BULAN[i] || String(i);
+            mulaiSel.appendChild(opt);
+            selesaiSel.appendChild(opt.cloneNode(true));
+        }
+
+        const source = formData || {
+            bentuk_kegiatan: d.bentuk || '',
+            keterangan: d.keterangan || '',
+            mekanisme: d.mek || '',
+            bulan_mulai: Number(d.mulai) || nowMonth,
+            bulan_selesai: Number(d.selesai) || nowMonth,
+            nilai_rencana: d.nilai || '',
+        };
+
+        const bentukInput = form.querySelector('[name="bentuk_kegiatan"]');
+        const ketInput = form.querySelector('[name="keterangan"]');
+        const nilaiInput = form.querySelector('[name="nilai_rencana"]');
+
+        bentukInput.value = source.bentuk_kegiatan || '';
+        ketInput.value = source.keterangan || '';
+        if (source.mekanisme) {
+            const radio = form.querySelector('input[name="mekanisme"][value="' + source.mekanisme + '"]');
+            if (radio) radio.checked = true;
+        }
+        mulaiSel.value = String(source.bulan_mulai || nowMonth);
+        selesaiSel.value = String(source.bulan_selesai || nowMonth);
+        const nilaiAwal = parseNilai(source.nilai_rencana);
+        nilaiInput.value = nilaiAwal > 0 ? nilaiAwal.toLocaleString('id-ID') : '';
+
+        const errors = opts.errors || {};
+        Object.keys(errors).forEach(function (key) {
+            if (key === 'umum' || key === 'rekening_id' || key === 'tahun') {
+                const alert = form.querySelector('[data-err="umum"]');
+                if (alert) {
+                    alert.hidden = false;
+                    alert.querySelector('.rp-if-alert-text').textContent = errors[key];
+                }
+                return;
+            }
+            if (key === 'bentuk_kegiatan') inst.touched.bentuk = true;
+            if (key === 'mekanisme') inst.touched.mekanisme = true;
+            if (key === 'nilai_rencana') inst.touched.nilai = true;
+            if (key === 'bulan_mulai' || key === 'bulan_selesai') inst.touched.bulan = true;
+        });
+
+        form.querySelector('.rp-if-close').addEventListener('click', closeForm);
+        form.querySelector('.rp-if-cancel').addEventListener('click', closeForm);
+
+        bentukInput.addEventListener('input', function () {
+            inst.touched.bentuk = true;
+            refresh(inst);
+        });
+        Array.prototype.forEach.call(form.querySelectorAll('input[name="mekanisme"]'), function (radio) {
+            radio.addEventListener('change', function () {
+                inst.touched.mekanisme = true;
+                refresh(inst);
+            });
+        });
+        [mulaiSel, selesaiSel].forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                inst.touched.bulan = true;
+                refresh(inst);
+            });
+        });
+        nilaiInput.addEventListener('input', function () {
+            inst.touched.nilai = true;
+            const n = parseNilai(nilaiInput.value);
+            nilaiInput.value = n > 0 ? n.toLocaleString('id-ID') : '';
+            refresh(inst);
+        });
+        ketInput.addEventListener('input', function () { refresh(inst); });
+
+        form.querySelector('.rp-if-fill').addEventListener('click', function () {
+            if (inst.limit === null || inst.limit <= 0.005) return;
+            inst.touched.nilai = true;
+            nilaiInput.value = Math.floor(inst.limit).toLocaleString('id-ID');
+            refresh(inst);
+            nilaiInput.focus();
+        });
+
+        current = inst;
+        refresh(inst);
+        fetchInfo(inst);
+
+        placed.host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(function () { bentukInput.focus({ preventScroll: true }); }, 220);
+    }
+
+    function fieldError(inst, key) {
+        return inst.form.querySelector('[data-err="' + key + '"]');
+    }
+
+    function setError(inst, key, message, active) {
+        const el = fieldError(inst, key);
+        if (el) el.textContent = active ? message : '';
+    }
+
+    function refresh(inst) {
+        const form = inst.form;
+        const bentukInput = form.querySelector('[name="bentuk_kegiatan"]');
+        const bentuk = bentukInput.value.trim();
+        const mekanisme = form.querySelector('input[name="mekanisme"]:checked');
+        const mulaiSel = form.querySelector('[name="bulan_mulai"]');
+        const selesaiSel = form.querySelector('[name="bulan_selesai"]');
+        const nilaiInput = form.querySelector('[name="nilai_rencana"]');
+        const mulai = Number(mulaiSel.value || 0);
+        const selesai = Number(selesaiSel.value || 0);
+        const nilai = parseNilai(nilaiInput.value);
+        const bulanBad = mulai > 0 && selesai > 0 && selesai < mulai;
+
+        let nilaiMessage = '';
+        if (nilai <= 0) {
+            nilaiMessage = 'Nilai rencana harus lebih dari 0.';
+        } else if (inst.limit !== null && nilai > inst.limit + 0.005) {
+            nilaiMessage = 'Nilai melebihi sisa kapasitas (' + rp(Math.max(0, inst.limit)) + ').';
+        }
+        const nilaiBad = nilaiMessage !== '';
+
+        setError(inst, 'bentuk_kegiatan', 'Bentuk kegiatan wajib diisi.', inst.touched.bentuk && !bentuk);
+        bentukInput.classList.toggle('is-invalid', inst.touched.bentuk && !bentuk);
+
+        setError(inst, 'mekanisme', 'Pilih salah satu mekanisme pembayaran.', inst.touched.mekanisme && !mekanisme);
+
+        setError(inst, 'bulan', 'Bulan selesai tidak boleh sebelum bulan mulai.', inst.touched.bulan && bulanBad);
+        mulaiSel.classList.toggle('is-invalid', inst.touched.bulan && bulanBad);
+        selesaiSel.classList.toggle('is-invalid', inst.touched.bulan && bulanBad);
+
+        setError(inst, 'nilai_rencana', nilaiMessage, inst.touched.nilai && nilaiBad);
+        nilaiInput.classList.toggle('is-invalid', inst.touched.nilai && nilaiBad);
+
+        const issues = [];
+        if (!bentuk) issues.push('isi bentuk kegiatan');
+        if (!mekanisme) issues.push('pilih mekanisme');
+        if (bulanBad) issues.push('bulan selesai ≥ bulan mulai');
+        if (nilaiBad) issues.push(nilai <= 0 ? 'isi nilai rencana' : 'nilai ≤ sisa kapasitas');
+
+        const invalid = issues.length > 0;
+        const saveBtn = form.querySelector('.rp-if-save');
+        const status = form.querySelector('.rp-if-status');
+        saveBtn.disabled = invalid;
+        status.textContent = invalid ? 'Lengkapi: ' + issues.join(' · ') : 'Siap disimpan.';
+        status.classList.toggle('is-invalid', invalid);
+        const reason = invalid ? 'Tidak bisa disimpan: ' + issues.join(', ') + '.' : '';
+        saveBtn.title = reason;
+    }
+
+    function fetchInfo(inst) {
+        const seq = ++inst.seq;
+        const limitEl = inst.form.querySelector('.rp-if-limit');
+        const fillBtn = inst.form.querySelector('.rp-if-fill');
+        limitEl.textContent = 'Menghitung sisa kapasitas…';
+
+        let url = BASE + 'rencana-penyerapan/rekening-info?rekening_id=' + encodeURIComponent(inst.rekId)
+            + '&tahun=' + encodeURIComponent(inst.tahun);
+        if (inst.planId) url += '&exclude_id=' + encodeURIComponent(inst.planId);
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (inst !== current || seq !== inst.seq) return;
+                if (!data || !data.ok) {
+                    limitEl.textContent = 'Sisa kapasitas gagal dimuat.';
+                    fillBtn.hidden = true;
+                    refresh(inst);
+                    return;
+                }
+                inst.limit = data.sisa_kapasitas === null ? null : Number(data.sisa_kapasitas);
+                if (data.pagu !== null && data.pagu !== undefined) {
+                    inst.form.querySelector('.rp-if-pagu').textContent = rp(data.pagu);
+                }
+                if (inst.limit !== null) {
+                    inst.form.querySelector('.rp-if-sisa').textContent = rp(inst.limit);
+                    limitEl.textContent = 'Maks: ' + rp(Math.max(0, inst.limit)) + ' (sisa kapasitas)';
+                    fillBtn.hidden = !(inst.limit > 0.005);
+                } else {
+                    limitEl.textContent = 'Sisa kapasitas belum tersedia.';
+                    fillBtn.hidden = true;
+                }
+                refresh(inst);
+            })
+            .catch(function () {
+                if (inst !== current || seq !== inst.seq) return;
+                limitEl.textContent = 'Sisa kapasitas gagal dimuat.';
+                fillBtn.hidden = true;
+                refresh(inst);
+            });
+    }
+
+    document.addEventListener('click', function (event) {
+        const createBtn = event.target.closest('[data-rp-create]');
+        if (createBtn) {
+            event.preventDefault();
+            openForm(createBtn, {});
+            return;
+        }
+        const editBtn = event.target.closest('[data-rp-edit]');
+        if (editBtn) {
+            event.preventDefault();
+            openForm(editBtn, {});
+            return;
+        }
+        const openBelum = event.target.closest('[data-rp-open-belum]');
+        if (openBelum) {
+            event.preventDefault();
+            const box = document.getElementById('rpBelumBox');
+            if (box && !box.classList.contains('show')) {
+                if (window.bootstrap && window.bootstrap.Collapse) {
+                    window.bootstrap.Collapse.getOrCreateInstance(box).show();
+                } else {
+                    box.classList.add('show');
+                }
+            }
+            const card = document.getElementById('rpBelumCard');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
+    const pending = window.RP_INLINE;
+    if (pending && pending.form && pending.form.rekening_id) {
+        const data = pending.form;
+        let anchor = null;
+        if (pending.action === 'update' && data.id) {
+            anchor = document.querySelector('[data-rp-edit][data-plan-id="' + data.id + '"]');
+        }
+        if (!anchor) {
+            anchor = document.querySelector('[data-rek-row="' + data.rekening_id + '"] [data-rp-create]');
+        }
+        if (!anchor) {
+            const card = document.getElementById('rek-' + data.rekening_id);
+            anchor = card ? card.querySelector('[data-rp-create]') : null;
+        }
+        if (anchor) {
+            showBelumBox(anchor);
+            openForm(anchor, { form: data, errors: pending.errors || {}, action: pending.action });
+        }
+    }
+})();
+</script>

@@ -17,10 +17,10 @@ use App\Models\Rak;
  * Perencanaan timeline penyerapan anggaran per kode rekening.
  *
  * Routes:
- *   GET  /rencana-penyerapan                 → index()       : timeline per rekening
- *   GET  /rencana-penyerapan/create          → create()      : form rencana baru
+ *   GET  /rencana-penyerapan                 → index()       : timeline + form entri inline
+ *   GET  /rencana-penyerapan/create          → create()      : buka form inline untuk rekening
  *   POST /rencana-penyerapan/store           → store()
- *   GET  /rencana-penyerapan/edit/{id}       → edit()
+ *   GET  /rencana-penyerapan/edit/{id}       → edit()        : buka form inline untuk rencana
  *   POST /rencana-penyerapan/update/{id}     → update()
  *   POST /rencana-penyerapan/delete/{id}     → delete()
  *   GET  /rencana-penyerapan/rekening-info   → rekeningInfo(): JSON pagu/rencana/realisasi
@@ -63,6 +63,11 @@ class RencanaPenyerapanController
     public function index(): void
     {
         $this->requireAdmin();
+
+        $inlineForm = $_SESSION['rp_inline']['form'] ?? null;
+        $inlineErrors = $_SESSION['rp_inline']['errors'] ?? [];
+        $inlineAction = $_SESSION['rp_inline']['action'] ?? null;
+        unset($_SESSION['rp_inline']);
 
         $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y');
         $kegiatanId = isset($_GET['kegiatan_id']) && $_GET['kegiatan_id'] !== '' ? (int) $_GET['kegiatan_id'] : null;
@@ -208,6 +213,15 @@ class RencanaPenyerapanController
         }
 
         $page = max(1, (int) ($_GET['page'] ?? 1));
+        $focusRekeningId = (int) ($inlineForm['rekening_id'] ?? 0);
+        if ($focusRekeningId > 0) {
+            foreach ($groups as $idx => $group) {
+                if ((int) $group['rekening_id'] === $focusRekeningId) {
+                    $page = intdiv($idx, self::PER_PAGE) + 1;
+                    break;
+                }
+            }
+        }
         $totalGroups = count($groups);
         $totalPages = max(1, (int) ceil($totalGroups / self::PER_PAGE));
         if ($page > $totalPages) {
@@ -251,24 +265,30 @@ class RencanaPenyerapanController
     {
         $this->requireAdmin();
 
-        $form = [
-            'id'               => null,
-            'rekening_id'      => 0,
-            'tahun'            => isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y'),
-            'bentuk_kegiatan'  => '',
-            'mekanisme'        => '',
-            'bulan_mulai'      => (int) date('n'),
-            'bulan_selesai'    => (int) date('n'),
-            'nilai_rencana'    => '',
-            'keterangan'       => '',
-        ];
-
+        $tahun = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y');
         $rekeningId = (int) ($_GET['rekening_id'] ?? 0);
+
         if ($rekeningId > 0 && $this->rekeningModel->getById($rekeningId)) {
-            $form['rekening_id'] = $rekeningId;
+            $_SESSION['rp_inline'] = [
+                'action' => 'store',
+                'form' => [
+                    'id'              => null,
+                    'rekening_id'     => $rekeningId,
+                    'tahun'           => $tahun,
+                    'bentuk_kegiatan' => '',
+                    'mekanisme'       => '',
+                    'bulan_mulai'     => (int) date('n'),
+                    'bulan_selesai'   => (int) date('n'),
+                    'nilai_rencana'   => '',
+                    'keterangan'      => '',
+                ],
+                'errors' => [],
+            ];
+            header('Location: ' . base_url('rencana-penyerapan?tahun=' . $tahun) . '#rek-' . $rekeningId);
+            exit;
         }
 
-        $this->showForm('Tambah Rencana Penyerapan', 'Tentukan bentuk kegiatan, mekanisme pembayaran, dan periode penyerapan.', $form, [], 'store');
+        $this->redirectWithMessage(base_url('rencana-penyerapan?tahun=' . $tahun), 'info', 'Pilih rekening lalu klik Buat pada kolom Aksi.');
     }
 
     public function store(): void
@@ -279,7 +299,7 @@ class RencanaPenyerapanController
         $errors = $this->validate($form);
 
         if ($errors) {
-            $this->showForm('Tambah Rencana Penyerapan', 'Periksa kembali data rencana.', $form, $errors, 'store');
+            $this->redirectInlineForm('store', $form, $errors);
             return;
         }
 
@@ -290,7 +310,7 @@ class RencanaPenyerapanController
             exit;
         } catch (\Throwable $e) {
             error_log('Gagal menyimpan rencana penyerapan: ' . $e->getMessage());
-            $this->showForm('Tambah Rencana Penyerapan', 'Gagal menyimpan rencana.', $form, ['umum' => 'Gagal menyimpan rencana: ' . $e->getMessage()], 'store');
+            $this->redirectInlineForm('store', $form, ['umum' => 'Gagal menyimpan rencana: ' . $e->getMessage()]);
         }
     }
 
@@ -304,19 +324,13 @@ class RencanaPenyerapanController
             return;
         }
 
-        $form = [
-            'id'               => (int) $plan['id'],
-            'rekening_id'      => (int) $plan['rekening_id'],
-            'tahun'            => (int) $plan['tahun'],
-            'bentuk_kegiatan'  => $plan['bentuk_kegiatan'],
-            'mekanisme'        => $plan['mekanisme'],
-            'bulan_mulai'      => (int) $plan['bulan_mulai'],
-            'bulan_selesai'    => (int) $plan['bulan_selesai'],
-            'nilai_rencana'    => (float) $plan['nilai_rencana'],
-            'keterangan'       => $plan['keterangan'] ?? '',
+        $_SESSION['rp_inline'] = [
+            'action' => 'update',
+            'form'   => $this->formFromPlan($plan),
+            'errors' => [],
         ];
-
-        $this->showForm('Edit Rencana Penyerapan', 'Ubah detail rencana kegiatan dan periode penyerapan.', $form, [], 'update');
+        header('Location: ' . base_url('rencana-penyerapan?tahun=' . (int) $plan['tahun']) . '#rek-' . (int) $plan['rekening_id']);
+        exit;
     }
 
     public function update(int $id): void
@@ -330,21 +344,22 @@ class RencanaPenyerapanController
         }
 
         $form = $this->collectForm($_POST);
+        $form['id'] = $id;
         $errors = $this->validate($form, $id);
 
         if ($errors) {
-            $this->showForm('Edit Rencana Penyerapan', 'Periksa kembali data rencana.', $form, $errors, 'update');
+            $this->redirectInlineForm('update', $form, $errors);
             return;
         }
 
         try {
             $this->model->update($id, $form);
-            $this->flashAfterSave($form, 'Rencana penyerapan berhasil diperbarui.');
+            $this->flashAfterSave($form, 'Rencana penyerapan berhasil diperbarui.', $id);
             header('Location: ' . $this->indexUrl($form));
             exit;
         } catch (\Throwable $e) {
             error_log('Gagal memperbarui rencana penyerapan: ' . $e->getMessage());
-            $this->showForm('Edit Rencana Penyerapan', 'Gagal memperbarui rencana.', $form, ['umum' => 'Gagal memperbarui rencana: ' . $e->getMessage()], 'update');
+            $this->redirectInlineForm('update', $form, ['umum' => 'Gagal memperbarui rencana: ' . $e->getMessage()]);
         }
     }
 
@@ -369,7 +384,6 @@ class RencanaPenyerapanController
 
         $rekeningId = (int) ($_POST['rekening_id'] ?? 0);
         $tahun = (int) ($_POST['tahun'] ?? date('Y'));
-        $redirect = (string) ($_POST['redirect'] ?? 'index');
         $back = $this->safeBackQuery();
 
         if ($rekeningId <= 0 || !$this->rekeningModel->getById($rekeningId)) {
@@ -378,9 +392,7 @@ class RencanaPenyerapanController
 
         try {
             $this->model->markSelesai($rekeningId, $tahun, (int) ($_SESSION['user_id'] ?? 0) ?: null);
-            $url = $redirect === 'create'
-                ? base_url('rencana-penyerapan/create?tahun=' . $tahun)
-                : base_url('rencana-penyerapan' . ($back !== '' ? '?' . $back : '?tahun=' . $tahun) . '#rek-' . $rekeningId);
+            $url = base_url('rencana-penyerapan' . ($back !== '' ? '?' . $back : '?tahun=' . $tahun) . '#rek-' . $rekeningId);
             $this->redirectWithMessage($url, 'success', 'Rekening ditandai selesai. Tidak perlu input rencana lagi.');
         } catch (\Throwable $e) {
             error_log('Gagal menandai rekening selesai: ' . $e->getMessage());
@@ -394,14 +406,11 @@ class RencanaPenyerapanController
 
         $rekeningId = (int) ($_POST['rekening_id'] ?? 0);
         $tahun = (int) ($_POST['tahun'] ?? date('Y'));
-        $redirect = (string) ($_POST['redirect'] ?? 'index');
         $back = $this->safeBackQuery();
 
         try {
             $this->model->unmarkSelesai($rekeningId, $tahun);
-            $url = $redirect === 'create'
-                ? base_url('rencana-penyerapan/create?tahun=' . $tahun)
-                : base_url('rencana-penyerapan' . ($back !== '' ? '?' . $back : '?tahun=' . $tahun) . '#rek-' . $rekeningId);
+            $url = base_url('rencana-penyerapan' . ($back !== '' ? '?' . $back : '?tahun=' . $tahun) . '#rek-' . $rekeningId);
             $this->redirectWithMessage($url, 'success', 'Status selesai dibatalkan. Rekening perlu rencana penyerapan kembali.');
         } catch (\Throwable $e) {
             error_log('Gagal membatalkan status selesai: ' . $e->getMessage());
@@ -545,25 +554,41 @@ class RencanaPenyerapanController
         return $errors;
     }
 
-    private function showForm(string $title, string $subtitle, array $form, array $errors, string $action): void
+    private function formFromPlan(array $plan): array
     {
-        $isEdit = $action === 'update';
-        $formTahun = (int) ($form['tahun'] ?? date('Y'));
-
-        $rekenings = $isEdit ? [] : $this->model->getRekeningPickerList($formTahun);
-        $selectedRekening = (int) ($form['rekening_id'] ?? 0) > 0
-            ? $this->rekeningModel->getById((int) $form['rekening_id'])
-            : null;
-
-        $pageTitle = $title;
-        $activePage = 'rencana_penyerapan';
-        $pageBreadcrumb = [
-            ['label' => 'Rencana Penyerapan', 'url' => base_url('rencana-penyerapan?tahun=' . urlencode((string) $formTahun))],
-            ['label' => $isEdit ? 'Edit Rencana' : 'Tambah Rencana'],
+        return [
+            'id'              => (int) $plan['id'],
+            'rekening_id'     => (int) $plan['rekening_id'],
+            'tahun'           => (int) $plan['tahun'],
+            'bentuk_kegiatan' => $plan['bentuk_kegiatan'],
+            'mekanisme'       => $plan['mekanisme'],
+            'bulan_mulai'     => (int) $plan['bulan_mulai'],
+            'bulan_selesai'   => (int) $plan['bulan_selesai'],
+            'nilai_rencana'   => (float) $plan['nilai_rencana'],
+            'keterangan'      => $plan['keterangan'] ?? '',
         ];
-        $viewFile = __DIR__ . '/../../views/rencana_penyerapan/form.php';
+    }
 
-        include __DIR__ . '/../../views/layout.php';
+    private function redirectInlineForm(string $action, array $form, array $errors): void
+    {
+        $rekeningId = (int) ($form['rekening_id'] ?? 0);
+        $tahun = (int) ($form['tahun'] ?? date('Y'));
+
+        if ($rekeningId <= 0) {
+            $message = reset($errors) ?: 'Data rencana tidak valid.';
+            $this->redirectWithMessage(base_url('rencana-penyerapan?tahun=' . $tahun), 'error', (string) $message);
+            return;
+        }
+
+        $_SESSION['rp_inline'] = [
+            'action' => $action,
+            'form'   => $form,
+            'errors' => $errors,
+        ];
+
+        $url = base_url('rencana-penyerapan?tahun=' . $tahun) . '#rek-' . $rekeningId;
+        header('Location: ' . $url);
+        exit;
     }
 
     private function safeBackQuery(): string
