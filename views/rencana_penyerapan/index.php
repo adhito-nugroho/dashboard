@@ -1,0 +1,911 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$flashMessage = $_SESSION['flash_message'] ?? null;
+$flashType = $_SESSION['flash_type'] ?? 'info';
+unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+
+$groups = $groups ?? [];
+$belumDirencanakan = $belumDirencanakan ?? [];
+$belumCount = $belumCount ?? count($belumDirencanakan);
+$totalPagu = $totalPagu ?? 0;
+$totalRencana = $totalRencana ?? 0;
+$totalRealisasi = $totalRealisasi ?? 0;
+$tahun = $tahun ?? (int) date('Y');
+
+$bulanShort = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+$bulanFull = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+$shortRupiah = function (float $value): string {
+    if ($value >= 1_000_000_000) {
+        return 'Rp ' . rtrim(rtrim(number_format($value / 1_000_000_000, 1, ',', '.'), '0'), ',') . ' miliar';
+    }
+    if ($value >= 1_000_000) {
+        return 'Rp ' . rtrim(rtrim(number_format($value / 1_000_000, 1, ',', '.'), '0'), ',') . ' jt';
+    }
+    if ($value >= 1_000) {
+        return 'Rp ' . number_format($value / 1_000, 0, ',', '.') . ' rb';
+    }
+    return 'Rp ' . number_format($value, 0, ',', '.');
+};
+
+$pctRencana = $totalPagu > 0 ? ($totalRencana / $totalPagu) * 100 : 0;
+$pctRealisasi = $totalPagu > 0 ? ($totalRealisasi / $totalPagu) * 100 : 0;
+$totalSisaKapasitas = $totalSisaKapasitas ?? ($totalPagu - $totalRealisasi - $totalRencana);
+
+$tahunInt = (int) $tahun;
+$bulanSekarang = $tahunInt < (int) date('Y') ? 12 : ($tahunInt === (int) date('Y') ? (int) date('n') : 0);
+
+$filterKegiatan = $filterKegiatan ?? null;
+$filterSubKegiatan = $filterSubKegiatan ?? null;
+$filterMekanisme = $filterMekanisme ?? null;
+$filterQ = $filterQ ?? '';
+$isFiltered = $filterKegiatan !== null || $filterSubKegiatan !== null || $filterMekanisme !== null || $filterQ !== '';
+
+$paginationBase = base_url('rencana-penyerapan');
+if (!empty($queryParams)) {
+    $paginationBase .= '?' . http_build_query($queryParams);
+}
+$sep = str_contains($paginationBase, '?') ? '&' : '?';
+
+$mekanismeMeta = [
+    'GU' => ['label' => 'GU', 'desc' => 'Ganti Uang'],
+    'TU' => ['label' => 'TU', 'desc' => 'Tambah Uang'],
+    'LS' => ['label' => 'LS', 'desc' => 'Langsung'],
+];
+?>
+
+<style>
+    .rp-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .rp-kpi {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+    }
+
+    .rp-kpi__label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: .7rem;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .rp-kpi__value {
+        font-size: 1.12rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-top: 4px;
+        line-height: 1.25;
+    }
+
+    .rp-kpi__sub {
+        font-size: .72rem;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .rp-rek-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #fff;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+    }
+
+    .rp-rek-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 18px;
+        padding: 16px 18px 14px;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .rp-rek-title {
+        font-size: .98rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.35;
+    }
+
+    .rp-rek-path {
+        font-size: .74rem;
+        color: #64748b;
+        margin-top: 3px;
+        line-height: 1.45;
+    }
+
+    .rp-rek-summary {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        min-width: 300px;
+    }
+
+    .rp-sum-item small {
+        display: block;
+        font-size: .68rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .rp-sum-item strong {
+        display: block;
+        font-size: .92rem;
+        color: #0f172a;
+        white-space: nowrap;
+    }
+
+    .rp-sum-item .rp-pct {
+        display: inline-block;
+        font-size: .68rem;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #4338ca;
+        margin-top: 2px;
+    }
+
+    .rp-rek-progress {
+        padding: 0 18px 14px;
+        background: #eef2ff;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .rp-rek-progress .progress {
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(67, 56, 202, .12);
+    }
+
+    .rp-rek-progress .progress-bar {
+        border-radius: 999px;
+        background: linear-gradient(90deg, #059669, #34d399);
+    }
+
+    .rp-rek-progress-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        font-size: .72rem;
+        color: #475569;
+        margin-bottom: 5px;
+    }
+
+    .rp-mek-breakdown {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 10px 18px 0;
+    }
+
+    .rp-mek {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .66rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        padding: 2px 7px;
+        border-radius: 999px;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+
+    .rp-mek--GU { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
+    .rp-mek--TU { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .rp-mek--LS { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .rp-mek--UP { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    .rp-mek-amount {
+        font-size: .7rem;
+        color: #475569;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .rp-timeline {
+        padding: 10px 18px 16px;
+    }
+
+    .rp-timeline-head,
+    .rp-timeline-row {
+        display: grid;
+        grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+        gap: 16px;
+        align-items: center;
+    }
+
+    .rp-timeline-head {
+        padding: 4px 0 6px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .rp-timeline-head__label {
+        font-size: .68rem;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .rp-months-head {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+    }
+
+    .rp-months-head span {
+        text-align: center;
+        font-size: .66rem;
+        font-weight: 700;
+        color: #64748b;
+        padding: 4px 0;
+        border-left: 1px solid #eef2f7;
+    }
+
+    .rp-months-head span.rp-month--past { color: #cbd5e1; }
+
+    .rp-timeline-row {
+        padding: 12px 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .rp-timeline-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 2px;
+    }
+
+    .rp-plan-title {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        font-size: .84rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.4;
+    }
+
+    .rp-plan-uraian {
+        font-size: .74rem;
+        color: #64748b;
+        margin-top: 3px;
+        line-height: 1.45;
+    }
+
+    .rp-plan-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin-top: 5px;
+        font-size: .72rem;
+        color: #475569;
+    }
+
+    .rp-plan-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 7px;
+    }
+
+    .rp-plan-actions .btn {
+        padding: .12rem .4rem;
+        font-size: .72rem;
+    }
+
+    .rp-track-wrap {
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    .rp-track {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        align-items: center;
+        min-width: 540px;
+        min-height: 38px;
+        border-radius: 9px;
+        background: #f8fafc;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .rp-cell {
+        grid-row: 1;
+        align-self: stretch;
+        min-height: 38px;
+        border-left: 1px solid #eef2f7;
+    }
+
+    .rp-cell:nth-child(3n+1) { border-left: 2px solid #e2e8f0; }
+
+    .rp-bar {
+        grid-row: 1;
+        align-self: center;
+        z-index: 2;
+        height: 24px;
+        margin: 0 2px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        color: #fff;
+        font-size: .66rem;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
+    }
+
+    .rp-bar--GU { background: linear-gradient(90deg, #4338ca, #6366f1); }
+    .rp-bar--TU { background: linear-gradient(90deg, #047857, #10b981); }
+    .rp-bar--LS { background: linear-gradient(90deg, #b45309, #f59e0b); }
+
+    .rp-empty-bar {
+        grid-row: 1;
+        grid-column: 1 / -1;
+        align-self: center;
+        text-align: center;
+        font-size: .7rem;
+        color: #94a3b8;
+        z-index: 1;
+    }
+
+    .rp-cell--past { background: rgba(148, 163, 184, .13); }
+
+    .rp-bar--lewat { opacity: .5; }
+
+    .rp-timeline-row--real {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-top: 6px;
+    }
+
+    .rp-cell--real { position: relative; }
+
+    .rp-vbar {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 62%;
+        display: flex;
+        flex-direction: column-reverse;
+        border-radius: 3px 3px 0 0;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .25);
+    }
+
+    .rp-vseg--GU { background: #4338ca; }
+    .rp-vseg--TU { background: #047857; }
+    .rp-vseg--LS { background: #f59e0b; }
+    .rp-vseg--UP { background: #94a3b8; }
+
+    .rp-belum-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 14px 18px;
+        border: 0;
+        background: #fff;
+        text-align: left;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .rp-belum-toggle:focus-visible { outline: 2px solid #4338ca; outline-offset: -2px; }
+
+    @media (max-width: 991.98px) {
+        .rp-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .rp-rek-head { flex-direction: column; }
+        .rp-rek-summary { justify-content: flex-start; min-width: 0; }
+    }
+
+    @media (max-width: 767.98px) {
+        .rp-timeline-head { display: none; }
+        .rp-timeline-row { grid-template-columns: 1fr; gap: 9px; }
+        .rp-timeline { padding: 8px 14px 14px; }
+        .rp-track { min-width: 480px; }
+        .rp-rek-head { padding: 14px; }
+        .rp-rek-progress { padding: 0 14px 12px; }
+        .rp-mek-breakdown { padding: 10px 14px 0; }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <?php if ($flashMessage): ?>
+        <div class="alert alert-<?= $flashType === 'error' ? 'danger' : ($flashType === 'warning' ? 'warning' : ($flashType === 'success' ? 'success' : 'info')) ?> alert-dismissible fade show" role="alert" data-auto-dismiss>
+            <?= htmlspecialchars($flashMessage) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-calendar3-range text-primary me-2"></i>Rencana Penyerapan
+                </h2>
+                <p class="text-muted mb-0">Timeline penyerapan anggaran per kode rekening berdasarkan bentuk kegiatan dan mekanisme pembayaran.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="<?= base_url('rencana-penyerapan/create?tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah Rencana
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        <span class="text-muted small fw-semibold">Warna timeline:</span>
+        <span class="small"><span class="rp-mek rp-mek--GU">GU</span> Ganti Uang</span>
+        <span class="small"><span class="rp-mek rp-mek--TU">TU</span> Tambah Uang</span>
+        <span class="small"><span class="rp-mek rp-mek--LS">LS</span> Langsung</span>
+        <span class="small text-muted"><span class="rp-mek rp-mek--UP">UP</span> belanja UP yang belum masuk SPJ GU/TU</span>
+        <span class="small text-muted"><span style="display:inline-block;width:11px;height:11px;background:rgba(148,163,184,.25);border-radius:3px;vertical-align:middle;"></span> bulan sudah lewat</span>
+    </div>
+
+    <!-- Ringkasan -->
+    <div class="rp-kpi-grid mb-4">
+        <div class="rp-kpi">
+            <div class="rp-kpi__label"><i class="bi bi-cash-stack"></i> Pagu <?= (int) $tahun ?></div>
+            <div class="rp-kpi__value">Rp <?= number_format($totalPagu, 0, ',', '.') ?></div>
+            <div class="rp-kpi__sub">Pagu seluruh rekening pada filter ini</div>
+        </div>
+        <div class="rp-kpi">
+            <div class="rp-kpi__label"><i class="bi bi-calendar3-range"></i> Total Rencana</div>
+            <div class="rp-kpi__value text-primary">Rp <?= number_format($totalRencana, 0, ',', '.') ?></div>
+            <div class="rp-kpi__sub"><?= number_format($pctRencana, 1, ',', '.') ?>% dari pagu<?= $isFiltered ? ' (sesuai filter)' : '' ?></div>
+        </div>
+        <div class="rp-kpi">
+            <div class="rp-kpi__label"><i class="bi bi-check2-circle"></i> Realisasi Terverifikasi</div>
+            <div class="rp-kpi__value text-success">Rp <?= number_format($totalRealisasi, 0, ',', '.') ?></div>
+            <div class="rp-kpi__sub"><?= number_format($pctRealisasi, 1, ',', '.') ?>% dari pagu</div>
+        </div>
+        <div class="rp-kpi">
+            <div class="rp-kpi__label"><i class="bi bi-pie-chart"></i> Sisa Kapasitas</div>
+            <div class="rp-kpi__value <?= $totalSisaKapasitas < 0 ? 'text-danger' : '' ?>">Rp <?= number_format($totalSisaKapasitas, 0, ',', '.') ?></div>
+            <div class="rp-kpi__sub <?= $totalSisaKapasitas < 0 ? 'text-danger fw-semibold' : '' ?>">
+                <?= $totalSisaKapasitas < 0 ? 'Rencana + realisasi melebihi pagu' : 'Pagu − realisasi − rencana' ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body py-3">
+            <form method="GET" action="<?= base_url('rencana-penyerapan') ?>" id="rpFilterForm">
+                <div class="row g-3">
+                    <div class="col-6 col-md-2">
+                        <label for="filter-tahun" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-calendar-year me-1 text-primary"></i>Tahun
+                        </label>
+                        <select name="tahun" id="filter-tahun" class="form-select">
+                            <?php for ($y = (int) date('Y') + 1; $y >= (int) date('Y') - 5; $y--): ?>
+                                <option value="<?= $y ?>" <?= $tahun == $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label for="filter-kegiatan" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-layers me-1 text-primary"></i>Kegiatan
+                        </label>
+                        <select name="kegiatan_id" id="filter-kegiatan" class="form-select">
+                            <option value="">-- Semua Kegiatan --</option>
+                            <?php foreach ($filterKegiatanList as $kg): ?>
+                                <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label for="filter-sub-kegiatan" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-diagram-3 me-1 text-primary"></i>Sub Kegiatan
+                        </label>
+                        <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select">
+                            <option value="">-- Semua Sub Kegiatan --</option>
+                            <?php foreach ($filterSubKegiatanList as $sk): ?>
+                                <option value="<?= $sk['id'] ?>"
+                                        data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
+                                        <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="filter-mekanisme" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-wallet2 me-1 text-primary"></i>Mekanisme
+                        </label>
+                        <select name="mekanisme" id="filter-mekanisme" class="form-select">
+                            <option value="">-- Semua --</option>
+                            <option value="GU" <?= $filterMekanisme === 'GU' ? 'selected' : '' ?>>GU — Ganti Uang</option>
+                            <option value="TU" <?= $filterMekanisme === 'TU' ? 'selected' : '' ?>>TU — Tambah Uang</option>
+                            <option value="LS" <?= $filterMekanisme === 'LS' ? 'selected' : '' ?>>LS — Langsung</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <label for="filter-q" class="form-label fw-semibold mb-1">
+                            <i class="bi bi-search me-1 text-primary"></i>Cari
+                        </label>
+                        <input type="text" name="q" id="filter-q" class="form-select" value="<?= htmlspecialchars($filterQ) ?>" placeholder="Kegiatan / rekening">
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <a href="<?= base_url('rencana-penyerapan') ?>" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Reset
+                        </a>
+                    </div>
+                </div>
+                <?php if ($isFiltered): ?>
+                    <div class="mt-2">
+                        <span class="badge bg-primary px-3 py-2 fs-6">
+                            <i class="bi bi-filter-circle me-1"></i>Filter aktif
+                        </span>
+                    </div>
+                <?php endif; ?>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const kegiatanSel = document.getElementById('filter-kegiatan');
+        const subKegSel = document.getElementById('filter-sub-kegiatan');
+        if (!kegiatanSel || !subKegSel) return;
+
+        const allSubOptions = Array.from(subKegSel.querySelectorAll('option[data-kegiatan-id]'));
+
+        function cascade() {
+            const selectedKeg = kegiatanSel.value;
+            allSubOptions.forEach(function (opt) {
+                const match = !selectedKeg || opt.dataset.kegiatanId === selectedKeg;
+                opt.style.display = match ? '' : 'none';
+                if (!match && opt.selected) {
+                    opt.selected = false;
+                    subKegSel.value = '';
+                }
+            });
+        }
+
+        kegiatanSel.addEventListener('change', cascade);
+        cascade();
+    })();
+    </script>
+
+    <?php if (empty($groups)): ?>
+        <div class="card">
+            <div class="card-body">
+                <div class="empty-state">
+                    <i class="bi bi-calendar3-range"></i>
+                    <p>
+                        <?php if ($isFiltered): ?>
+                            Tidak ada rencana penyerapan dengan filter yang dipilih.
+                        <?php else: ?>
+                            Belum ada rencana penyerapan untuk tahun <?= (int) $tahun ?>.
+                        <?php endif; ?>
+                    </p>
+                    <a href="<?= base_url('rencana-penyerapan/create?tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Tambah Rencana Pertama
+                    </a>
+                </div>
+            </div>
+        </div>
+    <?php else: ?>
+        <div class="d-grid gap-3">
+            <?php foreach ($groups as $group): ?>
+                <?php
+                    $pagu = (float) $group['pagu'];
+                    $rencana = (float) $group['total_rencana'];
+                    $real = $group['realisasi'];
+                    $pctRencanaRek = $pagu > 0 ? ($rencana / $pagu) * 100 : null;
+                    $pctRealRek = $rencana > 0 ? min(100, ($real['total'] / $rencana) * 100) : 0;
+                    $sisaKapasitasRek = $pagu - (float) $real['total'] - $rencana;
+                    $overPagu = $pagu > 0 && ($rencana + (float) $real['total']) > $pagu;
+
+                    $realBulanan = [];
+                    $maxBulanReal = 0.0;
+                    for ($b = 1; $b <= 12; $b++) {
+                        $rowBulan = $group['realisasi_bulanan'][$b] ?? ['total' => 0, 'GU' => 0, 'TU' => 0, 'LS' => 0, 'UP' => 0];
+                        $realBulanan[$b] = $rowBulan;
+                        $maxBulanReal = max($maxBulanReal, (float) $rowBulan['total']);
+                    }
+                ?>
+                <div class="rp-rek-card" id="rek-<?= (int) $group['rekening_id'] ?>">
+                    <div class="rp-rek-head">
+                        <div class="flex-grow-1">
+                            <div class="rp-rek-title">
+                                <span class="badge bg-warning text-dark me-1"><?= htmlspecialchars($group['kode_rekening']) ?></span>
+                                <?= htmlspecialchars($group['nama_rekening']) ?>
+                                <?php if ($overPagu): ?>
+                                    <span class="badge bg-danger ms-1" title="Rencana ditambah realisasi melebihi pagu rekening">Rencana + Realisasi &gt; Pagu</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="rp-rek-path">
+                                <i class="bi bi-bezier2 me-1"></i><?= htmlspecialchars($group['kode_program'] . ' / ' . $group['kode_kegiatan'] . ' / ' . $group['kode_sub_kegiatan']) ?>
+                                &middot; <?= htmlspecialchars($group['nama_sub_kegiatan']) ?>
+                            </div>
+                            <div class="rp-rek-path">
+                                <i class="bi bi-building me-1"></i><?= htmlspecialchars($group['nama_seksi'] ?: 'Seksi belum ditentukan') ?>
+                                &middot; Tahun <?= (int) $group['tahun'] ?>
+                            </div>
+                        </div>
+                        <div class="rp-rek-summary">
+                            <div class="rp-sum-item">
+                                <small>Pagu</small>
+                                <strong><?= $pagu > 0 ? 'Rp ' . number_format($pagu, 0, ',', '.') : 'Belum ditetapkan' ?></strong>
+                            </div>
+                            <div class="rp-sum-item">
+                                <small>Rencana</small>
+                                <strong class="text-primary">Rp <?= number_format($rencana, 0, ',', '.') ?></strong>
+                                <?php if ($pctRencanaRek !== null): ?>
+                                    <span class="rp-pct"><?= number_format($pctRencanaRek, 1, ',', '.') ?>% pagu</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="rp-sum-item">
+                                <small>Realisasi</small>
+                                <strong class="text-success">Rp <?= number_format($real['total'], 0, ',', '.') ?></strong>
+                            </div>
+                            <div class="rp-sum-item">
+                                <small>Sisa kapasitas</small>
+                                <strong class="<?= $sisaKapasitasRek < 0 ? 'text-danger' : '' ?>">Rp <?= number_format($sisaKapasitasRek, 0, ',', '.') ?></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if ($rencana > 0): ?>
+                        <div class="rp-rek-progress">
+                            <div class="rp-rek-progress-label">
+                                <span>Realisasi terhadap rencana</span>
+                                <span><?= number_format($pctRealRek, 1, ',', '.') ?>%</span>
+                            </div>
+                            <div class="progress" role="progressbar" aria-valuenow="<?= (int) $pctRealRek ?>" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar" style="width: <?= number_format($pctRealRek, 2, '.', '') ?>%"></div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="rp-mek-breakdown">
+                        <?php if ($real['GU'] > 0): ?>
+                            <span class="rp-mek rp-mek--GU">GU</span><span class="rp-mek-amount">Rp <?= number_format($real['GU'], 0, ',', '.') ?></span>
+                        <?php endif; ?>
+                        <?php if ($real['TU'] > 0): ?>
+                            <span class="rp-mek rp-mek--TU">TU</span><span class="rp-mek-amount">Rp <?= number_format($real['TU'], 0, ',', '.') ?></span>
+                        <?php endif; ?>
+                        <?php if ($real['LS'] > 0): ?>
+                            <span class="rp-mek rp-mek--LS">LS</span><span class="rp-mek-amount">Rp <?= number_format($real['LS'], 0, ',', '.') ?></span>
+                        <?php endif; ?>
+                        <?php if ($real['UP'] > 0): ?>
+                            <span class="rp-mek rp-mek--UP" title="Belanja UP yang belum masuk pengajuan GU/TU">UP</span><span class="rp-mek-amount">Rp <?= number_format($real['UP'], 0, ',', '.') ?></span>
+                        <?php endif; ?>
+                        <?php if ($real['total'] <= 0): ?>
+                            <span class="text-muted" style="font-size:.72rem;"><i class="bi bi-hourglass-split me-1"></i>Belum ada realisasi terverifikasi pada tahun ini</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="rp-timeline">
+                        <div class="rp-timeline-head">
+                            <div class="rp-timeline-head__label">Bentuk kegiatan &amp; mekanisme</div>
+                            <div class="rp-months-head">
+                                <?php for ($b = 1; $b <= 12; $b++): ?>
+                                    <span class="<?= $b <= $bulanSekarang ? 'rp-month--past' : '' ?>"><?= $bulanShort[$b] ?></span>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+
+                        <?php foreach ($group['plans'] as $plan): ?>
+                            <?php
+                                $mulai = max(1, min(12, (int) $plan['bulan_mulai']));
+                                $selesai = max($mulai, min(12, (int) $plan['bulan_selesai']));
+                                $span = $selesai - $mulai + 1;
+                                $mek = $plan['mekanisme'];
+                                $nilaiPlan = (float) $plan['nilai_rencana'];
+                                $periodeLabel = $bulanFull[$mulai] . ($span > 1 ? ' – ' . $bulanFull[$selesai] : '');
+                                $periodeLewat = $bulanSekarang > 0 && $selesai < $bulanSekarang;
+                                $tooltip = $plan['bentuk_kegiatan'] . ' · ' . $mek . ' · ' . $periodeLabel . ' · Rp ' . number_format($nilaiPlan, 0, ',', '.')
+                                    . ($periodeLewat ? ' · periode sudah lewat' : '');
+                            ?>
+                            <div class="rp-timeline-row">
+                                <div>
+                                    <div class="rp-plan-title">
+                                        <span class="rp-mek rp-mek--<?= htmlspecialchars($mek) ?>"><?= htmlspecialchars($mek) ?></span>
+                                        <span><?= htmlspecialchars($plan['bentuk_kegiatan']) ?></span>
+                                    </div>
+                                    <?php if (!empty($plan['uraian'])): ?>
+                                        <div class="rp-plan-uraian"><?= htmlspecialchars($plan['uraian']) ?></div>
+                                    <?php endif; ?>
+                                    <div class="rp-plan-meta">
+                                        <span><i class="bi bi-calendar-range me-1"></i><?= htmlspecialchars($periodeLabel) ?></span>
+                                        <span class="fw-bold text-dark">Rp <?= number_format($nilaiPlan, 0, ',', '.') ?></span>
+                                        <?php if (!empty($plan['keterangan'])): ?>
+                                            <span class="text-muted" title="<?= htmlspecialchars($plan['keterangan']) ?>"><i class="bi bi-info-circle me-1"></i>Catatan</span>
+                                        <?php endif; ?>
+                                        <?php if ($periodeLewat): ?>
+                                            <span class="badge bg-secondary" title="Periode rencana sudah terlewati">Sudah lewat</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="rp-plan-actions">
+                                        <a href="<?= base_url('rencana-penyerapan/edit/' . (int) $plan['id']) ?>" class="btn btn-outline-primary" title="Edit rencana">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <form method="POST" action="<?= base_url('rencana-penyerapan/delete/' . (int) $plan['id']) ?>" onsubmit="return confirm('Hapus rencana <?= htmlspecialchars(addslashes($plan['bentuk_kegiatan'])) ?>?');" style="display:inline;">
+                                            <button type="submit" class="btn btn-outline-danger" title="Hapus rencana">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="rp-track-wrap">
+                                    <div class="rp-track">
+                                        <?php for ($c = 1; $c <= 12; $c++): ?><div class="rp-cell<?= $c <= $bulanSekarang ? ' rp-cell--past' : '' ?>"></div><?php endfor; ?>
+                                        <div class="rp-bar rp-bar--<?= htmlspecialchars($mek) ?><?= $periodeLewat ? ' rp-bar--lewat' : '' ?>"
+                                             style="grid-column: <?= $mulai ?> / span <?= $span ?>;"
+                                             title="<?= htmlspecialchars($tooltip) ?>">
+                                            <?= $span >= 2 ? htmlspecialchars($shortRupiah($nilaiPlan)) : '' ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+
+                        <div class="rp-timeline-row rp-timeline-row--real">
+                            <div>
+                                <div class="rp-plan-title">
+                                    <span class="rp-mek rp-mek--UP">REAL</span>
+                                    <span>Realisasi terverifikasi per bulan</span>
+                                </div>
+                                <div class="rp-plan-uraian">Transaksi berstatus terverifikasi, dikelompokkan per bulan dan mekanisme.</div>
+                                <div class="rp-plan-meta">
+                                    <?php foreach (['GU', 'TU', 'LS', 'UP'] as $mekReal): ?>
+                                        <?php if ($real[$mekReal] > 0): ?>
+                                            <span class="rp-mek rp-mek--<?= $mekReal ?>"><?= $mekReal ?></span>
+                                            <span class="fw-semibold text-dark">Rp <?= number_format($real[$mekReal], 0, ',', '.') ?></span>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                    <?php if ($real['total'] > 0): ?>
+                                        <span class="text-muted">Total Rp <?= number_format($real['total'], 0, ',', '.') ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="rp-track-wrap">
+                                <div class="rp-track rp-track--real">
+                                    <?php for ($c = 1; $c <= 12; $c++): ?>
+                                        <?php
+                                            $rowBulan = $realBulanan[$c];
+                                            $totalBulan = (float) $rowBulan['total'];
+                                        ?>
+                                        <div class="rp-cell rp-cell--real<?= $c <= $bulanSekarang ? ' rp-cell--past' : '' ?>">
+                                            <?php if ($totalBulan > 0): ?>
+                                                <?php
+                                                    $tinggi = $maxBulanReal > 0 ? max(4, ($totalBulan / $maxBulanReal) * 100) : 0;
+                                                    $rincian = [];
+                                                    foreach (['GU', 'TU', 'LS', 'UP'] as $mekBulan) {
+                                                        if ((float) $rowBulan[$mekBulan] > 0) {
+                                                            $rincian[] = $mekBulan . ' Rp ' . number_format((float) $rowBulan[$mekBulan], 0, ',', '.');
+                                                        }
+                                                    }
+                                                    $tooltipBulan = $bulanFull[$c] . ': Rp ' . number_format($totalBulan, 0, ',', '.')
+                                                        . ($rincian ? ' (' . implode(' · ', $rincian) . ')' : '');
+                                                ?>
+                                                <div class="rp-vbar" style="height: <?= number_format($tinggi, 2, '.', '') ?>%;" title="<?= htmlspecialchars($tooltipBulan) ?>">
+                                                    <?php foreach (['GU', 'TU', 'LS', 'UP'] as $mekBulan): ?>
+                                                        <?php if ((float) $rowBulan[$mekBulan] > 0): ?>
+                                                            <span class="rp-vseg--<?= $mekBulan ?>" style="flex: <?= (float) $rowBulan[$mekBulan] ?> 1 0;"></span>
+                                                        <?php endif; ?>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endfor; ?>
+                                    <?php if ($real['total'] <= 0): ?>
+                                        <span class="rp-empty-bar">Belum ada realisasi terverifikasi pada tahun ini</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <?php if (!empty($pagination) && $pagination['totalPages'] > 1): ?>
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item <?= $pagination['page'] <= 1 ? 'disabled' : '' ?>">
+                        <a class="page-link" href="<?= $pagination['page'] <= 1 ? '#' : $paginationBase . $sep . 'page=' . ($pagination['page'] - 1) ?>">«</a>
+                    </li>
+                    <?php for ($p = 1; $p <= $pagination['totalPages']; $p++): ?>
+                        <li class="page-item <?= $p == $pagination['page'] ? 'active' : '' ?>">
+                            <a class="page-link" href="<?= $paginationBase . $sep . 'page=' . $p ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor; ?>
+                    <li class="page-item <?= $pagination['page'] >= $pagination['totalPages'] ? 'disabled' : '' ?>">
+                        <a class="page-link" href="<?= $pagination['page'] >= $pagination['totalPages'] ? '#' : $paginationBase . $sep . 'page=' . ($pagination['page'] + 1) ?>">»</a>
+                    </li>
+                </ul>
+            </nav>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <!-- Rekening ber-pagu yang belum punya rencana -->
+    <div class="card mt-4">
+        <button class="rp-belum-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#rpBelumBox" aria-expanded="false" aria-controls="rpBelumBox">
+            <i class="bi bi-exclamation-circle text-warning"></i>
+            Rekening ber-pagu yang belum direncanakan
+            <span class="badge <?= $belumCount > 0 ? 'bg-warning text-dark' : 'bg-success' ?>"><?= (int) $belumCount ?></span>
+            <i class="bi bi-chevron-down ms-auto"></i>
+        </button>
+        <div class="collapse" id="rpBelumBox">
+            <div class="card-body pt-0">
+                <?php if (empty($belumDirencanakan)): ?>
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle me-1"></i>Semua rekening yang memiliki pagu pada filter ini sudah punya rencana penyerapan.
+                    </div>
+                <?php else: ?>
+                    <?php if ($belumCount > count($belumDirencanakan)): ?>
+                        <p class="text-muted small mb-2">Menampilkan <?= count($belumDirencanakan) ?> dari <?= (int) $belumCount ?> rekening.</p>
+                    <?php endif; ?>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Rekening</th>
+                                    <th>Kegiatan / Sub Kegiatan</th>
+                                    <th class="text-end">Pagu</th>
+                                    <th class="text-center" style="width:110px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($belumDirencanakan as $rek): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-warning text-dark"><?= htmlspecialchars($rek['kode_rekening']) ?></span>
+                                            <div class="small"><?= htmlspecialchars($rek['nama_rekening']) ?></div>
+                                        </td>
+                                        <td class="small text-muted">
+                                            <?= htmlspecialchars($rek['kode_kegiatan'] . ' / ' . $rek['kode_sub_kegiatan']) ?>
+                                            <div><?= htmlspecialchars($rek['nama_sub_kegiatan']) ?></div>
+                                        </td>
+                                        <td class="text-end fw-semibold">Rp <?= number_format((float) $rek['nilai_pagu'], 0, ',', '.') ?></td>
+                                        <td class="text-center">
+                                            <a href="<?= base_url('rencana-penyerapan/create?rekening_id=' . (int) $rek['id'] . '&tahun=' . urlencode((string) $tahun)) ?>" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-plus-circle me-1"></i>Buat
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>

@@ -198,6 +198,13 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link <?= (isset($activePage) && $activePage === 'rencana_penyerapan') ? 'active' : '' ?>"
+                                    href="<?= base_url('rencana-penyerapan') ?>">
+                                    <i class="bi bi-calendar3-range"></i>
+                                    <span>Rencana Penyerapan</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link <?= (isset($activePage) && $activePage === 'rak') ? 'active' : '' ?>"
                                     href="<?= base_url('rak') ?>">
                                     <i class="bi bi-calendar-month"></i>

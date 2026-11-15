@@ -81,6 +81,19 @@ program
               └── transaksi (transactions) (tetap butuh seksi_id seperti saat ini)
 ```
 
+### rencana_penyerapan (timeline perencanaan — added 2026-11-15)
+- `id` (Primary Key)
+- `rekening_id` → Foreign Key to `rekening.id`
+- `tahun`
+- `bentuk_kegiatan` (mis. `Pengadaan Barang`, `Pengadaan Bibit`)
+- `uraian` (nullable)
+- `mekanisme` (`GU`/`TU`/`LS`)
+- `bulan_mulai`, `bulan_selesai` (1–12)
+- `nilai_rencana`
+- `keterangan` (nullable)
+- `created_by` → `users.id` (nullable), `created_at`, `updated_at`
+- Satu baris = satu rencana kegiatan pada sebuah rekening/tahun; dipakai halaman `/rencana-penyerapan`.
+
 ### pagu_riwayat (PAPBD change log — added 2026-10-10)
 - `id` (Primary Key, INT UNSIGNED AUTO_INCREMENT)
 - `pagu_id` → snapshot FK to `pagu.id` (riwayat dihapus bila pagu dihapus)
@@ -93,6 +106,6 @@ program
 ## Notes
 
 - All table and column names must be used exactly as specified
-- No additional tables or fields should be created (exceptions: `pagu_riwayat` for PAPBD, approved 2026-10-10; `rekening.tagar` for RKA tags, approved 2026-11-04)
+- No additional tables or fields should be created (exceptions: `pagu_riwayat` for PAPBD, approved 2026-10-10; `rekening.tagar` for RKA tags, approved 2026-11-04; `rencana_penyerapan` for the absorption timeline, approved 2026-11-15)
 - Foreign key relationships must be maintained as defined
 

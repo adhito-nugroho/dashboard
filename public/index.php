@@ -78,6 +78,8 @@ use App\Controllers\TransferPerjadinController;
 use App\Models\PengajuanTu;
 use App\Controllers\PengajuanTuController;
 use App\Controllers\AnalisaSisaAnggaranController;
+use App\Models\RencanaPenyerapan;
+use App\Controllers\RencanaPenyerapanController;
 
 try {
     // Get database connection
@@ -125,6 +127,15 @@ try {
     $pengajuanTuModel = new PengajuanTu($db);
     $pengajuanTuController = new PengajuanTuController($pengajuanTuModel, $kasBankModel);
     $analisaSisaController = new AnalisaSisaAnggaranController($paguModel, $seksiModel);
+    $rencanaPenyerapanModel = new RencanaPenyerapan($db);
+    $rencanaPenyerapanController = new RencanaPenyerapanController(
+        $rencanaPenyerapanModel,
+        $rekeningModel,
+        $programModel,
+        $kegiatanModel,
+        $subKegiatanModel,
+        $rakModel
+    );
 
     // Simple routing
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -328,6 +339,15 @@ try {
         ['POST', '#^/rekening/edit/(\d+)$#', fn($m) => $rekeningController->update((int) $m[1])],
         ['POST', '#^/rekening/update/(\d+)$#', fn($m) => $rekeningController->update((int) $m[1])],
         ['ANY', '#^/rekening/delete/(\d+)$#', fn($m) => $rekeningController->delete((int) $m[1])],
+
+        // Rencana Penyerapan (timeline per kode rekening)
+        ['ANY', '/rencana-penyerapan', fn($m) => $rencanaPenyerapanController->index()],
+        ['GET', '/rencana-penyerapan/create', fn($m) => $rencanaPenyerapanController->create()],
+        ['POST', '/rencana-penyerapan/store', fn($m) => $rencanaPenyerapanController->store()],
+        ['GET', '/rencana-penyerapan/rekening-info', fn($m) => $rencanaPenyerapanController->rekeningInfo()],
+        ['GET', '#^/rencana-penyerapan/edit/(\d+)$#', fn($m) => $rencanaPenyerapanController->edit((int) $m[1])],
+        ['POST', '#^/rencana-penyerapan/update/(\d+)$#', fn($m) => $rencanaPenyerapanController->update((int) $m[1])],
+        ['POST', '#^/rencana-penyerapan/delete/(\d+)$#', fn($m) => $rencanaPenyerapanController->delete((int) $m[1])],
 
         // RAK
         ['GET', '/rak/export', fn($m) => $rakController->export()],
