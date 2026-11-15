@@ -454,6 +454,7 @@ try {
 
         // Pengajuan Tambah Uang (TU) — admin/bendahara
         ['ANY', '/pengajuan-tu', fn($m) => $pengajuanTuController->index()],
+        ['GET', '/pengajuan-tu/export', fn($m) => $pengajuanTuController->export()],
         ['ANY', '/pengajuan-tu/create', fn($m) => $pengajuanTuController->create()],
         ['POST', '/pengajuan-tu/store', fn($m) => $pengajuanTuController->store()],
         ['ANY', '#^/pengajuan-tu/edit/(\d+)$#', fn($m) => $pengajuanTuController->edit((int) $m[1])],

@@ -11,6 +11,15 @@ $status    = $status    ?? '';
 $tahun     = $tahun     ?? (int) date('Y');
 $bulan     = $bulan     ?? 0;
 
+$exportParams = array_filter([
+    'status'   => $status,
+    'tahun'    => $tahun,
+    'bulan'    => $bulan ?: null,
+    'seksi_id' => $seksiId ?? null,
+    'q'        => trim((string) ($_GET['q'] ?? '')),
+], fn($v) => $v !== null && $v !== '');
+$exportUrl = base_url('pengajuan-tu/export' . ($exportParams ? '?' . http_build_query($exportParams) : ''));
+
 $namaBulanMap = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
                  7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
 
@@ -42,9 +51,14 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
             <h2 class="mb-1">Tambah Uang (TU)</h2>
             <p class="text-muted mb-0">Siklus TU: input pengajuan → pencairan SP2D → pembayaran/realisasi → setoran sisa</p>
         </div>
-        <a href="<?= base_url('pengajuan-tu/create') ?>" class="btn btn-primary btn-tu-primary">
-            <i class="bi bi-plus-circle me-1"></i>Input Pengajuan TU
-        </a>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="<?= $exportUrl ?>" id="tuExportLink" class="btn btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-1"></i>Unduh Excel
+            </a>
+            <a href="<?= base_url('pengajuan-tu/create') ?>" class="btn btn-primary btn-tu-primary">
+                <i class="bi bi-plus-circle me-1"></i>Input Pengajuan TU
+            </a>
+        </div>
     </div>
 
     <!-- KPI Cards -->
@@ -296,9 +310,21 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 
     var rows  = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-nomor]'));
     var empty = document.getElementById('tuSearchEmpty');
+    var exportLink = document.getElementById('tuExportLink');
 
     var initial = new URLSearchParams(window.location.search).get('q');
     if (initial) input.value = initial;
+
+    function syncExportLink(rawQuery) {
+        if (!exportLink) return;
+        var url = new URL(exportLink.href, window.location.href);
+        if (rawQuery) {
+            url.searchParams.set('q', rawQuery);
+        } else {
+            url.searchParams.delete('q');
+        }
+        exportLink.href = url.toString();
+    }
 
     function applyFilter() {
         var q = input.value.trim().toLowerCase();
@@ -311,6 +337,8 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         });
 
         if (empty) empty.style.display = (q !== '' && visible === 0) ? '' : 'none';
+
+        syncExportLink(input.value.trim());
     }
 
     input.addEventListener('input', applyFilter);

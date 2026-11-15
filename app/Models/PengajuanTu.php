@@ -40,7 +40,7 @@ class PengajuanTu
         ?int    $seksiId = null,
         ?int    $tahun   = null,
         ?int    $bulan   = null,
-        int     $limit   = 50,
+        ?int    $limit   = 50,
         int     $offset  = 0
     ): array {
         $conds  = [];
@@ -52,6 +52,7 @@ class PengajuanTu
         if ($bulan)   { $conds[] = 'pt.bulan = :bulan';       $params[':bulan']   = $bulan;   }
 
         $where = $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
+        $limitSql = $limit !== null ? 'LIMIT :lim OFFSET :off' : '';
 
         $stmt = $this->db->prepare("
             SELECT pt.*,
@@ -71,13 +72,15 @@ class PengajuanTu
             {$where}
             ORDER BY FIELD(pt.status,'diajukan','disetujui','cair','selesai','ditolak'),
                      pt.tanggal_pengajuan DESC, pt.id DESC
-            LIMIT :lim OFFSET :off
+            {$limitSql}
         ");
         foreach ($params as $k => $v) {
             $stmt->bindValue($k, $v, is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
-        $stmt->bindValue(':lim', $limit,  PDO::PARAM_INT);
-        $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+        if ($limit !== null) {
+            $stmt->bindValue(':lim', $limit,  PDO::PARAM_INT);
+            $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+        }
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -255,6 +258,74 @@ class PengajuanTu
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Rincian rekening untuk banyak pengajuan sekaligus (dipakai export).
+     *
+     * @param int[] $tuIds
+     * @return array<int, array<string,mixed>>
+     */
+    public function getRekeningsByTuIds(array $tuIds): array
+    {
+        $tuIds = $this->normalizeIds($tuIds);
+        if (empty($tuIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($tuIds), '?'));
+
+        $stmt = $this->db->prepare("
+            SELECT tr.pengajuan_tu_id, tr.nominal,
+                   r.kode_rekening, r.nama_rekening,
+                   sk.kode_sub_kegiatan, sk.nama_sub_kegiatan
+            FROM pengajuan_tu_rekening tr
+            INNER JOIN rekening r ON tr.rekening_id = r.id
+            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            WHERE tr.pengajuan_tu_id IN ({$placeholders})
+            ORDER BY tr.pengajuan_tu_id ASC, r.kode_rekening ASC
+        ");
+        $stmt->execute($tuIds);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Pembayaran/transaksi yang dibayar dari dana TU (dipakai export).
+     *
+     * @param int[] $tuIds
+     * @return array<int, array<string,mixed>>
+     */
+    public function getTransaksiByTuIds(array $tuIds): array
+    {
+        $tuIds = $this->normalizeIds($tuIds);
+        if (empty($tuIds)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($tuIds), '?'));
+
+        $stmt = $this->db->prepare("
+            SELECT t.pengajuan_tu_id, t.id, t.tanggal, t.tanggal_lunas_dibayar,
+                   t.uraian, t.nilai, t.nomor_bukti, t.status,
+                   t.nama_penerima, t.jenis_transaksi,
+                   r.kode_rekening, r.nama_rekening,
+                   sk.kode_sub_kegiatan, sk.nama_sub_kegiatan
+            FROM transaksi t
+            INNER JOIN rekening r ON t.rekening_id = r.id
+            INNER JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
+            WHERE t.pengajuan_tu_id IN ({$placeholders})
+            ORDER BY t.pengajuan_tu_id ASC,
+                     COALESCE(t.tanggal_lunas_dibayar, t.tanggal) ASC, t.id ASC
+        ");
+        $stmt->execute($tuIds);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * @param mixed[] $ids
+     * @return int[]
+     */
+    private function normalizeIds(array $ids): array
+    {
+        $clean = array_filter(array_map('intval', $ids), fn(int $id) => $id > 0);
+        return array_values(array_unique($clean));
+    }
     // ──────────────────────────────────────────────────────────────────────
     // CREATE
     // ──────────────────────────────────────────────────────────────────────

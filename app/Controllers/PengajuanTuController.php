@@ -9,12 +9,14 @@ require_once __DIR__ . '/../../config/helpers.php';
 
 use App\Models\PengajuanTu;
 use App\Models\KasBank;
+use App\Services\PengajuanTuExportService;
 
 /**
  * Controller modul Tambah Uang (TU) — dikelola penuh oleh admin/bendahara.
  *
  * Routes:
  *   GET  /pengajuan-tu                   → index()            : daftar semua TU
+ *   GET  /pengajuan-tu/export            → export()           : unduh Excel lengkap
  *   GET  /pengajuan-tu/create            → create()           : form input TU
  *   POST /pengajuan-tu/store             → store()            : simpan TU baru
  *   GET  /pengajuan-tu/edit/{id}         → edit()             : form edit TU
@@ -93,6 +95,259 @@ class PengajuanTuController
         $activePage = 'pengajuan_tu';
         $viewFile   = __DIR__ . '/../../views/pengajuan_tu/index.php';
         include __DIR__ . '/../../views/layout.php';
+    }
+
+    // ── EXPORT ────────────────────────────────────────────────────────────
+
+    public function export(): void
+    {
+        $this->requireAdmin();
+
+        $status  = trim($_GET['status'] ?? '');
+        $tahun   = isset($_GET['tahun']) && $_GET['tahun'] !== '' ? (int) $_GET['tahun'] : (int) date('Y');
+        $bulan   = isset($_GET['bulan']) && $_GET['bulan'] !== '' ? (int) $_GET['bulan'] : null;
+        $seksiId = isset($_GET['seksi_id']) && $_GET['seksi_id'] !== '' ? (int) $_GET['seksi_id'] : null;
+        $q       = trim($_GET['q'] ?? '');
+
+        $allowedStatus = ['', 'diajukan', 'disetujui', 'cair', 'selesai', 'ditolak'];
+        if (!in_array($status, $allowedStatus, true)) $status = '';
+
+        try {
+            $report = $this->buildExportReport($status, $tahun, $bulan, $seksiId, $q);
+            (new PengajuanTuExportService())->download($report);
+        } catch (\Throwable $e) {
+            error_log('Export pengajuan TU gagal: ' . $e->getMessage());
+            if (!headers_sent()) {
+                $this->flash('error', 'Export Excel gagal dibuat. Silakan coba lagi.');
+                $this->redirect(base_url('pengajuan-tu?tahun=' . $tahun));
+            }
+        }
+    }
+
+    /**
+     * Data lengkap export: rekap pengajuan, rincian rekening, dan riwayat
+     * pembayaran untuk filter yang sama dengan halaman daftar.
+     */
+    private function buildExportReport(
+        string $status,
+        int $tahun,
+        ?int $bulan,
+        ?int $seksiId,
+        string $q
+    ): array {
+        $items = $this->model->getAll($status ?: null, $seksiId, $tahun, $bulan, null, 0);
+
+        if ($q !== '') {
+            $items = array_values(array_filter(
+                $items,
+                fn(array $row) => stripos((string) $row['nomor_pengajuan'], $q) !== false
+            ));
+        }
+
+        $tuIds      = array_map(fn(array $row) => (int) $row['id'], $items);
+        $rekenings  = $this->model->getRekeningsByTuIds($tuIds);
+        $transaksis = $this->model->getTransaksiByTuIds($tuIds);
+
+        $statusOrder = ['diajukan', 'disetujui', 'cair', 'selesai', 'ditolak'];
+        $groups = [];
+        foreach ($statusOrder as $key) {
+            $groups[$key] = [
+                'count' => 0, 'kebutuhan' => 0.0, 'cair' => 0.0,
+                'terpakai' => 0.0, 'sisa' => 0.0, 'disetor' => 0.0, 'jatuh_tempo' => 0,
+            ];
+        }
+
+        $totals = [
+            'count' => 0, 'kebutuhan' => 0.0, 'cair' => 0.0, 'terpakai' => 0.0,
+            'disetor' => 0.0, 'sisa' => 0.0, 'jatuh_tempo' => 0, 'pct_serapan' => 0.0,
+        ];
+
+        $today = date('Y-m-d');
+        $rows  = [];
+        $meta  = [];
+
+        foreach ($items as $item) {
+            $statusRow  = (string) $item['status'];
+            $kebutuhan  = (float) $item['kebutuhan'];
+            $cair       = (float) ($item['nominal_cair'] ?? 0);
+            $terpakai   = (float) ($item['nominal_terpakai'] ?? 0);
+            if ($statusRow === 'selesai') {
+                // nominal_digunakan adalah snapshot saat TU ditutup; pakai bila
+                // transaksi sumbernya sudah tidak ada lagi.
+                $terpakai = max($terpakai, (float) ($item['nominal_digunakan'] ?? 0));
+            }
+            $disetor    = (float) ($item['nominal_disetor'] ?? 0);
+            $sisa       = max(0.0, $cair - $terpakai - $disetor);
+            $jatuhTempo = $statusRow === 'cair'
+                && !empty($item['batas_spj'])
+                && $item['batas_spj'] < $today;
+
+            $seksi   = trim(($item['kode_seksi'] ?? '') . ' — ' . ($item['nama_seksi'] ?? ''), ' —');
+            $periode = $this->namaBulan((int) $item['bulan']) . ' ' . (int) $item['tahun'];
+
+            $ket = [];
+            switch ($statusRow) {
+                case 'diajukan':
+                    $ket[] = 'Menunggu pencairan SP2D';
+                    break;
+                case 'disetujui':
+                    $ket[] = 'Disetujui, belum dicairkan';
+                    break;
+                case 'cair':
+                    $ket[] = 'SP2D sudah cair';
+                    $ket[] = $sisa > 0.005
+                        ? 'Sisa dana Rp ' . number_format($sisa, 0, ',', '.')
+                        : 'Dana habis terpakai';
+                    break;
+                case 'selesai':
+                    $ket[] = 'Siklus selesai';
+                    if ($disetor > 0.005) {
+                        $ket[] = 'Disetor Rp ' . number_format($disetor, 0, ',', '.');
+                    }
+                    break;
+                case 'ditolak':
+                    $ket[] = 'Ditolak';
+                    break;
+            }
+            if ($jatuhTempo) {
+                $ket[] = 'Jatuh tempo SPJ';
+            }
+
+            $rows[] = [
+                'nomor_pengajuan'   => $item['nomor_pengajuan'],
+                'tanggal_pengajuan' => $item['tanggal_pengajuan'],
+                'seksi'             => $seksi,
+                'periode'           => $periode,
+                'keperluan'         => $item['keperluan'],
+                'jumlah_rekening'   => (int) ($item['jumlah_rekening'] ?? 0),
+                'kebutuhan'         => $kebutuhan,
+                'status'            => $statusRow,
+                'nomor_sp2d'        => $item['nomor_sp2d'] ?? '',
+                'tanggal_cair'      => $item['tanggal_cair'] ?? null,
+                'nominal_cair'      => $cair,
+                'nominal_terpakai'  => $terpakai,
+                'nominal_disetor'   => $disetor,
+                'sisa'              => $sisa,
+                'batas_spj'         => $item['batas_spj'] ?? null,
+                'jatuh_tempo'       => $jatuhTempo,
+                'created_by'        => $item['created_by_name'] ?? '',
+                'keterangan'        => implode('; ', $ket),
+            ];
+
+            $meta[(int) $item['id']] = [
+                'nomor_pengajuan'   => $item['nomor_pengajuan'],
+                'tanggal_pengajuan' => $item['tanggal_pengajuan'],
+                'seksi'             => $seksi,
+                'periode'           => $periode,
+                'status'            => $statusRow,
+            ];
+
+            $totals['count']++;
+            $totals['kebutuhan'] += $kebutuhan;
+            $totals['cair']      += $cair;
+            $totals['terpakai']  += $terpakai;
+            $totals['disetor']   += $disetor;
+            $totals['sisa']      += $sisa;
+            if ($jatuhTempo) $totals['jatuh_tempo']++;
+
+            if (isset($groups[$statusRow])) {
+                $groups[$statusRow]['count']++;
+                $groups[$statusRow]['kebutuhan'] += $kebutuhan;
+                $groups[$statusRow]['cair']      += $cair;
+                $groups[$statusRow]['terpakai']  += $terpakai;
+                $groups[$statusRow]['disetor']   += $disetor;
+                $groups[$statusRow]['sisa']      += $sisa;
+                if ($jatuhTempo) $groups[$statusRow]['jatuh_tempo']++;
+            }
+        }
+
+        $totals['pct_serapan'] = $totals['cair'] > 0 ? $totals['terpakai'] / $totals['cair'] : 0.0;
+
+        $detailRekenings = [];
+        foreach ($rekenings as $rek) {
+            $tuId = (int) $rek['pengajuan_tu_id'];
+            if (!isset($meta[$tuId])) continue;
+            $m = $meta[$tuId];
+
+            $detailRekenings[] = [
+                'nomor_pengajuan'   => $m['nomor_pengajuan'],
+                'tanggal_pengajuan' => $m['tanggal_pengajuan'],
+                'seksi'             => $m['seksi'],
+                'periode'           => $m['periode'],
+                'status'            => $m['status'],
+                'kode_rekening'     => $rek['kode_rekening'],
+                'nama_rekening'     => $rek['nama_rekening'],
+                'kode_sub_kegiatan' => $rek['kode_sub_kegiatan'],
+                'nama_sub_kegiatan' => $rek['nama_sub_kegiatan'],
+                'nominal'           => (float) $rek['nominal'],
+            ];
+        }
+
+        $detailTransaksi = [];
+        foreach ($transaksis as $trx) {
+            $tuId = (int) $trx['pengajuan_tu_id'];
+            if (!isset($meta[$tuId])) continue;
+
+            $detailTransaksi[] = [
+                'nomor_pengajuan'   => $meta[$tuId]['nomor_pengajuan'],
+                'tanggal'           => $trx['tanggal_lunas_dibayar'] ?: $trx['tanggal'],
+                'kode_rekening'     => $trx['kode_rekening'],
+                'nama_rekening'     => $trx['nama_rekening'],
+                'kode_sub_kegiatan' => $trx['kode_sub_kegiatan'],
+                'nama_sub_kegiatan' => $trx['nama_sub_kegiatan'],
+                'uraian'            => $trx['uraian'],
+                'nama_penerima'     => $trx['nama_penerima'],
+                'jenis_transaksi'   => $trx['jenis_transaksi'],
+                'status'            => $trx['status'],
+                'nomor_bukti'       => $trx['nomor_bukti'],
+                'nilai'             => (float) $trx['nilai'],
+            ];
+        }
+
+        $filterParts = ['Tahun ' . $tahun];
+        if ($bulan) {
+            $filterParts[] = 'Bulan ' . $this->namaBulan($bulan);
+        }
+        if ($status !== '') {
+            $labelStatus = [
+                'diajukan' => 'Menunggu Cair', 'disetujui' => 'Disetujui (lama)',
+                'cair' => 'SP2D Cair', 'selesai' => 'Selesai', 'ditolak' => 'Ditolak',
+            ];
+            $filterParts[] = 'Status: ' . ($labelStatus[$status] ?? $status);
+        }
+        if ($seksiId) {
+            $stmt = \Database::getConnection()->prepare('SELECT nama_seksi FROM seksi WHERE id = :id LIMIT 1');
+            $stmt->execute([':id' => $seksiId]);
+            $namaSeksi = $stmt->fetchColumn();
+            $filterParts[] = 'Seksi: ' . ($namaSeksi !== false && $namaSeksi !== null ? $namaSeksi : 'ID ' . $seksiId);
+        }
+        if ($q !== '') {
+            $filterParts[] = 'Pencarian nomor: "' . $q . '"';
+        }
+        $filterText = implode(' • ', $filterParts) . ' • ' . count($rows) . ' pengajuan';
+
+        return [
+            'tahun'        => $tahun,
+            'bulan'        => $bulan,
+            'filterText'   => $filterText,
+            'generatedAt'  => date('d-m-Y H:i'),
+            'rows'         => $rows,
+            'rekenings'    => $detailRekenings,
+            'transaksis'   => $detailTransaksi,
+            'totals'       => $totals,
+            'statusGroups' => $groups,
+        ];
+    }
+
+    private function namaBulan(int $bulan): string
+    {
+        $map = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+
+        return $map[$bulan] ?? (string) $bulan;
     }
 
     // ── CREATE / STORE ────────────────────────────────────────────────────
