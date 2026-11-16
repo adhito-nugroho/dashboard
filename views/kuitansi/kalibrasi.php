@@ -18,6 +18,7 @@ $trxList = $data['trxList'] ?? [];
 $sampleId = (int) ($data['sampleId'] ?? 0);
 $sampleTexts = $data['sampleTexts'] ?? [];
 $sampleLabel = $data['sampleLabel'] ?? null;
+$fonts = $data['fonts'] ?? [];
 $activePrinter = null;
 foreach ($printers as $p) {
     if ((int) ($p['id'] ?? 0) === $printerId) { $activePrinter = $p; break; }
@@ -191,7 +192,9 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
             <div class="form-text mt-1" style="font-size:.78rem;">
                 Agar snap ke gambar <strong>persis sama</strong> dengan hasil print: pangkas file tepat di tepi kertas
                 (tanpa meja/latar, tanpa miring — foto miring tidak akan pernah akurat).
-                Proporsi kertas 215:165. Peringatan muncul otomatis bila proporsi file menyimpang.
+                Proporsi kertas 215:165. Peringatan muncul otomatis bila proporsi file menyimpang.<br>
+                Teks pratinjau memakai ukuran &amp; gaya font cetak (10&thinsp;pt; angka Terbilang 11&thinsp;pt bold;
+                baris TTD 9&thinsp;pt). Di layar bisa tampak berbeda bila skala tampilan Windows/browser bukan 100%.
             </div>
         </div>
         <div class="col-xl-3 col-lg-4">
@@ -236,6 +239,7 @@ const widths = <?= json_encode($widths, JSON_UNESCAPED_UNICODE) ?>;
 const defaultWidths = <?= json_encode($defaultWidths, JSON_UNESCAPED_UNICODE) ?>;
 const dummy = <?= json_encode($dummy, JSON_UNESCAPED_UNICODE) ?>;
 const sample = <?= json_encode($sampleTexts, JSON_UNESCAPED_UNICODE) ?>;
+const fonts = <?= json_encode($fonts, JSON_UNESCAPED_UNICODE) ?>;
 const order = <?= json_encode($order) ?>;
 const PRINTER_ID = <?= (int) $printerId ?>;
 let initial = JSON.stringify(state);
@@ -307,6 +311,18 @@ function layout() {
             txtEl.textContent = txt;
             txtEl.classList.remove('kal-txt-empty');
         }
+        // Pratinjau memakai ukuran/gaya font cetak (pt) pada skala kanvas 1mm=4px.
+        const f = fonts[key] || {};
+        const fstyle = String(f.style || '');
+        txtEl.style.fontSize = ((parseFloat(f.size) || 10) * (25.4 / 72) * SCALE).toFixed(2) + 'px';
+        txtEl.style.fontFamily = 'Helvetica, Arial, sans-serif';
+        txtEl.style.fontWeight = /B/.test(fstyle) ? '700' : '400';
+        txtEl.style.fontStyle = /I/.test(fstyle) || txt === '' ? 'italic' : 'normal';
+        txtEl.style.textDecoration = /U/.test(fstyle) ? 'underline' : 'none';
+        txtEl.style.textAlign = f.align === 'C' ? 'center' : 'left';
+        txtEl.style.lineHeight = isWrap(key)
+            ? ((parseFloat(f.line_h_mm) || 5) * SCALE) + 'px'
+            : '1.25';
         el.querySelector('.kal-badge').textContent = 'x: ' + Number(s.x_mm).toFixed(1) + 'mm, y: ' + Number(s.y_mm).toFixed(1) + 'mm, w: ' + widthOf(key).toFixed(1) + 'mm' + (isWrap(key) ? ', wrap' : ', 1-baris');
         el.classList.toggle('selected', selected === key);
     });

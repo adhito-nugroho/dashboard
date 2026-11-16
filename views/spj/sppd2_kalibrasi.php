@@ -25,6 +25,8 @@ $contentW = (float) ($content['width_mm'] ?? 197.2);
 $contentH = (float) ($content['height_mm'] ?? 283.3);
 $offX = (float) ($offset['x'] ?? 0);
 $offY = (float) ($offset['y'] ?? 0);
+$fontFamily = (string) ($data['fontFamily'] ?? 'Helvetica');
+$fontSize = (float) ($data['fontSize'] ?? 10.5);
 $activePrinter = null;
 foreach ($printers as $p) {
     if ((int) ($p['id'] ?? 0) === $printerId) { $activePrinter = $p; break; }
@@ -36,7 +38,7 @@ foreach ($printers as $p) {
 .kal-canvas .kal-bg { position:absolute; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
 .kal-canvas canvas.kal-pdfbg { position:absolute; opacity:.5; pointer-events:none; }
 .kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:3px; padding:0 2px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; overflow:hidden; }
-.kal-box .kal-txt { display:block; font-size:14.8px; color:#0f172a; line-height:1.32; height:100%; box-sizing:border-box; }
+.kal-box .kal-txt { display:block; font-size: var(--kal-font-px, 14.8px); font-family: var(--kal-font-family, Arial, Helvetica, sans-serif); color:#0f172a; line-height:1.32; height:100%; box-sizing:border-box; }
 .kal-box.one-line .kal-txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kal-box.multi .kal-txt { white-space:normal; word-break:break-word; text-align:center; }
 .kal-box[data-align="C"] .kal-txt { text-align:center; }
@@ -137,7 +139,10 @@ foreach ($printers as $p) {
                 Scan <strong>A4 penuh</strong> ditempatkan 1:1 di seluruh kertas (paling aman); gambar yang sudah
                 dipangkas ke area isi form ditempatkan di area isi <strong><?= number_format($offX, 1, ',', '.') ?> / <?= number_format($offY, 1, ',', '.') ?> mm</strong>
                 (<?= number_format($contentW, 1, ',', '.') ?> : <?= number_format($contentH, 1, ',', '.') ?> mm).
-                Pangkas tepat di tepi kertas dan jangan miring.
+                Pangkas tepat di tepi kertas dan jangan miring.<br>
+                Teks pratinjau memakai font &amp; ukuran cetak (<?= htmlspecialchars($fontFamily) ?>
+                <?= number_format($fontSize, 1, ',', '.') ?>&thinsp;pt); di layar bisa tampak lebih besar bila
+                skala tampilan Windows/browser bukan 100% — posisi dan ukuran cetak tidak ikut berubah.
             </div>
         </div>
         <div class="col-xl-3 col-lg-4">
@@ -240,10 +245,14 @@ function fetchJson(url, options, label) {
 function markDirty() {
     dirtyBadge.classList.toggle('d-none', JSON.stringify(state) === initial);
 }
-// Ukuran font cetak 10,5pt pada skala kanvas (1mm = 4px).
-const FONT_PX = 10.5 * (25.4 / 72) * SCALE;
+// Ukuran font cetak (config) dipetakan ke skala kanvas (1mm = 4px).
+const FONT_FAMILY = <?= json_encode($fontFamily, JSON_UNESCAPED_UNICODE) ?>;
+const FONT_PT = <?= json_encode($fontSize) ?>;
+const FONT_PX = FONT_PT * (25.4 / 72) * SCALE;
+canvas.style.setProperty('--kal-font-px', FONT_PX + 'px');
+canvas.style.setProperty('--kal-font-family', FONT_FAMILY + ', Arial, Helvetica, sans-serif');
 const measureCtx = document.createElement('canvas').getContext('2d');
-measureCtx.font = FONT_PX + 'px Arial, Helvetica, sans-serif';
+measureCtx.font = FONT_PX + 'px ' + FONT_FAMILY + ', Arial, Helvetica, sans-serif';
 function textWidthMm(key) {
     const t = sample[key] || '';
     if (t === '') return null;

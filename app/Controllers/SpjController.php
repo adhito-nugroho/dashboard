@@ -778,6 +778,8 @@ class SpjController
             'printerId' => $printerId,
             'content' => $cfg['content'] ?? [],
             'offset' => $cfg['offset_mm'] ?? ['x' => 0, 'y' => 0],
+            'fontFamily' => (string) ($cfg['font']['family'] ?? 'Helvetica'),
+            'fontSize' => (float) ($cfg['font']['size'] ?? 10.5),
         ];
 
         $pageTitle = 'Kalibrasi Cetak Lembar 2 SPPD';

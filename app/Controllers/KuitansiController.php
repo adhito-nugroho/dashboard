@@ -193,6 +193,27 @@ class KuitansiController
         $flashType = $_SESSION['flash_type'] ?? 'info';
         unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 
+        // Ukuran/gaya font pratinjau kanvas = font cetak (field 10 pt, angka 11 pt bold,
+        // baris TTD 9 pt). Baris TTD tidak ada di config per-key: nama underline, NIP biasa.
+        $fonts = [];
+        foreach (KuitansiPdfService::ELEMEN_KEYS as $k) {
+            if (isset($koord[$k])) {
+                $fonts[$k] = [
+                    'size' => (float) ($koord[$k]['size'] ?? 10),
+                    'style' => (string) ($koord[$k]['style'] ?? ''),
+                    'align' => (string) ($koord[$k]['align'] ?? 'L'),
+                    'line_h_mm' => (float) ($koord[$k]['line_h_mm'] ?? $koord[$k]['h_mm'] ?? 6),
+                ];
+            } else {
+                $fonts[$k] = [
+                    'size' => 9.0,
+                    'style' => str_ends_with($k, '_nama') ? 'U' : '',
+                    'align' => 'C',
+                    'line_h_mm' => 5.0,
+                ];
+            }
+        }
+
         $pageTitle = 'Kalibrasi Cetak Kuitansi';
         $activePage = 'kalibrasi_kuitansi';
         $viewFile = __DIR__ . '/../../views/kuitansi/kalibrasi.php';
@@ -212,6 +233,7 @@ class KuitansiController
             'sampleId' => $sampleId,
             'sampleTexts' => $sampleTexts,
             'sampleLabel' => $sampleLabel,
+            'fonts' => $fonts,
         ];
         // Admin pusat pakai layout admin, admin seksi pakai layout seksi.
         $layout = !empty($_SESSION['is_admin'])
