@@ -129,13 +129,15 @@ foreach ($printers as $p) {
         <div class="col-xl-9 col-lg-8">
             <div class="kal-canvas-scroll">
                 <div class="kal-canvas" id="kalCanvas">
-                    <div class="kal-bg" id="kalBg"<?= ($refUrl && $refKind !== 'pdf') ? " style=\"left:" . ($offX * 4) . "px;top:" . ($offY * 4) . "px;width:" . ($contentW * 4) . "px;height:" . ($contentH * 4) . "px;background-image:url('" . htmlspecialchars($refUrl) . "');\"" : '' ?>></div>
+                    <div class="kal-bg" id="kalBg"<?= ($refUrl && $refKind !== 'pdf') ? " style=\"left:0;top:0;width:" . (210 * 4) . "px;height:" . (297 * 4) . "px;background-image:url('" . htmlspecialchars($refUrl) . "');\"" : '' ?>></div>
                     <canvas class="kal-pdfbg d-none" id="kalPdfBg"></canvas>
                 </div>
             </div>
             <div class="form-text mt-1" style="font-size:.78rem;">
-                Agar snap ke gambar sama dengan hasil print: pangkas file tepat di tepi blanko (tanpa meja/latar, tidak miring).
-                Proporsi blanko <?= number_format($contentW, 1, ',', '.') ?> : <?= number_format($contentH, 1, ',', '.') ?>.
+                Scan <strong>A4 penuh</strong> ditempatkan 1:1 di seluruh kertas (paling aman); gambar yang sudah
+                dipangkas ke area isi form ditempatkan di area isi <strong><?= number_format($offX, 1, ',', '.') ?> / <?= number_format($offY, 1, ',', '.') ?> mm</strong>
+                (<?= number_format($contentW, 1, ',', '.') ?> : <?= number_format($contentH, 1, ',', '.') ?> mm).
+                Pangkas tepat di tepi kertas dan jangan miring.
             </div>
         </div>
         <div class="col-xl-3 col-lg-4">
@@ -445,32 +447,51 @@ document.getElementById('kalOpacity').addEventListener('input', function() {
     bgDiv.style.opacity = op;
     pdfCanvas.style.opacity = op;
 });
-function placeLayer(el, wMm, hMm) {
-    el.style.left = (OFF_X * SCALE) + 'px';
-    el.style.top = (OFF_Y * SCALE) + 'px';
-    el.style.width = (wMm * SCALE) + 'px';
-    el.style.height = (hMm * SCALE) + 'px';
+function placeLayer(el, p) {
+    el.style.left = (p.x * SCALE) + 'px';
+    el.style.top = (p.y * SCALE) + 'px';
+    el.style.width = (p.w * SCALE) + 'px';
+    el.style.height = (p.h * SCALE) + 'px';
 }
-function checkAspect(w, h, label) {
+/**
+ * Pilih pemetaan referensi yang paling cocok dengan file:
+ * - scan A4 penuh → 1:1 seluruh kertas (0,0,210×297 mm);
+ * - gambar yang sudah dipangkas ke area isi form → area isi templat.
+ * Tanpa ini, scan A4 penuh mengecil ~6% sehingga kotak tidak mungkin pas.
+ */
+function referencePlacement(w, h) {
+    if (!w || !h) return null;
+    const fileRatio = w / h;
+    const a4Ratio = PAGE_W / PAGE_H, tplRatio = CONTENT_W / CONTENT_H;
+    const devA4 = Math.abs(fileRatio - a4Ratio) / a4Ratio;
+    const devTpl = Math.abs(fileRatio - tplRatio) / tplRatio;
+    return devA4 <= devTpl
+        ? { x: 0, y: 0, w: PAGE_W, h: PAGE_H, mode: 'A4 penuh 1:1', ratio: fileRatio, target: a4Ratio, dev: devA4 }
+        : { x: OFF_X, y: OFF_Y, w: CONTENT_W, h: CONTENT_H, mode: 'area isi form', ratio: fileRatio, target: tplRatio, dev: devTpl };
+}
+function reportReference(w, h, label) {
+    const p = referencePlacement(w, h);
     const box = document.getElementById('kalAspectWarn');
-    if (!w || !h) { box.innerHTML = ''; return; }
-    const fileRatio = w / h, paperRatio = CONTENT_W / CONTENT_H;
-    const dev = Math.abs(fileRatio - paperRatio) / paperRatio;
-    if (dev > 0.02) {
+    if (!p) { box.innerHTML = ''; return null; }
+    if (p.dev > 0.02) {
         box.innerHTML = '<div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:.8rem;">'
-            + '<i class="bi bi-exclamation-triangle me-1"></i>Proporsi ' + label + ' (' + fileRatio.toFixed(3) + ') menyimpang '
-            + (dev * 100).toFixed(1) + '% dari blanko (' + paperRatio.toFixed(3) + '). Pangkas file tepat di tepi blanko lalu unggah ulang.</div>';
+            + '<i class="bi bi-exclamation-triangle me-1"></i>Proporsi ' + label + ' (' + p.ratio.toFixed(3) + ') menyimpang '
+            + (p.dev * 100).toFixed(1) + '% dari ' + p.mode + ' (' + p.target.toFixed(3) + '). Pangkas file tepat di tepi kertas lalu unggah ulang.</div>';
     } else {
         box.innerHTML = '';
     }
+    return p;
 }
 function showImageBackground(url) {
     pdfCanvas.classList.add('d-none');
-    bgDiv.style.backgroundImage = "url('" + url + "')";
-    placeLayer(bgDiv, CONTENT_W, CONTENT_H);
-    document.getElementById('kalRefStatus').textContent = 'Background referensi terpasang. (gambar)';
     const img = new Image();
-    img.onload = () => checkAspect(img.naturalWidth, img.naturalHeight, 'gambar');
+    img.onload = () => {
+        const p = reportReference(img.naturalWidth, img.naturalHeight, 'gambar');
+        if (p) placeLayer(bgDiv, p);
+        bgDiv.style.backgroundImage = "url('" + url + "')";
+        document.getElementById('kalRefStatus').textContent = 'Background referensi: gambar, dipetakan ' + (p ? p.mode : '') + '.';
+    };
+    img.onerror = () => showAlert('Gambar referensi gagal dimuat.', 'danger');
     img.src = url;
 }
 function loadPdfJs() {
@@ -490,27 +511,28 @@ function loadPdfJs() {
 function renderPdfBackground(url) {
     loadPdfJs().then(lib => lib.getDocument(url).promise).then(pdf => pdf.getPage(1)).then(page => {
         const vp0 = page.getViewport({ scale: 1 });
-        checkAspect(vp0.width, vp0.height, 'halaman 1 PDF');
+        const p = reportReference(vp0.width, vp0.height, 'halaman 1 PDF');
+        const targetW = Math.round((p ? p.w : CONTENT_W) * SCALE);
+        const targetH = Math.round((p ? p.h : CONTENT_H) * SCALE);
         const vp = page.getViewport({ scale: 2 });
         const off = document.createElement('canvas');
         off.width = vp.width; off.height = vp.height;
         return page.render({ canvasContext: off.getContext('2d'), viewport: vp }).promise.then(() => {
-            pdfCanvas.width = Math.round(CONTENT_W * SCALE);
-            pdfCanvas.height = Math.round(CONTENT_H * SCALE);
-            placeLayer(pdfCanvas, CONTENT_W, CONTENT_H);
-            pdfCanvas.getContext('2d').drawImage(off, 0, 0, off.width, off.height, 0, 0, pdfCanvas.width, pdfCanvas.height);
+            pdfCanvas.width = targetW;
+            pdfCanvas.height = targetH;
+            if (p) placeLayer(pdfCanvas, p);
+            pdfCanvas.getContext('2d').drawImage(off, 0, 0, off.width, off.height, 0, 0, targetW, targetH);
             bgDiv.style.backgroundImage = 'none';
             pdfCanvas.classList.remove('d-none');
-            document.getElementById('kalRefStatus').textContent = 'Background referensi terpasang. (PDF, hal. 1)';
+            document.getElementById('kalRefStatus').textContent =
+                'Background referensi: PDF hal. 1, dipetakan ' + (p ? p.mode : '') + '.';
         });
     }).catch(err => showAlert('Gagal menampilkan PDF: ' + err.message, 'danger'));
 }
 if (REF_KIND === 'pdf' && REF_URL) {
     renderPdfBackground(REF_URL);
 } else if (REF_KIND === 'image' && REF_URL) {
-    const img = new Image();
-    img.onload = () => checkAspect(img.naturalWidth, img.naturalHeight, 'gambar');
-    img.src = REF_URL;
+    showImageBackground(REF_URL);
 }
 
 // --- upload ---
