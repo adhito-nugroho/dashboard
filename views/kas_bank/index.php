@@ -58,6 +58,33 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                 <div class="h3 fw-bold mb-1 font-monospace text-white">
                     Rp <?= number_format($ringkasan['saldo_kas_saat_ini'], 0, ',', '.') ?>
                 </div>
+
+                <!-- Rincian komposisi saldo: Uang TU & Uang GU -->
+                <div class="border-top border-secondary-subtle pt-2 mt-2 mb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <div class="d-flex justify-content-between align-items-center gap-2" title="Pencairan TU dikurangi belanja dari dana TU dan setoran sisa TU">
+                        <span class="text-uppercase fw-semibold text-nowrap" style="font-size:0.68rem; letter-spacing:0.04em; color: #93c5fd;">
+                            Uang TU
+                        </span>
+                        <span class="font-monospace fw-bold text-nowrap" style="font-size:0.8rem; color: #fde68a;">
+                            Rp <?= number_format($ringkasan['dana_tu_di_kas'], 0, ',', '.') ?>
+                        </span>
+                    </div>
+                    <div class="text-light opacity-50" style="font-size:0.65rem;">
+                        Sisa dana TU yang masih di kas
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center gap-2 mt-2" title="Saldo kas di luar dana TU — dana operasional UP/GU">
+                        <span class="text-uppercase fw-semibold text-nowrap" style="font-size:0.68rem; letter-spacing:0.04em; color: #93c5fd;">
+                            Uang GU
+                        </span>
+                        <span class="font-monospace fw-bold text-nowrap" style="font-size:0.8rem; color: #86efac;">
+                            Rp <?= number_format($ringkasan['dana_gu_di_kas'], 0, ',', '.') ?>
+                        </span>
+                    </div>
+                    <div class="text-light opacity-50" style="font-size:0.65rem;">
+                        Saldo operasional UP/GU
+                    </div>
+                </div>
+
                 <div class="small mt-auto text-light opacity-75" style="font-size:0.75rem;">
                     <i class="bi bi-wallet2 me-1"></i>Uang fisik/bank siap pakai saat ini
                 </div>

@@ -311,6 +311,9 @@ class KasBank
      *   (seluruh cair - seluruh keluar) agar minus data yang hilang tetap terlihat.
      * - GU menunggu cair = kumulatif (seluruh pengajuan s/d akhir periode),
      *   agar SPJ bulan lalu tetap tampil saat filter bulan berjalan.
+     * - Komposisi saldo: dana_tu_di_kas = pencairan TU - belanja dari TU -
+     *   setoran sisa TU; dana_gu_di_kas = saldo kas - dana TU (dana
+     *   operasional UP/GU). Keduanya kumulatif s/d akhir periode.
      * - Rincian per-bulan (saldo_awal, pencairan_up/gu, total_penerimaan_cair,
      *   total_pengeluaran_diverifikasi, belanja_siap_gu) tetap dipertahankan
      *   untuk tabel & badge periode berjalan.
@@ -379,6 +382,41 @@ class KasBank
             // 6. Belanja bulan ini yang siap di-SPJ-kan untuk pengajuan GU berikutnya
             $belanjaSiapGu = $totalPengeluaranDiverifikasi;
 
+            // 7. Komposisi saldo kas s/d cutoff:
+            //    - Uang TU = pencairan TU - belanja yang dibayar dari TU - setoran sisa TU.
+            //      Dana ini masih "dipegang" dan wajib di-SPJ-kan/disetor.
+            //    - Uang GU = sisa saldo kas di luar dana TU (dana operasional UP/GU).
+            $stmtTuMasuk = $this->db->prepare("
+                SELECT COALESCE(SUM(nominal), 0)
+                FROM kas_bank
+                WHERE jenis = 'tu' AND status = 'cair'
+                  AND COALESCE(tanggal_cair, tanggal) <= :cutoff
+            ");
+            $stmtTuMasuk->execute([':cutoff' => $cutoff]);
+            $tuMasuk = (float) $stmtTuMasuk->fetchColumn();
+
+            $stmtTuKeluar = $this->db->prepare("
+                SELECT COALESCE(SUM(t.nilai), 0)
+                FROM transaksi t
+                WHERE t.status = 'diverifikasi'
+                  AND t.pengajuan_tu_id IS NOT NULL
+                  AND COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal) <= :cutoff
+            ");
+            $stmtTuKeluar->execute([':cutoff' => $cutoff]);
+            $tuKeluar = (float) $stmtTuKeluar->fetchColumn();
+
+            $stmtTuSetor = $this->db->prepare("
+                SELECT COALESCE(SUM(k.nominal), 0)
+                FROM pengajuan_tu pt
+                INNER JOIN kas_bank k ON k.id = pt.kas_bank_setoran_id
+                WHERE COALESCE(k.tanggal_cair, k.tanggal) <= :cutoff
+            ");
+            $stmtTuSetor->execute([':cutoff' => $cutoff]);
+            $tuSetor = (float) $stmtTuSetor->fetchColumn();
+
+            $danaTuDiKas = max(0.0, $tuMasuk - $tuKeluar - $tuSetor);
+            $danaGuDiKas = $saldoKasSaatIni - $danaTuDiKas;
+
             return [
                 'bulan'                          => $bulan,
                 'tahun'                          => $tahun,
@@ -393,6 +431,8 @@ class KasBank
                 'gu_menunggu_cair'               => $guMenungguCair,
                 'belanja_siap_gu'                => $belanjaSiapGu,
                 'proyeksi_kas_setelah_cair'      => $proyeksiKasSetelahCair,
+                'dana_tu_di_kas'                 => $danaTuDiKas,
+                'dana_gu_di_kas'                 => $danaGuDiKas,
                 'cutoff'                         => $cutoff,
                 'baseline_tanggal'               => $baselineTanggal,
                 'baseline_nominal'               => $baselineNominal,
@@ -413,6 +453,8 @@ class KasBank
                 'gu_menunggu_cair'               => 0,
                 'belanja_siap_gu'                => 0,
                 'proyeksi_kas_setelah_cair'      => 0,
+                'dana_tu_di_kas'                 => 0,
+                'dana_gu_di_kas'                 => 0,
                 'cutoff'                         => sprintf('%04d-%02d-01', $tahun, $bulan),
                 'baseline_tanggal'               => null,
                 'baseline_nominal'               => 0.0,
