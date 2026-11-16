@@ -744,6 +744,8 @@ class SpjController
         $defaultLines = [];
         $labels = [];
         $aligns = [];
+        $styles = [];
+        $heights = [];
         $order = [];
         $cfg = $svc->getConfig();
         foreach (array_keys($cfg['elements'] ?? []) as $key) {
@@ -753,6 +755,8 @@ class SpjController
             $defaultLines[$key] = (int) ($defaults[$key]['max_lines'] ?? 1);
             $labels[$key] = (string) ($cfg['elements'][$key]['label'] ?? $key);
             $aligns[$key] = (string) ($cfg['elements'][$key]['align'] ?? 'L');
+            $styles[$key] = (string) ($cfg['elements'][$key]['style'] ?? '');
+            $heights[$key] = (float) ($cfg['elements'][$key]['h_mm'] ?? 5);
         }
 
         $flash = $_SESSION['flash_message'] ?? null;
@@ -768,6 +772,8 @@ class SpjController
             'defaultLines' => $defaultLines,
             'labels' => $labels,
             'aligns' => $aligns,
+            'styles' => $styles,
+            'heights' => $heights,
             'order' => $order,
             'sampleTexts' => $svc->sampleTexts(),
             'refUrl' => $ref['url'] ?? null,

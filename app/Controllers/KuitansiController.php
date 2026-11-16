@@ -214,6 +214,21 @@ class KuitansiController
             }
         }
 
+        // Elemen yang layak dikalibrasi: yang benar-benar dicetak.
+        // no_bku & terima_dari selalu kosong di generator (sudah pre-printed di
+        // kertas NCR); elemen lain mengikuti isi data contoh yang dipilih.
+        $order = [];
+        foreach (KuitansiPdfService::ELEMEN_KEYS as $k) {
+            if (in_array($k, ['no_bku', 'terima_dari'], true)) {
+                continue;
+            }
+            if ($sampleTexts !== [] && trim((string) ($sampleTexts[$k] ?? '')) === '') {
+                continue;
+            }
+            $order[] = $k;
+        }
+        $hiddenCount = count(KuitansiPdfService::ELEMEN_KEYS) - count($order);
+
         $pageTitle = 'Kalibrasi Cetak Kuitansi';
         $activePage = 'kalibrasi_kuitansi';
         $viewFile = __DIR__ . '/../../views/kuitansi/kalibrasi.php';
@@ -234,6 +249,8 @@ class KuitansiController
             'sampleTexts' => $sampleTexts,
             'sampleLabel' => $sampleLabel,
             'fonts' => $fonts,
+            'order' => $order,
+            'hiddenCount' => $hiddenCount,
         ];
         // Admin pusat pakai layout admin, admin seksi pakai layout seksi.
         $layout = !empty($_SESSION['is_admin'])
@@ -278,7 +295,7 @@ class KuitansiController
     }
 
     /**
-     * Cetak Uji (fetch dari kanvas): posisi SEMUA elemen saat ini di client,
+     * Cetak Uji (fetch dari kanvas): posisi elemen yang tampil di kanvas,
      * belum tentu tersimpan. Body: {"positions":{"key":{"x_mm","y_mm","max_width_mm"}}}
      * Render dummy crosshair — bukan data transaksi asli.
      */
@@ -287,7 +304,7 @@ class KuitansiController
         $this->requireKalibrasiAccess();
         $body = json_decode((string) file_get_contents('php://input'), true);
         $positions = is_array($body['positions'] ?? null) ? $body['positions'] : [];
-        $this->pdf->streamTestPage($positions);
+        $this->pdf->streamTestPage($positions, array_keys($positions));
         exit;
     }
 

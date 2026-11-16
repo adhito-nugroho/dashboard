@@ -37,13 +37,13 @@ foreach ($printers as $p) {
 .kal-canvas { position:relative; width:840px; height:1188px; background:#fff; flex:0 0 auto; }
 .kal-canvas .kal-bg { position:absolute; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
 .kal-canvas canvas.kal-pdfbg { position:absolute; opacity:.5; pointer-events:none; }
-.kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:3px; padding:0 2px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; overflow:hidden; }
-.kal-box .kal-txt { display:block; font-size: var(--kal-font-px, 14.8px); font-family: var(--kal-font-family, Arial, Helvetica, sans-serif); color:#0f172a; line-height:1.32; height:100%; box-sizing:border-box; }
+.kal-box { position:absolute; outline:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:3px; padding:0; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; overflow:hidden; }
+.kal-box .kal-txt { display:block; font-size: var(--kal-font-px, 14.8px); font-family: var(--kal-font-family, Arial, Helvetica, sans-serif); color:#0f172a; height:100%; box-sizing:border-box; font-kerning:none; font-variant-ligatures:none; }
 .kal-box.one-line .kal-txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kal-box.multi .kal-txt { white-space:normal; word-break:break-word; text-align:center; }
 .kal-box[data-align="C"] .kal-txt { text-align:center; }
 .kal-box .kal-badge { position:absolute; top:-19px; left:0; font-size:10px; background:#0f172a; color:#fff; border-radius:4px; padding:1px 6px; white-space:nowrap; display:none; z-index:5; }
-.kal-box.selected { border-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); z-index:4; }
+.kal-box.selected { outline-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); z-index:4; }
 .kal-box.selected .kal-badge { display:block; }
 .kal-resize { position:absolute; right:-5px; top:0; bottom:0; width:10px; cursor:ew-resize; z-index:6; }
 .kal-resize::after { content:''; position:absolute; right:2px; top:15%; bottom:15%; width:3px; border-radius:2px; background:#2563eb; }
@@ -196,7 +196,9 @@ const OFF_X = <?= json_encode($offX) ?>, OFF_Y = <?= json_encode($offY) ?>;
 const state = <?= json_encode($positions, JSON_UNESCAPED_UNICODE) ?>;
 const defaults = <?= json_encode($defaults, JSON_UNESCAPED_UNICODE) ?>;
 const labels = <?= json_encode($labels, JSON_UNESCAPED_UNICODE) ?>;
-const aligns = <?= json_encode($aligns ?? [], JSON_UNESCAPED_UNICODE) ?>;
+const aligns = <?= json_encode($data['aligns'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
+const styles = <?= json_encode($data['styles'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
+const heights = <?= json_encode($data['heights'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
 const widths = <?= json_encode($widths, JSON_UNESCAPED_UNICODE) ?>;
 const defaultWidths = <?= json_encode($defaultWidths, JSON_UNESCAPED_UNICODE) ?>;
 const defaultLines = <?= json_encode($defaultLines, JSON_UNESCAPED_UNICODE) ?>;
@@ -253,6 +255,8 @@ canvas.style.setProperty('--kal-font-px', FONT_PX + 'px');
 canvas.style.setProperty('--kal-font-family', FONT_FAMILY + ', Arial, Helvetica, sans-serif');
 const measureCtx = document.createElement('canvas').getContext('2d');
 measureCtx.font = FONT_PX + 'px ' + FONT_FAMILY + ', Arial, Helvetica, sans-serif';
+// FPDF tidak memakai kerning — samakan pengukuran lebar teks.
+if ('fontKerning' in measureCtx) measureCtx.fontKerning = 'none';
 function textWidthMm(key) {
     const t = sample[key] || '';
     if (t === '') return null;
@@ -294,10 +298,11 @@ function layout() {
     order.forEach(key => {
         const el = boxes[key], s = state[key];
         const lines = linesOf(key);
+        const lineH = parseFloat(heights[key] ?? 5) || 5;
         el.style.left = (s.x_mm * SCALE) + 'px';
         el.style.top = (s.y_mm * SCALE) + 'px';
         el.style.width = (widthOf(key) * SCALE) + 'px';
-        el.style.height = (5 * lines * SCALE) + 'px';
+        el.style.height = (lineH * lines * SCALE) + 'px';
         el.classList.toggle('one-line', lines === 1);
         el.classList.toggle('multi', lines > 1);
         el.dataset.align = aligns[key] || 'L';
@@ -306,7 +311,17 @@ function layout() {
         const txtEl = el.querySelector('.kal-txt');
         txtEl.textContent = txt === '' ? '(kosong — tidak dicetak)' : txt;
         txtEl.style.color = txt === '' ? '#94a3b8' : '#0f172a';
-        txtEl.style.fontStyle = txt === '' ? 'italic' : 'normal';
+        // Gaya cetak: FPDF Cell(h=lineH) menaruh teks di tengah kotak, gaya
+        // U/B/I mengikuti config elemen agar pratinjau = hasil cetak.
+        const st = String(styles[key] || '');
+        txtEl.style.fontStyle = (/I/.test(st) || txt === '') ? 'italic' : 'normal';
+        txtEl.style.fontWeight = /B/.test(st) ? '700' : '400';
+        txtEl.style.textDecoration = /U/.test(st) ? 'underline' : 'none';
+        txtEl.style.lineHeight = (lineH * SCALE) + 'px';
+        // Generator memotong/wrap pada lebar w-1 mm dan mulai teks di x+1mm
+        // untuk rata kiri (Cell cMargin); rata tengah di x+w/2.
+        txtEl.style.width = ((widthOf(key) - 1) * SCALE) + 'px';
+        txtEl.style.marginLeft = ((aligns[key] === 'C' ? 0.5 : 1) * SCALE) + 'px';
 
         el.querySelector('.kal-badge').textContent =
             key + ' — x: ' + Number(s.x_mm).toFixed(1) + ', y: ' + Number(s.y_mm).toFixed(1)

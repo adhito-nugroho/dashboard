@@ -26,8 +26,7 @@ foreach ($printers as $p) {
 if ($activePrinter === null && !empty($printers)) { $activePrinter = $printers[0]; $printerId = (int) $activePrinter['id']; }
 
 $dummy = [
-    'no_bku' => '(kosong — nomor kuitansi tidak dicetak)', 'no_program' => 'PRG.01', 'no_kegiatan' => 'KEG.02',
-    'terima_dari' => '(kosong — contoh: Bendahara Pengeluaran)',
+    'no_program' => 'PRG.01', 'no_kegiatan' => 'KEG.02',
     'jumlah_terbilang' => 'Tiga Ratus Ribu Rupiah',
     'uraian' => 'Perjalanan Dinas dalam rangka koordinasi kehutanan ... (contoh, wrap otomatis)',
     'terbilang_rp' => '300.000', 'tempat_tanggal' => '27 Agustus 2026',
@@ -35,22 +34,24 @@ $dummy = [
     'ttd_bendahara_nama' => 'ADHITO NUGROHO, S.Kom.', 'ttd_bendahara_nip' => 'NIP. 19840214 201001 1 011',
     'ttd_penerima_nama' => 'Budi Santoso',
 ];
-$order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','uraian','terbilang_rp','tempat_tanggal','ttd_kpa_nama','ttd_kpa_nip','ttd_bendahara_nama','ttd_bendahara_nip','ttd_penerima_nama'];
+// Hanya elemen yang benar-benar dicetak (no_bku & terima_dari selalu kosong;
+// elemen berisi teks kosong pada data contoh ikut disembunyikan).
+$order = $data['order'] ?? ['no_program','no_kegiatan','jumlah_terbilang','uraian','terbilang_rp','tempat_tanggal','ttd_kpa_nama','ttd_kpa_nip','ttd_bendahara_nama','ttd_bendahara_nip','ttd_penerima_nama'];
+$hiddenCount = (int) ($data['hiddenCount'] ?? 0);
 ?>
 <style>
 .kal-canvas-scroll { overflow:auto; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; max-width:100%; }
 .kal-canvas { position:relative; width:860px; height:660px; background:#fff; flex:0 0 auto; }
 .kal-canvas .kal-bg { position:absolute; inset:0; background-size:100% 100%; background-repeat:no-repeat; opacity:.5; pointer-events:none; }
 .kal-canvas canvas.kal-pdfbg { position:absolute; inset:0; width:860px; height:660px; opacity:.5; pointer-events:none; }
-.kal-box { position:absolute; border:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:2px 4px; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; font-family:Arial,Helvetica,sans-serif; }
-.kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; }
+.kal-box { position:absolute; outline:1.5px solid #2563eb; background:rgba(37,99,235,.07); border-radius:4px; padding:0; cursor:move; user-select:none; touch-action:none; box-sizing:border-box; min-height:22px; font-family:Arial,Helvetica,sans-serif; }
+.kal-box .kal-txt { display:block; font-size:10px; color:#0f172a; line-height:1.25; white-space:pre-wrap; word-break:break-word; font-kerning:none; font-variant-ligatures:none; }
 .kal-box.nowrap .kal-txt { white-space:nowrap; word-break:normal; overflow:visible; }
 .kal-box.is-wrap .kal-txt { white-space:pre-wrap; word-break:break-word; }
 .kal-box .kal-txt-empty { color:#94a3b8; font-style:italic; }
-.kal-box { max-height:240px; overflow:hidden; }
 .kal-box[data-key^="ttd_"] .kal-txt { text-align:center; }
 .kal-box .kal-badge { position:absolute; top:-20px; left:0; font-size:10px; background:#0f172a; color:#fff; border-radius:4px; padding:1px 6px; white-space:nowrap; display:none; z-index:5; }
-.kal-box.selected { border-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); }
+.kal-box.selected { outline-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); }
 .kal-box.selected .kal-badge { display:block; }
 .kal-resize { position:absolute; right:-5px; top:0; bottom:0; width:10px; cursor:ew-resize; z-index:6; }
 .kal-resize::after { content:''; position:absolute; right:2px; top:15%; bottom:15%; width:3px; border-radius:2px; background:#2563eb; }
@@ -193,8 +194,10 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
                 Agar snap ke gambar <strong>persis sama</strong> dengan hasil print: pangkas file tepat di tepi kertas
                 (tanpa meja/latar, tanpa miring — foto miring tidak akan pernah akurat).
                 Proporsi kertas 215:165. Peringatan muncul otomatis bila proporsi file menyimpang.<br>
-                Teks pratinjau memakai ukuran &amp; gaya font cetak (10&thinsp;pt; angka Terbilang 11&thinsp;pt bold;
-                baris TTD 9&thinsp;pt). Di layar bisa tampak berbeda bila skala tampilan Windows/browser bukan 100%.
+                Teks pratinjau memakai ukuran, gaya, dan posisi font cetak (10&thinsp;pt; angka Terbilang 11&thinsp;pt bold;
+                baris TTD 9&thinsp;pt; teks rata kiri mulai 1&thinsp;mm di dalam kotak, wrap selebar kotak dikurangi
+                2&thinsp;mm — sama seperti FPDF). Di layar bisa tampak berbeda bila skala tampilan Windows/browser
+                bukan 100%.
             </div>
         </div>
         <div class="col-xl-3 col-lg-4">
@@ -223,6 +226,12 @@ $order = ['no_bku','no_program','no_kegiatan','terima_dari','jumlah_terbilang','
                     </div>
                     <hr>
                     <h6 class="fw-bold mb-2" style="font-size:.85rem;">Semua elemen</h6>
+                    <?php if ($hiddenCount > 0): ?>
+                        <div class="text-muted mb-2" style="font-size:.75rem;">
+                            <?= $hiddenCount ?> elemen tidak dicetak pada data contoh ini (kosong / sudah pre-printed) dan disembunyikan dari kanvas.
+                            Pilih data contoh lain bila ingin mengatur elemen tersebut.
+                        </div>
+                    <?php endif; ?>
                     <div class="list-group list-group-flush" id="kalList" style="font-size:.8rem;max-height:320px;overflow:auto;"></div>
                 </div>
             </div>
@@ -320,9 +329,29 @@ function layout() {
         txtEl.style.fontStyle = /I/.test(fstyle) || txt === '' ? 'italic' : 'normal';
         txtEl.style.textDecoration = /U/.test(fstyle) ? 'underline' : 'none';
         txtEl.style.textAlign = f.align === 'C' ? 'center' : 'left';
-        txtEl.style.lineHeight = isWrap(key)
-            ? ((parseFloat(f.line_h_mm) || 5) * SCALE) + 'px'
-            : '1.25';
+        // FPDF: Cell() mulai teks di x+1mm (cMargin); MultiCell() membungkus
+        // pada w-2mm; teks rata tengah yang lebih lebar dari w tetap TERPUSAT
+        // (boleh melewati kedua sisi). Tiru semuanya agar pratinjau = cetak.
+        const wrapTxt = isWrap(key) || txt.includes('\n');
+        const centered = f.align === 'C';
+        if (!wrapTxt && centered) {
+            txtEl.style.position = 'absolute';
+            txtEl.style.top = '0';
+            txtEl.style.left = '50%';
+            txtEl.style.width = 'max-content';
+            txtEl.style.marginLeft = '0';
+            txtEl.style.transform = 'translateX(-50%)';
+        } else {
+            txtEl.style.position = '';
+            txtEl.style.top = '';
+            txtEl.style.left = '';
+            txtEl.style.transform = '';
+            txtEl.style.width = ((wrapTxt ? widthOf(key) - 2 : widthOf(key)) * SCALE) + 'px';
+            txtEl.style.marginLeft = ((wrapTxt || !centered) ? SCALE : 0) + 'px';
+        }
+        // Tinggi baris = h_mm cetak: Cell()/MultiCell() menaruh teks di tengah
+        // kotak setinggi itu, jadi baseline pratinjau ikut sama.
+        txtEl.style.lineHeight = ((parseFloat(f.line_h_mm) || 6) * SCALE) + 'px';
         el.querySelector('.kal-badge').textContent = 'x: ' + Number(s.x_mm).toFixed(1) + 'mm, y: ' + Number(s.y_mm).toFixed(1) + 'mm, w: ' + widthOf(key).toFixed(1) + 'mm' + (isWrap(key) ? ', wrap' : ', 1-baris');
         el.classList.toggle('selected', selected === key);
     });
@@ -482,7 +511,7 @@ function checkAspect(w, h, label) {
     const fileRatio = w / h, paperRatio = PAPER_W / PAPER_H;
     const dev = Math.abs(fileRatio - paperRatio) / paperRatio;
     const box = document.getElementById('kalAspectWarn');
-    if (dev > 0.015) {
+    if (dev > 0.005) {
         box.innerHTML = '<div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:.8rem;">'
             + '<i class="bi bi-exclamation-triangle me-1"></i>Proporsi ' + label + ' (' + fileRatio.toFixed(3) + ') '
             + 'menyimpang ' + (dev * 100).toFixed(1) + '% dari kertas 215:165 (' + paperRatio.toFixed(3) + '). '

@@ -268,12 +268,16 @@ class KuitansiPdfService
     /**
      * "Cetak Uji": crosshair/garis tipis di posisi tiap elemen dari STATE KANVAS
      * client (belum tentu tersimpan). Dummy — bukan data transaksi asli.
+     * $keys: batasi elemen yang digambar (default semua yang dicetak).
      */
-    public function streamTestPage(?array $positions = null): void
+    public function streamTestPage(?array $positions = null, ?array $keys = null): void
     {
         if (is_array($positions)) {
             $this->setPositions($positions);
         }
+        $keys = $keys === null
+            ? self::ELEMEN_KEYS
+            : array_values(array_intersect(self::ELEMEN_KEYS, $keys));
         $pdf = $this->newPdf();
         $pageW = (float) ($this->koordinat['page']['width_mm'] ?? 215);
         $pageH = (float) ($this->koordinat['page']['height_mm'] ?? 165);
@@ -296,7 +300,7 @@ class KuitansiPdfService
             'ttd_penerima_nama' => 'TTD Penerima - Nama',
         ];
 
-        foreach (self::ELEMEN_KEYS as $key) {
+        foreach ($keys as $key) {
             $p = $this->pos[$key] ?? ['x_mm' => 0, 'y_mm' => 0];
             $x = (float) $p['x_mm'];
             $y = (float) $p['y_mm'];
