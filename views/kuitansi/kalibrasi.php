@@ -54,7 +54,9 @@ $hiddenCount = (int) ($data['hiddenCount'] ?? 0);
 .kal-box[data-key^="ttd_"] .kal-txt { text-align:center; }
 .kal-box .kal-badge { position:absolute; top:-20px; left:0; font-size:10px; background:#0f172a; color:#fff; border-radius:4px; padding:1px 6px; white-space:nowrap; display:none; z-index:5; }
 .kal-box.selected { outline-color:#dc2626; background:rgba(220,38,38,.08); box-shadow:0 0 0 2px rgba(220,38,38,.25); }
-.kal-box.selected .kal-badge { display:block; }
+.kal-box:hover .kal-badge, .kal-box.dragging .kal-badge, .kal-box.nudging .kal-badge { display:block; }
+.kal-box.selected:not(.dragging):not(.nudging) .kal-badge { display:none; }
+.kal-box.nudging .kal-badge { background:#dc2626; }
 .kal-resize { position:absolute; right:-5px; top:0; bottom:0; width:10px; cursor:ew-resize; z-index:6; }
 .kal-resize::after { content:''; position:absolute; right:2px; top:15%; bottom:15%; width:3px; border-radius:2px; background:#2563eb; }
 </style>
@@ -233,6 +235,11 @@ $hiddenCount = (int) ($data['hiddenCount'] ?? 0);
                             <div class="form-text" style="font-size:.75rem;">Wrap = teks panjang turun ke bawah (MultiCell). Mati = satu baris, teks panjang meluber tanpa wrap.</div>
                         </div>
                     </div>
+                    <div class="form-text mt-2" style="font-size:.75rem;">
+                        Geser presisi: pilih kotak lalu pakai tombol panah (<kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd>)
+                        = 1&thinsp;mm, <kbd>Shift</kbd>+panah = 0,1&thinsp;mm, <kbd>Alt</kbd>+panah = 10&thinsp;mm.
+                        <kbd>Esc</kbd> atau klik area kosong untuk batal pilih.
+                    </div>
                     <hr>
                     <h6 class="fw-bold mb-2" style="font-size:.85rem;">Semua elemen</h6>
                     <?php if ($hiddenCount > 0): ?>
@@ -377,9 +384,13 @@ function snap(v) {
 function onBoxDown(e, key) {
     if (e.target.classList.contains('kal-resize')) return; // ditangani resize
     e.preventDefault();
+    // Lepas fokus input agar tombol panah menggerakkan kotak, bukan kursor input.
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ae.blur();
     select(key);
     const el = boxes[key];
-    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
     drag = { key, startX: e.clientX, startY: e.clientY, ox: state[key].x_mm, oy: state[key].y_mm };
     const move = ev => {
         state[key].x_mm = snap(drag.ox + (ev.clientX - drag.startX) / SCALE);
@@ -390,6 +401,7 @@ function onBoxDown(e, key) {
         el.removeEventListener('pointermove', move);
         el.removeEventListener('pointerup', up);
         el.removeEventListener('pointercancel', up);
+        el.classList.remove('dragging');
         drag = null;
     };
     el.addEventListener('pointermove', move);
@@ -424,8 +436,46 @@ function onResizeDown(e, key) {
 function select(key) {
     selected = key;
     layout();
-    if (key) document.getElementById('kalSelName').textContent = (labels[key] || key);
+    document.getElementById('kalSelName').textContent = key
+        ? (labels[key] || key)
+        : 'Klik salah satu kotak di kanvas.';
 }
+
+// Klik area kosong kanvas / tekan Esc = batal pilih (keterangan ikut hilang).
+canvas.addEventListener('pointerdown', e => {
+    if (e.target === canvas) select(null);
+});
+let nudgeEl = null, nudgeTimer = null;
+function flashBadge(key) {
+    if (nudgeEl) nudgeEl.classList.remove('nudging');
+    clearTimeout(nudgeTimer);
+    nudgeEl = boxes[key] || null;
+    if (!nudgeEl) return;
+    nudgeEl.classList.add('nudging');
+    nudgeTimer = setTimeout(() => nudgeEl && nudgeEl.classList.remove('nudging'), 900);
+}
+const NUDGE = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        if (selected) select(null);
+        return;
+    }
+    const dir = NUDGE[e.key];
+    if (!dir || !selected || !state[selected]) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    const step = e.altKey ? 10 : (e.shiftKey ? 0.1 : 1);
+    const s = state[selected];
+    const nx = Math.round(Math.min(PAPER_W, Math.max(0, Number(s.x_mm) + dir[0] * step)) * 100) / 100;
+    const ny = Math.round(Math.min(PAPER_H, Math.max(0, Number(s.y_mm) + dir[1] * step)) * 100) / 100;
+    if (nx === Number(s.x_mm) && ny === Number(s.y_mm)) return;
+    s.x_mm = nx;
+    s.y_mm = ny;
+    layout();
+    flashBadge(selected);
+});
 function syncPanel() {
     const form = document.getElementById('kalSelForm');
     if (!selected || !state[selected]) { form.classList.add('d-none'); return; }
