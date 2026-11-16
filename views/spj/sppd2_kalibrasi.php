@@ -19,6 +19,8 @@ $flash = $data['flash'] ?? null;
 $flashType = $data['flashType'] ?? 'info';
 $printers = $data['printers'] ?? [];
 $printerId = (int) ($data['printerId'] ?? 0);
+$pustaka = $data['pustaka'] ?? [];
+$blankoAktifId = (int) ($data['blankoAktifId'] ?? 0);
 $content = $data['content'] ?? [];
 $offset = $data['offset'] ?? ['x' => 0, 'y' => 0];
 $contentW = (float) ($content['width_mm'] ?? 197.2);
@@ -112,6 +114,10 @@ foreach ($printers as $p) {
             <i class="bi bi-image me-1"></i>Upload Contoh Blanko
         </label>
         <input type="file" id="kalUpload" accept=".jpg,.jpeg,.png,.pdf" class="d-none">
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-0" data-bs-toggle="modal" data-bs-target="#modalPustakaBlanko">
+            <i class="bi bi-collection me-1"></i>Pustaka Blanko
+            <span class="badge bg-secondary ms-1"><?= count($pustaka) ?></span>
+        </button>
         <span class="text-muted" style="font-size:.8rem;" id="kalRefStatus"><?= $refUrl ? 'Background referensi terpasang.' : 'Belum ada gambar referensi.' ?> (JPG/PNG/PDF-scan, maks 10MB)</span>
         <label class="text-muted mb-0" style="font-size:.8rem;" for="kalOpacity">Transparansi
             <input type="range" id="kalOpacity" min="10" max="100" value="50" style="width:90px;vertical-align:middle;">
@@ -567,9 +573,14 @@ document.getElementById('kalUpload').addEventListener('change', function() {
     fetchJson(BASE + 'spj/sppd2/kalibrasi/upload', { method: 'POST', body: fd }, 'upload')
         .then(({ status, body }) => {
             if (!body.ok) throw new Error(body.message || ('HTTP ' + status));
+            if (!isDirty()) {
+                window.location.reload();
+                return;
+            }
+            // Ada posisi belum disimpan: jangan buang dengan reload.
             if (body.kind === 'pdf') { renderPdfBackground(body.url); }
             else { showImageBackground(body.url); }
-            showAlert('Referensi terpasang sebagai background kanvas.', 'success');
+            showAlert('Blanko tersimpan di pustaka dan aktif. Simpan posisi lalu muat ulang halaman untuk melihat daftar pustaka.', 'success');
         })
         .catch(err => showAlert('Upload gagal: ' + err.message, 'danger'))
         .finally(() => { document.getElementById('kalUpload').value = ''; });
@@ -698,3 +709,67 @@ btnUji.addEventListener('click', () => {
 layout();
 })();
 </script>
+
+<div class="modal fade" id="modalPustakaBlanko" tabindex="-1" aria-labelledby="modalPustakaBlankoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title fs-6 fw-bold" id="modalPustakaBlankoLabel">
+                    <i class="bi bi-collection me-1"></i>Pustaka Blanko Lembar 2 SPPD
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body p-0">
+                <?php if (empty($pustaka)): ?>
+                    <div class="p-4 text-center text-muted" style="font-size:.9rem;">
+                        Belum ada blanko di pustaka. Upload contoh blanko untuk mulai menyimpan.
+                    </div>
+                <?php else: ?>
+                    <div class="list-group list-group-flush">
+                        <?php foreach ($pustaka as $b):
+                            $bId = (int) $b['id'];
+                            $aktif = $bId === $blankoAktifId;
+                            $isPdf = ($b['kind'] ?? '') === 'pdf';
+                        ?>
+                            <div class="list-group-item d-flex align-items-center gap-2 py-2">
+                                <i class="bi <?= $isPdf ? 'bi-file-earmark-pdf text-danger' : 'bi-file-earmark-image text-primary' ?> fs-5"></i>
+                                <div class="flex-grow-1" style="min-width:0;">
+                                    <div class="fw-semibold text-truncate" title="<?= htmlspecialchars((string) $b['nama_asli']) ?>">
+                                        <?= htmlspecialchars((string) $b['nama_asli']) ?>
+                                        <?php if ($aktif): ?><span class="badge bg-success ms-1">Aktif</span><?php endif; ?>
+                                    </div>
+                                    <div class="text-muted" style="font-size:.75rem;">
+                                        <?= htmlspecialchars(date('d/m/Y H:i', strtotime((string) $b['created_at']))) ?>
+                                        · <?= number_format(((int) $b['ukuran']) / 1024, 0, ',', '.') ?> KB
+                                        · <?= htmlspecialchars((string) ($b['uploaded_by'] ?? '-')) ?>
+                                    </div>
+                                </div>
+                                <?php if (!$aktif): ?>
+                                    <form method="POST" action="<?= base_url('spj/sppd2/kalibrasi/blanko/aktifkan/' . $bId) ?>" class="m-0">
+                                        <input type="hidden" name="printer" value="<?= $printerId ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-check2-circle me-1"></i>Gunakan
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                                <form method="POST" action="<?= base_url('spj/sppd2/kalibrasi/blanko/hapus/' . $bId) ?>" class="m-0"
+                                      onsubmit="return confirm('Hapus blanko ini dari pustaka? File akan dihapus permanen.');">
+                                    <input type="hidden" name="printer" value="<?= $printerId ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus dari pustaka">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <span class="text-muted me-auto" style="font-size:.78rem;">
+                    Blanko aktif dipakai sebagai background kanvas. Yang lain tetap tersimpan untuk dipakai lagi tanpa upload ulang.
+                </span>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>

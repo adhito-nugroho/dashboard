@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\BlankoKalibrasi;
 use App\Models\KalibrasiKuitansiElemen;
 use App\Models\PrinterKuitansi;
 use App\Models\Transaksi;
@@ -14,6 +15,7 @@ class KuitansiController
     private PrinterKuitansi $printer;
     private Transaksi $transaksi;
     private KuitansiPdfService $pdf;
+    private BlankoKalibrasi $blanko;
 
     public const REF_DIR = __DIR__ . '/../../public/uploads/kalibrasi';
     public const REF_BASE = 'referensi_kuitansi';
@@ -24,6 +26,7 @@ class KuitansiController
         $this->printer = new PrinterKuitansi($db);
         $this->transaksi = new Transaksi($db);
         $this->pdf = new KuitansiPdfService();
+        $this->blanko = new BlankoKalibrasi($db);
     }
 
     private function requireLogin(): void
@@ -76,12 +79,31 @@ class KuitansiController
     }
 
     /**
-     * File referensi aktif: gambar (jpg/jpeg/png) atau PDF scan.
-     * Bila keduanya ada, yang terbaru (mtime) yang dipakai.
-     * Return ['url'=>..., 'kind'=>'image'|'pdf'] atau null.
+     * File referensi aktif: blanko aktif dari pustaka, atau file lama
+     * (referensi_kuitansi.*) bila pustaka belum terisi.
+     * Return ['id'=>?, 'url'=>..., 'kind'=>'image'|'pdf', 'nama_asli'=>?] atau null.
      */
     public static function referenceInfo(): ?array
     {
+        try {
+            $row = (new BlankoKalibrasi(\Database::getConnection()))
+                ->getActive(BlankoKalibrasi::JENIS_KUITANSI);
+            if ($row !== null) {
+                $file = BlankoKalibrasi::dir(BlankoKalibrasi::JENIS_KUITANSI) . '/' . $row['nama_file'];
+                if (is_file($file)) {
+                    return [
+                        'id'        => (int) $row['id'],
+                        'url'       => base_url('uploads/kalibrasi/pustaka/' . BlankoKalibrasi::JENIS_KUITANSI . '/' . rawurlencode((string) $row['nama_file'])) . '?v=' . filemtime($file),
+                        'kind'      => $row['kind'] === 'pdf' ? 'pdf' : 'image',
+                        'nama_asli' => (string) $row['nama_asli'],
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('KuitansiController::referenceInfo pustaka: ' . $e->getMessage());
+        }
+
+        // Fallback: file referensi lama sebelum ada pustaka.
         $best = null;
         foreach (['jpg', 'jpeg', 'png'] as $ext) {
             $file = self::REF_DIR . '/' . self::REF_BASE . '.' . $ext;
@@ -240,6 +262,8 @@ class KuitansiController
             'defaultWidths' => $defaultWidths,
             'refUrl' => $refInfo['url'] ?? null,
             'refKind' => $refInfo['kind'] ?? null,
+            'pustaka' => $this->blanko->getAll(BlankoKalibrasi::JENIS_KUITANSI),
+            'blankoAktifId' => (int) ($refInfo['id'] ?? 0),
             'flash' => $flash,
             'flashType' => $flashType,
             'printers' => $printers,
@@ -309,12 +333,12 @@ class KuitansiController
     }
 
     /**
-     * Upload contoh kertas NCR kosong sebagai background kanvas.
-     * - Gambar (JPG/PNG, maks 5MB): langsung jadi background.
-     * - PDF scan (maks 10MB): disimpan, halaman 1 di-render di browser via PDF.js.
-     *   Scan flatbed tanpa perspektif + dipangkas tepat di tepi kertas memberi
-     *   hasil paling akurat. Tiap jenis overwrite file sejenisnya; gambar dan
-     *   PDF boleh berdampingan — yang terbaru yang ditampilkan.
+     * Upload contoh kertas NCR kosong ke pustaka blanko.
+     * - Gambar (JPG/PNG, maks 5MB) atau PDF scan (maks 10MB).
+     * - Setiap file disimpan permanen di pustaka (tidak menimpa file lama)
+     *   dan langsung dijadikan blanko aktif.
+     * - Scan flatbed tanpa perspektif + dipangkas tepat di tepi kertas memberi
+     *   hasil paling akurat.
      */
     public function uploadReferensi(): void
     {
@@ -343,49 +367,95 @@ class KuitansiController
                 echo json_encode(['ok' => false, 'message' => 'PDF maksimal 10MB.']);
                 return;
             }
-            if (!is_dir(self::REF_DIR)) {
-                mkdir(self::REF_DIR, 0755, true);
-            }
-            @unlink(self::REF_DIR . '/' . self::REF_BASE . '.pdf');
-            if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.pdf')) {
-                http_response_code(500);
-                echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
+            $ext  = 'pdf';
+            $kind = 'pdf';
+        } else {
+            if ((int) $f['size'] > 5 * 1024 * 1024) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'Ukuran maksimal 5MB.']);
                 return;
             }
-            $info = self::referenceInfo();
-            echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'pdf']);
-            return;
+            if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG/PDF.']);
+                return;
+            }
+            $ext  = $mime === 'image/png' ? 'png' : 'jpg';
+            $kind = 'image';
         }
 
-        if ((int) $f['size'] > 5 * 1024 * 1024) {
-            http_response_code(422);
-            echo json_encode(['ok' => false, 'message' => 'Ukuran maksimal 5MB.']);
-            return;
+        $jenis = BlankoKalibrasi::JENIS_KUITANSI;
+        $dir = BlankoKalibrasi::dir($jenis);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
         }
-        if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
-            http_response_code(422);
-            echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG/PDF.']);
-            return;
-        }
-
-        if (!is_dir(self::REF_DIR)) {
-            mkdir(self::REF_DIR, 0755, true);
-        }
-        // Hapus gambar lama (semua ekstensi gambar) agar selalu 1 gambar aktif.
-        // File PDF dibiarkan — yang terbaru (gambar/pdf) yang ditampilkan.
-        foreach (glob(self::REF_DIR . '/' . self::REF_BASE . '.{jpg,jpeg,png}', GLOB_BRACE) ?: [] as $old) {
-            @unlink($old);
-        }
-        $ext = $mime === 'image/png' ? 'png' : 'jpg';
-        $dest = self::REF_DIR . '/' . self::REF_BASE . '.' . $ext;
+        $namaFile = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $dest = $dir . '/' . $namaFile;
         if (!move_uploaded_file($tmp, $dest)) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
             return;
         }
 
+        $namaAsli = trim((string) ($f['name'] ?? '')) ?: $namaFile;
+        try {
+            $this->blanko->store($jenis, $namaFile, $namaAsli, $kind, (int) $f['size'], $this->actor());
+        } catch (\Throwable $e) {
+            @unlink($dest);
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => $e->getMessage()]);
+            return;
+        }
+
         $info = self::referenceInfo();
-        echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'image']);
+        echo json_encode([
+            'ok'   => true,
+            'id'   => $info['id'] ?? null,
+            'url'  => $info['url'] ?? null,
+            'kind' => $info['kind'] ?? $kind,
+        ]);
+    }
+
+    /** Aktifkan salah satu blanko dari pustaka tanpa upload ulang. */
+    public function aktifkanBlanko(int $id): void
+    {
+        $this->requireKalibrasiAccess();
+
+        $row = $this->blanko->getById($id);
+        if ($row !== null && $row['jenis'] === BlankoKalibrasi::JENIS_KUITANSI && $this->blanko->activate($id)) {
+            $_SESSION['flash_message'] = 'Blanko "' . ($row['nama_asli'] ?? $row['nama_file']) . '" dipakai sebagai referensi kanvas.';
+            $_SESSION['flash_type'] = 'success';
+        } else {
+            $_SESSION['flash_message'] = 'Blanko tidak ditemukan.';
+            $_SESSION['flash_type'] = 'error';
+        }
+
+        $printerId = (int) ($_POST['printer'] ?? 0);
+        header('Location: ' . base_url('kuitansi/kalibrasi' . ($printerId > 0 ? '?printer=' . $printerId : '')));
+        exit;
+    }
+
+    /** Hapus satu blanko dari pustaka beserta filenya. */
+    public function hapusBlanko(int $id): void
+    {
+        $this->requireKalibrasiAccess();
+
+        $row = $this->blanko->getById($id);
+        if ($row !== null && $row['jenis'] === BlankoKalibrasi::JENIS_KUITANSI && $this->blanko->delete($id)) {
+            $file = BlankoKalibrasi::dir(BlankoKalibrasi::JENIS_KUITANSI) . '/' . $row['nama_file'];
+            if (is_file($file)) {
+                @unlink($file);
+            }
+            $_SESSION['flash_message'] = 'Blanko "' . ($row['nama_asli'] ?? $row['nama_file']) . '" dihapus dari pustaka.';
+            $_SESSION['flash_type'] = 'success';
+        } else {
+            $_SESSION['flash_message'] = 'Blanko tidak ditemukan.';
+            $_SESSION['flash_type'] = 'error';
+        }
+
+        $printerId = (int) ($_POST['printer'] ?? 0);
+        header('Location: ' . base_url('kuitansi/kalibrasi' . ($printerId > 0 ? '?printer=' . $printerId : '')));
+        exit;
     }
 
     /**

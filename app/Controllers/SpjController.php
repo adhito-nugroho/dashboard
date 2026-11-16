@@ -5,6 +5,7 @@ namespace App\Controllers;
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/helpers.php';
 
+use App\Models\BlankoKalibrasi;
 use App\Models\KalibrasiSppdLembar2Elemen;
 use App\Models\PrinterKuitansi;
 use App\Models\RincianBiaya;
@@ -685,9 +686,30 @@ class SpjController
         }
     }
 
-    /** File contoh blanko lembar 2 aktif (gambar/PDF, terbaru menang). */
+    /**
+     * File contoh blanko lembar 2 aktif: blanko aktif dari pustaka, atau file
+     * lama (referensi_sppd_lembar2.*) bila pustaka belum terisi.
+     */
     public static function referenceInfoSppdLembar2(): ?array
     {
+        try {
+            $row = (new BlankoKalibrasi(\Database::getConnection()))->getActive(BlankoKalibrasi::JENIS_SPPD);
+            if ($row !== null) {
+                $file = BlankoKalibrasi::dir(BlankoKalibrasi::JENIS_SPPD) . '/' . $row['nama_file'];
+                if (is_file($file)) {
+                    return [
+                        'id'        => (int) $row['id'],
+                        'url'       => base_url('uploads/kalibrasi/pustaka/' . BlankoKalibrasi::JENIS_SPPD . '/' . rawurlencode((string) $row['nama_file'])) . '?v=' . filemtime($file),
+                        'kind'      => $row['kind'] === 'pdf' ? 'pdf' : 'image',
+                        'nama_asli' => (string) $row['nama_asli'],
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('SpjController::referenceInfoSppdLembar2 pustaka: ' . $e->getMessage());
+        }
+
+        // Fallback: file referensi lama sebelum ada pustaka.
         $best = null;
         foreach (['jpg', 'jpeg', 'png'] as $ext) {
             $file = self::REF_DIR . '/' . self::REF_BASE . '.' . $ext;
@@ -778,6 +800,8 @@ class SpjController
             'sampleTexts' => $svc->sampleTexts(),
             'refUrl' => $ref['url'] ?? null,
             'refKind' => $ref['kind'] ?? null,
+            'pustaka' => (new BlankoKalibrasi($db))->getAll(BlankoKalibrasi::JENIS_SPPD),
+            'blankoAktifId' => (int) ($ref['id'] ?? 0),
             'flash' => $flash,
             'flashType' => $flashType,
             'printers' => $printers,
@@ -853,8 +877,10 @@ class SpjController
     }
 
     /**
-     * Upload contoh blanko lembar 2 (JPG/PNG maks 5MB atau PDF-scan maks 10MB)
-     * sebagai background kanvas kalibrasi.
+     * Upload contoh blanko lembar 2 ke pustaka blanko.
+     * - Gambar (JPG/PNG, maks 5MB) atau PDF scan (maks 10MB).
+     * - Setiap file disimpan permanen di pustaka (tidak menimpa file lama)
+     *   dan langsung dijadikan blanko aktif.
      */
     public function uploadReferensiSppd(): void
     {
@@ -882,44 +908,98 @@ class SpjController
                 echo json_encode(['ok' => false, 'message' => 'PDF maksimal 10MB.']);
                 return;
             }
-            if (!is_dir(self::REF_DIR)) {
-                mkdir(self::REF_DIR, 0755, true);
-            }
-            if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.pdf')) {
-                http_response_code(500);
-                echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server. Tutup file referensi yang sedang terbuka lalu coba lagi.']);
+            $ext  = 'pdf';
+            $kind = 'pdf';
+        } else {
+            if ((int) $f['size'] > 5 * 1024 * 1024) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'Ukuran maksimal 5MB.']);
                 return;
             }
-            $info = self::referenceInfoSppdLembar2();
-            echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'pdf']);
-            return;
+            if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
+                http_response_code(422);
+                echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG/PDF.']);
+                return;
+            }
+            $ext  = $mime === 'image/png' ? 'png' : 'jpg';
+            $kind = 'image';
         }
 
-        if ((int) $f['size'] > 5 * 1024 * 1024) {
-            http_response_code(422);
-            echo json_encode(['ok' => false, 'message' => 'Ukuran maksimal 5MB.']);
-            return;
+        $jenis = BlankoKalibrasi::JENIS_SPPD;
+        $dir = BlankoKalibrasi::dir($jenis);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
         }
-        if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
-            http_response_code(422);
-            echo json_encode(['ok' => false, 'message' => 'Hanya JPG/PNG/PDF.']);
-            return;
-        }
-
-        if (!is_dir(self::REF_DIR)) {
-            mkdir(self::REF_DIR, 0755, true);
-        }
-        foreach (glob(self::REF_DIR . '/' . self::REF_BASE . '.{jpg,jpeg,png}', GLOB_BRACE) ?: [] as $old) {
-            @unlink($old);
-        }
-        $ext = $mime === 'image/png' ? 'png' : 'jpg';
-        if (!move_uploaded_file($tmp, self::REF_DIR . '/' . self::REF_BASE . '.' . $ext)) {
+        $namaFile = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $dest = $dir . '/' . $namaFile;
+        if (!move_uploaded_file($tmp, $dest)) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'message' => 'Gagal menyimpan file di server.']);
             return;
         }
+
+        $namaAsli = trim((string) ($f['name'] ?? '')) ?: $namaFile;
+        try {
+            (new BlankoKalibrasi(\Database::getConnection()))
+                ->store($jenis, $namaFile, $namaAsli, $kind, (int) $f['size'], $this->actor());
+        } catch (\Throwable $e) {
+            @unlink($dest);
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'message' => $e->getMessage()]);
+            return;
+        }
+
         $info = self::referenceInfoSppdLembar2();
-        echo json_encode(['ok' => true, 'url' => $info['url'] ?? null, 'kind' => 'image']);
+        echo json_encode([
+            'ok'   => true,
+            'id'   => $info['id'] ?? null,
+            'url'  => $info['url'] ?? null,
+            'kind' => $info['kind'] ?? $kind,
+        ]);
+    }
+
+    /** Aktifkan salah satu blanko SPPD dari pustaka tanpa upload ulang. */
+    public function aktifkanBlankoSppd(int $id): void
+    {
+        $this->requireKalibrasiAccess();
+
+        $blanko = new BlankoKalibrasi(\Database::getConnection());
+        $row = $blanko->getById($id);
+        if ($row !== null && $row['jenis'] === BlankoKalibrasi::JENIS_SPPD && $blanko->activate($id)) {
+            $_SESSION['flash_message'] = 'Blanko "' . ($row['nama_asli'] ?? $row['nama_file']) . '" dipakai sebagai referensi kanvas.';
+            $_SESSION['flash_type'] = 'success';
+        } else {
+            $_SESSION['flash_message'] = 'Blanko tidak ditemukan.';
+            $_SESSION['flash_type'] = 'error';
+        }
+
+        $printerId = (int) ($_POST['printer'] ?? 0);
+        header('Location: ' . base_url('spj/sppd2/kalibrasi' . ($printerId > 0 ? '?printer=' . $printerId : '')));
+        exit;
+    }
+
+    /** Hapus satu blanko SPPD dari pustaka beserta filenya. */
+    public function hapusBlankoSppd(int $id): void
+    {
+        $this->requireKalibrasiAccess();
+
+        $blanko = new BlankoKalibrasi(\Database::getConnection());
+        $row = $blanko->getById($id);
+        if ($row !== null && $row['jenis'] === BlankoKalibrasi::JENIS_SPPD && $blanko->delete($id)) {
+            $file = BlankoKalibrasi::dir(BlankoKalibrasi::JENIS_SPPD) . '/' . $row['nama_file'];
+            if (is_file($file)) {
+                @unlink($file);
+            }
+            $_SESSION['flash_message'] = 'Blanko "' . ($row['nama_asli'] ?? $row['nama_file']) . '" dihapus dari pustaka.';
+            $_SESSION['flash_type'] = 'success';
+        } else {
+            $_SESSION['flash_message'] = 'Blanko tidak ditemukan.';
+            $_SESSION['flash_type'] = 'error';
+        }
+
+        $printerId = (int) ($_POST['printer'] ?? 0);
+        header('Location: ' . base_url('spj/sppd2/kalibrasi' . ($printerId > 0 ? '?printer=' . $printerId : '')));
+        exit;
     }
 
     private function actor(): string
