@@ -170,6 +170,9 @@ $hiddenCount = (int) ($data['hiddenCount'] ?? 0);
             <i class="bi bi-collection me-1"></i>Pustaka Blanko
             <span class="badge bg-secondary ms-1"><?= count($pustaka) ?></span>
         </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-0" data-bs-toggle="modal" data-bs-target="#modalPotongBlanko" <?= $refUrl ? '' : 'disabled' ?>>
+            <i class="bi bi-crop me-1"></i>Potong Blanko
+        </button>
         <span class="text-muted" style="font-size:.8rem;" id="kalRefStatus"><?= $refUrl ? 'Background referensi terpasang.' : 'Belum ada gambar referensi.' ?> (JPG/PNG/PDF-scan, maks 10MB)</span>
         <label class="text-muted mb-0" style="font-size:.8rem;" for="kalOpacity">Transparansi
             <input type="range" id="kalOpacity" min="10" max="100" value="50" style="width:90px;vertical-align:middle;">
@@ -521,7 +524,7 @@ function checkAspect(w, h, label) {
         box.innerHTML = '<div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="font-size:.8rem;">'
             + '<i class="bi bi-exclamation-triangle me-1"></i>Proporsi ' + label + ' (' + fileRatio.toFixed(3) + ') '
             + 'menyimpang ' + (dev * 100).toFixed(1) + '% dari kertas 215:165 (' + paperRatio.toFixed(3) + '). '
-            + 'Snap ke gambar TIDAK akan sama dengan hasil print. Pangkas file tepat di tepi kertas lalu unggah ulang.</div>';
+            + 'Snap ke gambar TIDAK akan sama dengan hasil print. Gunakan tombol <strong>Potong Blanko</strong> untuk memangkas tepat di tepi kertas.</div>';
     } else {
         box.innerHTML = '';
     }
@@ -738,6 +741,243 @@ btnUji.addEventListener('click', () => {
         });
 });
 
+// --- potong blanko: pangkas file scan agar pas rasio kertas 215:165 ---
+// Modal berada setelah tag script, jadi tunggu DOM selesai diparsing.
+document.addEventListener('DOMContentLoaded', function () {
+const POTONG_RATIO = PAPER_W / PAPER_H;
+const potong = { loadedFor: null, srcCanvas: null, srcW: 0, srcH: 0, pageWmm: 0, pageHmm: 0, rect: null, drag: null };
+const pCanvas = document.getElementById('potongSrc');
+const pRectEl = document.getElementById('potongRect');
+const pLock = document.getElementById('potongLock');
+const pSimpan = document.getElementById('potongSimpan');
+const potongModal = document.getElementById('modalPotongBlanko');
+
+function pStatus(html) {
+    document.getElementById('potongWarn').innerHTML = html || '';
+}
+// Rasio target dalam piksel sumber (mm horizontal & vertikal bisa beda skala).
+function pPxRatio() {
+    return POTONG_RATIO * (potong.srcW / potong.pageWmm) / (potong.srcH / potong.pageHmm);
+}
+function pRefresh() {
+    if (!potong.rect) return;
+    const r = potong.rect;
+    const pct = (v, total) => (v / total * 100) + '%';
+    pRectEl.style.left = pct(r.x, potong.srcW);
+    pRectEl.style.top = pct(r.y, potong.srcH);
+    pRectEl.style.width = pct(r.w, potong.srcW);
+    pRectEl.style.height = pct(r.h, potong.srcH);
+
+    const mmX = potong.srcW / potong.pageWmm;
+    const mmY = potong.srcH / potong.pageHmm;
+    document.getElementById('potongX').value = (r.x / mmX).toFixed(1);
+    document.getElementById('potongY').value = (r.y / mmY).toFixed(1);
+    document.getElementById('potongW').value = (r.w / mmX).toFixed(1);
+    document.getElementById('potongH').value = (r.h / mmY).toFixed(1);
+
+    const wmm = r.w / mmX, hmm = r.h / mmY;
+    const ratio = wmm / hmm;
+    const dev = Math.abs(ratio - POTONG_RATIO) / POTONG_RATIO;
+    document.getElementById('potongInfo').innerHTML =
+        'Hasil potong: <strong>' + wmm.toFixed(1) + ' × ' + hmm.toFixed(1) + ' mm</strong>' +
+        ' · rasio ' + ratio.toFixed(3) +
+        (dev > 0.005
+            ? ' <span class="text-danger">— menyimpang ' + (dev * 100).toFixed(1) + '% dari 215:165, hasil akan diregangkan di kanvas.</span>'
+            : ' <span class="text-success">— rasio pas dengan kertas.</span>');
+}
+function pSetRect(r) {
+    const W = potong.srcW, H = potong.srcH;
+    const minW = Math.max(16, W * 0.02), minH = Math.max(16, H * 0.02);
+    r.w = Math.min(Math.max(r.w, minW), W);
+    r.h = Math.min(Math.max(r.h, minH), H);
+    r.x = Math.min(Math.max(r.x, 0), W - r.w);
+    r.y = Math.min(Math.max(r.y, 0), H - r.h);
+    potong.rect = r;
+    pRefresh();
+}
+// Kotak terbesar di tengah dengan rasio kertas (membuang sisa tepi).
+function pFitRect() {
+    const W = potong.srcW, H = potong.srcH, k = pPxRatio();
+    const h = Math.min(H, W / k);
+    const w = h * k;
+    pSetRect({ x: (W - w) / 2, y: (H - h) / 2, w: w, h: h });
+}
+function pFullRect() {
+    pSetRect({ x: 0, y: 0, w: potong.srcW, h: potong.srcH });
+}
+function pLoad() {
+    if (!REF_URL) {
+        pStatus('Belum ada blanko aktif. Upload blanko dulu.');
+        return;
+    }
+    if (potong.loadedFor === REF_URL + '|' + REF_KIND && potong.srcCanvas) {
+        pRefresh();
+        return;
+    }
+    pStatus('<span class="spinner-border spinner-border-sm me-1" role="status"></span>Memuat pratinjau…');
+    pSimpan.disabled = true;
+    const finish = (canvas, wmm, hmm) => {
+        potong.srcCanvas = canvas;
+        potong.srcW = canvas.width;
+        potong.srcH = canvas.height;
+        potong.pageWmm = wmm;
+        potong.pageHmm = hmm;
+        pCanvas.width = canvas.width;
+        pCanvas.height = canvas.height;
+        pCanvas.getContext('2d').drawImage(canvas, 0, 0);
+        potong.loadedFor = REF_URL + '|' + REF_KIND;
+        pStatus('');
+        pFitRect();
+        pSimpan.disabled = false;
+    };
+    if (REF_KIND === 'pdf') {
+        loadPdfJs().then(lib => lib.getDocument(REF_URL).promise)
+            .then(pdf => pdf.getPage(1))
+            .then(page => {
+                const vp1 = page.getViewport({ scale: 1 });
+                const scale = Math.min(3, 2400 / Math.max(vp1.width, vp1.height));
+                const vp = page.getViewport({ scale: scale });
+                const c = document.createElement('canvas');
+                c.width = Math.max(1, Math.round(vp.width));
+                c.height = Math.max(1, Math.round(vp.height));
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, c.width, c.height);
+                return page.render({ canvasContext: ctx, viewport: vp }).promise.then(() => {
+                    // Ukuran halaman PDF sesungguhnya (pt → mm) untuk input mm.
+                    finish(c, vp1.width * 25.4 / 72, vp1.height * 25.4 / 72);
+                });
+            })
+            .catch(err => pStatus('<i class="bi bi-exclamation-triangle me-1"></i>Gagal memuat PDF: ' + err.message));
+    } else {
+        const img = new Image();
+        img.onload = () => {
+            const s = Math.min(1, 3000 / Math.max(img.naturalWidth, img.naturalHeight));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.naturalWidth * s));
+            c.height = Math.max(1, Math.round(img.naturalHeight * s));
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            // Sama seperti kanvas: seluruh gambar dianggap kertas 215x165 mm.
+            finish(c, PAPER_W, PAPER_H);
+        };
+        img.onerror = () => pStatus('<i class="bi bi-exclamation-triangle me-1"></i>Gagal memuat gambar referensi.');
+        img.src = REF_URL;
+    }
+}
+pRectEl.addEventListener('pointerdown', e => {
+    if (!potong.rect) return;
+    potong.drag = {
+        h: (e.target.dataset && e.target.dataset.h) ? e.target.dataset.h : 'move',
+        sx: e.clientX,
+        sy: e.clientY,
+        o: Object.assign({}, potong.rect)
+    };
+    pRectEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+});
+pRectEl.addEventListener('pointermove', e => {
+    if (!potong.drag) return;
+    const dispW = document.getElementById('potongWrap').getBoundingClientRect().width || 1;
+    const scale = potong.srcW / dispW;
+    const dx = (e.clientX - potong.drag.sx) * scale;
+    const dy = (e.clientY - potong.drag.sy) * scale;
+    const { h, o } = potong.drag;
+    const W = potong.srcW, H = potong.srcH;
+    const minPx = Math.max(16, W * 0.02);
+    const r = Object.assign({}, o);
+    if (h === 'move') {
+        r.x = o.x + dx;
+        r.y = o.y + dy;
+    } else {
+        const west = h === 'nw' || h === 'sw';
+        const north = h === 'nw' || h === 'ne';
+        const ax = west ? o.x + o.w : o.x;
+        const ay = north ? o.y + o.h : o.y;
+        const px = (west ? o.x : o.x + o.w) + dx;
+        const py = (north ? o.y : o.y + o.h) + dy;
+        const maxW = px < ax ? ax : W - ax;
+        const maxH = py < ay ? ay : H - ay;
+        let w = Math.min(Math.abs(px - ax), maxW);
+        let hh = Math.min(Math.abs(py - ay), maxH);
+        if (pLock.checked) {
+            const k = pPxRatio();
+            w = Math.min(w, maxH * k);
+            w = Math.max(minPx, Math.min(w, maxW));
+            hh = w / k;
+        } else {
+            w = Math.max(minPx, w);
+            hh = Math.max(minPx, hh);
+        }
+        r.w = w;
+        r.h = hh;
+        r.x = px < ax ? ax - w : ax;
+        r.y = py < ay ? ay - hh : ay;
+    }
+    pSetRect(r);
+});
+const pEndDrag = () => { potong.drag = null; };
+pRectEl.addEventListener('pointerup', pEndDrag);
+pRectEl.addEventListener('pointercancel', pEndDrag);
+
+['x', 'y', 'w', 'h'].forEach(function (dim) {
+    document.getElementById('potong' + dim.toUpperCase()).addEventListener('change', function () {
+        if (!potong.rect) return;
+        const mmX = potong.srcW / potong.pageWmm;
+        const mmY = potong.srcH / potong.pageHmm;
+        const v = id => parseFloat(document.getElementById('potong' + id.toUpperCase()).value);
+        let x = v('x'), y = v('y'), w = v('w'), hh = v('h');
+        if (![x, y, w, hh].every(Number.isFinite)) { pRefresh(); return; }
+        w = Math.max(10, w);
+        hh = Math.max(10, hh);
+        const r = { x: x * mmX, y: y * mmY, w: w * mmX, h: hh * mmY };
+        if (pLock.checked) {
+            const k = pPxRatio();
+            if (dim === 'h') r.w = r.h * k; else r.h = r.w / k;
+            if (r.w > potong.srcW) { r.w = potong.srcW; r.h = r.w / k; }
+            if (r.h > potong.srcH) { r.h = potong.srcH; r.w = r.h * k; }
+        }
+        pSetRect(r);
+    });
+});
+document.getElementById('potongFit').addEventListener('click', () => { if (potong.srcW) pFitRect(); });
+document.getElementById('potongFull').addEventListener('click', () => { if (potong.srcW) pFullRect(); });
+pSimpan.addEventListener('click', function () {
+    if (!potong.srcCanvas || !potong.rect) return;
+    const r = potong.rect;
+    const outScale = Math.min(1, 2200 / r.w);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(r.w * outScale));
+    c.height = Math.max(1, Math.round(r.h * outScale));
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(potong.srcCanvas, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
+    c.toBlob(function (blob) {
+        if (!blob) { showAlert('Gagal membuat hasil potongan.', 'danger'); return; }
+        const fd = new FormData();
+        fd.append('referensi', blob, 'potong_kuitansi_' + Date.now() + '.jpg');
+        pSimpan.disabled = true;
+        fetch(BASE + 'kuitansi/kalibrasi/upload', { method: 'POST', body: fd })
+            .then(resp => resp.json().then(j => ({ status: resp.status, body: j })))
+            .then(({ status, body }) => {
+                if (!body.ok) throw new Error(body.message || ('HTTP ' + status));
+                if (!isDirty()) {
+                    window.location.reload();
+                    return;
+                }
+                bootstrap.Modal.getOrCreateInstance(potongModal).hide();
+                showAlert('Potongan tersimpan di pustaka dan aktif. Simpan posisi lalu muat ulang halaman.', 'success');
+            })
+            .catch(err => showAlert('Gagal menyimpan potongan: ' + err.message, 'danger'))
+            .finally(() => { pSimpan.disabled = false; });
+    }, 'image/jpeg', 0.92);
+});
+potongModal.addEventListener('shown.bs.modal', pLoad);
+});
+
 layout();
 })();
 </script>
@@ -881,6 +1121,84 @@ layout();
                     Blanko aktif dipakai sebagai background kanvas. Yang lain tetap tersimpan untuk dipakai lagi tanpa upload ulang.
                 </span>
                 <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #potongWrap { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+    #potongSrc { display: block; max-width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+    #potongRect { position: absolute; border: 2px dashed #0d6efd; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .38); cursor: move; touch-action: none; }
+    .potong-handle { position: absolute; width: 13px; height: 13px; background: #0d6efd; border: 2px solid #fff; border-radius: 50%; }
+    .potong-handle[data-h="nw"] { left: -7px; top: -7px; cursor: nwse-resize; }
+    .potong-handle[data-h="ne"] { right: -7px; top: -7px; cursor: nesw-resize; }
+    .potong-handle[data-h="sw"] { left: -7px; bottom: -7px; cursor: nesw-resize; }
+    .potong-handle[data-h="se"] { right: -7px; bottom: -7px; cursor: nwse-resize; }
+</style>
+
+<div class="modal fade" id="modalPotongBlanko" tabindex="-1" aria-labelledby="modalPotongBlankoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title fs-6 fw-bold" id="modalPotongBlankoLabel">
+                    <i class="bi bi-crop me-1"></i>Potong Blanko Kuitansi
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div id="potongWarn"></div>
+                <div class="text-center bg-light rounded p-2" style="max-height:58vh;overflow:auto;">
+                    <div id="potongWrap">
+                        <canvas id="potongSrc"></canvas>
+                        <div id="potongRect">
+                            <span class="potong-handle" data-h="nw"></span>
+                            <span class="potong-handle" data-h="ne"></span>
+                            <span class="potong-handle" data-h="sw"></span>
+                            <span class="potong-handle" data-h="se"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-2 mt-2 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label mb-1" style="font-size:.78rem;" for="potongX">Kiri (mm)</label>
+                        <input type="number" class="form-control form-control-sm" id="potongX" step="0.5" min="0" style="width:90px;">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1" style="font-size:.78rem;" for="potongY">Atas (mm)</label>
+                        <input type="number" class="form-control form-control-sm" id="potongY" step="0.5" min="0" style="width:90px;">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1" style="font-size:.78rem;" for="potongW">Lebar (mm)</label>
+                        <input type="number" class="form-control form-control-sm" id="potongW" step="0.5" min="10" style="width:90px;">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1" style="font-size:.78rem;" for="potongH">Tinggi (mm)</label>
+                        <input type="number" class="form-control form-control-sm" id="potongH" step="0.5" min="10" style="width:90px;">
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="potongLock" checked>
+                            <label class="form-check-label" for="potongLock" style="font-size:.82rem;">Kunci rasio kertas 215:165</label>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="potongFit">Paskan ke kertas</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="potongFull">Seluruh halaman</button>
+                    </div>
+                </div>
+                <div class="text-muted mt-2" style="font-size:.78rem;" id="potongInfo"></div>
+                <div class="form-text mt-1" style="font-size:.76rem;">
+                    Geser kotak atau tarik sudutnya. Hasil potongan disimpan sebagai blanko baru di pustaka dan langsung aktif —
+                    file asli tetap tersimpan. Hasil akan dipetakan penuh ke kertas 215&thinsp;×&thinsp;165&thinsp;mm, jadi
+                    potong tepat di tepi kertas blanko agar posisi cetak akurat.
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-sm btn-primary" id="potongSimpan">
+                    <i class="bi bi-save me-1"></i>Simpan Potongan ke Pustaka
+                </button>
             </div>
         </div>
     </div>
