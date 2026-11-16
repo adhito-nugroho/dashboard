@@ -211,6 +211,30 @@ function showAlert(msg, type) {
     alertBox.innerHTML = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">'
         + msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
 }
+/**
+ * fetch + parse JSON dengan pesan galat yang berguna: server bisa membalas
+ * halaman HTML (login/404/fatal) sehingga r.json() gagal dengan pesan
+ * "Unexpected token '<'" yang tidak menjelaskan apa pun.
+ */
+function fetchJson(url, options, label) {
+    return fetch(url, options).then(r => r.text().then(text => {
+        let body = null;
+        try {
+            body = JSON.parse(text);
+        } catch (e) {
+            console.error('[' + label + '] respons bukan JSON (HTTP ' + r.status + ')', text.slice(0, 500));
+            const html = /^\s*</.test(text);
+            if (r.status === 401 || (html && /name="username"|Masuk ke akun/i.test(text))) {
+                throw new Error('Sesi login berakhir. Login ulang lalu muat ulang halaman ini — posisi yang belum disimpan akan hilang.');
+            }
+            if (html) {
+                throw new Error('Server membalas halaman HTML (HTTP ' + r.status + '), bukan data. Cek log server; kemungkinan route/endpoint belum ada di server atau terjadi fatal error.');
+            }
+            throw new Error('Balasan server tidak dapat dibaca (HTTP ' + r.status + ').');
+        }
+        return { status: r.status, body };
+    }));
+}
 function markDirty() {
     dirtyBadge.classList.toggle('d-none', JSON.stringify(state) === initial);
 }
@@ -494,8 +518,7 @@ document.getElementById('kalUpload').addEventListener('change', function() {
     if (!this.files.length) return;
     const fd = new FormData();
     fd.append('referensi', this.files[0]);
-    fetch(BASE + 'spj/sppd2/kalibrasi/upload', { method: 'POST', body: fd })
-        .then(r => r.json().then(j => ({ status: r.status, body: j })))
+    fetchJson(BASE + 'spj/sppd2/kalibrasi/upload', { method: 'POST', body: fd }, 'upload')
         .then(({ status, body }) => {
             if (!body.ok) throw new Error(body.message || ('HTTP ' + status));
             if (body.kind === 'pdf') { renderPdfBackground(body.url); }
@@ -552,12 +575,11 @@ btnSimpan.addEventListener('click', () => {
             max_lines: (l === null || l === undefined || l === '') ? null : parseInt(l, 10),
         };
     });
-    fetch(BASE + 'spj/sppd2/kalibrasi/simpan', {
+    fetchJson(BASE + 'spj/sppd2/kalibrasi/simpan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ printer_id: PRINTER_ID, items })
-    })
-        .then(r => r.json().then(j => ({ status: r.status, body: j })))
+    }, 'simpan')
         .then(({ status, body }) => {
             if (!body.ok) throw new Error(body.message || ('HTTP ' + status));
             btnSimpan.className = 'btn btn-sm btn-success text-white shadow-sm';
@@ -607,7 +629,13 @@ btnUji.addEventListener('click', () => {
         body: JSON.stringify({ positions })
     })
         .then(r => {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
+            if (!r.ok || !(r.headers.get('content-type') || '').includes('pdf')) {
+                return r.text().then(t => {
+                    throw new Error(r.status === 401
+                        ? 'Sesi login berakhir. Login ulang lalu coba lagi.'
+                        : 'Server tidak mengirim PDF (HTTP ' + r.status + ').' + (/^\s*</.test(t) ? '' : ' ' + t.slice(0, 120)));
+                });
+            }
             return r.blob();
         })
         .then(blob => {

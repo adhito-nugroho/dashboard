@@ -208,6 +208,14 @@ try {
     
     // Check authentication for protected routes
     if (!in_array($path, $publicRoutes) && !isset($_SESSION['user_id'])) {
+        // Endpoint fetch JSON (kalibrasi) tidak boleh dibalas redirect HTML:
+        // klien fetch akan gagal parse ("Unexpected token '<'"), bukan pesan sesi.
+        if (preg_match('#^/(spj/sppd2|kuitansi)/kalibrasi/(simpan|uji|upload)$#', $path)) {
+            http_response_code(401);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => false, 'message' => 'Sesi login berakhir. Login ulang lalu simpan lagi — posisi kotak yang belum disimpan akan hilang.']);
+            exit;
+        }
         header('Location: ' . base_url('login'));
         exit;
     }
