@@ -10,14 +10,14 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
 <div class="modal fade" id="sppd2Modal" tabindex="-1" aria-labelledby="sppd2ModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-            <form id="sppd2Form" method="POST" target="_blank" action="#" autocomplete="off">
-                <div class="modal-header">
-                    <h5 class="modal-title fs-6 fw-bold" id="sppd2ModalLabel">
-                        <i class="bi bi-file-earmark-plus me-1"></i>Cetak Lembar 2 SPPD
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-                </div>
-                <div class="modal-body">
+            <div class="modal-header">
+                <h5 class="modal-title fs-6 fw-bold" id="sppd2ModalLabel">
+                    <i class="bi bi-file-earmark-plus me-1"></i>Cetak Lembar 2 SPPD
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sppd2Form" method="POST" target="_blank" action="#" autocomplete="off">
                     <div class="small text-muted mb-3" id="sppd2Status">Memuat data pejabat&hellip;</div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold" for="sppd2Jabatan">Jabatan pejabat instansi tujuan</label>
@@ -98,14 +98,14 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
                         <input type="hidden" name="cetak_elemen_present" value="1">
                         <div class="form-text">Hilangkan centang komponen yang tidak ingin dicetak.</div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-danger btn-sm" id="sppd2Submit" disabled>
-                        <i class="bi bi-printer me-1"></i>Cetak / Pratinjau PDF
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" form="sppd2Form" class="btn btn-danger btn-sm" id="sppd2Submit" disabled>
+                    <i class="bi bi-printer me-1"></i>Cetak / Pratinjau PDF
+                </button>
+            </div>
         </div>
     </div>
 </div>
