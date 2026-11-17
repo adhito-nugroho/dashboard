@@ -270,19 +270,11 @@ const measureCtx = document.createElement('canvas').getContext('2d');
 measureCtx.font = FONT_PX + 'px ' + FONT_FAMILY + ', Arial, Helvetica, sans-serif';
 // FPDF tidak memakai kerning — samakan pengukuran lebar teks.
 if ('fontKerning' in measureCtx) measureCtx.fontKerning = 'none';
-function textWidthMm(key) {
-    const t = sample[key] || '';
-    if (t === '') return null;
-    return measureCtx.measureText(t).width / SCALE;
-}
-/** Lebar kotak: ikut panjang teks, dibatasi lebar default (atau override). */
+/** Lebar kotak = lebar cetak sebenarnya (override kalibrasi bila diatur). */
 function widthOf(key) {
     const ov = state[key]?.max_width_mm;
     if (ov !== null && ov !== undefined && ov !== '' && !isNaN(parseFloat(ov))) return parseFloat(ov);
-    const def = parseFloat(widths[key] ?? defaultWidths[key] ?? 60);
-    const tw = textWidthMm(key);
-    if (tw === null) return def;
-    return Math.max(5, Math.min(def, Math.round((tw + 1) * 10) / 10));
+    return parseFloat(widths[key] ?? defaultWidths[key] ?? 60);
 }
 function defaultWidthOf(key) {
     return parseFloat(defaultWidths[key] ?? widths[key] ?? 60);
@@ -335,6 +327,17 @@ function layout() {
         // untuk rata kiri (Cell cMargin); rata tengah di x+w/2.
         txtEl.style.width = ((widthOf(key) - 1) * SCALE) + 'px';
         txtEl.style.marginLeft = ((aligns[key] === 'C' ? 0.5 : 1) * SCALE) + 'px';
+        // Cetak mengecilkan font (min. 7 pt) agar teks satu baris tidak
+        // terpotong; pratinjau harus mengikuti agar WYSIWYG.
+        let fontPx = FONT_PX;
+        if (lines === 1 && txt !== '') {
+            const textW = measureCtx.measureText(txt).width;
+            const boxW = (widthOf(key) - 1) * SCALE;
+            if (textW > boxW) {
+                fontPx = Math.max(boxW / textW * FONT_PX, 7 * (25.4 / 72) * SCALE);
+            }
+        }
+        txtEl.style.fontSize = fontPx + 'px';
 
         el.querySelector('.kal-badge').textContent =
             key + ' — x: ' + Number(s.x_mm).toFixed(1) + ', y: ' + Number(s.y_mm).toFixed(1)

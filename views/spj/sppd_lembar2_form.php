@@ -218,8 +218,9 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                         </div>
                         <input type="hidden" name="tampilkan_nip_present" value="1">
                         <div class="form-text">
-                            Bila dimatikan, tulisan &ldquo;NIP. &hellip;&rdquo; tidak dicetak untuk pejabat tujuan,
-                            Kepala CDK, maupun Kuasa Pengguna Anggaran (nama tetap dicetak).
+                            Bila dimatikan, awalan &ldquo;NIP.&rdquo; pada pejabat tujuan dan Kepala CDK
+                            tidak dicetak (nama tetap dicetak). Nomor NIP Kuasa Pengguna Anggaran tetap
+                            dicetak karena label &ldquo;NIP&rdquo; sudah tercetak pada blanko.
                         </div>
                     </div>
                 </div>

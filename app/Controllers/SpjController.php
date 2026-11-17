@@ -615,18 +615,34 @@ class SpjController
             return;
         }
 
-        $jabatan = trim((string) ($_POST['jabatan'] ?? ''));
-        $nama = trim((string) ($_POST['nama'] ?? ''));
-        $nipPejabat = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['nip'] ?? ''));
+        // Form lama/cache bisa belum memuat kolom penandatangan baru: jangan
+        // mengosongkan nilai yang sudah tersimpan bila field tidak dikirim.
+        $pejabatModel = new SppdLembar2Pejabat(\Database::getConnection());
+        $existing = $pejabatModel->getBySuratTugasId($suratTugasId) ?? [];
+        $postText = static function (string $key, string $default = '') use ($existing): string {
+            if (array_key_exists($key, $_POST)) {
+                return trim((string) $_POST[$key]);
+            }
+            $saved = trim((string) ($existing[$key] ?? ''));
+            return $saved !== '' ? $saved : $default;
+        };
+        $postNip = static function (string $key) use ($postText): string {
+            return (string) preg_replace('/[^0-9]/', '', $postText($key));
+        };
+
+        $jabatan = $postText('jabatan');
+        $nama = $postText('nama');
+        $nipPejabat = $postNip('nip');
         // Field baru: form lama yang belum memuatnya memakai judul default.
-        $kepalaJabatan = array_key_exists('kepala_jabatan', $_POST)
-            ? trim((string) $_POST['kepala_jabatan'])
-            : 'Kepala CDK Wilayah Bojonegoro';
-        $kepalaNama = trim((string) ($_POST['kepala_nama'] ?? ''));
-        $kepalaNip = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['kepala_nip'] ?? ''));
-        $kpaNama = trim((string) ($_POST['kpa_nama'] ?? ''));
-        $kpaNip = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['kpa_nip'] ?? ''));
-        $tampilkanNip = isset($_POST['tampilkan_nip']) || !isset($_POST['tampilkan_nip_present']);
+        $kepalaJabatan = $postText('kepala_jabatan', 'Kepala CDK Wilayah Bojonegoro');
+        $kepalaNama = $postText('kepala_nama');
+        $kepalaNip = $postNip('kepala_nip');
+        $kpaNama = $postText('kpa_nama');
+        $kpaNip = $postNip('kpa_nip');
+        $hasToggle = isset($_POST['tampilkan_nip']) || isset($_POST['tampilkan_nip_present']);
+        $tampilkanNip = $hasToggle
+            ? isset($_POST['tampilkan_nip'])
+            : (bool) ($existing['tampilkan_nip'] ?? true);
 
         if ($jabatan === '' || $nama === '') {
             $this->redirectWithMessage(
@@ -650,7 +666,7 @@ class SpjController
         ];
 
         try {
-            (new SppdLembar2Pejabat(\Database::getConnection()))->save($suratTugasId, $pejabat, $this->actor());
+            $pejabatModel->save($suratTugasId, $pejabat, $this->actor());
         } catch (\Throwable $e) {
             error_log('SpjController::cetakSppdLembar2 save error: ' . $e->getMessage());
             $this->redirectWithMessage(

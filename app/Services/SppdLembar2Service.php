@@ -230,7 +230,8 @@ class SppdLembar2Service
      * $pejabat = ['jabatan'=>..,'nama'=>..,'nip'=>..,
      *             'kepala_jabatan'=>..,'kepala_nama'=>..,'kepala_nip'=>..,
      *             'kpa_nama'=>..,'kpa_nip'=>..].
-     * $showNip = false menyembunyikan tulisan "NIP. <nomor>" semua penandatangan.
+     * $showNip = false menyembunyikan awalan "NIP. <nomor>" pejabat tujuan dan
+     *             Kepala CDK; nomor NIP KPA tetap dicetak (label sudah pre-printed).
      * $test = true menghasilkan halaman uji posisi (kotak + crosshair), bukan isian.
      */
     public function generatePdf(array $values, array $pejabat = [], bool $test = false, bool $showNip = true): \FPDF
@@ -290,7 +291,8 @@ class SppdLembar2Service
         $kpaNama = trim((string) ($pejabat['kpa_nama'] ?? ''));
         $kpaNip = trim((string) ($pejabat['kpa_nip'] ?? ''));
         // Blok KPA sudah pre-printed "Nama" dan "NIP"; cetak nilainya saja.
-        $kpaNipText = $showNip ? $kpaNip : '';
+        // Nomor NIP KPA tetap dicetak walau awalan "NIP." disembunyikan.
+        $kpaNipText = $kpaNip;
 
         return [
             'i_berangkat_dari' => (string) ($values['i_berangkat_dari'] ?? ''),
@@ -322,8 +324,9 @@ class SppdLembar2Service
 
     /**
      * Tulis teks dalam kotak; bila maxLines > 1 teks dipecah per kata ke
-     * beberapa baris (jarak antar baris = h_mm). Baris terakhir dipotong
-     * dengan elipsis bila masih melebihi lebar kotak.
+     * beberapa baris (jarak antar baris = h_mm). Teks satu baris yang
+     * melebihi lebar kotak dikecilkan fontnya dulu (min. 7 pt) supaya nama
+     * tidak terpotong elipsis.
      */
     private function cell(
         \FPDF $pdf,
@@ -338,14 +341,38 @@ class SppdLembar2Service
         float $size,
         int $maxLines = 1
     ): void {
-        $pdf->SetFont($family, $style, $size);
         $encoded = $this->pdfText($text);
         $maxWidth = max(1.0, $w - 1.0);
+        if ($maxLines <= 1) {
+            $size = $this->shrinkFontToFit($pdf, $encoded, $maxWidth, $family, $style, $size);
+        }
+        $pdf->SetFont($family, $style, $size);
         $lines = $this->wrapLines($pdf, $encoded, $maxWidth, $maxLines);
         foreach ($lines as $i => $line) {
             $pdf->SetXY($x, $y + ($i * $h));
             $pdf->Cell($w, $h, $line, 0, 0, $align);
         }
+    }
+
+    /** Perkecil ukuran font bertahap sampai teks muat (batas bawah 7 pt). */
+    private function shrinkFontToFit(
+        \FPDF $pdf,
+        string $text,
+        float $maxWidth,
+        string $family,
+        string $style,
+        float $size
+    ): float {
+        $floor = 7.0;
+        if ($size <= $floor) {
+            return $size;
+        }
+        $pdf->SetFont($family, $style, $size);
+        while ($size > $floor && $pdf->GetStringWidth($text) > $maxWidth) {
+            $size = max($floor, $size - 0.25);
+            $pdf->SetFont($family, $style, $size);
+        }
+        return $size;
     }
 
     /** @return string[] */
