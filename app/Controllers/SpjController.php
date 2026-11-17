@@ -537,7 +537,7 @@ class SpjController
         $pegawai = $this->fetchStAndPegawai($suratTugasId, $nip)[1];
         $pejabat = (new SppdLembar2Pejabat(\Database::getConnection()))
             ->getBySuratTugasId($suratTugasId)
-            ?? ['jabatan' => '', 'nama' => '', 'nip' => ''];
+            ?? self::defaultPejabatSppd2();
 
         $pageTitle = 'Cetak Lembar 2 SPPD — ' . ($values['pegawai_nama'] ?? $nip);
         $activePage = 'spj';
@@ -556,17 +556,39 @@ class SpjController
         try {
             $row = (new SppdLembar2Pejabat(\Database::getConnection()))
                 ->getBySuratTugasId($suratTugasId)
-                ?? ['jabatan' => '', 'nama' => '', 'nip' => ''];
+                ?? self::defaultPejabatSppd2();
             echo json_encode([
                 'ok' => true,
                 'jabatan' => (string) ($row['jabatan'] ?? ''),
                 'nama' => (string) ($row['nama'] ?? ''),
                 'nip' => (string) ($row['nip'] ?? ''),
+                'kepala_jabatan' => (string) ($row['kepala_jabatan'] ?? ''),
+                'kepala_nama' => (string) ($row['kepala_nama'] ?? ''),
+                'kepala_nip' => (string) ($row['kepala_nip'] ?? ''),
+                'kpa_nama' => (string) ($row['kpa_nama'] ?? ''),
+                'kpa_nip' => (string) ($row['kpa_nip'] ?? ''),
+                'tampilkan_nip' => !empty($row['tampilkan_nip']),
             ]);
         } catch (\Throwable $e) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'message' => 'Gagal memuat data pejabat.']);
         }
+    }
+
+    /** Default isian penandatangan lembar 2 SPPD (sebelum ada data tersimpan). */
+    private static function defaultPejabatSppd2(): array
+    {
+        return [
+            'jabatan' => '',
+            'nama' => '',
+            'nip' => '',
+            'kepala_jabatan' => 'Kepala CDK Wilayah Bojonegoro',
+            'kepala_nama' => '',
+            'kepala_nip' => '',
+            'kpa_nama' => '',
+            'kpa_nip' => '',
+            'tampilkan_nip' => true,
+        ];
     }
 
     /**
@@ -596,6 +618,15 @@ class SpjController
         $jabatan = trim((string) ($_POST['jabatan'] ?? ''));
         $nama = trim((string) ($_POST['nama'] ?? ''));
         $nipPejabat = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['nip'] ?? ''));
+        // Field baru: form lama yang belum memuatnya memakai judul default.
+        $kepalaJabatan = array_key_exists('kepala_jabatan', $_POST)
+            ? trim((string) $_POST['kepala_jabatan'])
+            : 'Kepala CDK Wilayah Bojonegoro';
+        $kepalaNama = trim((string) ($_POST['kepala_nama'] ?? ''));
+        $kepalaNip = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['kepala_nip'] ?? ''));
+        $kpaNama = trim((string) ($_POST['kpa_nama'] ?? ''));
+        $kpaNip = (string) preg_replace('/[^0-9]/', '', (string) ($_POST['kpa_nip'] ?? ''));
+        $tampilkanNip = isset($_POST['tampilkan_nip']) || !isset($_POST['tampilkan_nip_present']);
 
         if ($jabatan === '' || $nama === '') {
             $this->redirectWithMessage(
@@ -606,14 +637,20 @@ class SpjController
             return;
         }
 
+        $pejabat = [
+            'jabatan' => $jabatan,
+            'nama' => $nama,
+            'nip' => $nipPejabat,
+            'kepala_jabatan' => $kepalaJabatan,
+            'kepala_nama' => $kepalaNama,
+            'kepala_nip' => $kepalaNip,
+            'kpa_nama' => $kpaNama,
+            'kpa_nip' => $kpaNip,
+            'tampilkan_nip' => $tampilkanNip,
+        ];
+
         try {
-            (new SppdLembar2Pejabat(\Database::getConnection()))->save(
-                $suratTugasId,
-                $jabatan,
-                $nama,
-                $nipPejabat,
-                $this->actor()
-            );
+            (new SppdLembar2Pejabat(\Database::getConnection()))->save($suratTugasId, $pejabat, $this->actor());
         } catch (\Throwable $e) {
             error_log('SpjController::cetakSppdLembar2 save error: ' . $e->getMessage());
             $this->redirectWithMessage(
@@ -626,7 +663,7 @@ class SpjController
 
         $this->applySppdCalibration($svc);
         $svc->setHiddenElements($this->resolveHiddenSppdElements($_POST));
-        $svc->streamPdf($values, ['jabatan' => $jabatan, 'nama' => $nama, 'nip' => $nipPejabat]);
+        $svc->streamPdf($values, $pejabat, false, $tampilkanNip);
         exit;
     }
 

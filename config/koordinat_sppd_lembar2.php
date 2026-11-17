@@ -55,6 +55,19 @@ return [
             'x_mm' => 139.0, 'y_mm' => 12.4, 'w_mm' => 54.0, 'h_mm' => 5.0,
             'align' => 'L', 'style' => '', 'label' => 'I - Pada tanggal',
         ],
+        // ── Kotak kiri (baris I): tanda tangan Kepala CDK Wilayah Bojonegoro ──
+        'i_kepala_jabatan' => [
+            'x_mm' => 5.6, 'y_mm' => 23.7, 'w_mm' => 78.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'max_lines' => 2, 'label' => 'I - jabatan penandatangan (Kepala CDK)',
+        ],
+        'i_kepala_nama' => [
+            'x_mm' => 5.6, 'y_mm' => 37.7, 'w_mm' => 78.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => 'U', 'label' => 'I - nama penandatangan (Kepala CDK)',
+        ],
+        'i_kepala_nip' => [
+            'x_mm' => 5.6, 'y_mm' => 42.7, 'w_mm' => 78.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'I - NIP penandatangan (Kepala CDK)',
+        ],
 
         // ── Kolom kiri (baris II): kedatangan di kota tujuan ──
         'tiba_di' => [
@@ -106,12 +119,34 @@ return [
 
         // ── Kolom kiri (baris VI): tiba kembali di tempat kedudukan ──
         'vi_tiba_di' => [
-            'x_mm' => 38.0, 'y_mm' => 207.3, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'x_mm' => 38.0, 'y_mm' => 184.2, 'w_mm' => 54.0, 'h_mm' => 5.0,
             'align' => 'L', 'style' => '', 'label' => 'VI - Tiba di',
         ],
         'vi_tiba_tanggal' => [
-            'x_mm' => 38.0, 'y_mm' => 212.1, 'w_mm' => 54.0, 'h_mm' => 5.0,
+            'x_mm' => 38.0, 'y_mm' => 189.2, 'w_mm' => 54.0, 'h_mm' => 5.0,
             'align' => 'L', 'style' => '', 'label' => 'VI - Pada tanggal',
+        ],
+        // ── Kolom kiri (baris VI): tanda tangan Kepala CDK Wilayah Bojonegoro ──
+        'vi_kepala_jabatan' => [
+            'x_mm' => 5.6, 'y_mm' => 196.7, 'w_mm' => 78.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'max_lines' => 2, 'label' => 'VI - jabatan penandatangan (Kepala CDK)',
+        ],
+        'vi_kepala_nama' => [
+            'x_mm' => 5.6, 'y_mm' => 206.7, 'w_mm' => 78.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => 'U', 'label' => 'VI - nama penandatangan (Kepala CDK)',
+        ],
+        'vi_kepala_nip' => [
+            'x_mm' => 5.6, 'y_mm' => 211.6, 'w_mm' => 78.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'VI - NIP penandatangan (Kepala CDK)',
+        ],
+        // ── Blok Kuasa Pengguna Anggaran (paling bawah, setelah VIII) ──
+        'kpa_nama' => [
+            'x_mm' => 139.1, 'y_mm' => 267.2, 'w_mm' => 58.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'KPA - nama Kuasa Pengguna Anggaran',
+        ],
+        'kpa_nip' => [
+            'x_mm' => 139.1, 'y_mm' => 271.9, 'w_mm' => 58.0, 'h_mm' => 5.0,
+            'align' => 'L', 'style' => '', 'label' => 'KPA - NIP Kuasa Pengguna Anggaran',
         ],
     ],
 ];

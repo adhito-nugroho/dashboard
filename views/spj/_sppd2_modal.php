@@ -8,7 +8,7 @@ $sppd2Base = rtrim(base_url(), '/') . '/';
 $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
 ?>
 <div class="modal fade" id="sppd2Modal" tabindex="-1" aria-labelledby="sppd2ModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <form id="sppd2Form" method="POST" target="_blank" action="#" autocomplete="off">
                 <div class="modal-header">
@@ -39,6 +39,40 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
                         memiliki NIP sehingga tulisan &ldquo;NIP&rdquo; tidak dicetak. Isian terakhir tersimpan
                         per Surat Tugas dan akan muncul lagi saat cetak berikutnya.
                     </div>
+
+                    <div class="border-top pt-3 mt-3">
+                        <label class="form-label small fw-semibold d-block mb-2">
+                            Kepala CDK Wilayah Bojonegoro
+                            <span class="text-muted fw-normal">(tanda tangan bagian I &amp; VI)</span>
+                        </label>
+                        <input type="text" class="form-control form-control-sm mb-2" id="sppd2KepalaJabatan"
+                               name="kepala_jabatan" maxlength="255" placeholder="Jabatan penandatangan"
+                               value="Kepala CDK Wilayah Bojonegoro">
+                        <input type="text" class="form-control form-control-sm mb-2" id="sppd2KepalaNama"
+                               name="kepala_nama" maxlength="255" placeholder="Nama Kepala CDK (dengan gelar)">
+                        <input type="text" class="form-control form-control-sm" id="sppd2KepalaNip"
+                               name="kepala_nip" maxlength="30" inputmode="numeric"
+                               placeholder="NIP Kepala CDK (opsional)">
+                    </div>
+
+                    <div class="border-top pt-3 mt-3">
+                        <label class="form-label small fw-semibold d-block mb-2">
+                            Kuasa Pengguna Anggaran <span class="text-muted fw-normal">(blok paling bawah)</span>
+                        </label>
+                        <input type="text" class="form-control form-control-sm mb-2" id="sppd2KpaNama"
+                               name="kpa_nama" maxlength="255" placeholder="Nama KPA (dengan gelar)">
+                        <input type="text" class="form-control form-control-sm" id="sppd2KpaNip"
+                               name="kpa_nip" maxlength="30" inputmode="numeric" placeholder="NIP KPA (opsional)">
+                    </div>
+
+                    <div class="form-check form-switch mt-3 mb-1">
+                        <input class="form-check-input" type="checkbox" role="switch" id="sppd2TampilkanNip"
+                               name="tampilkan_nip" value="1" checked>
+                        <label class="form-check-label small fw-semibold" for="sppd2TampilkanNip">
+                            Tampilkan tulisan NIP pada pejabat penandatangan
+                        </label>
+                    </div>
+                    <input type="hidden" name="tampilkan_nip_present" value="1">
 
                     <div class="border-top pt-3 mt-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -85,6 +119,13 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
     const inJabatan = document.getElementById('sppd2Jabatan');
     const inNama = document.getElementById('sppd2Nama');
     const inNip = document.getElementById('sppd2Nip');
+    const inKepalaJabatan = document.getElementById('sppd2KepalaJabatan');
+    const inKepalaNama = document.getElementById('sppd2KepalaNama');
+    const inKepalaNip = document.getElementById('sppd2KepalaNip');
+    const inKpaNama = document.getElementById('sppd2KpaNama');
+    const inKpaNip = document.getElementById('sppd2KpaNip');
+    const inTampilkanNip = document.getElementById('sppd2TampilkanNip');
+    const KEPALA_JABATAN_DEFAULT = 'Kepala CDK Wilayah Bojonegoro';
     let seq = 0;
 
     const selectAll = document.getElementById('sppd2SelectAll');
@@ -108,6 +149,12 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
         inJabatan.value = '';
         inNama.value = '';
         inNip.value = '';
+        inKepalaJabatan.value = KEPALA_JABATAN_DEFAULT;
+        inKepalaNama.value = '';
+        inKepalaNip.value = '';
+        inKpaNama.value = '';
+        inKpaNip.value = '';
+        inTampilkanNip.checked = true;
         btn.disabled = true;
         statusEl.textContent = 'Memuat data pejabat…';
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -123,6 +170,12 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
                 inJabatan.value = d.jabatan || '';
                 inNama.value = d.nama || '';
                 inNip.value = d.nip || '';
+                inKepalaJabatan.value = d.kepala_jabatan || KEPALA_JABATAN_DEFAULT;
+                inKepalaNama.value = d.kepala_nama || '';
+                inKepalaNip.value = d.kepala_nip || '';
+                inKpaNama.value = d.kpa_nama || '';
+                inKpaNip.value = d.kpa_nip || '';
+                inTampilkanNip.checked = d.tampilkan_nip !== false;
                 const ada = !!(d.jabatan || d.nama || d.nip);
                 statusEl.textContent = ada
                     ? 'Isian terakhir dimuat. Ubah bila perlu, lalu cetak.'
@@ -145,8 +198,10 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
         window.openSppd2(trigger.getAttribute('data-sppd2-st'), trigger.getAttribute('data-sppd2-nip') || '');
     });
 
-    inNip.addEventListener('input', function () {
-        inNip.value = inNip.value.replace(/\D+/g, '');
+    [inNip, inKepalaNip, inKpaNip].forEach(function (el) {
+        el.addEventListener('input', function () {
+            el.value = el.value.replace(/\D+/g, '');
+        });
     });
 
     form.addEventListener('submit', function () {

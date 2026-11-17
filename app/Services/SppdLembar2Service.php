@@ -9,12 +9,15 @@ namespace App\Services;
  *
  * Hanya nilai yang dicetak — garis tabel dan label sudah pre-printed:
  * - I kanan : "Berangkat dari (tempat kedudukan)" (Bojonegoro),
- *             "Ke" (kota tujuan), "Pada tanggal" (tanggal mulai).
+ *             "Ke" (kota tujuan), "Pada tanggal" (tanggal mulai),
+ *             jabatan/nama/NIP Kepala CDK Wilayah Bojonegoro.
  * - II kiri  : "Tiba di" (kota tujuan), "Pada tanggal" (tanggal mulai),
  *              jabatan/nama/NIP pejabat instansi tujuan.
  * - II kanan : "Berangkat dari" (kota tujuan), "ke" (Bojonegoro),
  *              "Pada tanggal" (tanggal selesai), jabatan/nama/NIP pejabat tujuan.
- * - VI kiri  : "Tiba di" (Bojonegoro), "Pada tanggal" (tanggal selesai).
+ * - VI kiri  : "Tiba di" (Bojonegoro), "Pada tanggal" (tanggal selesai),
+ *              jabatan/nama/NIP Kepala CDK Wilayah Bojonegoro.
+ * - VIII     : nama/NIP Kuasa Pengguna Anggaran di bawah "Kuasa Pengguna Anggaran".
  *
  * Posisi default elemen ada di config/koordinat_sppd_lembar2.php (ruang
  * template + offset kertas). Halaman kalibrasi menyimpan posisi ABSOLUT (mm
@@ -166,6 +169,9 @@ class SppdLembar2Service
             'i_berangkat_dari' => 'Bojonegoro',
             'i_ke' => 'Sidoarjo',
             'i_tanggal' => '22 Oktober 2026',
+            'i_kepala_jabatan' => 'Kepala CDK Wilayah Bojonegoro',
+            'i_kepala_nama' => 'Drs. H. Muhammad Abdurrahman, M.Si',
+            'i_kepala_nip' => 'NIP. 196804121994031005',
             'tiba_di' => 'Sidoarjo',
             'tiba_tanggal' => '22 Oktober 2026',
             'pejabat_tiba_jabatan' => 'Auditor Manajemen ASN Ahli Pertama',
@@ -176,9 +182,14 @@ class SppdLembar2Service
             'berangkat_tanggal' => '22 Oktober 2026',
             'vi_tiba_di' => 'Bojonegoro',
             'vi_tiba_tanggal' => '22 Oktober 2026',
+            'vi_kepala_jabatan' => 'Kepala CDK Wilayah Bojonegoro',
+            'vi_kepala_nama' => 'Drs. H. Muhammad Abdurrahman, M.Si',
+            'vi_kepala_nip' => 'NIP. 196804121994031005',
             'pejabat_berangkat_jabatan' => 'Auditor Manajemen ASN Ahli Pertama',
             'pejabat_berangkat_nama' => 'Lina Maria Ulfa, S.IAN',
             'pejabat_berangkat_nip' => 'NIP. 1997030920250062002',
+            'kpa_nama' => 'Siti Aminah, S.E., M.M.',
+            'kpa_nip' => '197205142000122003',
         ];
     }
 
@@ -215,10 +226,14 @@ class SppdLembar2Service
     }
 
     /**
-     * Render PDF overlay A4. $pejabat = ['jabatan'=>..,'nama'=>..,'nip'=>..].
+     * Render PDF overlay A4.
+     * $pejabat = ['jabatan'=>..,'nama'=>..,'nip'=>..,
+     *             'kepala_jabatan'=>..,'kepala_nama'=>..,'kepala_nip'=>..,
+     *             'kpa_nama'=>..,'kpa_nip'=>..].
+     * $showNip = false menyembunyikan tulisan "NIP. <nomor>" semua penandatangan.
      * $test = true menghasilkan halaman uji posisi (kotak + crosshair), bukan isian.
      */
-    public function generatePdf(array $values, array $pejabat = [], bool $test = false): \FPDF
+    public function generatePdf(array $values, array $pejabat = [], bool $test = false, bool $showNip = true): \FPDF
     {
         require_once __DIR__ . '/../../lib/fpdf.php';
         require_once __DIR__ . '/../../config/terbilang.php';
@@ -239,7 +254,7 @@ class SppdLembar2Service
             return $this->renderTestPage($pdf, $cfg, $pageW, $pageH);
         }
 
-        $texts = $this->resolveTexts($values, $pejabat);
+        $texts = $this->resolveTexts($values, $pejabat, $showNip);
         $positions = $this->getPositions();
 
         foreach ($elements as $key => $el) {
@@ -260,17 +275,30 @@ class SppdLembar2Service
         return $pdf;
     }
 
-    private function resolveTexts(array $values, array $pejabat): array
+    private function resolveTexts(array $values, array $pejabat, bool $showNip): array
     {
         $jabatan = trim((string) ($pejabat['jabatan'] ?? ''));
         $nama = trim((string) ($pejabat['nama'] ?? ''));
         $nip = trim((string) ($pejabat['nip'] ?? ''));
-        $nipText = $nip !== '' ? 'NIP. ' . $nip : '';
+        $nipText = ($showNip && $nip !== '') ? 'NIP. ' . $nip : '';
+
+        $kepalaJabatan = trim((string) ($pejabat['kepala_jabatan'] ?? ''));
+        $kepalaNama = trim((string) ($pejabat['kepala_nama'] ?? ''));
+        $kepalaNip = trim((string) ($pejabat['kepala_nip'] ?? ''));
+        $kepalaNipText = ($showNip && $kepalaNip !== '') ? 'NIP. ' . $kepalaNip : '';
+
+        $kpaNama = trim((string) ($pejabat['kpa_nama'] ?? ''));
+        $kpaNip = trim((string) ($pejabat['kpa_nip'] ?? ''));
+        // Blok KPA sudah pre-printed "Nama" dan "NIP"; cetak nilainya saja.
+        $kpaNipText = $showNip ? $kpaNip : '';
 
         return [
             'i_berangkat_dari' => (string) ($values['i_berangkat_dari'] ?? ''),
             'i_ke' => (string) ($values['i_ke'] ?? ''),
             'i_tanggal' => (string) ($values['i_tanggal'] ?? ''),
+            'i_kepala_jabatan' => $kepalaJabatan,
+            'i_kepala_nama' => $kepalaNama,
+            'i_kepala_nip' => $kepalaNipText,
             'tiba_di' => (string) ($values['tiba_di'] ?? ''),
             'tiba_tanggal' => (string) ($values['tiba_tanggal'] ?? ''),
             'berangkat_dari' => (string) ($values['berangkat_dari'] ?? ''),
@@ -278,12 +306,17 @@ class SppdLembar2Service
             'berangkat_tanggal' => (string) ($values['berangkat_tanggal'] ?? ''),
             'vi_tiba_di' => (string) ($values['vi_tiba_di'] ?? ''),
             'vi_tiba_tanggal' => (string) ($values['vi_tiba_tanggal'] ?? ''),
+            'vi_kepala_jabatan' => $kepalaJabatan,
+            'vi_kepala_nama' => $kepalaNama,
+            'vi_kepala_nip' => $kepalaNipText,
             'pejabat_tiba_jabatan' => $jabatan,
             'pejabat_tiba_nama' => $nama,
             'pejabat_tiba_nip' => $nipText,
             'pejabat_berangkat_jabatan' => $jabatan,
             'pejabat_berangkat_nama' => $nama,
             'pejabat_berangkat_nip' => $nipText,
+            'kpa_nama' => $kpaNama,
+            'kpa_nip' => $kpaNipText,
         ];
     }
 
@@ -450,9 +483,9 @@ class SppdLembar2Service
         $pdf->Output('I', $filename);
     }
 
-    public function streamPdf(array $values, array $pejabat = [], bool $test = false): void
+    public function streamPdf(array $values, array $pejabat = [], bool $test = false, bool $showNip = true): void
     {
-        $pdf = $this->generatePdf($values, $pejabat, $test);
+        $pdf = $this->generatePdf($values, $pejabat, $test, $showNip);
 
         if ($test) {
             $filename = 'Uji_Posisi_SPPD_Lembar2.pdf';

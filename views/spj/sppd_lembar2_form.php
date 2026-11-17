@@ -9,7 +9,15 @@
  *   $pegawai     : data pegawai ST
  */
 $values     = $values     ?? [];
-$pejabat    = $pejabat    ?? ['jabatan' => '', 'nama' => '', 'nip' => ''];
+$pejabat    = $pejabat    ?? [];
+$pejabat   += [
+    'jabatan' => '', 'nama' => '', 'nip' => '',
+    'kepala_jabatan' => 'Kepala CDK Wilayah Bojonegoro',
+    'kepala_nama' => '', 'kepala_nip' => '',
+    'kpa_nama' => '', 'kpa_nip' => '',
+    'tampilkan_nip' => true,
+];
+$tampilkanNip = (bool) $pejabat['tampilkan_nip'];
 $suratTugas = $suratTugas ?? null;
 $pegawai    = $pegawai    ?? [];
 
@@ -164,6 +172,59 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                 </div>
 
                 <div class="sppd2-card">
+                    <div class="sppd2-card-header"><h5><i class="bi bi-person-vcard me-1"></i>Penandatangan Lain</h5></div>
+                    <div class="sppd2-card-body">
+                        <div class="sppd2-label mb-2">Kepala CDK Wilayah Bojonegoro &mdash; tanda tangan bagian I dan VI</div>
+                        <div class="mb-3">
+                            <label class="form-label sppd2-label" for="kepala_jabatan">Jabatan</label>
+                            <input type="text" class="form-control sppd2-input" id="kepala_jabatan" name="kepala_jabatan" maxlength="255"
+                                   value="<?= htmlspecialchars($pejabat['kepala_jabatan']) ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label sppd2-label" for="kepala_nama">Nama Kepala CDK</label>
+                            <input type="text" class="form-control sppd2-input" id="kepala_nama" name="kepala_nama" maxlength="255"
+                                   placeholder="Nama lengkap (dengan gelar bila ada)"
+                                   value="<?= htmlspecialchars($pejabat['kepala_nama']) ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label sppd2-label" for="kepala_nip">NIP Kepala CDK (opsional)</label>
+                            <input type="text" class="form-control sppd2-input" id="kepala_nip" name="kepala_nip" maxlength="30"
+                                   inputmode="numeric" placeholder="18 digit NIP (kosongkan bila tidak ada)"
+                                   value="<?= htmlspecialchars($pejabat['kepala_nip']) ?>">
+                        </div>
+
+                        <hr class="my-3">
+
+                        <div class="sppd2-label mb-2">Kuasa Pengguna Anggaran &mdash; blok paling bawah</div>
+                        <div class="mb-3">
+                            <label class="form-label sppd2-label" for="kpa_nama">Nama KPA</label>
+                            <input type="text" class="form-control sppd2-input" id="kpa_nama" name="kpa_nama" maxlength="255"
+                                   placeholder="Nama lengkap (dengan gelar bila ada)"
+                                   value="<?= htmlspecialchars($pejabat['kpa_nama']) ?>">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label sppd2-label" for="kpa_nip">NIP KPA (opsional)</label>
+                            <input type="text" class="form-control sppd2-input" id="kpa_nip" name="kpa_nip" maxlength="30"
+                                   inputmode="numeric" placeholder="18 digit NIP (kosongkan bila tidak ada)"
+                                   value="<?= htmlspecialchars($pejabat['kpa_nip']) ?>">
+                        </div>
+
+                        <div class="form-check form-switch mt-3 mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="tampilkan_nip"
+                                   name="tampilkan_nip" value="1" <?= $tampilkanNip ? 'checked' : '' ?>>
+                            <label class="form-check-label small fw-semibold" for="tampilkan_nip">
+                                Tampilkan tulisan NIP pada pejabat penandatangan
+                            </label>
+                        </div>
+                        <input type="hidden" name="tampilkan_nip_present" value="1">
+                        <div class="form-text">
+                            Bila dimatikan, tulisan &ldquo;NIP. &hellip;&rdquo; tidak dicetak untuk pejabat tujuan,
+                            Kepala CDK, maupun Kuasa Pengguna Anggaran (nama tetap dicetak).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sppd2-card">
                     <div class="sppd2-card-header d-flex justify-content-between align-items-center">
                         <h5><i class="bi bi-ui-checks me-1"></i>Komponen yang Dicetak</h5>
                         <div class="form-check mb-0">
@@ -207,7 +268,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                 <div class="sppd2-card-body small text-muted">
                     <ul class="mb-0 ps-3">
                         <li class="mb-2">Kertas: <strong>A4</strong>, cetak <em>actual size</em> (jangan <em>fit to page</em>).</li>
-                        <li class="mb-2">Bagian I, II, dan VI terisi otomatis; bagian III–V, VII, dan VIII tidak diisi oleh aplikasi.</li>
+                        <li class="mb-2">Bagian I, II, dan VI serta blok Kuasa Pengguna Anggaran di bawah terisi oleh aplikasi; bagian III&ndash;V dan VII dibiarkan kosong.</li>
                         <li class="mb-2">Jika posisi isian bergeser dari blanko, gunakan <strong>Cetak Uji Posisi</strong> lalu sesuaikan koordinat.</li>
                         <li>Pejabat yang tersimpan akan terisi otomatis saat membuka halaman ini lagi.</li>
                     </ul>
