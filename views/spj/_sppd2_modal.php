@@ -69,7 +69,7 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
                         <input class="form-check-input" type="checkbox" role="switch" id="sppd2TampilkanNip"
                                name="tampilkan_nip" value="1" checked>
                         <label class="form-check-label small fw-semibold" for="sppd2TampilkanNip">
-                            Tampilkan tulisan NIP pada pejabat penandatangan
+                            Tampilkan tulisan &ldquo;NIP.&rdquo; (nomor NIP tetap dicetak)
                         </label>
                     </div>
                     <input type="hidden" name="tampilkan_nip_present" value="1">

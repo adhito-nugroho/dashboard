@@ -213,14 +213,13 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                             <input class="form-check-input" type="checkbox" role="switch" id="tampilkan_nip"
                                    name="tampilkan_nip" value="1" <?= $tampilkanNip ? 'checked' : '' ?>>
                             <label class="form-check-label small fw-semibold" for="tampilkan_nip">
-                                Tampilkan tulisan NIP pada pejabat penandatangan
+                                Tampilkan tulisan &ldquo;NIP.&rdquo; (nomor NIP tetap dicetak)
                             </label>
                         </div>
                         <input type="hidden" name="tampilkan_nip_present" value="1">
                         <div class="form-text">
-                            Bila dimatikan, awalan &ldquo;NIP.&rdquo; pada pejabat tujuan dan Kepala CDK
-                            tidak dicetak (nama tetap dicetak). Nomor NIP Kuasa Pengguna Anggaran tetap
-                            dicetak karena label &ldquo;NIP&rdquo; sudah tercetak pada blanko.
+                            Bila dimatikan, tulisan awalan &ldquo;NIP.&rdquo; tidak dicetak; nomor NIP
+                            pejabat tujuan, Kepala CDK, dan Kuasa Pengguna Anggaran tetap tercetak.
                         </div>
                     </div>
                 </div>

@@ -230,8 +230,8 @@ class SppdLembar2Service
      * $pejabat = ['jabatan'=>..,'nama'=>..,'nip'=>..,
      *             'kepala_jabatan'=>..,'kepala_nama'=>..,'kepala_nip'=>..,
      *             'kpa_nama'=>..,'kpa_nip'=>..].
-     * $showNip = false menyembunyikan awalan "NIP. <nomor>" pejabat tujuan dan
-     *             Kepala CDK; nomor NIP KPA tetap dicetak (label sudah pre-printed).
+     * $showNip = false menghilangkan awalan "NIP. " pada semua penandatangan;
+     *             nomor NIP tetap dicetak. Blok KPA selalu tanpa awalan.
      * $test = true menghasilkan halaman uji posisi (kotak + crosshair), bukan isian.
      */
     public function generatePdf(array $values, array $pejabat = [], bool $test = false, bool $showNip = true): \FPDF
@@ -281,12 +281,13 @@ class SppdLembar2Service
         $jabatan = trim((string) ($pejabat['jabatan'] ?? ''));
         $nama = trim((string) ($pejabat['nama'] ?? ''));
         $nip = trim((string) ($pejabat['nip'] ?? ''));
-        $nipText = ($showNip && $nip !== '') ? 'NIP. ' . $nip : '';
+        // Saklar NIP hanya mengatur awalan "NIP."; nomornya tetap dicetak.
+        $nipText = $nip !== '' ? ($showNip ? 'NIP. ' . $nip : $nip) : '';
 
         $kepalaJabatan = trim((string) ($pejabat['kepala_jabatan'] ?? ''));
         $kepalaNama = trim((string) ($pejabat['kepala_nama'] ?? ''));
         $kepalaNip = trim((string) ($pejabat['kepala_nip'] ?? ''));
-        $kepalaNipText = ($showNip && $kepalaNip !== '') ? 'NIP. ' . $kepalaNip : '';
+        $kepalaNipText = $kepalaNip !== '' ? ($showNip ? 'NIP. ' . $kepalaNip : $kepalaNip) : '';
 
         $kpaNama = trim((string) ($pejabat['kpa_nama'] ?? ''));
         $kpaNip = trim((string) ($pejabat['kpa_nip'] ?? ''));
