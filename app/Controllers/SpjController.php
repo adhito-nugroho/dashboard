@@ -567,7 +567,11 @@ class SpjController
                 'kepala_nip' => (string) ($row['kepala_nip'] ?? ''),
                 'kpa_nama' => (string) ($row['kpa_nama'] ?? ''),
                 'kpa_nip' => (string) ($row['kpa_nip'] ?? ''),
-                'tampilkan_nip' => !empty($row['tampilkan_nip']),
+                'nip_prefix_i' => !empty($row['nip_prefix_i']),
+                'nip_prefix_ii' => !empty($row['nip_prefix_ii']),
+                'nip_prefix_vi' => !empty($row['nip_prefix_vi']),
+                // Kompatibilitas klien lama yang hanya mengenal satu saklar.
+                'tampilkan_nip' => !empty($row['nip_prefix_i']) && !empty($row['nip_prefix_ii']) && !empty($row['nip_prefix_vi']),
             ]);
         } catch (\Throwable $e) {
             http_response_code(500);
@@ -587,7 +591,9 @@ class SpjController
             'kepala_nip' => '',
             'kpa_nama' => '',
             'kpa_nip' => '',
-            'tampilkan_nip' => true,
+            'nip_prefix_i' => true,
+            'nip_prefix_ii' => true,
+            'nip_prefix_vi' => true,
         ];
     }
 
@@ -640,9 +646,26 @@ class SpjController
         $kpaNama = $postText('kpa_nama');
         $kpaNip = $postNip('kpa_nip');
         $hasToggle = isset($_POST['tampilkan_nip']) || isset($_POST['tampilkan_nip_present']);
-        $tampilkanNip = $hasToggle
-            ? isset($_POST['tampilkan_nip'])
-            : (bool) ($existing['tampilkan_nip'] ?? true);
+        $hasPrefixes = isset($_POST['nip_prefix_present']);
+        if ($hasPrefixes) {
+            $sel = $_POST['nip_prefix'] ?? [];
+            $sel = is_array($sel) ? array_map('strval', $sel) : [];
+            $nipPrefix = [
+                'i' => in_array('i', $sel, true),
+                'ii' => in_array('ii', $sel, true),
+                'vi' => in_array('vi', $sel, true),
+            ];
+        } elseif ($hasToggle) {
+            // Form lama: satu saklar berlaku untuk semua bagian.
+            $all = isset($_POST['tampilkan_nip']);
+            $nipPrefix = ['i' => $all, 'ii' => $all, 'vi' => $all];
+        } else {
+            $nipPrefix = [
+                'i' => (bool) ($existing['nip_prefix_i'] ?? true),
+                'ii' => (bool) ($existing['nip_prefix_ii'] ?? true),
+                'vi' => (bool) ($existing['nip_prefix_vi'] ?? true),
+            ];
+        }
 
         if ($jabatan === '' || $nama === '') {
             $this->redirectWithMessage(
@@ -662,7 +685,9 @@ class SpjController
             'kepala_nip' => $kepalaNip,
             'kpa_nama' => $kpaNama,
             'kpa_nip' => $kpaNip,
-            'tampilkan_nip' => $tampilkanNip,
+            'nip_prefix_i' => $nipPrefix['i'],
+            'nip_prefix_ii' => $nipPrefix['ii'],
+            'nip_prefix_vi' => $nipPrefix['vi'],
         ];
 
         try {
@@ -679,7 +704,7 @@ class SpjController
 
         $this->applySppdCalibration($svc);
         $svc->setHiddenElements($this->resolveHiddenSppdElements($_POST));
-        $svc->streamPdf($values, $pejabat, false, $tampilkanNip);
+        $svc->streamPdf($values, $pejabat, false, $nipPrefix);
         exit;
     }
 

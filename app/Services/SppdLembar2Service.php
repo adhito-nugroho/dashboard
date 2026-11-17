@@ -230,11 +230,13 @@ class SppdLembar2Service
      * $pejabat = ['jabatan'=>..,'nama'=>..,'nip'=>..,
      *             'kepala_jabatan'=>..,'kepala_nama'=>..,'kepala_nip'=>..,
      *             'kpa_nama'=>..,'kpa_nip'=>..].
-     * $showNip = false menghilangkan awalan "NIP. " pada semua penandatangan;
-     *             nomor NIP tetap dicetak. Blok KPA selalu tanpa awalan.
+     * $nipPrefix = false menghilangkan awalan "NIP. " (nomor tetap dicetak) atau
+     *              array ['i'=>bool,'ii'=>bool,'vi'=>bool] per bagian.
      * $test = true menghasilkan halaman uji posisi (kotak + crosshair), bukan isian.
+     *
+     * @param bool|array{i?:bool,ii?:bool,vi?:bool} $nipPrefix
      */
-    public function generatePdf(array $values, array $pejabat = [], bool $test = false, bool $showNip = true): \FPDF
+    public function generatePdf(array $values, array $pejabat = [], bool $test = false, bool|array $nipPrefix = true): \FPDF
     {
         require_once __DIR__ . '/../../lib/fpdf.php';
         require_once __DIR__ . '/../../config/terbilang.php';
@@ -255,7 +257,7 @@ class SppdLembar2Service
             return $this->renderTestPage($pdf, $cfg, $pageW, $pageH);
         }
 
-        $texts = $this->resolveTexts($values, $pejabat, $showNip);
+        $texts = $this->resolveTexts($values, $pejabat, $nipPrefix);
         $positions = $this->getPositions();
 
         foreach ($elements as $key => $el) {
@@ -276,23 +278,31 @@ class SppdLembar2Service
         return $pdf;
     }
 
-    private function resolveTexts(array $values, array $pejabat, bool $showNip): array
+    /**
+     * $nipPrefix: bool lama (true = semua awalan, false = semua tanpa awalan)
+     * atau array ['i'=>bool,'ii'=>bool,'vi'=>bool] per bagian. Nomor NIP selalu
+     * dicetak; blok KPA tidak pernah memakai awalan.
+     *
+     * @param bool|array{i?:bool,ii?:bool,vi?:bool} $nipPrefix
+     */
+    private function resolveTexts(array $values, array $pejabat, bool|array $nipPrefix): array
     {
+        $prefix = $this->normalizeNipPrefix($nipPrefix);
+
         $jabatan = trim((string) ($pejabat['jabatan'] ?? ''));
         $nama = trim((string) ($pejabat['nama'] ?? ''));
         $nip = trim((string) ($pejabat['nip'] ?? ''));
-        // Saklar NIP hanya mengatur awalan "NIP."; nomornya tetap dicetak.
-        $nipText = $nip !== '' ? ($showNip ? 'NIP. ' . $nip : $nip) : '';
+        $nipText = $nip !== '' ? ($prefix['ii'] ? 'NIP. ' . $nip : $nip) : '';
 
         $kepalaJabatan = trim((string) ($pejabat['kepala_jabatan'] ?? ''));
         $kepalaNama = trim((string) ($pejabat['kepala_nama'] ?? ''));
         $kepalaNip = trim((string) ($pejabat['kepala_nip'] ?? ''));
-        $kepalaNipText = $kepalaNip !== '' ? ($showNip ? 'NIP. ' . $kepalaNip : $kepalaNip) : '';
+        $kepalaNipI = $kepalaNip !== '' ? ($prefix['i'] ? 'NIP. ' . $kepalaNip : $kepalaNip) : '';
+        $kepalaNipVi = $kepalaNip !== '' ? ($prefix['vi'] ? 'NIP. ' . $kepalaNip : $kepalaNip) : '';
 
         $kpaNama = trim((string) ($pejabat['kpa_nama'] ?? ''));
         $kpaNip = trim((string) ($pejabat['kpa_nip'] ?? ''));
         // Blok KPA sudah pre-printed "Nama" dan "NIP"; cetak nilainya saja.
-        // Nomor NIP KPA tetap dicetak walau awalan "NIP." disembunyikan.
         $kpaNipText = $kpaNip;
 
         return [
@@ -301,7 +311,7 @@ class SppdLembar2Service
             'i_tanggal' => (string) ($values['i_tanggal'] ?? ''),
             'i_kepala_jabatan' => $kepalaJabatan,
             'i_kepala_nama' => $kepalaNama,
-            'i_kepala_nip' => $kepalaNipText,
+            'i_kepala_nip' => $kepalaNipI,
             'tiba_di' => (string) ($values['tiba_di'] ?? ''),
             'tiba_tanggal' => (string) ($values['tiba_tanggal'] ?? ''),
             'berangkat_dari' => (string) ($values['berangkat_dari'] ?? ''),
@@ -311,7 +321,7 @@ class SppdLembar2Service
             'vi_tiba_tanggal' => (string) ($values['vi_tiba_tanggal'] ?? ''),
             'vi_kepala_jabatan' => $kepalaJabatan,
             'vi_kepala_nama' => $kepalaNama,
-            'vi_kepala_nip' => $kepalaNipText,
+            'vi_kepala_nip' => $kepalaNipVi,
             'pejabat_tiba_jabatan' => $jabatan,
             'pejabat_tiba_nama' => $nama,
             'pejabat_tiba_nip' => $nipText,
@@ -320,6 +330,22 @@ class SppdLembar2Service
             'pejabat_berangkat_nip' => $nipText,
             'kpa_nama' => $kpaNama,
             'kpa_nip' => $kpaNipText,
+        ];
+    }
+
+    /**
+     * @param bool|array{i?:bool,ii?:bool,vi?:bool} $value
+     * @return array{i:bool,ii:bool,vi:bool}
+     */
+    private function normalizeNipPrefix(bool|array $value): array
+    {
+        if (is_bool($value)) {
+            return ['i' => $value, 'ii' => $value, 'vi' => $value];
+        }
+        return [
+            'i' => !empty($value['i']),
+            'ii' => !empty($value['ii']),
+            'vi' => !empty($value['vi']),
         ];
     }
 
@@ -511,9 +537,10 @@ class SppdLembar2Service
         $pdf->Output('I', $filename);
     }
 
-    public function streamPdf(array $values, array $pejabat = [], bool $test = false, bool $showNip = true): void
+    /** @param bool|array{i?:bool,ii?:bool,vi?:bool} $nipPrefix */
+    public function streamPdf(array $values, array $pejabat = [], bool $test = false, bool|array $nipPrefix = true): void
     {
-        $pdf = $this->generatePdf($values, $pejabat, $test, $showNip);
+        $pdf = $this->generatePdf($values, $pejabat, $test, $nipPrefix);
 
         if ($test) {
             $filename = 'Uji_Posisi_SPPD_Lembar2.pdf';

@@ -15,9 +15,13 @@ $pejabat   += [
     'kepala_jabatan' => 'Kepala CDK Wilayah Bojonegoro',
     'kepala_nama' => '', 'kepala_nip' => '',
     'kpa_nama' => '', 'kpa_nip' => '',
-    'tampilkan_nip' => true,
+    'nip_prefix_i' => true, 'nip_prefix_ii' => true, 'nip_prefix_vi' => true,
 ];
-$tampilkanNip = (bool) $pejabat['tampilkan_nip'];
+$nipPrefix = [
+    'i' => (bool) $pejabat['nip_prefix_i'],
+    'ii' => (bool) $pejabat['nip_prefix_ii'],
+    'vi' => (bool) $pejabat['nip_prefix_vi'],
+];
 $suratTugas = $suratTugas ?? null;
 $pegawai    = $pegawai    ?? [];
 
@@ -209,17 +213,33 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                    value="<?= htmlspecialchars($pejabat['kpa_nip']) ?>">
                         </div>
 
-                        <div class="form-check form-switch mt-3 mb-1">
-                            <input class="form-check-input" type="checkbox" role="switch" id="tampilkan_nip"
-                                   name="tampilkan_nip" value="1" <?= $tampilkanNip ? 'checked' : '' ?>>
-                            <label class="form-check-label small fw-semibold" for="tampilkan_nip">
-                                Tampilkan tulisan &ldquo;NIP.&rdquo; (nomor NIP tetap dicetak)
+                        <div class="sppd2-label mt-3 mb-2">Tulisan awalan &ldquo;NIP.&rdquo; per bagian</div>
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="nip_prefix_i"
+                                   name="nip_prefix[]" value="i" <?= $nipPrefix['i'] ? 'checked' : '' ?>>
+                            <label class="form-check-label small" for="nip_prefix_i">
+                                Romawi I &mdash; Kepala CDK (tanda tangan atas)
                             </label>
                         </div>
-                        <input type="hidden" name="tampilkan_nip_present" value="1">
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="nip_prefix_ii"
+                                   name="nip_prefix[]" value="ii" <?= $nipPrefix['ii'] ? 'checked' : '' ?>>
+                            <label class="form-check-label small" for="nip_prefix_ii">
+                                Romawi II &mdash; pejabat instansi tujuan
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="nip_prefix_vi"
+                                   name="nip_prefix[]" value="vi" <?= $nipPrefix['vi'] ? 'checked' : '' ?>>
+                            <label class="form-check-label small" for="nip_prefix_vi">
+                                Romawi VI &mdash; Kepala CDK (tanda tangan bawah)
+                            </label>
+                        </div>
+                        <input type="hidden" name="nip_prefix_present" value="1">
                         <div class="form-text">
-                            Bila dimatikan, tulisan awalan &ldquo;NIP.&rdquo; tidak dicetak; nomor NIP
-                            pejabat tujuan, Kepala CDK, dan Kuasa Pengguna Anggaran tetap tercetak.
+                            Nomor NIP selalu dicetak; yang diatur hanya tulisan awalan &ldquo;NIP.&rdquo;.
+                            Contoh: Romawi I dicentang dan Romawi II tidak &rarr; bagian I &ldquo;NIP. 1976&hellip;&rdquo;,
+                            bagian II hanya &ldquo;1976&hellip;&rdquo;. Blok Kuasa Pengguna Anggaran tidak memakai awalan.
                         </div>
                     </div>
                 </div>

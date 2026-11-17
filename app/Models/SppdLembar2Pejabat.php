@@ -20,13 +20,13 @@ class SppdLembar2Pejabat
         $this->db = $db;
     }
 
-    /** @return array{jabatan:string,nama:string,nip:string,kepala_jabatan:string,kepala_nama:string,kepala_nip:string,kpa_nama:string,kpa_nip:string,tampilkan_nip:bool}|null */
+    /** @return array{jabatan:string,nama:string,nip:string,kepala_jabatan:string,kepala_nama:string,kepala_nip:string,kpa_nama:string,kpa_nip:string,nip_prefix_i:bool,nip_prefix_ii:bool,nip_prefix_vi:bool}|null */
     public function getBySuratTugasId(int $suratTugasId): ?array
     {
         try {
             $stmt = $this->db->prepare(
                 'SELECT `jabatan`, `nama`, `nip`, `kepala_jabatan`, `kepala_nama`, `kepala_nip`,
-                        `kpa_nama`, `kpa_nip`, `tampilkan_nip`
+                        `kpa_nama`, `kpa_nip`, `nip_prefix_i`, `nip_prefix_ii`, `nip_prefix_vi`
                  FROM `sppd_lembar2_pejabat` WHERE `surat_tugas_id` = ? LIMIT 1'
             );
             $stmt->execute([$suratTugasId]);
@@ -43,7 +43,9 @@ class SppdLembar2Pejabat
                 'kepala_nip' => (string) ($row['kepala_nip'] ?? ''),
                 'kpa_nama' => (string) ($row['kpa_nama'] ?? ''),
                 'kpa_nip' => (string) ($row['kpa_nip'] ?? ''),
-                'tampilkan_nip' => (bool) (int) ($row['tampilkan_nip'] ?? 1),
+                'nip_prefix_i' => (bool) (int) ($row['nip_prefix_i'] ?? 1),
+                'nip_prefix_ii' => (bool) (int) ($row['nip_prefix_ii'] ?? 1),
+                'nip_prefix_vi' => (bool) (int) ($row['nip_prefix_vi'] ?? 1),
             ];
         } catch (\Throwable $e) {
             error_log('SppdLembar2Pejabat::getBySuratTugasId: ' . $e->getMessage());
@@ -52,7 +54,7 @@ class SppdLembar2Pejabat
     }
 
     /**
-     * @param array{jabatan:string,nama:string,nip:string,kepala_jabatan:string,kepala_nama:string,kepala_nip:string,kpa_nama:string,kpa_nip:string,tampilkan_nip:bool} $data
+     * @param array{jabatan:string,nama:string,nip:string,kepala_jabatan:string,kepala_nama:string,kepala_nip:string,kpa_nama:string,kpa_nip:string,nip_prefix_i:bool,nip_prefix_ii:bool,nip_prefix_vi:bool} $data
      */
     public function save(int $suratTugasId, array $data, ?string $updatedBy): void
     {
@@ -60,10 +62,10 @@ class SppdLembar2Pejabat
             'INSERT INTO `sppd_lembar2_pejabat`
                 (`surat_tugas_id`, `jabatan`, `nama`, `nip`,
                  `kepala_jabatan`, `kepala_nama`, `kepala_nip`, `kpa_nama`, `kpa_nip`,
-                 `tampilkan_nip`, `updated_by`)
+                 `nip_prefix_i`, `nip_prefix_ii`, `nip_prefix_vi`, `updated_by`)
              VALUES (:st, :jabatan, :nama, :nip,
                      :kj, :kn, :knip, :kpan, :kpanip,
-                     :tnip, :ub)
+                     :npi, :npii, :npvi, :ub)
              ON DUPLICATE KEY UPDATE
                 `jabatan` = VALUES(`jabatan`),
                 `nama`    = VALUES(`nama`),
@@ -73,7 +75,9 @@ class SppdLembar2Pejabat
                 `kepala_nip` = VALUES(`kepala_nip`),
                 `kpa_nama` = VALUES(`kpa_nama`),
                 `kpa_nip` = VALUES(`kpa_nip`),
-                `tampilkan_nip` = VALUES(`tampilkan_nip`),
+                `nip_prefix_i` = VALUES(`nip_prefix_i`),
+                `nip_prefix_ii` = VALUES(`nip_prefix_ii`),
+                `nip_prefix_vi` = VALUES(`nip_prefix_vi`),
                 `updated_by` = VALUES(`updated_by`)'
         );
         $stmt->execute([
@@ -86,7 +90,9 @@ class SppdLembar2Pejabat
             ':knip' => (string) ($data['kepala_nip'] ?? ''),
             ':kpan' => (string) ($data['kpa_nama'] ?? ''),
             ':kpanip' => (string) ($data['kpa_nip'] ?? ''),
-            ':tnip' => !empty($data['tampilkan_nip']) ? 1 : 0,
+            ':npi' => !empty($data['nip_prefix_i']) ? 1 : 0,
+            ':npii' => !empty($data['nip_prefix_ii']) ? 1 : 0,
+            ':npvi' => !empty($data['nip_prefix_vi']) ? 1 : 0,
             ':ub' => $updatedBy !== null && $updatedBy !== '' ? substr($updatedBy, 0, 100) : null,
         ]);
     }

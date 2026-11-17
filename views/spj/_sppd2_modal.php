@@ -65,14 +65,35 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
                                name="kpa_nip" maxlength="30" inputmode="numeric" placeholder="NIP KPA (opsional)">
                     </div>
 
-                    <div class="form-check form-switch mt-3 mb-1">
-                        <input class="form-check-input" type="checkbox" role="switch" id="sppd2TampilkanNip"
-                               name="tampilkan_nip" value="1" checked>
-                        <label class="form-check-label small fw-semibold" for="sppd2TampilkanNip">
-                            Tampilkan tulisan &ldquo;NIP.&rdquo; (nomor NIP tetap dicetak)
-                        </label>
+                    <div class="border-top pt-3 mt-3">
+                        <div class="form-label small fw-semibold mb-2">Tulisan awalan &ldquo;NIP.&rdquo; per bagian</div>
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="sppd2NipPrefixI"
+                                   name="nip_prefix[]" value="i" checked>
+                            <label class="form-check-label small" for="sppd2NipPrefixI">
+                                Romawi I &mdash; Kepala CDK (tanda tangan atas)
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="sppd2NipPrefixII"
+                                   name="nip_prefix[]" value="ii" checked>
+                            <label class="form-check-label small" for="sppd2NipPrefixII">
+                                Romawi II &mdash; pejabat instansi tujuan
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="sppd2NipPrefixVI"
+                                   name="nip_prefix[]" value="vi" checked>
+                            <label class="form-check-label small" for="sppd2NipPrefixVI">
+                                Romawi VI &mdash; Kepala CDK (tanda tangan bawah)
+                            </label>
+                        </div>
+                        <input type="hidden" name="nip_prefix_present" value="1">
+                        <div class="form-text">
+                            Nomor NIP selalu dicetak; hanya awalan &ldquo;NIP.&rdquo; yang diatur.
+                            Blok Kuasa Pengguna Anggaran tidak memakai awalan.
+                        </div>
                     </div>
-                    <input type="hidden" name="tampilkan_nip_present" value="1">
 
                     <div class="border-top pt-3 mt-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -124,7 +145,11 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
     const inKepalaNip = document.getElementById('sppd2KepalaNip');
     const inKpaNama = document.getElementById('sppd2KpaNama');
     const inKpaNip = document.getElementById('sppd2KpaNip');
-    const inTampilkanNip = document.getElementById('sppd2TampilkanNip');
+    const nipPrefix = {
+        i: document.getElementById('sppd2NipPrefixI'),
+        ii: document.getElementById('sppd2NipPrefixII'),
+        vi: document.getElementById('sppd2NipPrefixVI'),
+    };
     const KEPALA_JABATAN_DEFAULT = 'Kepala CDK Wilayah Bojonegoro';
     let seq = 0;
 
@@ -154,7 +179,9 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
         inKepalaNip.value = '';
         inKpaNama.value = '';
         inKpaNip.value = '';
-        inTampilkanNip.checked = true;
+        nipPrefix.i.checked = true;
+        nipPrefix.ii.checked = true;
+        nipPrefix.vi.checked = true;
         btn.disabled = true;
         statusEl.textContent = 'Memuat data pejabat…';
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -175,7 +202,10 @@ $sppd2Elements = \App\Services\SppdLembar2Service::elementOptions();
                 inKepalaNip.value = d.kepala_nip || '';
                 inKpaNama.value = d.kpa_nama || '';
                 inKpaNip.value = d.kpa_nip || '';
-                inTampilkanNip.checked = d.tampilkan_nip !== false;
+                const legacyPrefix = d.tampilkan_nip !== false;
+                nipPrefix.i.checked = d.nip_prefix_i !== undefined ? !!d.nip_prefix_i : legacyPrefix;
+                nipPrefix.ii.checked = d.nip_prefix_ii !== undefined ? !!d.nip_prefix_ii : legacyPrefix;
+                nipPrefix.vi.checked = d.nip_prefix_vi !== undefined ? !!d.nip_prefix_vi : legacyPrefix;
                 const ada = !!(d.jabatan || d.nama || d.nip);
                 statusEl.textContent = ada
                     ? 'Isian terakhir dimuat. Ubah bila perlu, lalu cetak.'
