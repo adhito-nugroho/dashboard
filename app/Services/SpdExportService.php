@@ -424,7 +424,10 @@ class SpdExportService
     /** Hitung jumlah baris wrap untuk lebar kolom tertentu (font aktif). */
     private function pdfNbLines(\FPDF $pdf, float $w, string $text): int
     {
-        $maxW = $w - 2;
+        // MultiCell dipanggil dengan lebar w-2 dan FPDF membungkus teks pada
+        // lebar sel minus 2 x cMargin (1 mm), jadi ruang efektif = w - 4.
+        // Bila dihitung w - 2, baris bisa terlewat dan tinggi baris kurang.
+        $maxW = $w - 4.0;
         if ($maxW <= 0) {
             return 1;
         }
