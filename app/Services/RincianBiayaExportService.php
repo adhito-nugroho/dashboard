@@ -128,10 +128,20 @@ class RincianBiayaExportService
             $jumlahHari = $d['jumlah_hari'] !== null && $d['jumlah_hari'] !== ''
                 ? (float) $d['jumlah_hari']
                 : null;
-            if ($jumlahHari !== null && stripos($namaKomponen, 'hotel') !== false) {
-                $jumlahHari = null;
-            }
             $jumlah = (float) ($d['jumlah'] ?? 0);
+            // Data lama hotel sempat disimpan tanpa jumlah_hari; turunkan dari
+            // jumlah / harga satuan agar kolom Hari tetap terisi.
+            if (
+                $jumlahHari === null
+                && $hargaSatuan > 0
+                && $jumlah > $hargaSatuan
+                && stripos($namaKomponen, 'hotel') !== false
+            ) {
+                $rasio = $jumlah / $hargaSatuan;
+                if (abs($rasio - round($rasio)) < 0.001) {
+                    $jumlahHari = (float) round($rasio);
+                }
+            }
             $keterangan = trim((string) ($d['keterangan'] ?? ''));
 
             $rateText = $this->rateText($hargaSatuan, $jumlahHari);
@@ -168,9 +178,10 @@ class RincianBiayaExportService
 
         // Terbilang
         $terbilangTextY = $terbilangY + 0.6;
-        $this->put($pdf, self::X_PERINCIAN + 1.0, $terbilangTextY, 30, 5.2, 'Terbilang', 'L', '', 10.5);
+        $this->put($pdf, self::X_PERINCIAN + 1.0, $terbilangTextY, 32, 5.2, 'Terbilang', 'L', '', 10.5);
         $terbilangText = ' ' . $this->terbilang($totalBiaya) . ' Rupiah';
-        $this->put($pdf, self::X_HARI + 3.0, $terbilangTextY, self::RIGHT - (self::X_HARI + 3.0), 5.2, $terbilangText, 'L', 'I', 9.7, true);
+        $terbilangX = self::X_PERINCIAN + 34.0;
+        $this->putFit($pdf, $terbilangX, $terbilangTextY, self::RIGHT - $terbilangX, 5.2, $terbilangText, 'L', 'I', 9.7, 6.5);
 
         // Garis tabel
         $this->line($pdf, self::X_NO, self::TABLE_TOP, self::RIGHT, self::TABLE_TOP);
