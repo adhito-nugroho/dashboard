@@ -1055,7 +1055,8 @@ class ExcelController {
         $sheet->mergeCells("A3:{$lastCol}3");
         $sheet->setCellValue('A3',
             'Keterangan: Sisa = RAK Semester - Realisasi Semester. ' .
-            'Sisa S2* sudah termasuk carry-over dari Semester 1 (jika ada).');
+            'Sisa S2* sudah termasuk carry-over dari Semester 1 (jika ada). ' .
+            'Total Sisa = Sisa S1 + Sisa S2 murni, carry-over tidak dihitung dua kali.');
         $sheet->getStyle('A3')->applyFromArray([
             'font'      => ['italic' => true, 'size' => 8, 'color' => ['rgb' => '64748B']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -1075,7 +1076,7 @@ class ExcelController {
         $sheet->setCellValue('E5', 'SEMESTER 2 (Jul - Des)');
         $sheet->mergeCells('E5:G5');
 
-        $sheet->setCellValue('H5', 'Total Sisa');
+        $sheet->setCellValue('H5', 'Total Sisa (S1+S2 murni)');
         $sheet->mergeCells('H5:H6');
 
         $sheet->setCellValue('B6', 'RAK S1');
@@ -1178,7 +1179,9 @@ class ExcelController {
         }
 
         // ---- Total row ----
-        $totalSisaKeseluruhan = $totals['sisa_s1'] + $totals['sisa_s2'];
+        // Total sisa = S1 + S2 murni; sisa_s2 sudah termasuk carry-over S1 (jangan dijumlah ganda).
+        $totalSisaKeseluruhan = $totals['sisa_total']
+            ?? ($totals['sisa_s1'] + ($totals['sisa_s2_raw'] ?? ($totals['sisa_s2'] - $totals['carry_over'])));
         $sheet->setCellValue("A{$currentRow}", 'TOTAL KESELURUHAN');
         $sheet->setCellValue("B{$currentRow}", $totals['rak_s1']);
         $sheet->setCellValue("C{$currentRow}", $totals['real_s1']);

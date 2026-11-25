@@ -467,16 +467,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulanBerjalan = DashboardBoot.bulanBerjalan;
     const isTahunIni = DashboardBoot.isTahunIni;
 
+    // ---- State tampilan grafik ----
+    var chartMode = 'cumulative'; // default: kumulatif (S-curve)
+    var chartRange = 'all';
+    var isLogMode = false;
+    var RANGE_SLICE = { all: [0, 12], h1: [0, 6], h2: [6, 12] };
+
     // Split RAK dataset: actual (s/d bulan berjalan) vs proyeksi (future)
     const rakAktual    = mData.rak.map((v, i) => (i < bulanBerjalan || !isTahunIni) ? v : null);
     const rakProyeksi  = mData.rak.map((v, i) => (i >= bulanBerjalan - 1 && isTahunIni) ? v : null);
+    // Realisasi future = null (jangan gambar 0 untuk bulan yang belum berjalan)
+    const realBulanan  = mData.realisasi.map((v, i) => (isTahunIni && i >= bulanBerjalan) ? null : v);
 
-    // Determine point colors for Realisasi based on alert status & anomaly
+    // Deret kumulatif untuk mode S-curve
+    function cumulative(arr) {
+        var total = 0;
+        return arr.map(function (v) { total += (Number(v) || 0); return total; });
+    }
+    const rakKum  = cumulative(mData.rak);
+    const realKum = cumulative(mData.realisasi);
+    const realKumTampil = realKum.map((v, i) => (isTahunIni && i >= bulanBerjalan) ? null : v);
+
+    // Determine point colors for Realisasi based on alert status & anomaly.
+    // Bulan berjalan belum dinilai Under/Over -> gaya netral (indigo).
+    const bulanBerjalanIdx = isTahunIni ? bulanBerjalan : -1;
     const realisasiPointBg = mData.realisasi.map((v, i) => {
         const bulan = i + 1;
         const rak = mData.rak[i] || 0;
         const pct = rak > 0 ? (v / rak) * 100 : 100;
-        if (pct < 20 && rak > 0 && (i < bulanBerjalan || !isTahunIni)) return '#dc2626'; // Anomali ekstrem
+        if (bulan === bulanBerjalanIdx) return '#6366f1'; // Bulan berjalan (belum final)
+        if (pct < 20 && rak > 0 && (i < bulanBerjalan - 1 || !isTahunIni)) return '#dc2626'; // Anomali ekstrem
         if (alertTypes[bulan] === 'over') return '#2563eb';
         if (alertTypes[bulan] === 'under') return '#dc2626';
         return '#059669';
@@ -484,26 +504,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const realisasiPointRadius = mData.realisasi.map((v, i) => {
         const rak = mData.rak[i] || 0;
         const pct = rak > 0 ? (v / rak) * 100 : 100;
-        if (pct < 20 && rak > 0 && (i < bulanBerjalan || !isTahunIni)) return 9; // Extreme anomaly
+        if (i + 1 === bulanBerjalanIdx) return 7; // Bulan berjalan
+        if (pct < 20 && rak > 0 && (i < bulanBerjalan - 1 || !isTahunIni)) return 9; // Extreme anomaly
         return alertM.includes(i + 1) ? 7 : 4;
     });
     const realisasiPointBorder = mData.realisasi.map((v, i) => {
         const bulan = i + 1;
         const rak = mData.rak[i] || 0;
         const pct = rak > 0 ? (v / rak) * 100 : 100;
-        if (pct < 20 && rak > 0 && (i < bulanBerjalan || !isTahunIni)) return '#fecaca';
+        if (bulan === bulanBerjalanIdx) return '#c7d2fe';
+        if (pct < 20 && rak > 0 && (i < bulanBerjalan - 1 || !isTahunIni)) return '#fecaca';
         if (alertTypes[bulan] === 'over') return '#bfdbfe';
         if (alertTypes[bulan] === 'under') return '#fecaca';
         return '#bbf7d0';
     });
-
-    // Format rupiah helper
-    function fmtRp(v) {
-        if (v >= 1e9) return 'Rp ' + (v/1e9).toFixed(1) + ' M';
-        if (v >= 1e6) return 'Rp ' + (v/1e6).toFixed(0) + ' jt';
-        if (v >= 1e3) return 'Rp ' + (v/1e3).toFixed(0) + ' rb';
-        return 'Rp ' + v;
-    }
 
     const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
 
@@ -515,10 +529,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const monthlyChartInstance = new Chart(monthlyCtx, {
         type: 'line',
         data: {
-            labels: mData.labels,
+            labels: [],
             datasets: [{
-                label: 'RAK (Target)',
-                data: rakAktual,
+                label: 'RAK aktual',
+                data: [],
                 borderColor: '#94a3b8',
                 borderWidth: 2,
                 borderDash: [6, 4],
@@ -532,8 +546,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 order: 2,
                 spanGaps: false,
             },{
-                label: 'RAK (Proyeksi)',
-                data: rakProyeksi,
+                label: 'RAK proyeksi',
+                data: [],
                 borderColor: 'rgba(148,163,184,0.35)',
                 borderWidth: 1.5,
                 borderDash: [3, 6],
@@ -548,7 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 spanGaps: false,
             },{
                 label: 'Realisasi',
-                data: mData.realisasi,
+                data: [],
                 borderColor: '#059669',
                 borderWidth: 2.5,
                 pointBackgroundColor: realisasiPointBg,
@@ -572,14 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             plugins: {
                 legend: {
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        padding: 20,
-                        font: { size: 12, weight: '600' },
-                        color: '#1e293b',
-                    }
+                    display: false
                 },
                 tooltip: {
                     backgroundColor: '#0f172a',
@@ -599,29 +606,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         afterBody: function(items) {
                             const idx = items[0].dataIndex;
-                            const bulan = idx + 1;
+                            const globalIdx = chartRange === 'all' ? idx : (chartRange === 'h1' ? idx : idx + 6);
+                            const bulan = globalIdx + 1;
                             // Jika bulan future (belum berjalan), jangan hitung deviasi
                             if (isTahunIni && bulan > bulanBerjalan) {
-                                return ['', '  📅 Belum Berjalan (Proyeksi RAK)'];
+                                return ['', '  Belum berjalan (proyeksi RAK)'];
                             }
-                            const rak = mData.rak[idx] || 0;
-                            const real = mData.realisasi[idx] || 0;
+                            const isKum = chartMode === 'cumulative';
+                            const rak = isKum ? rakKum[globalIdx] : (mData.rak[globalIdx] || 0);
+                            const real = isKum ? (realKum[globalIdx] || 0) : (mData.realisasi[globalIdx] || 0);
                             const selisih = real - rak;
                             const pct = rak > 0 ? ((real / rak) * 100).toFixed(2) : '0.00';
                             const sign = selisih >= 0 ? '+' : '';
-                            const lines = [
-                                '',
-                                '  RAK Target : Rp ' + Number(rak).toLocaleString('id-ID'),
+                            const lines = [''];
+                            if (isKum) lines.push('  Kumulatif s/d ' + items[0].label);
+                            lines.push(
+                                '  RAK target : Rp ' + Number(rak).toLocaleString('id-ID'),
                                 '  Realisasi  : Rp ' + Number(real).toLocaleString('id-ID'),
                                 '  Selisih    : ' + sign + 'Rp ' + Math.abs(selisih).toLocaleString('id-ID'),
                                 '  Capaian    : ' + pct + '%'
-                            ];
-                            if (rak > 0 && parseFloat(pct) < 20) {
-                                lines.push('  🚨 ⚠️ Realisasi jauh di bawah target RAK');
-                            } else if (alertTypes[bulan] === 'over') {
-                                lines.push('  ℹ️ Over RAK');
-                            } else if (alertTypes[bulan] === 'under') {
-                                lines.push('  ⚠️ Under RAK');
+                            );
+                            if (isTahunIni && bulan === bulanBerjalan) {
+                                lines.push('  Bulan berjalan — belum dinilai Under/Over RAK');
+                            } else if (!isKum) {
+                                if (rak > 0 && parseFloat(pct) < 20) {
+                                    lines.push('  Realisasi jauh di bawah target RAK');
+                                } else if (alertTypes[bulan] === 'over') {
+                                    lines.push('  Over RAK');
+                                } else if (alertTypes[bulan] === 'under') {
+                                    lines.push('  Under RAK');
+                                }
                             }
                             return lines;
                         }
@@ -662,52 +676,71 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Toggle buttons for semester zoom + log scale mode
-    // datasets: [0]=RAK Aktual, [1]=RAK Proyeksi, [2]=Realisasi
-    var isLogMode = false;
-    function applyMonthlyRange(range) {
-        let labels, rakA, rakP, real, ptBg, ptRadius, ptBorder;
-        if (range === 'h1') {
-            labels = mData.labels.slice(0, 6);
-            rakA = rakAktual.slice(0, 6);
-            rakP = rakProyeksi.slice(0, 6);
-            real = mData.realisasi.slice(0, 6);
-            ptBg = realisasiPointBg.slice(0, 6);
-            ptRadius = realisasiPointRadius.slice(0, 6);
-            ptBorder = realisasiPointBorder.slice(0, 6);
-        } else if (range === 'h2') {
-            labels = mData.labels.slice(6, 12);
-            rakA = rakAktual.slice(6, 12);
-            rakP = rakProyeksi.slice(6, 12);
-            real = mData.realisasi.slice(6, 12);
-            ptBg = realisasiPointBg.slice(6, 12);
-            ptRadius = realisasiPointRadius.slice(6, 12);
-            ptBorder = realisasiPointBorder.slice(6, 12);
-        } else {
-            labels = mData.labels;
-            rakA = rakAktual;
-            rakP = rakProyeksi;
-            real = mData.realisasi;
-            ptBg = realisasiPointBg;
-            ptRadius = realisasiPointRadius;
-            ptBorder = realisasiPointBorder;
+    // ---- Render grafik: gabungkan mode (kumulatif/per bulan) + rentang ----
+    function applyChart() {
+        var range = RANGE_SLICE[chartRange] || RANGE_SLICE.all;
+        var s = range[0], e = range[1];
+        var labels = mData.labels.slice(s, e);
+        var rakA = [], rakP = [], real = [], ptBg = [], ptRadius = [], ptBorder = [];
+        var isKum = chartMode === 'cumulative';
+
+        for (var i = s; i < e; i++) {
+            var sudahBerjalan = !isTahunIni || i < bulanBerjalan;
+            if (isKum) {
+                rakA.push(sudahBerjalan ? rakKum[i] : null);
+                rakP.push(isTahunIni && i >= bulanBerjalan - 1 ? rakKum[i] : null);
+                var isCur = isTahunIni && i === bulanBerjalan - 1;
+                real.push(realKumTampil[i]);
+                ptBg.push(isCur ? '#6366f1' : '#059669');
+                ptRadius.push(!sudahBerjalan ? 0 : (isCur ? 7 : 4));
+                ptBorder.push(isCur ? '#c7d2fe' : '#bbf7d0');
+            } else {
+                rakA.push(rakAktual[i]);
+                rakP.push(rakProyeksi[i]);
+                real.push(realBulanan[i]);
+                ptBg.push(realisasiPointBg[i]);
+                ptRadius.push(isTahunIni && i >= bulanBerjalan ? 0 : realisasiPointRadius[i]);
+                ptBorder.push(realisasiPointBorder[i]);
+            }
         }
+
+        var ds = monthlyChartInstance.data.datasets;
         monthlyChartInstance.data.labels = labels;
-        monthlyChartInstance.data.datasets[0].data = rakA;
-        monthlyChartInstance.data.datasets[1].data = rakP;
-        monthlyChartInstance.data.datasets[2].data = real;
-        monthlyChartInstance.data.datasets[2].pointBackgroundColor = ptBg;
-        monthlyChartInstance.data.datasets[2].pointRadius = ptRadius;
-        monthlyChartInstance.data.datasets[2].pointBorderColor = ptBorder;
-        // Re-calculate skala Y mengikuti nilai maksimum rentang yang dipilih
+        ds[0].label = isKum ? 'RAK kumulatif' : 'RAK bulanan';
+        ds[1].label = isKum ? 'Proyeksi RAK kumulatif' : 'Proyeksi RAK';
+        ds[2].label = isKum ? 'Realisasi kumulatif' : 'Realisasi bulanan';
+        ds[0].data = rakA;
+        ds[1].data = rakP;
+        ds[2].data = real;
+        ds[2].pointBackgroundColor = ptBg;
+        ds[2].pointRadius = ptRadius;
+        ds[2].pointBorderColor = ptBorder;
         monthlyChartInstance.options.scales.y.beginAtZero = !isLogMode;
         monthlyChartInstance.update();
     }
+
+    // Mode tampilan: Kumulatif (S-curve) vs Per Bulan
+    document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn[data-mode]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn[data-mode]').forEach(function(b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            this.classList.add('active');
+            this.setAttribute('aria-pressed', 'true');
+            chartMode = this.dataset.mode;
+            var modeLabel = document.getElementById('monthlyChartModeLabel');
+            if (modeLabel) modeLabel.textContent = chartMode === 'cumulative' ? 'kumulatif (S-curve)' : 'per bulan';
+            applyChart();
+        });
+    });
+
     document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn[data-range]').forEach(function(btn) {
         btn.addEventListener('click', function() {
             document.querySelectorAll('#monthlyChartToggle .monthly-toggle-btn[data-range]').forEach(function(b) { b.classList.remove('active'); });
             this.classList.add('active');
-            applyMonthlyRange(this.dataset.range);
+            chartRange = this.dataset.range;
+            applyChart();
         });
     });
 
@@ -726,9 +759,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 yScale.type = 'linear';
                 yScale.beginAtZero = true;
             }
-            monthlyChartInstance.update();
+            applyChart();
         });
     }
+
+    // Render awal — default kumulatif (S-curve)
+    applyChart();
 
     // ================================================================
     // Breakdown Doughnut
@@ -851,19 +887,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const SCROLL_THRESHOLD = 80;
     const links = nav.querySelectorAll('.sticky-sec-nav__link');
-    
-    // Mapping between section anchor IDs and tab button IDs
-    const tabTargetMap = {
-        'section-serapan-rekening': 'tab-serapan-rekening-btn',
-        'section-sisa-semester': 'tab-sisa-semester-btn',
-        'section-struktur': 'tab-struktur-btn',
-        'section-deviasi': 'tab-deviasi-btn'
-    };
 
-    const tabSectionMap = {
+    // Alias hash lama (#tab-*) -> id seksi, agar tautan lama tetap berfungsi
+    const legacyHashMap = {
         '#tab-serapan-rekening': 'section-serapan-rekening',
         '#tab-sisa-semester': 'section-sisa-semester',
         '#tab-struktur': 'section-struktur',
+        '#tab-tagar': 'section-tagar',
         '#tab-deviasi': 'section-deviasi'
     };
 
@@ -885,74 +915,44 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
 
-    // Helper: switch to tab and scroll to tab container
-    // Klik di sticky sub-navbar atas => smooth-scroll SEKALIGUS aktifkan tab Bootstrap yang sesuai
-    function activateTabAndScroll(targetId) {
-        var isTabbedSection = !!tabTargetMap[targetId];
-        if (isTabbedSection) {
-            var tabBtn = document.getElementById(tabTargetMap[targetId]);
-            if (tabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-                var tabInstance = bootstrap.Tab.getOrCreateInstance(tabBtn);
-                tabInstance.show();
-            }
-        }
-        // Untuk section di dalam tab, scroll ke container tab agar posisi selalu terlihat
-        // (elemen di dalam tab yang hidden punya rect 0 sehingga harus ke wrapper-nya)
-        var target = isTabbedSection
-            ? document.getElementById('section-detail-tabs')
-            : (document.getElementById(targetId) || document.getElementById('section-detail-tabs'));
-        if (target) {
-            // Offset = header aplikasi + sticky nav + jarak napas
-            var headerEl = document.querySelector('.header');
-            var headerHeight = headerEl ? headerEl.offsetHeight : 64;
-            var navHeight = nav.offsetHeight || 48;
-            var top = target.getBoundingClientRect().top + window.pageYOffset - headerHeight - navHeight - 12;
-            window.scrollTo({ top: top, behavior: 'smooth' });
+    // Offset = header aplikasi + sticky nav + jarak napas
+    function navOffset() {
+        var headerEl = document.querySelector('.header');
+        var headerHeight = headerEl ? headerEl.offsetHeight : 64;
+        var navHeight = nav.offsetHeight || 48;
+        return headerHeight + navHeight + 12;
+    }
+
+    function scrollToSection(targetId, updateHash) {
+        var target = document.getElementById(targetId);
+        if (!target) return;
+        var top = target.getBoundingClientRect().top + window.pageYOffset - navOffset();
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        if (updateHash !== false && history.replaceState) {
+            history.replaceState(null, '', '#' + targetId);
         }
     }
 
-    // Smooth scroll & tab trigger on sticky nav link click
+    // Smooth scroll pada link sticky nav
     links.forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            var targetId = this.getAttribute('href').substring(1);
-            activateTabAndScroll(targetId);
+            scrollToSection(this.getAttribute('href').substring(1), true);
         });
     });
 
-    // Handle any in-page link pointing to tabbed sections (e.g. from breakdown section)
-    document.querySelectorAll('a[href="#section-struktur"], a[href="#section-deviasi"], a[href="#section-serapan-rekening"], a[href="#section-sisa-semester"]').forEach(function(a) {
+    // Link lain di dalam halaman yang menunjuk ke seksi (mis. dari Breakdown)
+    document.querySelectorAll('a[href^="#section-"]').forEach(function(a) {
         if (a.classList.contains('sticky-sec-nav__link')) return;
         a.addEventListener('click', function(e) {
-            e.preventDefault();
             var targetId = this.getAttribute('href').substring(1);
-            activateTabAndScroll(targetId);
+            if (!document.getElementById(targetId)) return;
+            e.preventDefault();
+            scrollToSection(targetId, true);
         });
     });
 
-    // Sync sticky nav active state when user manually switches tab via tab pills
-    document.querySelectorAll('#budgetDetailTabs button[data-bs-toggle="tab"]').forEach(function(btn) {
-        btn.addEventListener('shown.bs.tab', function() {
-            var targetPaneId = this.getAttribute('data-bs-target');
-            var secId = tabSectionMap[targetPaneId];
-            if (secId) {
-                var tabSection = document.getElementById('section-detail-tabs');
-                if (tabSection) {
-                    var rect = tabSection.getBoundingClientRect();
-                    if (rect.top < window.innerHeight && rect.bottom > 0) {
-                        links.forEach(function(l) { l.classList.remove('active'); });
-                        var activeLink = nav.querySelector('a[href="#' + secId + '"]');
-                        if (activeLink) {
-                            activeLink.classList.add('active');
-                            activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-                        }
-                    }
-                }
-            }
-        });
-    });
-
-    // IntersectionObserver to highlight active link
+    // IntersectionObserver: sorot link aktif sesuai seksi yang terlihat
     var observerOptions = {
         root: null,
         rootMargin: '-80px 0px -60% 0px',
@@ -961,38 +961,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var observer = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
-            if (entry.isIntersecting) {
-                var id = entry.target.id;
-                if (id === 'section-detail-tabs') {
-                    var activeTabBtn = document.querySelector('#budgetDetailTabs .nav-link.active');
-                    if (activeTabBtn) {
-                        var targetPaneId = activeTabBtn.getAttribute('data-bs-target');
-                        var secId = tabSectionMap[targetPaneId];
-                        if (secId) {
-                            links.forEach(function(l) { l.classList.remove('active'); });
-                            var activeLink = nav.querySelector('a[href="#' + secId + '"]');
-                            if (activeLink) {
-                                activeLink.classList.add('active');
-                                activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-                            }
-                        }
-                    }
-                } else {
-                    links.forEach(function(l) { l.classList.remove('active'); });
-                    var activeLink = nav.querySelector('a[href="#' + id + '"]');
-                    if (activeLink) {
-                        activeLink.classList.add('active');
-                        activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-                    }
-                }
+            if (!entry.isIntersecting) return;
+            var id = entry.target.id;
+            links.forEach(function(l) { l.classList.remove('active'); });
+            var activeLink = nav.querySelector('a[href="#' + id + '"]');
+            if (activeLink) {
+                activeLink.classList.add('active');
+                activeLink.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
             }
         });
     }, observerOptions);
 
-    ['section-ringkasan', 'section-grafik', 'section-detail-bulan', 'section-detail-tabs', 'section-breakdown'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) observer.observe(el);
+    var observedIds = [];
+    links.forEach(function(l) {
+        var id = l.getAttribute('href').substring(1);
+        if (observedIds.indexOf(id) === -1 && document.getElementById(id)) {
+            observedIds.push(id);
+        }
     });
+    observedIds.forEach(function(id) {
+        observer.observe(document.getElementById(id));
+    });
+
+    // Dukungan tautan langsung (deep link): #section-* baru maupun #tab-* lama
+    function handleInitialHash() {
+        var h = window.location.hash;
+        if (!h) return;
+        var targetId = legacyHashMap[h] || (h.indexOf('#section-') === 0 ? h.substring(1) : null);
+        if (targetId && document.getElementById(targetId)) {
+            if (legacyHashMap[h] && history.replaceState) {
+                history.replaceState(null, '', '#' + targetId);
+            }
+            scrollToSection(targetId, false);
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', handleInitialHash);
+    } else {
+        handleInitialHash();
+    }
 })();
 
 // =========================================================================
@@ -1037,4 +1044,61 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleBtn.classList.toggle('active', expanded);
         });
     }
+});
+
+// =========================================================================
+// FASE 4 — Chip perhatian: scroll ke baris bulan + "Lihat semua"
+// =========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    function scrollOffset() {
+        var hdr = document.querySelector('.header');
+        var nav = document.getElementById('stickySecNav');
+        return (hdr ? hdr.offsetHeight : 64) + (nav ? nav.offsetHeight : 0) + 12;
+    }
+
+    document.querySelectorAll('a.alert-chip[href^="#bulan-"]').forEach(function(chip) {
+        chip.addEventListener('click', function(e) {
+            var target = document.getElementById(this.getAttribute('href').slice(1));
+            if (!target) return;
+            e.preventDefault();
+            window.scrollTo({
+                top: target.getBoundingClientRect().top + window.pageYOffset - scrollOffset(),
+                behavior: 'smooth'
+            });
+            target.classList.add('is-flash');
+            setTimeout(function() { target.classList.remove('is-flash'); }, 1900);
+        });
+    });
+
+    var moreBtn = document.getElementById('alertChipMore');
+    var extra = document.getElementById('alertChipExtra');
+    if (moreBtn && extra) {
+        var moreLabel = moreBtn.innerHTML;
+        moreBtn.addEventListener('click', function() {
+            var akanTampil = extra.hasAttribute('hidden');
+            if (akanTampil) {
+                extra.removeAttribute('hidden');
+                moreBtn.innerHTML = '<i class="bi bi-chevron-up me-1"></i>Tampilkan lebih sedikit';
+            } else {
+                extra.setAttribute('hidden', '');
+                moreBtn.innerHTML = moreLabel;
+            }
+            moreBtn.setAttribute('aria-expanded', akanTampil ? 'true' : 'false');
+        });
+    }
+});
+
+// FASE 4 — Sembunyikan baris pagu Rp 0 pada tabel Serapan Bulanan
+document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('btnHideZeroPagu');
+    var table = document.querySelector('.monthly-absorption-table');
+    if (!btn || !table) return;
+    var labelEl = btn.querySelector('span');
+    var originalLabel = labelEl ? labelEl.textContent : 'Pagu Nol';
+    btn.addEventListener('click', function() {
+        var hide = table.classList.toggle('hide-zero-pagu');
+        this.classList.toggle('active', hide);
+        this.setAttribute('aria-pressed', hide ? 'true' : 'false');
+        if (labelEl) labelEl.textContent = hide ? 'Tampilkan Pagu Nol' : originalLabel;
+    });
 });

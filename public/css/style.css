@@ -7,6 +7,8 @@
     /* Layout */
     --sidebar-width: 270px;
     --header-height: 64px;
+    /* Tinggi sticky sub-nav dashboard — dipakai untuk offset anchor/scroll */
+    --sticky-nav-height: 46px;
 
     /* Core Palette — primer tetap indigo konsisten utk tombol & checkbox */
     --primary: #4338ca;
@@ -1299,8 +1301,12 @@ body {
     }
 
     /* Header compact */
+    :root {
+        --header-height: 56px;
+    }
+
     .header {
-        height: 56px;
+        height: var(--header-height);
     }
 
     .header-content {
@@ -2263,89 +2269,9 @@ body {
     color: #94a3b8;
 }
 
-/* Sticky Grouped Navigation */
-.sticky-sec-nav {
-    position: sticky;
-    top: var(--topbar-height, 60px);
-    z-index: 90;
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--gray-200);
-    padding: 0.5rem 1.5rem;
-    margin: -1.75rem -1.5rem 1.5rem -1.5rem;
-    box-shadow: 0 4px 12px -2px rgba(0,0,0,0.04);
-    transition: all 0.25s ease;
-}
-
-.sticky-sec-nav__inner {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    max-width: 100%;
-    padding: 0.15rem 0;
-}
-.sticky-sec-nav__inner::-webkit-scrollbar {
-    display: none;
-}
-
-.sticky-sec-nav__group {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    background: var(--gray-50);
-    padding: 0.25rem 0.4rem;
-    border-radius: var(--radius-full, 9999px);
-    border: 1px solid var(--gray-200);
-}
-
-.sticky-sec-nav__group-tag {
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--gray-500);
-    padding: 0.2rem 0.55rem;
-    background: #fff;
-    border-radius: var(--radius-full, 9999px);
-    border: 1px solid var(--gray-200);
-    white-space: nowrap;
-    user-select: none;
-}
-
-.sticky-sec-nav__link {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--gray-600);
-    text-decoration: none;
-    padding: 0.35rem 0.75rem;
-    border-radius: var(--radius-full, 9999px);
-    white-space: nowrap;
-    transition: all 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-.sticky-sec-nav__link:hover {
-    color: var(--primary, #059669);
-    background: rgba(5, 150, 105, 0.08);
-}
-.sticky-sec-nav__link.active {
-    background: var(--primary, #059669);
-    color: #fff !important;
-    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
-}
-
-.sticky-sec-nav__divider {
-    width: 1px;
-    height: 20px;
-    background: var(--gray-300);
-    margin: 0 0.15rem;
-    flex-shrink: 0;
-}
+/* Sticky Grouped Navigation — gaya kanonik ada di dashboard.css.
+   Blok lama di sini dihapus: margin negatifnya membuat nav meleset
+   ke belakang header (artefak blur & label grup terpotong). */
 
 /* Export Section Button */
 .btn-export-section {

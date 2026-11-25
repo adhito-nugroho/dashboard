@@ -1,6 +1,6 @@
 
-            <!-- Tab 4: Deviasi RAK -->
-            <div class="tab-pane fade" id="tab-deviasi" role="tabpanel" aria-labelledby="tab-deviasi-btn">
+            <!-- Seksi: Deviasi RAK -->
+            <div class="tab-pane fade show active" id="tab-deviasi" role="region" aria-label="Deviasi RAK">
                 <!-- ===== Rincian Deviasi RAK — collapsible tree ===== -->
     <?php if (!empty($deviationDetails)): ?>
     <?php
@@ -34,7 +34,7 @@
                 <div class="section-header" style="padding-bottom:0.75rem;">
                     <div>
                         <h5 class="section-title"><i class="bi bi-exclamation-triangle-fill me-2" style="color:#d97706;"></i>Rincian Deviasi dari RAK</h5>
-                        <p class="section-subtitle">Sub kegiatan &amp; rekening yang realisasinya tidak sesuai rencana RAK</p>
+                        <p class="section-subtitle">Sub kegiatan &amp; rekening yang realisasinya tidak sesuai rencana RAK pada bulan yang sudah selesai</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#fffbeb;color:#b45309;border:1px solid #fde68a;">

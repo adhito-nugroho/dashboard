@@ -23,9 +23,9 @@
         </form>
         <button type="button" class="btn btn-sm fw-semibold btn-export-global"
            data-bs-toggle="modal" data-bs-target="#modalExportExcel"
-           data-bs-toggle="tooltip" data-bs-placement="bottom" title="Export laporan lengkap semua section ke Excel"
-           style="background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border-radius:var(--radius-full);padding:0.4rem 1.1rem;font-size:var(--fs-sm, 0.75rem);box-shadow:0 2px 8px rgba(22,163,74,.3);display:inline-flex;align-items:center;gap:0.4rem;border:none;cursor:pointer;">
-            <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
+           title="Export laporan lengkap semua section ke Excel"
+           style="background:#fff;color:#15803d;border:1.5px solid #86efac;border-radius:var(--radius-full);padding:0.4rem 1.1rem;font-size:var(--fs-sm, 0.75rem);box-shadow:var(--shadow-xs);display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;">
+            <i class="bi bi-file-earmark-excel"></i> Export Excel
         </button>
         </div>
     </div>

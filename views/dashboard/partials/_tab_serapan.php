@@ -1,5 +1,5 @@
-            <!-- Tab 1: Serapan Bulanan -->
-            <div class="tab-pane fade show active" id="tab-serapan-rekening" role="tabpanel" aria-labelledby="tab-serapan-rekening-btn">
+            <!-- Seksi: Serapan Bulanan -->
+            <div class="tab-pane fade show active" id="tab-serapan-rekening" role="region" aria-label="Serapan per Sub Kegiatan dan Rekening per Bulan">
                 <!-- Serapan per Sub Kegiatan per Rekening per Bulan -->
     <?php if (!empty($monthlyAbsorptionDetails['sub_kegiatan'])): ?>
     <?php
@@ -7,6 +7,14 @@
         $absorptionTotals = $monthlyAbsorptionDetails['totals'];
         $absorptionPct = $absorptionTotals['pagu'] > 0 ? ($absorptionTotals['realisasi'] / $absorptionTotals['pagu']) * 100 : 0;
         $absorptionSisa = $absorptionTotals['pagu'] - $absorptionTotals['realisasi'];
+        // Hitung baris dengan pagu Rp 0 (sub kegiatan + rekening) untuk tombol sembunyikan
+        $zeroPaguCount = 0;
+        foreach ($absorptionSubKegiatan as $skz) {
+            if ((float) ($skz['pagu'] ?? 0) <= 0) $zeroPaguCount++;
+            foreach (($skz['rekening'] ?? []) as $rekz) {
+                if ((float) ($rekz['pagu'] ?? 0) <= 0) $zeroPaguCount++;
+            }
+        }
         $formatCompactRupiah = function ($value, bool $dashZero = false): string {
             $value = (float) $value;
             $abs = abs($value);
@@ -33,8 +41,13 @@
                         <button type="button" id="btnAbsorptionToggleAll" class="btn btn-outline-secondary btn-sm" aria-pressed="false" title="Buka atau tutup seluruh rincian rekening sekaligus">
                             <i class="bi bi-arrows-expand me-1"></i><span>Expand All</span>
                         </button>
-                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;white-space:nowrap;">
-                            <i class="bi bi-wallet2 me-1"></i><?= (int) $absorptionTotals['rekening_count'] ?> Rekening
+                        <?php if ($zeroPaguCount > 0): ?>
+                        <button type="button" id="btnHideZeroPagu" class="btn btn-outline-secondary btn-sm" aria-pressed="false" title="Sembunyikan baris sub kegiatan/rekening dengan pagu Rp 0 agar tabel lebih ringkas">
+                            <i class="bi bi-eye-slash me-1"></i><span>Pagu Nol (<?= $zeroPaguCount ?>)</span>
+                        </button>
+                        <?php endif; ?>
+                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;white-space:nowrap;cursor:help;" data-bs-toggle="tooltip" title="Semua rekening yang memiliki pagu. Rekening tanpa RAK tetap tampil di sini tetapi tidak masuk hitungan Sisa per Semester.">
+                            <i class="bi bi-wallet2 me-1"></i><?= (int) $absorptionTotals['rekening_count'] ?> Rekening (pagu)
                         </span>
                     </div>
                 </div>
@@ -65,9 +78,9 @@
                                     <?php for ($m = 1; $m <= 12; $m++): ?>
                                         <th class="text-end monthly-absorption-month"><?= $bulanNames[$m] ?></th>
                                     <?php endfor; ?>
-                                    <th class="text-end text-nowrap monthly-absorption-total monthly-sticky-total">Total</th>
-                                    <th class="text-end text-nowrap monthly-absorption-sisa monthly-sticky-sisa">Sisa Anggaran</th>
-                                    <th class="text-end text-nowrap pe-4 monthly-absorption-percent monthly-sticky-percent">%</th>
+                                    <th class="text-end text-nowrap monthly-absorption-total monthly-sticky-total" title="Total realisasi setahun">Total</th>
+                                    <th class="text-end text-nowrap monthly-absorption-sisa monthly-sticky-sisa" title="Sisa = Pagu − Realisasi (bukan sisa RAK). Untuk sisa berbasis RAK per semester, lihat bagian 'Sisa per Semester'.">Sisa Anggaran</th>
+                                    <th class="text-end text-nowrap pe-4 monthly-absorption-percent monthly-sticky-percent" title="Capaian = Realisasi ÷ Pagu">%</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -76,8 +89,9 @@
                                         $skPct = $sk['pagu'] > 0 ? ($sk['realisasi'] / $sk['pagu']) * 100 : 0;
                                         $skSisa = $sk['pagu'] - $sk['realisasi'];
                                         $skRowKey = 'absorption-sk-' . (int) $skid;
+                                        $skZeroPagu = (float) ($sk['pagu'] ?? 0) <= 0;
                                     ?>
-                                    <tr class="monthly-absorption-group is-collapsed" data-absorption-toggle="<?= htmlspecialchars($skRowKey) ?>" role="button" tabindex="0" aria-expanded="false">
+                                    <tr class="monthly-absorption-group is-collapsed<?= $skZeroPagu ? ' is-zero-pagu' : '' ?>" data-absorption-toggle="<?= htmlspecialchars($skRowKey) ?>" role="button" tabindex="0" aria-expanded="false">
                                         <td class="ps-4 monthly-absorption-name monthly-sticky-name">
                                             <div class="monthly-absorption-title">
                                                 <button type="button" class="monthly-absorption-toggle-btn" aria-label="Buka rincian rekening" aria-expanded="false" data-absorption-toggle-button="<?= htmlspecialchars($skRowKey) ?>">
@@ -106,8 +120,9 @@
                                         <?php
                                             $rekPct = $rek['pagu'] > 0 ? ($rek['realisasi'] / $rek['pagu']) * 100 : 0;
                                             $rekSisa = $rek['pagu'] - $rek['realisasi'];
+                                            $rekZeroPagu = (float) ($rek['pagu'] ?? 0) <= 0;
                                         ?>
-                                        <tr class="monthly-absorption-detail" data-absorption-child="<?= htmlspecialchars($skRowKey) ?>" hidden>
+                                        <tr class="monthly-absorption-detail<?= $rekZeroPagu ? ' is-zero-pagu' : '' ?>" data-absorption-child="<?= htmlspecialchars($skRowKey) ?>" hidden>
                                             <td class="ps-4 monthly-absorption-name monthly-sticky-name">
                                                 <div style="font-weight:700;color:#334155;"><?= htmlspecialchars($rek['nama']) ?></div>
                                                 <div style="font-size:var(--fs-xs);color:#94a3b8;font-weight:600;">Kode rekening: <?= htmlspecialchars($rek['kode']) ?></div>

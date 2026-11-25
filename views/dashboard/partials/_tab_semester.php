@@ -1,6 +1,6 @@
 
-            <!-- Tab 2: Sisa per Semester -->
-            <div class="tab-pane fade" id="tab-sisa-semester" role="tabpanel" aria-labelledby="tab-sisa-semester-btn">
+            <!-- Seksi: Sisa per Semester -->
+            <div class="tab-pane fade show active" id="tab-sisa-semester" role="region" aria-label="Sisa Dana per Semester">
                 <!-- ===== Sisa Dana per Semester ===== -->
     <?php if (!empty($semesterRekap['sub_kegiatan'])): ?>
     <?php
@@ -8,6 +8,10 @@
         $semSK = $semesterRekap['sub_kegiatan'];
         $bulanBerjalanNow = (int) date('n');
         $tahunNow = (int) date('Y');
+        // Rekening ber-RAK (yang dihitung di sini) vs semua rekening ber-pagu (tab Serapan Bulanan).
+        $semTotalRekeningPagu = (int) ($monthlyAbsorptionDetails['totals']['rekening_count'] ?? $semT['total_rekening']);
+        // Total sisa = S1 + S2 murni. sisa_s2 sudah termasuk carry-over S1 sehingga tidak boleh dijumlah lagi.
+        $totalSisaTahun = (float) ($semT['sisa_total'] ?? ($semT['sisa_s1'] + ($semT['sisa_s2_raw'] ?? ($semT['sisa_s2'] - $semT['carry_over']))));
         // Active semester: jika tahun yg dilihat = tahun ini, tentukan semester berjalan
         $semesterAktif = 0;
         if ($tahunNow == $stats['tahun']) {
@@ -23,8 +27,8 @@
                         <p class="section-subtitle">Saldo yang masih bisa ditarik tiap rekening per semester (RAK semester &minus; Realisasi semester)</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;">
-                            <i class="bi bi-bank me-1"></i><?= $semT['total_rekening'] ?> Rekening
+                        <span style="font-size:var(--fs-xs);font-weight:700;padding:0.3rem 0.875rem;border-radius:var(--radius-full);background:#ecfeff;color:#0369a1;border:1px solid #bae6fd;cursor:help;" data-bs-toggle="tooltip" title="<?= $semTotalRekeningPagu > $semT['total_rekening'] ? 'Ada ' . $semTotalRekeningPagu . ' rekening ber-pagu; ' . ($semTotalRekeningPagu - $semT['total_rekening']) . ' di antaranya belum memiliki RAK sehingga tidak tampil di tab ini.' : 'Seluruh rekening ber-pagu memiliki RAK.' ?>">
+                            <i class="bi bi-bank me-1"></i><?= $semT['total_rekening'] ?> Rekening ber-RAK<?= $semTotalRekeningPagu > $semT['total_rekening'] ? ' <span style="opacity:.75;">(dari ' . $semTotalRekeningPagu . ')</span>' : '' ?>
                         </span>
                     </div>
                 </div>
@@ -101,7 +105,6 @@
 
                         <!-- Total Sisa Tahun -->
                         <div class="col-md-4 col-12">
-                            <?php $totalSisaTahun = $semT['sisa_s1'] + $semT['sisa_s2']; ?>
                             <div style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border:1px solid #1e293b;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;color:#fff;position:relative;overflow:hidden;">
                                 <div style="position:absolute;right:-15px;top:-15px;width:80px;height:80px;background:rgba(59,130,246,0.15);border-radius:50%;"></div>
                                 <div style="position:relative;z-index:1;">
@@ -113,11 +116,12 @@
                                         <span style="font-size:var(--fs-xs);font-weight:600;padding:0.15rem 0.5rem;border-radius:var(--radius-full);background:rgba(59,130,246,0.25);color:#bfdbfe;">RINGKASAN</span>
                                     </div>
                                     <div style="font-size:var(--fs-xl);font-weight:800;color:<?= $totalSisaTahun>=0?'#fff':'#fca5a5' ?>;letter-spacing:-0.02em;line-height:1.1;">Rp <?= number_format($totalSisaTahun, 0, ',', '.') ?></div>
-                                    <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#cbd5e1;">
-                                        Akumulasi sisa <strong style="color:#fff;">S1 + S2</strong> dari semua rekening
+                                    <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#cbd5e1;" title="Sisa S1 + Sisa S2 murni. Carry-over S1 sudah masuk ke kuota S2 sehingga tidak dihitung dua kali.">
+                                        Akumulasi sisa <strong style="color:#fff;">S1 + S2</strong> (tanpa carry-over ganda)
                                     </div>
                                     <div style="margin-top:0.4rem;font-size:var(--fs-xs);color:#94a3b8;border-top:1px solid rgba(255,255,255,0.1);padding-top:0.4rem;">
-                                        Total RAK Tahun: Rp <?= number_format($semT['rak_s1']+$semT['rak_s2'], 0, ',', '.') ?>
+                                        S1 Rp <?= number_format($semT['sisa_s1'], 0, ',', '.') ?> + S2 murni Rp <?= number_format($semT['sisa_s2_raw'] ?? ($semT['sisa_s2'] - $semT['carry_over']), 0, ',', '.') ?>
+                                        &bull; Total RAK Tahun: Rp <?= number_format($semT['rak_s1']+$semT['rak_s2'], 0, ',', '.') ?>
                                     </div>
                                 </div>
                             </div>
@@ -197,24 +201,33 @@
                         <thead>
                             <tr>
                                 <th>Sub Kegiatan / Rekening</th>
-                                <th class="sm-col-s1 sm-col-rak" title="RAK Semester 1">RAK</th>
-                                <th class="sm-col-s1 sm-col-real" title="Realisasi Semester 1">Realisasi</th>
-                                <th class="sm-col-s1 sm-col-sisa" title="Sisa Semester 1">Sisa</th>
-                                <th class="sm-col-s2 sm-col-rak" title="RAK Semester 2">RAK</th>
-                                <th class="sm-col-s2 sm-col-real" title="Realisasi Semester 2">Realisasi</th>
-                                <th class="sm-col-s2 sm-col-sisa" title="Sisa Semester 2 (termasuk sisa sem 1)">Sisa</th>
-                                <th class="sm-col-total" title="Total Sisa S1 + S2">Total</th>
+                                <th class="sm-col-s1 sm-col-rak" title="RAK Semester 1 (Rupiah)">RAK (Rp)</th>
+                                <th class="sm-col-s1 sm-col-real" title="Realisasi Semester 1 (Rupiah)">Realisasi (Rp)</th>
+                                <th class="sm-col-s1 sm-col-sisa" title="Sisa Semester 1 (Rupiah)">Sisa (Rp)</th>
+                                <th class="sm-col-s2 sm-col-rak" title="RAK Semester 2 (Rupiah)">RAK (Rp)</th>
+                                <th class="sm-col-s2 sm-col-real" title="Realisasi Semester 2 (Rupiah)">Realisasi (Rp)</th>
+                                <th class="sm-col-s2 sm-col-sisa" title="Sisa Semester 2 termasuk sisa semester 1 (Rupiah)">Sisa (Rp)</th>
+                                <th class="sm-col-total" title="Total = Sisa S1 + Sisa S2 murni (carry-over S1 tidak dihitung dua kali), dalam Rupiah">Total (Rp)</th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php foreach ($semSK as $skid => $sk): ?>
                             <?php
-                                $skSisaTotal = $sk['sisa_s1'] + $sk['sisa_s2'];
+                                // Total murni: sisa_s2 sudah termasuk carry-over S1, jadi jangan tambah sisa_s1 lagi.
+                                $skSisaS2Raw = $sk['rak_s2'] - $sk['real_s2'];
+                                $skSisaTotal = $sk['sisa_total'] ?? ($sk['sisa_s1'] + $skSisaS2Raw);
                                 $skHasS1 = $sk['sisa_s1'] > 0;
                                 $skHasS2 = $sk['sisa_s2'] > 0;
-                                $skHasNegS1 = $sk['sisa_s1'] < 0;
-                                $skHasNegS2 = $sk['sisa_s2'] < 0;
-                                $skHasNeg = $skHasNegS1 || $skHasNegS2;
+                                $skOverS1 = $sk['rak_s1'] > 0 && $sk['sisa_s1'] < 0;
+                                $skOverS2 = $sk['rak_s2'] > 0 && $skSisaS2Raw < 0;
+                                $skHasNegS1 = $skOverS1;
+                                $skHasNegS2 = $skOverS2;
+                                $skHasNeg = $skOverS1 || $skOverS2;
+                                $skOverLabel = $skOverS1 && $skOverS2 ? 'Over RAK S1 & S2' : ($skOverS1 ? 'Over RAK S1' : ($skOverS2 ? 'Over RAK S2' : 'Over RAK'));
+                                $skOverTitle = $skOverS2
+                                    ? 'Realisasi Semester 2 melebihi RAK S2 sebesar Rp ' . number_format(abs($skSisaS2Raw), 0, ',', '.')
+                                        . ($sk['carry_over'] > 0 ? '; sisa S2 tetap positif karena carry-over S1 Rp ' . number_format($sk['carry_over'], 0, ',', '.') : '')
+                                    : 'Realisasi melebihi RAK semester';
                             ?>
                             <tr class="sm-sk-row sm-collapsed"
                                 data-search="<?= htmlspecialchars(strtolower($sk['nama'].' '.$sk['kode'])) ?>"
@@ -229,7 +242,7 @@
                                         <i class="bi bi-chevron-down sm-toggle-icon"></i>
                                         <span class="sm-sk-name"><?= htmlspecialchars($sk['nama']) ?></span>
                                         <?php if ($skHasNeg): ?>
-                                            <span class="sm-status-pill sm-pill-neg"><i class="bi bi-exclamation-triangle-fill"></i> Over</span>
+                                            <span class="sm-status-pill sm-pill-neg" title="<?= htmlspecialchars($skOverTitle) ?>" style="cursor:help;"><i class="bi bi-exclamation-triangle-fill"></i> <?= $skOverLabel ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="sm-sk-meta"><?= htmlspecialchars($sk['kode']) ?> &bull; <?= count($sk['rekening']) ?> rekening</div>
@@ -242,7 +255,10 @@
                                 <td class="sm-col-s2 sm-col-rak sm-amount sm-amount-muted"><?= fmtRpKompak($sk['rak_s2']) ?></td>
                                 <td class="sm-col-s2 sm-col-real sm-amount"><?= fmtRpKompak($sk['real_s2']) ?></td>
                                 <td class="sm-col-s2 sm-col-sisa">
-                                    <span class="sm-sisa <?= $sk['sisa_s2']>0?'sm-sisa-pos':($sk['sisa_s2']<0?'sm-sisa-neg':'sm-sisa-zero') ?>"><?= fmtRpKompak($sk['sisa_s2']) ?></span>
+                                    <span class="sm-sisa <?= $sk['sisa_s2']>0?'sm-sisa-pos':($sk['sisa_s2']<0?'sm-sisa-neg':'sm-sisa-zero') ?>"<?= $skOverS2 ? ' title="' . htmlspecialchars($skOverTitle) . '"' : '' ?>><?= fmtRpKompak($sk['sisa_s2']) ?></span>
+                                    <?php if ($skOverS2 && $sk['sisa_s2'] > 0): ?>
+                                    <div style="font-size:var(--fs-xs);color:#dc2626;font-weight:600;margin-top:0.1rem;white-space:normal;line-height:1.2;">Over RAK S2 <?= fmtRpKompak(abs($skSisaS2Raw)) ?></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="sm-col-total">
                                     <span class="sm-sisa <?= $skSisaTotal>0?'sm-sisa-pos':($skSisaTotal<0?'sm-sisa-neg':'sm-sisa-zero') ?>"><?= fmtRpKompak($skSisaTotal) ?></span>
@@ -250,12 +266,14 @@
                             </tr>
                             <?php foreach ($sk['rekening'] as $rid => $rek): ?>
                                 <?php
+                                    $rekCarry     = $rek['carry_over'] ?? 0;
+                                    $rekSisaS2Raw = $rek['sisa_s2_raw'] ?? ($rek['sisa_s2'] - $rekCarry);
                                     $rekHasS1    = $rek['sisa_s1'] > 0;
                                     $rekHasS2    = $rek['sisa_s2'] > 0;
                                     $rekHasNegS1 = $rek['sisa_s1'] < 0;
-                                    $rekHasNegS2 = $rek['sisa_s2'] < 0;
+                                    $rekHasNegS2 = $rek['rak_s2'] > 0 && $rekSisaS2Raw < 0;
+                                    $rekOverS2   = $rekHasNegS2 && $rek['sisa_s2'] > 0;
                                     $rekHasNeg   = $rekHasNegS1 || $rekHasNegS2;
-                                    $rekCarry    = $rek['carry_over'] ?? 0;
                                 ?>
                                 <tr class="sm-rek-row"
                                     data-sk="<?= $skid ?>"
@@ -281,6 +299,9 @@
                                         <?php if ($rekCarry > 0): ?>
                                         <div style="font-size:var(--fs-xs);color:#059669;font-weight:600;margin-top:0.1rem;white-space:normal;line-height:1.2;">+<?= fmtRpKompak($rekCarry) ?> sem 1</div>
                                         <?php endif; ?>
+                                        <?php if ($rekOverS2): ?>
+                                        <div style="font-size:var(--fs-xs);color:#dc2626;font-weight:600;margin-top:0.1rem;white-space:normal;line-height:1.2;" title="Realisasi S2 melebihi RAK S2 sebesar Rp <?= number_format(abs($rekSisaS2Raw), 0, ',', '.') ?>; sisa tetap positif karena carry-over S1">Over RAK S2 <?= fmtRpKompak(abs($rekSisaS2Raw)) ?></div>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="sm-col-total">
                                         <span class="sm-sisa <?= $rek['sisa_total']>0?'sm-sisa-pos':($rek['sisa_total']<0?'sm-sisa-neg':'sm-sisa-zero') ?>"><?= fmtRpKompak($rek['sisa_total']) ?></span>
@@ -299,8 +320,9 @@
                         <span><strong style="color:#059669;">Hijau</strong> = ada sisa (bisa ditarik)</span>
                         <span><strong style="color:#94a3b8;">Abu</strong> = sudah pas (tidak ada sisa)</span>
                         <span><strong style="color:#dc2626;">Merah</strong> = realisasi melebihi RAK semester</span>
-                        <span><strong style="color:#059669;">+X sem 1</strong> = sisa S1 yang ditambahkan ke kuota S2</span>
-                        <span style="margin-left:auto;color:#94a3b8;font-size:var(--fs-xs);">Sisa S2 = RAK S2 + Sisa Sem 1 &minus; Realisasi S2</span>
+                        <span title="Realisasi S2 bisa melebihi RAK S2 namun sisa efektif tetap positif karena ada carry-over S1"><strong style="color:#059669;">+X sem 1</strong> = sisa S1 yang menambah kuota S2</span>
+                        <span title="Realisasi S2 melebihi RAK S2, tetapi sisa efektif masih positif karena carry-over S1"><strong style="color:#dc2626;">Over RAK S2</strong> = realisasi S2 &gt; RAK S2</span>
+                        <span style="margin-left:auto;color:#94a3b8;font-size:var(--fs-xs);">Sisa S2 = RAK S2 + Sisa Sem 1 &minus; Realisasi S2 &bull; Total = Sisa S1 + Sisa S2 murni</span>
                     </div>
                 </div>
             </div>

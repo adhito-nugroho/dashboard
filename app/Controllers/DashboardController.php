@@ -328,19 +328,14 @@ class DashboardController {
             }
         }
         
-        // Check for alerts: Realisasi > RAK (over) atau Realisasi < RAK (under)
+        // Check for alerts: Realisasi > RAK (over) atau Realisasi < RAK (under).
+        // Hanya bulan yang sudah SELESAI yang dinilai. Bulan berjalan belum final
+        // (realisasi bisa bertambah) sehingga tidak dicatat sebagai under/over.
+        $currentMonth = (int) date('n');
+        $currentYear  = (int) date('Y');
         for ($bulan = 1; $bulan <= 12; $bulan++) {
-            // Hanya cek bulan yang sudah lewat atau sekarang
-            $currentMonth = (int) date('n');
-            $currentYear  = (int) date('Y');
-            // Jika tahun sekarang, hanya cek s/d bulan saat ini
-            // Jika tahun lalu, cek semua 12 bulan
-            $isRelevantMonth = true;
-            if ($currentYear == $tahun && $bulan > $currentMonth) {
-                $isRelevantMonth = false;
-            }
-
-            if (!$isRelevantMonth) continue;
+            if ($tahun > $currentYear) continue;                       // tahun mendatang: belum ada penilaian
+            if ($currentYear == $tahun && $bulan >= $currentMonth) continue; // bulan berjalan & future
 
             if ($monthlyRak[$bulan] > 0) {
                 if ($monthlyRealisasi[$bulan] > $monthlyRak[$bulan]) {
@@ -731,8 +726,8 @@ class DashboardController {
             // Check deviation per month
             $rekeningDeviations = [];
             for ($b = 1; $b <= 12; $b++) {
-                // Only check months up to current month (for current year)
-                if ($currentYear == $tahun && $b > $currentMonth) continue;
+                // Hanya bulan yang sudah selesai (bulan berjalan belum final).
+                if ($currentYear == $tahun && $b >= $currentMonth) continue;
                 // Skip months with no RAK planned
                 if (($rakByMonth[$b] ?? 0) == 0) continue;
 

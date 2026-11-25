@@ -106,4 +106,4 @@ window.DashboardBoot = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNES
 </script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="<?= base_url('js/dashboard.js') ?>"></script>
+<script src="<?= base_url('js/dashboard.js') ?>?v=<?= file_exists(__DIR__ . '/../../../public/js/dashboard.js') ? filemtime(__DIR__ . '/../../../public/js/dashboard.js') : time() ?>"></script>

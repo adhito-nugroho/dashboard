@@ -1,6 +1,6 @@
 
-            <!-- Tab: Realisasi per Tagar -->
-            <div class="tab-pane fade" id="tab-tagar" role="tabpanel" aria-labelledby="tab-tagar-btn">
+            <!-- Seksi: Realisasi per Tagar -->
+            <div class="tab-pane fade show active" id="tab-tagar" role="region" aria-label="Realisasi per Tagar">
                 <?php if (empty($tagRecap)): ?>
                     <div class="row mb-4">
                         <div class="col-12">
@@ -148,8 +148,6 @@
                             });
                         }
 
-                        var tabBtn = document.getElementById('tab-tagar-btn');
-                        if (tabBtn) tabBtn.addEventListener('shown.bs.tab', initTagChart);
                         document.addEventListener('DOMContentLoaded', function () {
                             var pane = document.getElementById('tab-tagar');
                             if (pane && pane.classList.contains('active')) initTagChart();

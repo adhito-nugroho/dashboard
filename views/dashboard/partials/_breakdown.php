@@ -6,7 +6,7 @@
                 <div class="section-header" style="padding-bottom:0.75rem;">
                     <div>
                         <h5 class="section-title"><i class="bi bi-bar-chart-steps me-2" style="color:var(--primary);"></i>Ringkasan Serapan per <?= empty($filters['seksi_id'])?'Seksi':(empty($filters['program_id'])?'Program':(empty($filters['kegiatan_id'])?'Kegiatan':'Sub Kegiatan')) ?></h5>
-                        <p class="section-subtitle">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
+                        <p class="section-subtitle" title="Status per unit memakai capaian realisasi terhadap RAK kumulatif unit tsb, bukan terhadap pagu.">Ikhtisar pagu &amp; realisasi per unit — klik baris untuk detail di Struktur Anggaran</p>
                     </div>
                 </div>
                 <div class="card-body" style="padding:0 1.5rem 1.5rem;">
@@ -60,6 +60,9 @@
                                 $icon = 'bi-exclamation-octagon-fill';
                             }
                         }
+                        $statusTitle = $rakKum > 0
+                            ? 'Capaian realisasi vs RAK kumulatif unit: ' . number_format($capaianRakSeksi, 2) . '%'
+                            : 'Capaian realisasi vs pagu: ' . number_format($pct, 2) . '% (unit belum punya RAK)';
                     ?>
                     <div class="col-md-4">
                         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md,10px);padding:1rem 1.25rem;position:relative;overflow:hidden;">
@@ -67,7 +70,7 @@
                             <div style="position:absolute;bottom:0;left:0;height:3px;width:<?= min($pct,100) ?>%;background:<?= $clr ?>;border-radius:0 0 0 var(--radius-md,10px);"></div>
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;">
                                 <div style="font-size:var(--fs-sm);font-weight:700;color:#334155;line-height:1.3;flex:1;padding-right:0.5rem;"><?= htmlspecialchars($name) ?></div>
-                                <span style="font-size:var(--fs-xs);font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;">
+                                <span style="font-size:var(--fs-xs);font-weight:700;padding:0.2rem 0.55rem;border-radius:999px;background:<?= $bg ?>;border:1px solid <?= $bdr ?>;color:<?= $clr ?>;white-space:nowrap;flex-shrink:0;cursor:help;" title="<?= htmlspecialchars($statusTitle) ?>">
                                     <i class="bi <?= $icon ?> me-1"></i><?= $lbl ?>
                                 </span>
                             </div>

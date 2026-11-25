@@ -1,6 +1,6 @@
 
-            <!-- Tab 3: Struktur Anggaran -->
-            <div class="tab-pane fade" id="tab-struktur" role="tabpanel" aria-labelledby="tab-struktur-btn">
+            <!-- Seksi: Struktur Anggaran -->
+            <div class="tab-pane fade show active" id="tab-struktur" role="region" aria-label="Struktur Anggaran">
                 <!-- Hierarchical Budget Structure -->
     <?php if (!empty($hierarchicalData)): ?>
     <div class="row mb-4" id="section-struktur">

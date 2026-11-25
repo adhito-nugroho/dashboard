@@ -179,6 +179,8 @@ class SerapanReportService
         $totals = [
             'rak_s1' => 0, 'real_s1' => 0, 'sisa_s1' => 0,
             'rak_s2' => 0, 'real_s2' => 0, 'sisa_s2' => 0,
+            // sisa_s2 = sisa efektif (termasuk carry-over S1); raw & total tanpa carry-over.
+            'sisa_s2_raw' => 0, 'sisa_total' => 0,
             'carry_over' => 0,
             'total_rekening' => 0,
             'rekening_dengan_sisa_s1' => 0,
@@ -274,6 +276,8 @@ class SerapanReportService
             $totals['rak_s2'] += $rakS2;
             $totals['real_s2'] += $realS2;
             $totals['sisa_s2'] += $sisaS2Efektif;
+            $totals['sisa_s2_raw'] += $sisaS2;
+            $totals['sisa_total'] += $sisaS1 + $sisaS2;
             $totals['carry_over'] = ($totals['carry_over'] ?? 0) + $carryOver;
             $totals['total_rekening']++;
             if ($sisaS1 > 0) {

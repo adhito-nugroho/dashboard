@@ -16,19 +16,20 @@
         </div>
         <div class="col-xl-3 col-md-6 animate-fade-in-up delay-2">
             <?php $pctColor = $stats['percentage'] > 100 ? 'danger' : ($stats['percentage'] > 80 ? 'warning' : 'success'); ?>
-            <div class="card kpi-card kpi-border-success h-100" data-bs-toggle="tooltip" title="Capaian realisasi terhadap total pagu">
+            <div class="card kpi-card kpi-border-success h-100" data-bs-toggle="tooltip" title="Realisasi ÷ total pagu tahunan (bukan dibanding RAK). Beda dengan KPI 'Serapan vs RAK' yang memakai RAK kumulatif sebagai penyebut.">
                 <div class="card-body" style="padding:1.25rem;">
                     <div class="d-flex align-items-start gap-3">
                         <div class="kpi-icon" style="background:#ecfdf5;color:var(--success);"><i class="bi bi-receipt-cutoff"></i></div>
                         <div style="flex:1;min-width:0;">
                             <div class="kpi-label">Realisasi <small style="font-size:0.7em;font-weight:600;color:var(--gray-400);">s/d <?= strtoupper($bulanNames[$bulanBerjalan]) ?></small></div>
-                            <div class="kpi-value" style="color:var(--<?= $pctColor ?>);font-size:1.9rem;"><?= number_format($stats['percentage'], 2) ?>%</div>
+                            <div class="kpi-value" style="color:var(--<?= $pctColor ?>);font-size:1.9rem;" title="Realisasi Rp <?= number_format($stats['total_realisasi'], 0, ',', '.') ?> ÷ Pagu Rp <?= number_format($stats['total_pagu'], 0, ',', '.') ?>"><?= number_format($stats['percentage'], 2) ?>%</div>
                             <div class="fw-bold text-dark mt-1" style="font-size:0.95rem;letter-spacing:-0.01em;">Rp <?= number_format($stats['total_realisasi'], 0, ',', '.') ?></div>
                             <div class="mt-2">
                                 <div class="progress" style="height:6px;border-radius:3px;background:var(--gray-100);">
                                     <div class="progress-bar bg-<?= $pctColor ?>" style="width:<?= min($stats['percentage'],100) ?>%;border-radius:3px;"></div>
                                 </div>
                             </div>
+                            <div class="kpi-sublabel mt-1" style="color:var(--gray-400);">% dari pagu tahunan</div>
                         </div>
                     </div>
                 </div>
@@ -63,7 +64,7 @@
                                         ? 'Rp ' . number_format($targetRakBulanBerjalan / 1e6, 2, ',', '.') . ' Jt'
                                         : 'Rp ' . number_format($targetRakBulanBerjalan, 0, ',', '.'));
                             ?>
-                            <div class="kpi-value" style="font-size:1.05rem;color:var(--gray-700);"><?= number_format($capaianRakBulanBerjalan, 2) ?>% <span style="font-size:0.72rem;font-weight:600;color:var(--gray-400);" title="Target RAK kumulatif s/d <?= $bulanNames[$bulanBerjalan] ?>: Rp <?= number_format($targetRakBulanBerjalan, 0, ',', '.') ?>">dari target <?= $fmtTargetRakKpi ?></span></div>
+                            <div class="kpi-value" style="font-size:1.05rem;color:var(--gray-700);" title="Realisasi kumulatif Rp <?= number_format($serapanBulanBerjalan, 0, ',', '.') ?> ÷ RAK kumulatif s/d <?= $bulanNames[$bulanBerjalan] ?> Rp <?= number_format($targetRakBulanBerjalan, 0, ',', '.') ?>"><?= number_format($capaianRakBulanBerjalan, 2) ?>% <span style="font-size:0.72rem;font-weight:600;color:var(--gray-400);" title="Target RAK kumulatif s/d <?= $bulanNames[$bulanBerjalan] ?>: Rp <?= number_format($targetRakBulanBerjalan, 0, ',', '.') ?>">dari target <?= $fmtTargetRakKpi ?></span></div>
                             <div class="mt-2">
                                 <div class="d-flex align-items-center gap-2">
                                     <div class="progress flex-grow-1" style="height:5px;border-radius:3px;background:var(--gray-100);">
@@ -95,20 +96,27 @@
         // Hitung proyeksi: rata-rata realisasi per bulan (bulan yang sudah ada data) × 12
         $bulanDenganData = 0;
         $totalRealisasiProyeksi = 0;
+        $bulanTerakhirData = 0;
         for ($pb = 1; $pb <= 12; $pb++) {
             $mReal = $monthlyData['realisasi'][$pb] ?? 0;
             if ($mReal > 0) {
                 $bulanDenganData++;
                 $totalRealisasiProyeksi += $mReal;
+                $bulanTerakhirData = $pb;
             }
         }
         $rataRataPerBulan = $bulanDenganData > 0 ? $totalRealisasiProyeksi / $bulanDenganData : 0;
         $proyeksiAkhirTahun = $rataRataPerBulan * 12;
         $proyeksiPct = $stats['total_pagu'] > 0 ? ($proyeksiAkhirTahun / $stats['total_pagu']) * 100 : 0;
-        $proyeksiStatus = $proyeksiPct >= 90 ? 'On Track' : ($proyeksiPct >= 60 ? 'Perlu Perhatian' : 'Tidak Mencapai Target');
+        $proyeksiStatus = $bulanDenganData < 3
+            ? 'Indikatif'
+            : ($proyeksiPct >= 90 ? 'On Track' : ($proyeksiPct >= 60 ? 'Perlu Perhatian' : 'Berisiko Tidak Mencapai Target'));
         $proyeksiColor = $proyeksiPct >= 90 ? 'var(--status-success, #059669)' : ($proyeksiPct >= 60 ? 'var(--status-warning, #d97706)' : 'var(--status-danger, #dc2626)');
         $proyeksiBg = $proyeksiPct >= 90 ? 'var(--status-success-bg, #ecfdf5)' : ($proyeksiPct >= 60 ? 'var(--status-warning-bg, #fffbeb)' : 'var(--status-danger-bg, #fef2f2)');
         $proyeksiBorder = $proyeksiPct >= 90 ? 'var(--status-success-border, #bbf7d0)' : ($proyeksiPct >= 60 ? 'var(--status-warning-border, #fde68a)' : 'var(--status-danger-border, #fecaca)');
+        $proyeksiTooltip = 'Metode: rata-rata realisasi ' . $bulanDenganData . ' bulan yang memiliki realisasi (Rp '
+            . number_format($totalRealisasiProyeksi, 0, ',', '.') . ' ÷ ' . $bulanDenganData . ' bulan) × 12. '
+            . 'Angka ini proyeksi indikatif, bukan target resmi; makin sedikit bulan berdata, makin rendah akurasinya.';
     ?>
     <?php if ($bulanDenganData > 0): ?>
     <div class="row mb-4 g-3">
@@ -116,11 +124,11 @@
             <div class="card rounded-4" style="background:<?= $proyeksiBg ?>;border:1px solid <?= $proyeksiBorder ?>;">
                 <div class="card-body" style="padding:1rem 1.5rem;">
                     <div class="d-flex flex-wrap align-items-center gap-3">
-                        <div style="width:42px;height:42px;border-radius:var(--radius-md);background:<?= $proyeksiColor ?>;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--fs-lg);">
+                        <div style="width:42px;height:42px;border-radius:var(--radius-md);background:<?= $proyeksiBg ?>;color:<?= $proyeksiColor ?>;border:1px solid <?= $proyeksiBorder ?>;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--fs-lg);">
                             <i class="bi bi-graph-up-arrow"></i>
                         </div>
                         <div style="flex:1;min-width:200px;">
-                            <div style="font-size:var(--fs-sm);font-weight:700;color:<?= $proyeksiColor ?>;text-transform:uppercase;letter-spacing:0.04em;">Proyeksi Akhir Tahun</div>
+                            <div style="font-size:var(--fs-sm);font-weight:700;color:<?= $proyeksiColor ?>;text-transform:uppercase;letter-spacing:0.04em;">Proyeksi Akhir Tahun <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#64748b;">(indikatif)</span></div>
                             <div style="font-size:var(--fs-lg);font-weight:800;color:#0f172a;margin-top:0.15rem;">Rp <?= number_format($proyeksiAkhirTahun, 0, ',', '.') ?></div>
                         </div>
                         <div class="d-flex flex-wrap gap-3 align-items-center">
@@ -128,13 +136,13 @@
                                 <div style="font-size:var(--fs-lg);font-weight:800;color:<?= $proyeksiColor ?>;"><?= number_format($proyeksiPct, 2) ?>%</div>
                                 <div style="font-size:var(--fs-xs);color:#64748b;">dari Pagu</div>
                             </div>
-                            <span style="font-size:var(--fs-sm);font-weight:700;padding:0.3rem 0.75rem;border-radius:999px;background:<?= $proyeksiColor ?>;color:#fff;">
-                                <?= $proyeksiStatus ?>
+                            <span style="font-size:var(--fs-sm);font-weight:700;padding:0.3rem 0.75rem;border-radius:999px;background:<?= $proyeksiBg ?>;color:<?= $proyeksiColor ?>;border:1px solid <?= $proyeksiBorder ?>;cursor:help;" title="<?= htmlspecialchars($proyeksiTooltip) ?>">
+                                <?= $proyeksiStatus ?> <i class="bi bi-info-circle ms-1"></i>
                             </span>
                         </div>
                     </div>
-                    <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#64748b;font-style:italic;">
-                        <i class="bi bi-info-circle me-1"></i>Proyeksi berdasarkan rata-rata <?= $bulanDenganData ?> bulan yang sudah ada data realisasi (<?= $bulanNames[1] ?>&ndash;<?= $bulanNames[$bulanDenganData] ?> <?= $stats['tahun'] ?>)
+                    <div style="margin-top:0.5rem;font-size:var(--fs-xs);color:#64748b;">
+                        <i class="bi bi-info-circle me-1"></i>Proyeksi indikatif = rata-rata <?= $bulanDenganData ?> bulan berdata<?= $bulanTerakhirData > 0 ? ' (Jan&ndash;' . $bulanNames[$bulanTerakhirData] . ' ' . $stats['tahun'] . ')' : '' ?> &times; 12<?= $bulanDenganData < 3 ? ' &mdash; data masih terlalu sedikit untuk disimpulkan' : '' ?>. Bukan target resmi.
                     </div>
                 </div>
             </div>

@@ -12,10 +12,11 @@
         ));
     }
 
-    // Cek apakah ada over-RAK signifikan (selisih > 20% dari RAK bulan tsb) dalam 2 bulan terakhir
+    // Cek apakah ada over-RAK signifikan (selisih > 20% dari RAK bulan tsb) pada 2 bulan yang sudah selesai
     $hasSignificantOverLast2Months = false;
-    $startCheckMonth = max(1, $bulanBerjalan - 1);
-    for ($m = $startCheckMonth; $m <= $bulanBerjalan; $m++) {
+    $bulanPenilaian = ($stats['tahun'] == (int) date('Y')) ? max(0, $bulanBerjalan - 1) : $bulanBerjalan;
+    $startCheckMonth = max(1, $bulanPenilaian - 1);
+    for ($m = $startCheckMonth; $m <= $bulanPenilaian; $m++) {
         $mRak = (float)($monthlyData['rak'][$m] ?? 0);
         $mReal = (float)($monthlyData['realisasi'][$m] ?? 0);
         if ($mRak > 0 && (($mReal - $mRak) / $mRak) > 0.20) {
@@ -85,7 +86,7 @@
         <div class="insight-icon" style="background:<?= $iIconBg ?>;color:#fff;border:1.5px solid rgba(255,255,255,0.3);"><i class="bi bi-<?= $iIcon ?>"></i></div>
         <div style="flex:1;">
             <strong>Insight:</strong> <?= $iText ?>
-            <span class="d-none d-md-inline ms-2" style="opacity:0.9;">&mdash; Serapan saat ini <strong style="font-size:var(--fs-md);"><?= number_format($stats['percentage'], 2) ?>%</strong></span>
+            <span class="d-none d-md-inline ms-2" style="opacity:0.9;">&mdash; Serapan terhadap pagu <strong style="font-size:var(--fs-md);"><?= number_format($stats['percentage'], 2) ?>%</strong></span>
         </div>
         <button type="button" class="btn-close btn-close-white" style="font-size:var(--fs-xs);opacity:0.8;" onclick="this.closest('.insight-banner').remove()"></button>
     </div>

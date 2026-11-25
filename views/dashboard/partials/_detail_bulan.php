@@ -25,6 +25,7 @@
                                     $selisih = $mRealisasi - $mRak;
                                     $pct = $mRak > 0 ? ($mRealisasi / $mRak) * 100 : 0;
                                     $isFutureMonth = ($stats['tahun'] == (int) date('Y') && $i > $bulanBerjalanDetail);
+                                    $isCurrentMonth = ($stats['tahun'] == (int) date('Y') && $i == $bulanBerjalanDetail);
                                     
                                     // Tambahkan RAK ke kumulatif untuk semua bulan (termasuk future)
                                     $totalRakKumulatif += $mRak;
@@ -35,7 +36,7 @@
                                 ?>
                                 <?php if ($isFutureMonth): ?>
                                 <!-- Baris bulan future: tampilkan netral (abu-abu), bukan merah -->
-                                <tr style="opacity:0.9;">
+                                <tr id="bulan-<?= (int) $i ?>" style="opacity:0.9;">
                                     <td class="ps-4" style="font-weight:600;color:#64748b;">
                                         <?= $bulanNames[(int)$i] ?>
                                         <span style="font-size:var(--fs-xs);font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;margin-left:0.4rem;vertical-align:middle;">Belum Berjalan</span>
@@ -48,8 +49,12 @@
                                     </td>
                                 </tr>
                                 <?php else: ?>
-                                <tr>
-                                    <td class="ps-4" style="font-weight:600;color:var(--gray-700);"><?= $bulanNames[(int)$i] ?></td>
+                                <tr id="bulan-<?= (int) $i ?>"<?= $isCurrentMonth ? ' style="background:rgba(239,246,255,.45);"' : '' ?>>
+                                    <td class="ps-4" style="font-weight:600;color:var(--gray-700);"><?= $bulanNames[(int)$i] ?>
+                                        <?php if ($isCurrentMonth): ?>
+                                        <span title="Bulan berjalan — belum dinilai Under/Over RAK karena realisasi masih dapat bertambah" style="font-size:var(--fs-xs);font-weight:700;padding:0.15rem 0.45rem;border-radius:var(--radius-full);background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;margin-left:0.4rem;vertical-align:middle;cursor:help;">Berjalan</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="text-end" style="color:var(--gray-500);">Rp <?= number_format($mRak,0,',','.') ?></td>
                                     <td class="text-end" style="font-weight:700;color:var(--gray-800);">Rp <?= number_format($mRealisasi,0,',','.') ?></td>
                                     <td class="text-end" style="font-weight:600;">
@@ -63,14 +68,18 @@
                                     </td>
                                     <td class="text-end pe-4">
                                         <?php
-                                            if ($pct > 110) { $badgeCls = 'badge-capaian-info'; $badgeIcon = 'bi-arrow-up-circle-fill'; }
+                                            if ($isCurrentMonth) { $badgeCls = 'badge-capaian-neutral'; $badgeIcon = 'bi-clock-history'; }
+                                            elseif ($pct > 110) { $badgeCls = 'badge-capaian-info'; $badgeIcon = 'bi-arrow-up-circle-fill'; }
                                             elseif ($pct >= 90) { $badgeCls = 'badge-capaian-success'; $badgeIcon = 'bi-check-circle-fill'; }
                                             elseif ($pct >= 50) { $badgeCls = 'badge-capaian-warning'; $badgeIcon = 'bi-exclamation-circle-fill'; }
                                             else { $badgeCls = 'badge-capaian-danger'; $badgeIcon = 'bi-arrow-down-circle-fill'; }
                                         ?>
-                                        <span class="badge-capaian <?= $badgeCls ?>">
-                                            <i class="bi <?= $badgeIcon ?>"></i> <?= number_format($pct,2) ?>%
+                                        <span class="badge-capaian <?= $badgeCls ?>"<?= $isCurrentMonth ? ' title="Bulan berjalan — belum dinilai Under/Over RAK. Capaian sementara ' . number_format($pct, 2) . '%"' : '' ?>>
+                                            <i class="bi <?= $badgeIcon ?>"></i> <?= $isCurrentMonth ? 'Berjalan' : number_format($pct,2) . '%' ?>
                                         </span>
+                                        <?php if ($isCurrentMonth): ?>
+                                        <small style="display:block;color:#64748b;font-size:var(--fs-xs);margin-top:2px;"><?= number_format($pct,2) ?>% sementara</small>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endif; ?>
@@ -87,7 +96,7 @@
                                     $selisihKum = $realKumBerjalan - $rakKumBerjalan;
                                 ?>
                                 <tr style="border-top:2px solid #cbd5e1;">
-                                    <td class="ps-4">Kumulatif s/d <?= $bulanNames[$bulanBerjalanDetail] ?></td>
+                                    <td class="ps-4" title="<?= $stats['tahun'] == (int) date('Y') ? 'Termasuk bulan berjalan yang realisasinya belum final' : 'Kumulatif seluruh bulan yang dinilai' ?>">Kumulatif s/d <?= $bulanNames[$bulanBerjalanDetail] ?><?= $stats['tahun'] == (int) date('Y') ? ' <small style="font-weight:500;color:#94a3b8;">(termasuk bulan berjalan)</small>' : '' ?></td>
                                     <td class="text-end">Rp <?= number_format($rakKumBerjalan,0,',','.') ?></td>
                                     <td class="text-end">Rp <?= number_format($realKumBerjalan,0,',','.') ?></td>
                                     <td class="text-end" style="font-weight:700;">
