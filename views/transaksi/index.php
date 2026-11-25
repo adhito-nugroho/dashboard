@@ -459,13 +459,13 @@ $isFiltered = !empty($activeFilterLabels);
                 <?php endif; ?>
             </div>
             <?php
-                $advancedCount = ($filterSubKegiatan !== null ? 1 : 0) + ($filterDari !== null ? 1 : 0) + ($filterSampai !== null ? 1 : 0) + ($filterInputDari !== null ? 1 : 0) + ($filterInputSampai !== null ? 1 : 0);
+                $advancedCount = ($filterDari !== null ? 1 : 0) + ($filterSampai !== null ? 1 : 0) + ($filterInputDari !== null ? 1 : 0) + ($filterInputSampai !== null ? 1 : 0);
                 $advancedOpen = $advancedCount > 0;
             ?>
             <button type="button" class="btn btn-sm btn-outline-secondary ux-filter-toggle"
                     data-bs-toggle="collapse" data-bs-target="#filterLanjutan"
                     aria-expanded="<?= $advancedOpen ? 'true' : 'false' ?>" aria-controls="filterLanjutan"
-                    title="Tampilkan/sembunyikan filter tanggal & sub kegiatan">
+                    title="Tampilkan/sembunyikan filter tanggal">
                 <i class="bi bi-chevron-down me-1"></i>Filter Lanjutan
                 <?php if ($advancedCount > 0): ?>
                     <span class="ux-filter-count ms-1"><?= $advancedCount ?></span>
@@ -503,16 +503,16 @@ $isFiltered = !empty($activeFilterLabels);
                         </select>
                     </div>
 
-                    <!-- Kegiatan -->
+                    <!-- Sub Kegiatan -->
                     <div class="col-12 col-sm-6 col-lg">
-                        <label for="filter-kegiatan" class="form-label trx-filter-label">
-                            <i class="bi bi-layers text-muted"></i> Kegiatan
+                        <label for="filter-sub-kegiatan" class="form-label trx-filter-label">
+                            <i class="bi bi-diagram-3 text-muted"></i> Sub Kegiatan
                         </label>
-                        <select name="kegiatan_id" id="filter-kegiatan" class="form-select form-select-sm">
-                            <option value="">-- Semua Kegiatan --</option>
-                            <?php foreach ($filterKegiatanList as $kg): ?>
-                                <option value="<?= $kg['id'] ?>" <?= $filterKegiatan == $kg['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($kg['kode_kegiatan'] . ' - ' . $kg['nama_kegiatan']) ?>
+                        <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select form-select-sm">
+                            <option value="">-- Semua Sub Kegiatan --</option>
+                            <?php foreach ($filterSubKegiatanList as $sk): ?>
+                                <option value="<?= $sk['id'] ?>" <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -544,28 +544,11 @@ $isFiltered = !empty($activeFilterLabels);
                     </div>
                 </div>
 
-                <!-- Filter Lanjutan (collapsible): Sub Kegiatan + Periode Tanggal -->
+                <!-- Filter Lanjutan (collapsible): Periode Tanggal -->
                 <div class="collapse <?= $advancedOpen ? 'show' : '' ?>" id="filterLanjutan">
                     <div class="row g-2 g-lg-3 align-items-end pt-2">
-                        <!-- Sub Kegiatan -->
-                        <div class="col-12 col-sm-6 col-lg-4">
-                            <label for="filter-sub-kegiatan" class="form-label trx-filter-label">
-                                <i class="bi bi-diagram-3 text-muted"></i> Sub Kegiatan
-                            </label>
-                            <select name="sub_kegiatan_id" id="filter-sub-kegiatan" class="form-select form-select-sm">
-                                <option value="">-- Semua Sub Kegiatan --</option>
-                                <?php foreach ($filterSubKegiatanList as $sk): ?>
-                                    <option value="<?= $sk['id'] ?>"
-                                            data-kegiatan-id="<?= $sk['kegiatan_id'] ?>"
-                                            <?= $filterSubKegiatan == $sk['id'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($sk['kode_sub_kegiatan'] . ' - ' . $sk['nama_sub_kegiatan']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
                         <!-- Tanggal Dari -->
-                        <div class="col-12 col-sm-6 col-lg-4">
+                        <div class="col-12 col-sm-6">
                             <label for="filter-dari" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
                                 <i class="bi bi-calendar-event text-muted"></i> Tanggal Dari
                             </label>
@@ -574,7 +557,7 @@ $isFiltered = !empty($activeFilterLabels);
                         </div>
 
                         <!-- Tanggal Sampai -->
-                        <div class="col-12 col-sm-6 col-lg-4">
+                        <div class="col-12 col-sm-6">
                             <label for="filter-sampai" class="form-label trx-filter-label" title="Tanggal efektif realisasi (lunas dibayar / verifikasi / bukti)">
                                 <i class="bi bi-calendar-event text-muted"></i> Tanggal Sampai
                             </label>
@@ -652,25 +635,8 @@ $isFiltered = !empty($activeFilterLabels);
         </div>
     </div>
 
-    <!-- Cascade Script for Kegiatan -> Sub Kegiatan -->
     <script>
     (function() {
-        const kegiatanSel   = document.getElementById('filter-kegiatan');
-        const subKegSel     = document.getElementById('filter-sub-kegiatan');
-        if (kegiatanSel && subKegSel) {
-            const allSubOptions = Array.from(subKegSel.querySelectorAll('option[data-kegiatan-id]'));
-            function cascade() {
-                const selectedKeg = kegiatanSel.value;
-                allSubOptions.forEach(opt => {
-                    const match = !selectedKeg || opt.dataset.kegiatanId === selectedKeg;
-                    opt.style.display = match ? '' : 'none';
-                    if (!match && opt.selected) { opt.selected = false; subKegSel.value = ''; }
-                });
-            }
-            kegiatanSel.addEventListener('change', cascade);
-            cascade();
-        }
-
         // Periode tanggal: bila diisi, Bulan/Tahun dinonaktifkan (diabaikan backend)
         const bulanSel  = document.getElementById('filter-bulan');
         const tahunSel  = document.getElementById('filter-tahun');
@@ -1567,8 +1533,6 @@ document.addEventListener('DOMContentLoaded', function () {
             params.set('bulan', selBulan);
             params.set('tahun', selTahun);
         }
-        const keg = document.getElementById('filter-kegiatan').value;
-        if (keg) params.set('kegiatan_id', keg);
         const subKeg = document.getElementById('filter-sub-kegiatan').value;
         if (subKeg) params.set('sub_kegiatan_id', subKeg);
         const seksiEl = document.getElementById('filter-seksi');
