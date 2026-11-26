@@ -204,6 +204,36 @@ class TransferPerjadinController
         $diabaikan = $this->filterInvalidTransferKe($rows, $stByTrx, $participants);
         $propagated = $this->propagateWithinSt($rows, $stByTrx, $potBedaIds);
 
+        // Pengaman pembayaran dobel: belanja yang sudah masuk SPJ GU sudah
+        // dibayar lebih dulu, jadi tidak boleh ikut ditransfer lagi.
+        $dilewatiGu = [];
+        foreach ($this->model->getGuTransaksiMap(array_keys($rows)) as $trxId => $info) {
+            if (!isset($rows[$trxId]) || trim((string) $rows[$trxId]['transfer_ke']) === '') {
+                continue;
+            }
+            unset($rows[$trxId]);
+            $dilewatiGu[] = ($info['nama'] !== '' ? $info['nama'] : 'Trx #' . $trxId)
+                . ' — ' . $info['nomor'] . ' (' . $info['status'] . ')';
+        }
+
+        if ($dilewatiGu !== []) {
+            $masihAda = false;
+            foreach ($rows as $cfg) {
+                if (trim((string) $cfg['transfer_ke']) !== '' || (float) $cfg['potongan'] > 0) {
+                    $masihAda = true;
+                    break;
+                }
+            }
+            if (!$masihAda) {
+                $this->redirectWithMessage(
+                    base_url('transfer-perjadin'),
+                    'error',
+                    'Tidak ada yang disimpan. Semua baris yang dipilih sudah masuk SPJ GU dan kemungkinan sudah dibayar: '
+                    . implode('; ', $dilewatiGu) . '.'
+                );
+            }
+        }
+
         try {
             try {
                 $batchId = $this->model->createBatch($namaBatch, $userId);
@@ -225,9 +255,13 @@ class TransferPerjadinController
             if ($diabaikan > 0) {
                 $message .= ' ' . $diabaikan . ' nama Transfer Ke diabaikan karena bukan pegawai pada Surat Tugas transaksi tersebut.';
             }
+            if ($dilewatiGu !== []) {
+                $message .= ' ' . count($dilewatiGu) . ' baris DILEWATI karena sudah masuk SPJ GU (kemungkinan sudah dibayar): '
+                    . implode('; ', $dilewatiGu) . '. Periksa mutasi rekening sebelum mentransfer ulang.';
+            }
             $this->redirectWithMessage(
                 base_url('transfer-perjadin'),
-                $diabaikan > 0 ? 'info' : 'success',
+                ($diabaikan > 0 || $dilewatiGu !== []) ? 'info' : 'success',
                 $message
             );
         } catch (\Throwable $e) {

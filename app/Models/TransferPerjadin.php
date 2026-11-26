@@ -296,6 +296,41 @@ class TransferPerjadin
     }
 
     /**
+     * Baris (dari daftar id yang diberikan) yang sudah masuk SPJ GU.
+     *
+     * Belanja yang sudah ada di pengajuan GU berarti dananya sudah dibayar
+     * lebih dulu, sehingga tidak boleh ikut ditransfer lagi (risiko dobel).
+     *
+     * @param int[] $ids
+     * @return array<int, array{nama:string, nomor:string, status:string}>
+     */
+    public function getGuTransaksiMap(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn(int $i): bool => $i > 0)));
+        if ($ids === []) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare("
+            SELECT t.id, t.nama_penerima, p.nomor_pengajuan, p.status
+            FROM transaksi t
+            JOIN pengajuan_gu p ON p.id = t.pengajuan_gu_id
+            WHERE t.id IN ($ph)
+        ");
+        $stmt->execute($ids);
+
+        $map = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+            $map[(int) $r['id']] = [
+                'nama' => trim((string) $r['nama_penerima']),
+                'nomor' => (string) $r['nomor_pengajuan'],
+                'status' => (string) $r['status'],
+            ];
+        }
+        return $map;
+    }
+
+    /**
      * Cari id Surat Tugas dari nomor suratnya (cocok persis).
      *
      * @param string[] $nomors

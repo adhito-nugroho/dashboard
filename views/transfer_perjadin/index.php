@@ -89,6 +89,8 @@ sort($daftarSeksiCepat, SORT_NATURAL | SORT_FLAG_CASE);
                 <strong>grup Transfer Ke</strong>. Bila ada pegawai dengan potongan berbeda, ubah nilainya di baris itu — baris tersebut ditandai <strong>beda</strong> dan tidak mengubah baris lain.
                 Beri <strong>Nama Konfigurasi</strong>, lalu simpan. Transaksi yang sudah masuk konfigurasi tidak ditampilkan lagi dan bisa diunduh per nama konfigurasi di bawah.
                 Hanya transaksi berstatus <strong>diverifikasi</strong> yang diinput mulai <strong>Oktober 2026</strong> yang tampil; yang diinput sebelumnya dianggap sudah punya file konfigurasi.
+                Baris yang <strong>sudah masuk SPJ GU</strong> ditandai <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:.7rem;">Cek: sudah SPJ GU</span>
+                dan <strong>tidak ikut disimpan</strong> ke konfigurasi — mencegah pembayaran dobel.
             </p>
         </div>
     </div>
@@ -245,12 +247,12 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                             <td class="ps-4 align-top text-muted small text-nowrap" style="width:52px;"><?= $no ?><?php if ($isConfigured): ?> <i class="bi bi-check-circle-fill text-success" title="Sudah dikonfigurasi"></i><?php endif; ?></td>
                                             <td class="align-top text-dark cell-nama">
                                                 <?= htmlspecialchars((string) ($t['nama_penerima'] ?? '-')) ?>
-                                                <?php if (($t['gu_status'] ?? '') === 'cair'): ?>
+                                                <?php if (($t['gu_status'] ?? '') !== ''): ?>
                                                     <div class="mt-1">
                                                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold text-wrap text-start"
                                                               style="font-size:.66rem;"
-                                                              title="Belanja ini sudah masuk <?= htmlspecialchars((string) ($t['gu_nomor'] ?? 'GU')) ?> yang sudah cair. Periksa dulu apakah perjadinnya sudah pernah ditransfer — bila sudah, jangan ditransfer ulang.">
-                                                            <i class="bi bi-exclamation-triangle me-1"></i>Cek: sudah SPJ GU cair
+                                                              title="Belanja ini sudah masuk <?= htmlspecialchars((string) ($t['gu_nomor'] ?? 'GU')) ?> (<?= htmlspecialchars((string) $t['gu_status']) ?>) — kemungkinan sudah dibayar. Baris ini tidak akan disimpan ke konfigurasi transfer.">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>Cek: sudah SPJ GU<?= ($t['gu_status'] ?? '') === 'cair' ? ' cair' : '' ?>
                                                         </span>
                                                     </div>
                                                 <?php endif; ?>
