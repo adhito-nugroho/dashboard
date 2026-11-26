@@ -2750,7 +2750,8 @@ select:disabled { cursor: not-allowed; }
     text-overflow: ellipsis;
 }
 .tu-page .tu-kpi-value--money {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
 }
 .tu-page .tu-kpi-label {
     display: block;
@@ -2775,9 +2776,340 @@ select:disabled { cursor: not-allowed; }
     font-variant-numeric: tabular-nums;
 }
 
+/* ── Ringkasan total sesuai filter ─────────────────────────────────────── */
+.tu-page .tu-summary .card-body {
+    padding: 1rem 1.25rem;
+}
+.tu-page .tu-summary-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+.tu-page .tu-summary-title {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+.tu-page .tu-summary-count {
+    font-size: var(--fs-sm);
+    color: #6b7280;
+    font-variant-numeric: tabular-nums;
+}
+.tu-page .tu-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.9rem 1.25rem;
+}
+.tu-page .tu-summary-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--fs-sm);
+    color: #6b7280;
+    margin-bottom: 0.2rem;
+}
+.tu-page .tu-summary-label i { font-size: 0.8rem; color: var(--gray-400); }
+.tu-page .tu-summary-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--gray-900);
+    font-variant-numeric: tabular-nums;
+}
+.tu-page .tu-summary-item--used .tu-summary-value { color: #b45309; }
+.tu-page .tu-summary-item--used .tu-summary-label i { color: #b45309; }
+.tu-page .tu-summary-item--left .tu-summary-value { color: #15803d; }
+.tu-page .tu-summary-item--left .tu-summary-label i { color: #15803d; }
+
+/* ── Tabel daftar pengajuan ────────────────────────────────────────────── */
+.tu-page .tu-table-wrap {
+    max-height: 70vh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.tu-page .tu-table {
+    width: 100%;
+    min-width: 930px;
+    table-layout: fixed;
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+.tu-page .tu-table col.tu-col-sub      { width: 32.5%; }
+.tu-page .tu-table col.tu-col-period   { width: 12.5%; }
+.tu-page .tu-table col.tu-col-needed   { width: 12%; }
+.tu-page .tu-table col.tu-col-cair     { width: 12%; }
+.tu-page .tu-table col.tu-col-used     { width: 13.5%; }
+.tu-page .tu-table col.tu-col-status   { width: 11%; }
+.tu-page .tu-table col.tu-col-action   { width: 6.5%; }
+
+.tu-page .tu-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f8fafc;
+    padding: 0.7rem 1rem;
+    border-top: 0;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #6b7280;
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: break-word;
+    box-shadow: inset 0 -1px 0 #e5e7eb;
+}
+.tu-page .tu-table thead th.tu-num { text-align: right; }
+
+.tu-page .tu-table tbody td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #e5e7eb;
+    border-top: 0;
+    color: var(--gray-900);
+}
+.tu-page .tu-table tbody tr:last-child td { border-bottom: 0; }
+.tu-page .tu-table tbody tr[data-href] {
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+.tu-page .tu-table tbody tr[data-href]:hover { background: #f8fafc; }
+.tu-page .tu-table tbody tr[data-href]:focus-within { background: #f8fafc; }
+
+/* Sub kegiatan: nama 2 baris + meta di bawahnya */
+.tu-page .tu-sub-link { display: block; text-decoration: none; }
+.tu-page .tu-sub-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--gray-900);
+    overflow-wrap: anywhere;
+}
+.tu-page .tu-sub-link:hover .tu-sub-name,
+.tu-page .tu-sub-link:focus-visible .tu-sub-name {
+    color: #166534;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.tu-page .tu-sub-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+.tu-page .tu-kode {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border: 1px solid #e5e7eb;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+}
+.tu-page .tu-meta-dot { color: var(--gray-300); }
+.tu-page .tu-date i { font-size: 0.7rem; }
+.tu-page .tu-table td.tu-period { white-space: nowrap; }
+
+/* Angka */
+.tu-page .tu-table td.tu-num { text-align: right; white-space: nowrap; }
+.tu-page .tu-amount {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--gray-900);
+    line-height: 1.3;
+}
+.tu-page .tu-sub-note {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    color: #6b7280;
+}
+.tu-page .tu-sisa {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.tu-page .tu-sisa--none { color: #15803d; }
+.tu-page .tu-sisa--left { color: #b45309; }
+.tu-page .tu-sisa--muted { color: #6b7280; font-weight: 500; }
+
+.tu-page .tu-progress {
+    height: 4px;
+    width: 100%;
+    max-width: 120px;
+    margin: 0.4rem 0 0 auto;
+    border-radius: var(--radius-full);
+    background: var(--gray-200);
+    overflow: hidden;
+}
+.tu-page .tu-cell-stack { display: block; min-width: 0; }
+.tu-page .tu-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: var(--forest-500);
+}
+
+/* Badge status */
+.tu-page .tu-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.tu-page .tu-badge--wait     { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.tu-page .tu-badge--approved { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.tu-page .tu-badge--cair     { background: #ecfdf5; color: #15803d; border-color: #bbf7d0; }
+.tu-page .tu-badge--done     { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.tu-page .tu-badge--rejected { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+/* Aksi */
+.tu-page .tu-table td.tu-cell-action {
+    text-align: right;
+    padding-left: 0.5rem;
+    padding-right: 0.75rem;
+}
+.tu-page .tu-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--gray-600);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+.tu-page .tu-action-btn:hover,
+.tu-page .tu-action-btn:focus-visible {
+    border-color: var(--forest-500);
+    background: var(--forest-100);
+    color: #166534;
+    outline: none;
+}
+.tu-page .tu-action-btn:focus-visible {
+    box-shadow: 0 0 0 3px var(--forest-glow);
+}
+
+/* Empty state */
+.tu-page .tu-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--gray-100);
+    color: var(--gray-400);
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+.tu-page .tu-empty-title {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.25rem;
+}
+.tu-page .tu-empty-sub {
+    font-size: 0.82rem;
+    color: #6b7280;
+    max-width: 360px;
+    margin: 0 auto 0.9rem;
+}
+
+/* Loading skeleton */
+.tu-page .tu-sk-line {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%);
+    background-size: 400% 100%;
+    animation: tu-sk 1.2s ease infinite;
+}
+.tu-page .tu-skeleton-row td { border-bottom: 1px solid #e5e7eb; }
+@keyframes tu-sk {
+    0%   { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+
 @media (max-width: 991.98px) {
     .tu-page .tu-kpi-value--money { font-size: 0.88rem; }
+    .tu-page .tu-summary-grid { gap: 0.75rem 1rem; }
 }
+
+/* Mobile: tabel berubah menjadi daftar kartu */
+@media (max-width: 767.98px) {
+    .tu-page .tu-table-wrap { max-height: none; overflow: visible; }
+    .tu-page .tu-table { display: block; min-width: 0; }
+    .tu-page .tu-table colgroup,
+    .tu-page .tu-table thead { display: none; }
+    .tu-page .tu-table tbody { display: block; }
+    .tu-page .tu-table tbody tr {
+        display: block;
+        margin-bottom: 0.75rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius-md);
+        background: #fff;
+    }
+    .tu-page .tu-table tbody tr:hover { background: #fff; }
+    .tu-page .tu-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.3rem 0;
+        border-bottom: 0;
+        text-align: right;
+        white-space: normal;
+    }
+    .tu-page .tu-table tbody td::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: left;
+    }
+    .tu-page .tu-table tbody td.tu-cell-sub {
+        display: block;
+        padding-bottom: 0.6rem;
+        margin-bottom: 0.3rem;
+        border-bottom: 1px dashed #e5e7eb;
+        text-align: left;
+    }
+    .tu-page .tu-table tbody td.tu-cell-sub::before { display: none; }
+    .tu-page .tu-table tbody td.tu-cell-action { justify-content: flex-end; padding-top: 0.5rem; }
+    .tu-page .tu-table tbody td.tu-cell-action::before { display: none; }
+    .tu-page .tu-table td.tu-num { text-align: right; }
+    .tu-page .tu-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tu-page .tu-summary-value { font-size: 0.98rem; }
+}
+
 @media (max-width: 575.98px) {
     .tu-page .tu-kpi .card-body { gap: 0.5rem; padding: 0.65rem 0.7rem; }
     .tu-page .tu-kpi-value { font-size: 1rem; }
