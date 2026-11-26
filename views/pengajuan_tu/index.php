@@ -203,7 +203,16 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
-                    <table id="tuTable" class="table table-hover align-middle mb-0" style="font-size:.875rem;">
+                    <table id="tuTable" class="table table-hover align-middle mb-0" style="font-size:.875rem;table-layout:fixed;width:100%;">
+                        <colgroup>
+                            <col>
+                            <col style="width:110px;">
+                            <col style="width:150px;">
+                            <col style="width:135px;">
+                            <col style="width:165px;">
+                            <col style="width:110px;">
+                            <col style="width:120px;">
+                        </colgroup>
                         <thead class="table-light">
                             <tr>
                                 <th>Sub Kegiatan</th>
@@ -223,7 +232,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 $sisa = $nominal_cair - $nominal_terpakai;
                             ?>
                                 <tr data-nomor="<?= htmlspecialchars(strtolower((string) $item['nomor_pengajuan'])) ?>">
-                                    <td>
+                                    <td style="overflow-wrap:anywhere;">
                                         <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="text-decoration-none tu-nomor">
                                             <?php if (!empty($item['kode_sub_kegiatan'])): ?>
                                                 <span class="badge bg-info"><?= htmlspecialchars($item['kode_sub_kegiatan']) ?></span>
