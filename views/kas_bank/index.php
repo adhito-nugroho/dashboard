@@ -310,7 +310,7 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                         <h5 class="card-title fw-bold mb-0 text-dark">
                             <i class="bi bi-receipt text-danger me-2"></i>Belanja Terverifikasi Bulan Ini
                         </h5>
-                        <small class="text-muted">Transaksi belanja yang telah memotong saldo kas & siap di-SPJ-kan</small>
+                        <small class="text-muted">Belanja UP (di luar dana TU) yang telah memotong saldo kas & siap di-SPJ-kan</small>
                     </div>
                     <a href="<?= base_url('transaksi?status=diverifikasi&tahun=' . $tahun) ?>" class="btn btn-sm btn-outline-primary" style="font-size:0.75rem;">
                         Lihat Semua

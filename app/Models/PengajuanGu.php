@@ -38,6 +38,8 @@ class PengajuanGu
      * pengajuan mana pun + tanggal efektif >= SPJ_GU_MULAI. Basis tanggal =
      * tanggal bayar (konsisten kas/BKU). Filter rentang opsional untuk siklus
      * 2x sebulan (mis. 1–15 / 16–akhir); batas bawah tetap SPJ_GU_MULAI.
+     * Belanja dari dana TU tidak ikut — TU ditutup lewat SPJ TU/setoran sisa,
+     * bukan diajukan sebagai GU.
      *
      * @return array<int, array<string,mixed>>
      */
@@ -48,6 +50,7 @@ class PengajuanGu
                 "t.status = 'diverifikasi'",
                 "t.sumber_dana = 'UP'",
                 't.pengajuan_gu_id IS NULL',
+                't.pengajuan_tu_id IS NULL',
             ];
             $params = [];
 
@@ -90,6 +93,7 @@ class PengajuanGu
             $stmt = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0) FROM transaksi
                 WHERE status = 'diverifikasi' AND sumber_dana = 'UP' AND pengajuan_gu_id IS NULL
+                  AND pengajuan_tu_id IS NULL
                   AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) >= :mulai
             ");
             $stmt->execute([':mulai' => self::SPJ_GU_MULAI]);
@@ -186,11 +190,12 @@ class PengajuanGu
                   AND status = 'diverifikasi'
                   AND sumber_dana = 'UP'
                   AND pengajuan_gu_id IS NULL
+                  AND pengajuan_tu_id IS NULL
             ");
             $stmt->execute($validIds);
             $agg = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$agg || (int) $agg['c'] === 0) {
-                throw new \RuntimeException('Tidak ada transaksi valid (harus terverifikasi, dana UP, dan belum di-SPJ-kan).');
+                throw new \RuntimeException('Tidak ada transaksi valid (harus terverifikasi, dana UP non-TU, dan belum di-SPJ-kan).');
             }
             $total = (float) $agg['total'];
 
@@ -200,6 +205,7 @@ class PengajuanGu
                   AND status = 'diverifikasi'
                   AND sumber_dana = 'UP'
                   AND pengajuan_gu_id IS NULL
+                  AND pengajuan_tu_id IS NULL
                 ORDER BY COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) ASC, id ASC
             ");
             $stmtIds->execute($validIds);

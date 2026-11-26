@@ -343,13 +343,16 @@ class KasBank
 
             // 2. Belanja UP diverifikasi periode berjalan yang BELUM di-SPJ-kan
             //    (siap diajukan GU berikutnya; yang sudah tercakup pengajuan
-            //    tidak dihitung lagi agar tidak klaim ganda).
+            //    tidak dihitung lagi agar tidak klaim ganda). Belanja yang
+            //    dibayar dari dana TU dikecualikan — TU diselesaikan lewat
+            //    SPJ TU/setoran sisa, bukan diajukan sebagai GU.
             $stmtTrx = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0)
                 FROM transaksi
                 WHERE status = 'diverifikasi'
                   AND sumber_dana = 'UP'
                   AND pengajuan_gu_id IS NULL
+                  AND pengajuan_tu_id IS NULL
                   AND MONTH(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :bulan
                   AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
             ");

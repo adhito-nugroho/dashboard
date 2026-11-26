@@ -54,6 +54,7 @@ class KasBankController
         // Ambil daftar transaksi belanja diverifikasi yang BELUM di-SPJ-kan
         // di bulan ini untuk rincian mutasi kas keluar.
         // Basis bulan & tanggal tampil = TANGGAL BAYAR (sama seperti BKU), bukan tanggal pengajuan.
+        // Belanja yang dibayar dari dana TU dikecualikan: TU tidak diajukan sebagai GU.
         $db = \Database::getConnection();
         $stmtTrx = $db->prepare("
             SELECT t.id, t.tanggal, t.tanggal_lunas_dibayar,
@@ -64,6 +65,7 @@ class KasBankController
             WHERE t.status = 'diverifikasi'
               AND t.sumber_dana = 'UP'
               AND t.pengajuan_gu_id IS NULL
+              AND t.pengajuan_tu_id IS NULL
               AND MONTH(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :bulan
               AND YEAR(COALESCE(t.tanggal_lunas_dibayar, DATE(t.diverifikasi_at), t.tanggal)) = :tahun
             ORDER BY tanggal_efektif ASC, t.id ASC
