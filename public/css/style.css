@@ -2838,9 +2838,8 @@ select:disabled { cursor: not-allowed; }
     margin-bottom: 0;
     font-size: 0.875rem;
 }
-.tu-page .tu-table col.tu-col-sub      { width: 25%; }
+.tu-page .tu-table col.tu-col-sub      { width: 37%; }
 .tu-page .tu-table col.tu-col-period   { width: 9.5%; }
-.tu-page .tu-table col.tu-col-needed   { width: 12%; }
 .tu-page .tu-table col.tu-col-cair     { width: 12%; }
 .tu-page .tu-table col.tu-col-used     { width: 12%; }
 .tu-page .tu-table col.tu-col-sisa     { width: 12%; }
@@ -2922,7 +2921,8 @@ select:disabled { cursor: not-allowed; }
     line-height: 1.5;
 }
 .tu-page .tu-meta-dot { color: var(--gray-300); }
-.tu-page .tu-date i { font-size: 0.7rem; }
+.tu-page .tu-date i,
+.tu-page .tu-meta-rek i { font-size: 0.7rem; }
 .tu-page .tu-table td.tu-period { white-space: nowrap; }
 
 /* Angka */
@@ -2934,12 +2934,6 @@ select:disabled { cursor: not-allowed; }
     font-variant-numeric: tabular-nums;
     color: var(--gray-900);
     line-height: 1.3;
-}
-.tu-page .tu-sub-note {
-    display: block;
-    margin-top: 0.15rem;
-    font-size: 0.72rem;
-    color: #6b7280;
 }
 .tu-page .tu-sisa {
     display: block;

@@ -220,7 +220,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                         <colgroup>
                             <col class="tu-col-sub">
                             <col class="tu-col-period">
-                            <col class="tu-col-needed">
                             <col class="tu-col-cair">
                             <col class="tu-col-used">
                             <col class="tu-col-sisa">
@@ -231,7 +230,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                             <tr>
                                 <th scope="col">Sub Kegiatan</th>
                                 <th scope="col">Periode</th>
-                                <th scope="col" class="tu-num">Kebutuhan (Rp)</th>
                                 <th scope="col" class="tu-num">Cair (Rp)</th>
                                 <th scope="col" class="tu-num">Terpakai (Rp)</th>
                                 <th scope="col" class="tu-num">Sisa (Rp)</th>
@@ -262,19 +260,15 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                                 <span class="tu-meta-dot" aria-hidden="true">•</span>
                                             <?php endif; ?>
                                             <span class="tu-date"><i class="bi bi-calendar3 me-1" aria-hidden="true"></i><?= date('d/m/Y', strtotime($item['tanggal_pengajuan'])) ?></span>
+                                            <?php if (!empty($item['jumlah_rekening'])): ?>
+                                                <span class="tu-meta-dot" aria-hidden="true">•</span>
+                                                <span class="tu-meta-rek"><i class="bi bi-journal-text me-1" aria-hidden="true"></i><?= (int) $item['jumlah_rekening'] ?> rekening</span>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                     <td class="tu-period" data-label="Periode"
                                         title="<?= htmlspecialchars(($namaBulanMap[$item['bulan']] ?? $item['bulan']) . ' ' . $item['tahun']) ?>">
                                         <?= ($namaBulanShort[$item['bulan']] ?? $item['bulan']) . ' ' . $item['tahun'] ?>
-                                    </td>
-                                    <td class="tu-num" data-label="Kebutuhan (Rp)">
-                                        <div class="tu-cell-stack">
-                                            <span class="tu-amount"><?= number_format((float) $item['kebutuhan'], 0, ',', '.') ?></span>
-                                            <?php if (!empty($item['jumlah_rekening'])): ?>
-                                                <span class="tu-sub-note"><?= (int) $item['jumlah_rekening'] ?> rekening</span>
-                                            <?php endif; ?>
-                                        </div>
                                     </td>
                                     <td class="tu-num" data-label="Cair (Rp)">
                                         <div class="tu-cell-stack">
@@ -320,7 +314,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 </tr>
                             <?php endforeach; ?>
                             <tr id="tuSearchEmpty" style="display:none;">
-                                <td colspan="8" class="text-center text-muted py-4">
+                                <td colspan="7" class="text-center text-muted py-4">
                                     <i class="bi bi-search me-1"></i>Tidak ada nomor TU yang cocok.
                                 </td>
                             </tr>
@@ -413,7 +407,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         var html = '';
         for (var i = 0; i < 5; i++) {
             html += '<tr class="tu-skeleton-row" aria-hidden="true">';
-            for (var j = 0; j < 8; j++) {
+            for (var j = 0; j < 7; j++) {
                 html += '<td><div class="tu-sk-line"' + (j === 0 ? ' style="width:78%"' : '') + '></div></td>';
             }
             html += '</tr>';
