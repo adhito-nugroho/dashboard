@@ -359,6 +359,25 @@ class KasBank
             $stmtTrx->execute([':bulan' => $bulan, ':tahun' => $tahun]);
             $totalPengeluaranDiverifikasi = (float) $stmtTrx->fetchColumn();
 
+            // 2b. Rincian seluruh belanja UP periode ini untuk rekonsiliasi kas:
+            //     total kas keluar = siap GU + sudah di-SPJ GU + belanja dana TU.
+            $stmtKeluar = $this->db->prepare("
+                SELECT
+                    COALESCE(SUM(CASE WHEN pengajuan_gu_id IS NOT NULL THEN nilai ELSE 0 END), 0) AS sudah_spj_gu,
+                    COALESCE(SUM(CASE WHEN pengajuan_gu_id IS NULL AND pengajuan_tu_id IS NOT NULL THEN nilai ELSE 0 END), 0) AS dana_tu,
+                    COALESCE(SUM(nilai), 0) AS total_kas
+                FROM transaksi
+                WHERE status = 'diverifikasi'
+                  AND sumber_dana = 'UP'
+                  AND MONTH(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :bulan
+                  AND YEAR(COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal)) = :tahun
+            ");
+            $stmtKeluar->execute([':bulan' => $bulan, ':tahun' => $tahun]);
+            $keluarRows = $stmtKeluar->fetch(PDO::FETCH_ASSOC) ?: [];
+            $pengeluaranSudahSpj = (float) ($keluarRows['sudah_spj_gu'] ?? 0);
+            $pengeluaranDanaTu   = (float) ($keluarRows['dana_tu'] ?? 0);
+            $totalPengeluaranKas = (float) ($keluarRows['total_kas'] ?? 0);
+
             // 3. Saldo berjalan kumulatif s/d akhir periode diminta.
             //    Satu sumber kebenaran dengan BKU (getSaldoPerTanggal).
             $cutoff = sprintf('%04d-%02d-%02d', $tahun, $bulan, (int) date('t', mktime(0, 0, 0, $bulan, 1, $tahun)));
@@ -433,6 +452,9 @@ class KasBank
                 'saldo_kas_saat_ini'             => $saldoKasSaatIni,
                 'gu_menunggu_cair'               => $guMenungguCair,
                 'belanja_siap_gu'                => $belanjaSiapGu,
+                'pengeluaran_sudah_spj_gu'       => $pengeluaranSudahSpj,
+                'pengeluaran_dana_tu'            => $pengeluaranDanaTu,
+                'total_pengeluaran_kas'          => $totalPengeluaranKas,
                 'proyeksi_kas_setelah_cair'      => $proyeksiKasSetelahCair,
                 'dana_tu_di_kas'                 => $danaTuDiKas,
                 'dana_gu_di_kas'                 => $danaGuDiKas,
@@ -455,6 +477,9 @@ class KasBank
                 'saldo_kas_saat_ini'             => 0,
                 'gu_menunggu_cair'               => 0,
                 'belanja_siap_gu'                => 0,
+                'pengeluaran_sudah_spj_gu'       => 0,
+                'pengeluaran_dana_tu'            => 0,
+                'total_pengeluaran_kas'          => 0,
                 'proyeksi_kas_setelah_cair'      => 0,
                 'dana_tu_di_kas'                 => 0,
                 'dana_gu_di_kas'                 => 0,

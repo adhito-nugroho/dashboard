@@ -310,7 +310,7 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                         <h5 class="card-title fw-bold mb-0 text-dark">
                             <i class="bi bi-receipt text-danger me-2"></i>Belanja Terverifikasi Bulan Ini
                         </h5>
-                        <small class="text-muted">Belanja UP (di luar dana TU) yang telah memotong saldo kas & siap di-SPJ-kan</small>
+                        <small class="text-muted">Belanja UP yang belum di-SPJ — siap diajukan GU berikutnya</small>
                     </div>
                     <a href="<?= base_url('transaksi?status=diverifikasi&tahun=' . $tahun) ?>" class="btn btn-sm btn-outline-primary" style="font-size:0.75rem;">
                         Lihat Semua
@@ -358,9 +358,28 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                         </table>
                     </div>
                 </div>
-                <div class="card-footer bg-light py-2 px-3 d-flex justify-content-between align-items-center">
-                    <span class="small text-muted">Total Belanja Siap GU:</span>
-                    <strong class="font-monospace text-danger">Rp <?= number_format($ringkasan['belanja_siap_gu'], 0, ',', '.') ?></strong>
+                <div class="card-footer bg-light py-3 px-3">
+                    <div class="d-flex justify-content-between align-items-center small mb-1">
+                        <span class="text-muted">Siap diajukan GU (belum di-SPJ)</span>
+                        <span class="font-monospace text-danger">Rp <?= number_format($ringkasan['belanja_siap_gu'], 0, ',', '.') ?></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small mb-1">
+                        <span class="text-muted">Sudah masuk SPJ GU</span>
+                        <span class="font-monospace text-secondary">Rp <?= number_format($ringkasan['pengeluaran_sudah_spj_gu'], 0, ',', '.') ?></span>
+                    </div>
+                    <?php if ($ringkasan['pengeluaran_dana_tu'] > 0): ?>
+                        <div class="d-flex justify-content-between align-items-center small mb-1">
+                            <span class="text-muted">Dibayar dari dana TU</span>
+                            <span class="font-monospace text-secondary">Rp <?= number_format($ringkasan['pengeluaran_dana_tu'], 0, ',', '.') ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top">
+                        <span class="small fw-semibold text-dark">Total Belanja Bulan Ini (kas keluar)</span>
+                        <strong class="font-monospace text-danger">Rp <?= number_format($ringkasan['total_pengeluaran_kas'], 0, ',', '.') ?></strong>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size:0.7rem;">
+                        Saldo kas = saldo awal + penerimaan cair &minus; total belanja ini.
+                    </div>
                 </div>
             </div>
         </div>
