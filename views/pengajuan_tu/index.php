@@ -206,13 +206,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                     <table id="tuTable" class="table table-hover align-middle mb-0" style="font-size:.875rem;">
                         <thead class="table-light">
                             <tr>
-                                <th>Nomor TU</th>
-                                <th>Seksi</th>
+                                <th>Sub Kegiatan</th>
                                 <th>Periode</th>
                                 <th class="tu-num">Kebutuhan (Rp)</th>
                                 <th class="tu-num">Cair (Rp)</th>
                                 <th class="tu-num">Terpakai (Rp)</th>
-                                <th>Batas SPJ</th>
                                 <th class="text-center">Status</th>
                                 <th class="text-center">Aksi</th>
                             </tr>
@@ -223,16 +221,17 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 $nominal_cair = (float) ($item['nominal_cair'] ?? 0);
                                 $nominal_terpakai = (float) ($item['nominal_terpakai'] ?? 0);
                                 $sisa = $nominal_cair - $nominal_terpakai;
-                                $jatuhTempo = $item['status'] === 'cair' && !empty($item['batas_spj']) && $item['batas_spj'] < date('Y-m-d');
                             ?>
-                                <tr class="<?= $jatuhTempo ? 'table-danger' : '' ?>" data-nomor="<?= htmlspecialchars(strtolower((string) $item['nomor_pengajuan'])) ?>">
+                                <tr data-nomor="<?= htmlspecialchars(strtolower((string) $item['nomor_pengajuan'])) ?>">
                                     <td>
-                                        <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="fw-semibold text-decoration-none tu-nomor">
-                                            <?= htmlspecialchars($item['nomor_pengajuan']) ?>
+                                        <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="text-decoration-none tu-nomor">
+                                            <?php if (!empty($item['kode_sub_kegiatan'])): ?>
+                                                <span class="badge bg-info"><?= htmlspecialchars($item['kode_sub_kegiatan']) ?></span>
+                                            <?php endif; ?>
+                                            <span class="fw-semibold"><?= htmlspecialchars($item['nama_sub_kegiatan'] ?? '-') ?></span>
                                         </a>
                                         <div class="text-muted" style="font-size:.75rem;"><?= date('d/m/Y', strtotime($item['tanggal_pengajuan'])) ?></div>
                                     </td>
-                                    <td><span class="badge bg-info"><?= htmlspecialchars($item['kode_seksi'] ?? '-') ?></span> <?= htmlspecialchars($item['nama_seksi'] ?? '-') ?></td>
                                     <td style="white-space:nowrap;"><?= ($namaBulanMap[$item['bulan']] ?? $item['bulan']) . ' ' . $item['tahun'] ?></td>
                                     <td class="tu-num">
                                         <?= number_format((float)$item['kebutuhan'], 0, ',', '.') ?>
@@ -249,14 +248,6 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                             <div class="text-muted" style="font-size:.72rem;">sisa: <?= number_format(max(0, $sisa), 0, ',', '.') ?></div>
                                         <?php else: ?><span class="text-muted">—</span><?php endif; ?>
                                     </td>
-                                    <td>
-                                        <?php if (!empty($item['batas_spj'])): ?>
-                                            <span class="<?= $jatuhTempo ? 'text-danger fw-bold' : '' ?>">
-                                                <?= date('d/m/Y', strtotime($item['batas_spj'])) ?>
-                                                <?= $jatuhTempo ? ' <i class="bi bi-exclamation-circle"></i>' : '' ?>
-                                            </span>
-                                        <?php else: ?><span class="text-muted">—</span><?php endif; ?>
-                                    </td>
                                     <td class="text-center"><span class="badge <?= $bInfo[0] === 'warning' ? 'badge-soft-warning' : 'bg-' . $bInfo[0] ?>"><?= $bInfo[1] ?></span></td>
                                     <td class="text-center" style="white-space:nowrap;">
                                         <a href="<?= base_url('pengajuan-tu/show/' . $item['id']) ?>" class="btn btn-sm btn-outline-primary" title="Detail"><i class="bi bi-eye"></i></a>
@@ -270,7 +261,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 </tr>
                             <?php endforeach; ?>
                             <tr id="tuSearchEmpty" style="display:none;">
-                                <td colspan="9" class="text-center text-muted py-4">
+                                <td colspan="7" class="text-center text-muted py-4">
                                     <i class="bi bi-search me-1"></i>Tidak ada nomor TU yang cocok.
                                 </td>
                             </tr>

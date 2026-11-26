@@ -57,6 +57,7 @@ class PengajuanTu
         $stmt = $this->db->prepare("
             SELECT pt.*,
                    s.nama_seksi, s.kode_seksi,
+                   sk.kode_sub_kegiatan, sk.nama_sub_kegiatan,
                    u.username AS created_by_name,
                    ua.username AS disetujui_by_name,
                    (SELECT COALESCE(SUM(t.nilai), 0)
@@ -67,6 +68,8 @@ class PengajuanTu
                     WHERE tr.pengajuan_tu_id = pt.id) AS jumlah_rekening
             FROM pengajuan_tu pt
             LEFT JOIN seksi s  ON pt.seksi_id   = s.id
+            LEFT JOIN rekening r  ON pt.rekening_id = r.id
+            LEFT JOIN sub_kegiatan sk ON r.sub_kegiatan_id = sk.id
             LEFT JOIN users u  ON pt.created_by = u.id
             LEFT JOIN users ua ON pt.disetujui_by = ua.id
             {$where}
