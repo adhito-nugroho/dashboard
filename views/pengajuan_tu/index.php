@@ -223,6 +223,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                             <col class="tu-col-needed">
                             <col class="tu-col-cair">
                             <col class="tu-col-used">
+                            <col class="tu-col-sisa">
                             <col class="tu-col-status">
                             <col class="tu-col-action">
                         </colgroup>
@@ -233,6 +234,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 <th scope="col" class="tu-num">Kebutuhan (Rp)</th>
                                 <th scope="col" class="tu-num">Cair (Rp)</th>
                                 <th scope="col" class="tu-num">Terpakai (Rp)</th>
+                                <th scope="col" class="tu-num">Sisa (Rp)</th>
                                 <th scope="col" class="text-center">Status</th>
                                 <th scope="col" class="text-center">Aksi</th>
                             </tr>
@@ -292,9 +294,15 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                                      title="Terpakai <?= $pct ?>% dari dana cair">
                                                     <span style="width:<?= $pct ?>%"></span>
                                                 </div>
-                                                <span class="tu-sisa <?= $sisa > 0.005 ? 'tu-sisa--left' : 'tu-sisa--none' ?>">
-                                                    sisa: <?= number_format($sisa, 0, ',', '.') ?>
-                                                </span>
+                                            <?php else: ?>
+                                                <span class="tu-amount text-muted">—</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td class="tu-num" data-label="Sisa (Rp)">
+                                        <div class="tu-cell-stack">
+                                            <?php if ($nominal_cair > 0): ?>
+                                                <span class="tu-sisa <?= $sisa > 0.005 ? 'tu-sisa--left' : 'tu-sisa--none' ?>"><?= number_format($sisa, 0, ',', '.') ?></span>
                                             <?php else: ?>
                                                 <span class="tu-amount text-muted">—</span>
                                             <?php endif; ?>
@@ -312,7 +320,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                                 </tr>
                             <?php endforeach; ?>
                             <tr id="tuSearchEmpty" style="display:none;">
-                                <td colspan="7" class="text-center text-muted py-4">
+                                <td colspan="8" class="text-center text-muted py-4">
                                     <i class="bi bi-search me-1"></i>Tidak ada nomor TU yang cocok.
                                 </td>
                             </tr>
@@ -405,7 +413,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         var html = '';
         for (var i = 0; i < 5; i++) {
             html += '<tr class="tu-skeleton-row" aria-hidden="true">';
-            for (var j = 0; j < 7; j++) {
+            for (var j = 0; j < 8; j++) {
                 html += '<td><div class="tu-sk-line"' + (j === 0 ? ' style="width:78%"' : '') + '></div></td>';
             }
             html += '</tr>';
