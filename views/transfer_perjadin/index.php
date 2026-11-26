@@ -243,7 +243,18 @@ tr.st-flash > td{animation:stFlashCell 1.4s ease;}
                                         ?>
                                         <tr data-nilai="<?= $nilai ?>" data-st="<?= $stRow ?>" data-group="<?= $gkey ?>" data-seksi="<?= htmlspecialchars($seksiRow) ?>" data-ke-acuan="0" data-ke-detached="0" data-pot-acuan="0" data-pot-beda="0" class="st-item <?= $isConfigured ? 'table-success-subtle' : '' ?>">
                                             <td class="ps-4 align-top text-muted small text-nowrap" style="width:52px;"><?= $no ?><?php if ($isConfigured): ?> <i class="bi bi-check-circle-fill text-success" title="Sudah dikonfigurasi"></i><?php endif; ?></td>
-                                            <td class="align-top text-dark cell-nama"><?= htmlspecialchars((string) ($t['nama_penerima'] ?? '-')) ?></td>
+                                            <td class="align-top text-dark cell-nama">
+                                                <?= htmlspecialchars((string) ($t['nama_penerima'] ?? '-')) ?>
+                                                <?php if (($t['gu_status'] ?? '') === 'cair'): ?>
+                                                    <div class="mt-1">
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold text-wrap text-start"
+                                                              style="font-size:.66rem;"
+                                                              title="Belanja ini sudah masuk <?= htmlspecialchars((string) ($t['gu_nomor'] ?? 'GU')) ?> yang sudah cair. Periksa dulu apakah perjadinnya sudah pernah ditransfer — bila sudah, jangan ditransfer ulang.">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>Cek: sudah SPJ GU cair
+                                                        </span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
                                             <td class="align-top text-end text-nowrap font-monospace fw-medium">Rp <?= number_format($nilai, 0, ',', '.') ?></td>
                                             <td class="align-top">
                                                 <input type="text" class="form-control form-control-sm input-transfer-ke"

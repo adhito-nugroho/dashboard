@@ -247,12 +247,14 @@ class TransferPerjadin
 
         $where = 'WHERE ' . implode(' AND ', $conditions);
         $stmt = $this->db->prepare("
-            SELECT t.id, t.tanggal, t.uraian, t.nama_penerima, t.pegawai_nip, t.nilai,
-                   t.nomor_surat_tugas, t.surat_tugas_ref_id, t.status, t.sumber_dana,
-                   t.seksi_id, s.nama_seksi, s.kode_seksi
+            SELECT t.id, t.tanggal, t.tanggal_lunas_dibayar, t.uraian, t.nama_penerima,
+                   t.pegawai_nip, t.nilai, t.nomor_surat_tugas, t.surat_tugas_ref_id,
+                   t.status, t.sumber_dana, t.seksi_id, s.nama_seksi, s.kode_seksi,
+                   p.nomor_pengajuan AS gu_nomor, p.status AS gu_status
             FROM transaksi t
             LEFT JOIN seksi s ON s.id = t.seksi_id
             LEFT JOIN transfer_perjadin tp ON tp.transaksi_id = t.id
+            LEFT JOIN pengajuan_gu p ON p.id = t.pengajuan_gu_id
             {$where}
             ORDER BY t.tanggal DESC, t.id DESC
             LIMIT 2000
