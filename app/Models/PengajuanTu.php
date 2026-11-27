@@ -164,9 +164,13 @@ class PengajuanTu
     }
 
     /**
-     * Rekap sisa dana TU per sub kegiatan untuk TU berstatus cair (belum
-     * diselesaikan) — dipakai sebagai dasar pembuatan STS setoran sisa.
-     * Nilai setor = dana cair − belanja terpakai − setoran yang sudah tercatat.
+     * Rekap nilai setor (STS) dana TU per sub kegiatan.
+     *
+     * Memuat TU berstatus 'cair' (sisa masih harus disetor) DAN 'selesai'
+     * (setoran sudah dicatat) supaya rekap tetap bisa diunduh setelah siklus
+     * TU ditutup. Nilai setor dipisah menjadi dua kolom:
+     *   disetor           = nominal_disetor yang sudah tercatat
+     *   sisa_belum_disetor = dana cair − terpakai − disetor
      *
      * @return array{rows: array<int, array<string, mixed>>, totals: array<string, float|int>}
      */
@@ -178,8 +182,12 @@ class PengajuanTu
                    sk.nama_sub_kegiatan,
                    se.nama_seksi,
                    COUNT(*) AS jumlah_tu,
+                   SUM(CASE WHEN pt.status = 'cair'    THEN 1 ELSE 0 END) AS jumlah_cair,
+                   SUM(CASE WHEN pt.status = 'selesai' THEN 1 ELSE 0 END) AS jumlah_selesai,
                    COALESCE(SUM(pt.nominal_cair), 0)    AS total_cair,
-                   COALESCE(SUM(tp.terpakai), 0)        AS total_terpakai,
+                   -- nominal_digunakan adalah snapshot saat TU ditutup; pakai bila
+                   -- transaksi sumbernya sudah tidak ada lagi.
+                   COALESCE(SUM(GREATEST(COALESCE(tp.terpakai, 0), COALESCE(pt.nominal_digunakan, 0))), 0) AS total_terpakai,
                    COALESCE(SUM(pt.nominal_disetor), 0) AS total_disetor
             FROM pengajuan_tu pt
             LEFT JOIN rekening r      ON r.id  = pt.rekening_id
@@ -191,43 +199,58 @@ class PengajuanTu
                 WHERE status = 'diverifikasi' AND pengajuan_tu_id IS NOT NULL
                 GROUP BY pengajuan_tu_id
             ) tp ON tp.pengajuan_tu_id = pt.id
-            WHERE pt.status = 'cair'
+            WHERE pt.status IN ('cair', 'selesai')
             GROUP BY sk.id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan, se.nama_seksi
             ORDER BY sk.kode_sub_kegiatan ASC
         ");
 
         $rows = [];
         $totals = [
-            'jumlah_tu'      => 0,
-            'total_cair'     => 0.0,
-            'total_terpakai' => 0.0,
-            'total_disetor'  => 0.0,
-            'nilai_setor'    => 0.0,
+            'jumlah_tu'          => 0,
+            'jumlah_cair'        => 0,
+            'jumlah_selesai'     => 0,
+            'total_cair'         => 0.0,
+            'total_terpakai'     => 0.0,
+            'total_disetor'      => 0.0,
+            'sisa_belum_disetor' => 0.0,
         ];
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $cair     = (float) $r['total_cair'];
             $terpakai = (float) $r['total_terpakai'];
             $disetor  = (float) $r['total_disetor'];
-            $setor    = max(0.0, $cair - $terpakai - $disetor);
+            $sisa     = max(0.0, $cair - $terpakai - $disetor);
+
+            $jmlCair    = (int) $r['jumlah_cair'];
+            $jmlSelesai = (int) $r['jumlah_selesai'];
+            if ($jmlCair > 0 && $jmlSelesai > 0) {
+                $statusText = sprintf('Cair %d / Selesai %d', $jmlCair, $jmlSelesai);
+            } elseif ($jmlCair > 0) {
+                $statusText = 'Cair';
+            } else {
+                $statusText = 'Selesai';
+            }
 
             $rows[] = [
-                'sub_kegiatan_id'   => (int) ($r['sub_kegiatan_id'] ?? 0),
-                'kode_sub_kegiatan' => (string) ($r['kode_sub_kegiatan'] ?? ''),
-                'nama_sub_kegiatan' => (string) ($r['nama_sub_kegiatan'] ?? ''),
-                'nama_seksi'        => (string) ($r['nama_seksi'] ?? ''),
-                'jumlah_tu'         => (int) $r['jumlah_tu'],
-                'total_cair'        => $cair,
-                'total_terpakai'    => $terpakai,
-                'total_disetor'     => $disetor,
-                'nilai_setor'       => $setor,
+                'sub_kegiatan_id'    => (int) ($r['sub_kegiatan_id'] ?? 0),
+                'kode_sub_kegiatan'  => (string) ($r['kode_sub_kegiatan'] ?? ''),
+                'nama_sub_kegiatan'  => (string) ($r['nama_sub_kegiatan'] ?? ''),
+                'nama_seksi'         => (string) ($r['nama_seksi'] ?? ''),
+                'jumlah_tu'          => (int) $r['jumlah_tu'],
+                'status'             => $statusText,
+                'total_cair'         => $cair,
+                'total_terpakai'     => $terpakai,
+                'total_disetor'      => $disetor,
+                'sisa_belum_disetor' => $sisa,
             ];
 
-            $totals['jumlah_tu']      += (int) $r['jumlah_tu'];
-            $totals['total_cair']     += $cair;
-            $totals['total_terpakai'] += $terpakai;
-            $totals['total_disetor']  += $disetor;
-            $totals['nilai_setor']    += $setor;
+            $totals['jumlah_tu']          += (int) $r['jumlah_tu'];
+            $totals['jumlah_cair']        += $jmlCair;
+            $totals['jumlah_selesai']     += $jmlSelesai;
+            $totals['total_cair']         += $cair;
+            $totals['total_terpakai']     += $terpakai;
+            $totals['total_disetor']      += $disetor;
+            $totals['sisa_belum_disetor'] += $sisa;
         }
 
         return ['rows' => $rows, 'totals' => $totals];

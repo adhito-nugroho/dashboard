@@ -126,7 +126,8 @@ class PengajuanTuController
     }
 
     /**
-     * Rekap nilai setor (STS) dana TU per sub kegiatan, hanya TU berstatus cair.
+     * Rekap nilai setor (STS) dana TU per sub kegiatan, untuk TU berstatus
+     * cair maupun selesai — rekap tetap tersedia setelah siklus TU ditutup.
      */
     public function exportSts(): void
     {
@@ -135,7 +136,7 @@ class PengajuanTuController
         try {
             $data = $this->model->getRekapSisaPerSubKegiatan();
             if ($data['rows'] === []) {
-                $this->flash('info', 'Belum ada TU berstatus cair, jadi belum ada sisa dana yang perlu disetor.');
+                $this->flash('info', 'Belum ada TU berstatus cair atau selesai, jadi belum ada dana yang perlu disetor.');
                 $this->redirect(base_url('pengajuan-tu'));
             }
             (new TuStsExportService())->download($data);

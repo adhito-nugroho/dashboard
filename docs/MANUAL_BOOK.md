@@ -1158,6 +1158,23 @@ Klik **Unduh Excel**. File mengikuti filter aktif dan berisi sheet:
 - Detail Rekening
 - Riwayat Pembayaran
 
+## 14.8 Rekap STS (nilai setor)
+
+Klik **Rekap STS** untuk mengunduh `Rekap_STS_TU_Per_Sub_Kegiatan_<tanggal>.xlsx`.
+
+Rekap memuat TU berstatus **cair** dan **selesai**, sehingga tetap bisa diunduh setelah siklus TU ditutup. Kolom yang tersedia:
+
+| Kolom | Arti |
+|---|---|
+| JML TU | Jumlah TU pada sub kegiatan tersebut |
+| DANA CAIR (Rp) | Total `nominal_cair` (SP2D-TU) |
+| TERPAKAI (Rp) | Belanja terverifikasi; untuk TU selesai memakai snapshot `nominal_digunakan` bila transaksinya sudah tidak ada |
+| DISETOR (Rp) | Setoran yang sudah tercatat saat TU diselesaikan |
+| SISA BELUM DISETOR (Rp) | Dana cair − terpakai − disetor |
+| STATUS | `Cair`, `Selesai`, atau `Cair n / Selesai n` bila campuran |
+
+> Jika belum ada TU berstatus cair maupun selesai, unduhan dihentikan dan aplikasi menampilkan pesan bahwa belum ada dana yang perlu disetor.
+
 ---
 
 # 15. Transfer Perjalanan Dinas
@@ -1255,6 +1272,7 @@ Klik tombol hapus pada konfigurasi tersimpan. Transaksi akan kembali ke daftar d
 | SIPD | Menu Transaksi → Unduh SIPD | XLSX | Hanya transaksi terverifikasi |
 | LPJ Limpahan UP | Menu Pengajuan GU → Laporan LPJ / LPJ | Cetak / XLSX | Periode atau pengajuan |
 | Rekap Pengajuan TU | Menu Tambah Uang → Unduh Excel | XLSX | Filter aktif |
+| Rekap STS TU | Menu Tambah Uang → Rekap STS | XLSX | TU berstatus cair dan selesai |
 | Transfer Perjalanan Dinas | Menu Transfer Perjalanan Dinas | XLSX / CSV | Konfigurasi tersimpan |
 | Kuitansi | Daftar transaksi | PDF 215 x 165 mm | Kalibrasi printer |
 | SPD | Daftar transaksi / SPJ | PDF A4 | Kota Tujuan terisi |

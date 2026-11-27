@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Rekap nilai setor (STS) dana TU per sub kegiatan.
- * Sumber: PengajuanTu::getRekapSisaPerSubKegiatan() — hanya TU berstatus cair.
+ * Sumber: PengajuanTu::getRekapSisaPerSubKegiatan() — TU status cair & selesai.
  */
 class TuStsExportService
 {
@@ -23,7 +23,7 @@ class TuStsExportService
     private const ORG_NAME = 'CABANG DINAS KEHUTANAN (CDK) WILAYAH BOJONEGORO';
     private const NUMBER_FORMAT = '#,##0';
     private const HEADER_ROW = 6;
-    private const LAST_COL = 'H';
+    private const LAST_COL = 'J';
     private const BULAN = [
         1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
         5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
@@ -52,7 +52,7 @@ class TuStsExportService
 
         $row = self::HEADER_ROW + 1;
         $no  = 0;
-        foreach ($rows as $i => $r) {
+        foreach ($rows as $r) {
             $no++;
             $sheet->setCellValue('A' . $row, $no);
             $sheet->setCellValue('B' . $row, (string) $r['kode_sub_kegiatan']);
@@ -61,7 +61,9 @@ class TuStsExportService
             $sheet->setCellValue('E' . $row, (int) $r['jumlah_tu']);
             $sheet->setCellValue('F' . $row, (float) $r['total_cair']);
             $sheet->setCellValue('G' . $row, (float) $r['total_terpakai']);
-            $sheet->setCellValue('H' . $row, (float) $r['nilai_setor']);
+            $sheet->setCellValue('H' . $row, (float) $r['total_disetor']);
+            $sheet->setCellValue('I' . $row, (float) $r['sisa_belum_disetor']);
+            $sheet->setCellValue('J' . $row, (string) $r['status']);
 
             $sheet->getStyle('A' . $row . ':' . self::LAST_COL . $row)->applyFromArray([
                 'font' => ['size' => 9, 'color' => ['rgb' => '1F2937']],
@@ -75,14 +77,15 @@ class TuStsExportService
             }
             $sheet->getStyle('C' . $row)->getAlignment()->setWrapText(true);
             $sheet->getStyle('D' . $row)->getAlignment()->setWrapText(true);
-            foreach (['A', 'E'] as $col) {
+            foreach (['A', 'E', 'J'] as $col) {
                 $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             }
-            foreach (['F', 'G', 'H'] as $col) {
+            foreach (['F', 'G', 'H', 'I'] as $col) {
                 $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
                 $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             }
-            $sheet->getStyle('H' . $row)->getFont()->setBold(true);
+            // Sisa yang masih harus disetor ditebalkan sebagai angka kunci rekap.
+            $sheet->getStyle('I' . $row)->getFont()->setBold(true);
             $sheet->getRowDimension($row)->setRowHeight(18);
             $row++;
         }
@@ -92,16 +95,18 @@ class TuStsExportService
         $sheet->setCellValue('E' . $row, (int) $totals['jumlah_tu']);
         $sheet->setCellValue('F' . $row, (float) $totals['total_cair']);
         $sheet->setCellValue('G' . $row, (float) $totals['total_terpakai']);
-        $sheet->setCellValue('H' . $row, (float) $totals['nilai_setor']);
+        $sheet->setCellValue('H' . $row, (float) $totals['total_disetor']);
+        $sheet->setCellValue('I' . $row, (float) $totals['sisa_belum_disetor']);
         $sheet->getStyle('A' . $row . ':' . self::LAST_COL . $row)->applyFromArray([
             'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::NAVY]],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => self::NAVY]]],
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
         ]);
-        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-        $sheet->getStyle('E' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        foreach (['F', 'G', 'H'] as $col) {
+        foreach (['A', 'E'] as $col) {
+            $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+        foreach (['F', 'G', 'H', 'I'] as $col) {
             $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode(self::NUMBER_FORMAT);
             $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         }
@@ -109,7 +114,7 @@ class TuStsExportService
 
         $row++;
         $sheet->mergeCells('A' . $row . ':' . self::LAST_COL . $row);
-        $sheet->setCellValue('A' . $row, 'Nilai setor = dana TU cair − belanja terpakai − setoran yang sudah tercatat, untuk seluruh TU berstatus cair (belum diselesaikan).');
+        $sheet->setCellValue('A' . $row, 'Sisa belum disetor = dana TU cair − belanja terpakai − setoran yang sudah tercatat. Memuat TU berstatus cair (belum diselesaikan) dan selesai.');
         $sheet->getStyle('A' . $row)->getFont()->setItalic(true)->setSize(8)->getColor()->setRGB('6B7280');
 
         $sheet->getColumnDimension('A')->setWidth(6);
@@ -117,13 +122,14 @@ class TuStsExportService
         $sheet->getColumnDimension('C')->setWidth(42);
         $sheet->getColumnDimension('D')->setWidth(22);
         $sheet->getColumnDimension('E')->setWidth(9);
-        foreach (['F', 'G', 'H'] as $col) {
-            $sheet->getColumnDimension($col)->setWidth(18);
+        foreach (['F', 'G', 'H', 'I'] as $col) {
+            $sheet->getColumnDimension($col)->setWidth(17);
         }
+        $sheet->getColumnDimension('J')->setWidth(18);
         $sheet->freezePane('A' . (self::HEADER_ROW + 1));
 
         $sheet->getPageSetup()
-            ->setOrientation(PageSetup::ORIENTATION_PORTRAIT)
+            ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
             ->setPaperSize(PageSetup::PAPERSIZE_A4)
             ->setFitToWidth(1)
             ->setFitToHeight(0);
@@ -158,7 +164,7 @@ class TuStsExportService
         ]);
 
         $sheet->mergeCells('A3:' . self::LAST_COL . '3');
-        $sheet->setCellValue('A3', 'Per Sub Kegiatan — TU berstatus cair (belum diselesaikan)');
+        $sheet->setCellValue('A3', 'Per Sub Kegiatan — TU berstatus cair dan selesai');
         $sheet->getStyle('A3')->applyFromArray([
             'font' => ['size' => 9, 'color' => ['rgb' => '4B5563']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -187,7 +193,9 @@ class TuStsExportService
             'E' => 'JML TU',
             'F' => 'DANA CAIR (Rp)',
             'G' => 'TERPAKAI (Rp)',
-            'H' => 'NILAI SETOR / STS (Rp)',
+            'H' => 'DISETOR (Rp)',
+            'I' => 'SISA BELUM DISETOR (Rp)',
+            'J' => 'STATUS',
         ];
         foreach ($headers as $col => $label) {
             $sheet->setCellValue($col . self::HEADER_ROW, $label);
