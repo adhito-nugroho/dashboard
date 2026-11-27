@@ -297,6 +297,11 @@ class TransferPerjadinController
             return;
         }
 
+        $guRows = $this->barisSudahSpjGu($batchId);
+        if ($guRows !== []) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', $this->pesanBatalUnduh($guRows));
+        }
+
         $filename = 'Transfer_Perjalanan_Dinas_'
             . TransferPerjadinExportService::safeFilename((string) $batch['nama'])
             . '_' . date('Ymd_His') . '.xlsx';
@@ -332,6 +337,11 @@ class TransferPerjadinController
         if ($rows === []) {
             $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', 'Konfigurasi "' . $batch['nama'] . '" belum berisi transaksi.');
             return;
+        }
+
+        $guRows = $this->barisSudahSpjGu($batchId);
+        if ($guRows !== []) {
+            $this->redirectWithMessage(base_url('transfer-perjadin'), 'error', $this->pesanBatalUnduh($guRows));
         }
 
         $config = require __DIR__ . '/../../config/bank_jatim.php';
@@ -382,6 +392,38 @@ class TransferPerjadinController
     /**
      * @return array<int, array{uraian:string,nama:string,nilai:float,transfer_ke:string,potongan:float,pegawai_nip:string}>
      */
+    /**
+     * Baris dalam konfigurasi tersimpan yang sudah masuk SPJ GU.
+     *
+     * Diperiksa lagi saat unduh karena GU bisa dibuat setelah konfigurasi
+     * disimpan; mengunduh file berarti siap dieksekusi di bank.
+     *
+     * @return array<int, array{nama:string, nomor:string, status:string}>
+     */
+    private function barisSudahSpjGu(int $batchId): array
+    {
+        $ids = array_map(
+            static fn(array $r): int => (int) $r['id'],
+            $this->model->getBatchTransaksi($batchId)
+        );
+        return $this->model->getGuTransaksiMap($ids);
+    }
+
+    /**
+     * @param array<int, array{nama:string, nomor:string, status:string}> $guRows
+     */
+    private function pesanBatalUnduh(array $guRows): string
+    {
+        $bagian = [];
+        foreach ($guRows as $id => $info) {
+            $bagian[] = ($info['nama'] !== '' ? $info['nama'] : 'Trx #' . $id)
+                . ' — ' . $info['nomor'] . ' (' . $info['status'] . ')';
+        }
+        return 'Unduhan dibatalkan. Baris berikut sudah masuk SPJ GU dan kemungkinan sudah dibayar, '
+            . 'jadi tidak boleh ditransfer lagi: ' . implode('; ', $bagian)
+            . '. Hapus konfigurasi ini lalu buat ulang tanpa baris tersebut.';
+    }
+
     private function getBatchExportRows(int $batchId): array
     {
         $configured = $this->model->getBatchTransaksi($batchId);
