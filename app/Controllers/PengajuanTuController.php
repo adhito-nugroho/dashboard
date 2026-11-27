@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../config/helpers.php';
 use App\Models\PengajuanTu;
 use App\Models\KasBank;
 use App\Services\PengajuanTuExportService;
+use App\Services\TuStsExportService;
 
 /**
  * Controller modul Tambah Uang (TU) — dikelola penuh oleh admin/bendahara.
@@ -120,6 +121,29 @@ class PengajuanTuController
             if (!headers_sent()) {
                 $this->flash('error', 'Export Excel gagal dibuat. Silakan coba lagi.');
                 $this->redirect(base_url('pengajuan-tu?tahun=' . $tahun));
+            }
+        }
+    }
+
+    /**
+     * Rekap nilai setor (STS) dana TU per sub kegiatan, hanya TU berstatus cair.
+     */
+    public function exportSts(): void
+    {
+        $this->requireAdmin();
+
+        try {
+            $data = $this->model->getRekapSisaPerSubKegiatan();
+            if ($data['rows'] === []) {
+                $this->flash('info', 'Belum ada TU berstatus cair, jadi belum ada sisa dana yang perlu disetor.');
+                $this->redirect(base_url('pengajuan-tu'));
+            }
+            (new TuStsExportService())->download($data);
+        } catch (\Throwable $e) {
+            error_log('Export rekap STS TU gagal: ' . $e->getMessage());
+            if (!headers_sent()) {
+                $this->flash('error', 'Rekap STS gagal dibuat. Silakan coba lagi.');
+                $this->redirect(base_url('pengajuan-tu'));
             }
         }
     }

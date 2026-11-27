@@ -58,6 +58,10 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
             <a href="<?= $exportUrl ?>" id="tuExportLink" class="btn btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Unduh Excel
             </a>
+            <a href="<?= base_url('pengajuan-tu/export-sts') ?>" class="btn btn-outline-primary"
+               title="Rekap nilai setor per sub kegiatan untuk pembuatan STS TU">
+                <i class="bi bi-cash-coin me-1"></i>Rekap STS
+            </a>
             <a href="<?= base_url('pengajuan-tu/create') ?>" class="btn btn-primary btn-tu-primary">
                 <i class="bi bi-plus-circle me-1"></i>Input Pengajuan TU
             </a>

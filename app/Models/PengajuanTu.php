@@ -164,6 +164,76 @@ class PengajuanTu
     }
 
     /**
+     * Rekap sisa dana TU per sub kegiatan untuk TU berstatus cair (belum
+     * diselesaikan) — dipakai sebagai dasar pembuatan STS setoran sisa.
+     * Nilai setor = dana cair − belanja terpakai − setoran yang sudah tercatat.
+     *
+     * @return array{rows: array<int, array<string, mixed>>, totals: array<string, float|int>}
+     */
+    public function getRekapSisaPerSubKegiatan(): array
+    {
+        $stmt = $this->db->query("
+            SELECT sk.id AS sub_kegiatan_id,
+                   sk.kode_sub_kegiatan,
+                   sk.nama_sub_kegiatan,
+                   se.nama_seksi,
+                   COUNT(*) AS jumlah_tu,
+                   COALESCE(SUM(pt.nominal_cair), 0)    AS total_cair,
+                   COALESCE(SUM(tp.terpakai), 0)        AS total_terpakai,
+                   COALESCE(SUM(pt.nominal_disetor), 0) AS total_disetor
+            FROM pengajuan_tu pt
+            LEFT JOIN rekening r      ON r.id  = pt.rekening_id
+            LEFT JOIN sub_kegiatan sk ON sk.id = r.sub_kegiatan_id
+            LEFT JOIN seksi se        ON se.id = pt.seksi_id
+            LEFT JOIN (
+                SELECT pengajuan_tu_id, SUM(nilai) AS terpakai
+                FROM transaksi
+                WHERE status = 'diverifikasi' AND pengajuan_tu_id IS NOT NULL
+                GROUP BY pengajuan_tu_id
+            ) tp ON tp.pengajuan_tu_id = pt.id
+            WHERE pt.status = 'cair'
+            GROUP BY sk.id, sk.kode_sub_kegiatan, sk.nama_sub_kegiatan, se.nama_seksi
+            ORDER BY sk.kode_sub_kegiatan ASC
+        ");
+
+        $rows = [];
+        $totals = [
+            'jumlah_tu'      => 0,
+            'total_cair'     => 0.0,
+            'total_terpakai' => 0.0,
+            'total_disetor'  => 0.0,
+            'nilai_setor'    => 0.0,
+        ];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $cair     = (float) $r['total_cair'];
+            $terpakai = (float) $r['total_terpakai'];
+            $disetor  = (float) $r['total_disetor'];
+            $setor    = max(0.0, $cair - $terpakai - $disetor);
+
+            $rows[] = [
+                'sub_kegiatan_id'   => (int) ($r['sub_kegiatan_id'] ?? 0),
+                'kode_sub_kegiatan' => (string) ($r['kode_sub_kegiatan'] ?? ''),
+                'nama_sub_kegiatan' => (string) ($r['nama_sub_kegiatan'] ?? ''),
+                'nama_seksi'        => (string) ($r['nama_seksi'] ?? ''),
+                'jumlah_tu'         => (int) $r['jumlah_tu'],
+                'total_cair'        => $cair,
+                'total_terpakai'    => $terpakai,
+                'total_disetor'     => $disetor,
+                'nilai_setor'       => $setor,
+            ];
+
+            $totals['jumlah_tu']      += (int) $r['jumlah_tu'];
+            $totals['total_cair']     += $cair;
+            $totals['total_terpakai'] += $terpakai;
+            $totals['total_disetor']  += $disetor;
+            $totals['nilai_setor']    += $setor;
+        }
+
+        return ['rows' => $rows, 'totals' => $totals];
+    }
+
+    /**
      * Detail satu pengajuan TU + daftar transaksi yang terkait.
      */
     public function getByIdWithTransaksi(int $id): ?array
