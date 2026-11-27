@@ -1355,6 +1355,7 @@ class TransaksiController
                         tanggal,
                         tanggal_cair,
                         jenis,
+                        arah,
                         status,
                         nomor_bukti,
                         keterangan,
@@ -1371,6 +1372,7 @@ class TransaksiController
                         tanggal,
                         tanggal_cair,
                         jenis,
+                        arah,
                         status,
                         nomor_bukti,
                         keterangan,
@@ -1390,8 +1392,11 @@ class TransaksiController
         $bkuItems = [];
 
         // 1. Mutasi Penerimaan Kas/Bank (Saldo Awal, Pencairan UP, Pencairan GU, Setoran/Lainnya)
+        //    Baris dengan arah 'keluar' (mis. setoran sisa TU ke Kasda) bukan
+        //    penerimaan — masuk ke kolom pengeluaran.
         foreach ($kasRows as $k) {
             $tglKas = !empty($k['tanggal_cair']) ? $k['tanggal_cair'] : ($k['tanggal'] ?? null);
+            $isKeluar = ($k['arah'] ?? 'masuk') === 'keluar';
             $bkuItems[] = [
                 'type'          => 'penerimaan',
                 'id'            => 'kas_' . $k['id'],
@@ -1401,8 +1406,8 @@ class TransaksiController
                 'uraian'        => $k['keterangan'] ?? 'Penerimaan Kas/Bank',
                 'nama_penerima' => 'BENDAHARA',
                 'nomor_bukti'   => $k['nomor_bukti'] ?? '-',
-                'penerimaan'    => (float) ($k['nominal'] ?? 0),
-                'pengeluaran'   => 0.0,
+                'penerimaan'    => $isKeluar ? 0.0 : (float) ($k['nominal'] ?? 0),
+                'pengeluaran'   => $isKeluar ? (float) ($k['nominal'] ?? 0) : 0.0,
                 'status'        => $k['status'] ?: 'cair',
                 'jenis'         => $k['jenis'] ?? 'penerimaan',
             ];
@@ -1983,7 +1988,7 @@ class TransaksiController
                 $kasParams[':tahun'] = $tahun;
             }
             $stmtKas = $db->prepare("
-                SELECT id, tanggal, tanggal_cair, nominal
+                SELECT id, tanggal, tanggal_cair, arah, nominal
                 FROM kas_bank
                 WHERE " . implode(' AND ', $kasConditions) . "
                 ORDER BY COALESCE(tanggal_cair, tanggal) ASC, id ASC
@@ -1999,7 +2004,8 @@ class TransaksiController
                 'type' => 'penerimaan',
                 'tanggal' => $tglKas ? date('Y-m-d', strtotime((string) $tglKas)) : '',
                 'id' => (int) ($k['id'] ?? 0),
-                'nominal' => (float) ($k['nominal'] ?? 0),
+                // Arah 'keluar' (setoran sisa TU) mengurangi saldo, bukan menambah.
+                'nominal' => (($k['arah'] ?? 'masuk') === 'keluar' ? -1 : 1) * (float) ($k['nominal'] ?? 0),
             ];
         }
         foreach ($rows as $t) {

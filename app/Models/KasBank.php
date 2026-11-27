@@ -79,65 +79,67 @@ class KasBank
      * Posisi saldo kas berjalan s/d tanggal $batasAkhir (inklusif, 'Y-m-d').
      * Satu-satunya sumber kebenaran saldo — dipakai dashboard (getRingkasan)
      * maupun BKU agar angkanya selalu sama:
-     * - Bila ada baseline saldo_awal: nominal baseline + penerimaan CAIR
-     *   sejak baseline - belanja UP diverifikasi sejak baseline (belanja lama
-     *   sebelum baseline dianggap sudah tercermin di baseline).
+     * - Penerimaan = baris CAIR dengan arah 'masuk' (pencairan GU/UP/TU).
+     * - Pengeluaran kas = baris CAIR dengan arah 'keluar' (mis. setoran
+     *   sisa TU kembali ke Kasda) + belanja UP diverifikasi.
+     * - Bila ada baseline saldo_awal: nominal baseline + masuk - keluar sejak
+     *   baseline (belanja lama sebelum baseline dianggap sudah tercermin).
      * - Bila belum ada: kumulatif murni seluruh histori.
      */
     public function getSaldoPerTanggal(string $batasAkhir): float
     {
         try {
             $baseline = $this->getBaselineSaldoAwal($batasAkhir);
+            $sejakSql = $baseline !== null
+                ? 'AND COALESCE(tanggal_cair, tanggal) >= :base_tgl'
+                : '';
+            $sejakTrxSql = $baseline !== null
+                ? 'AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) >= :base_tgl'
+                : '';
+            $params = [':batas' => $batasAkhir];
             if ($baseline !== null) {
-                $stmtIn = $this->db->prepare("
-                    SELECT COALESCE(SUM(nominal), 0)
-                    FROM kas_bank
-                    WHERE status = 'cair'
-                      AND id != :base_id
-                      AND COALESCE(tanggal_cair, tanggal) >= :base_tgl
-                      AND COALESCE(tanggal_cair, tanggal) <= :batas
-                ");
-                $stmtIn->execute([
-                    ':base_id'  => $baseline['id'],
-                    ':base_tgl' => $baseline['tanggal'],
-                    ':batas'    => $batasAkhir,
-                ]);
-                $masuk = (float) $stmtIn->fetchColumn();
-
-                $stmtOut = $this->db->prepare("
-                    SELECT COALESCE(SUM(nilai), 0)
-                    FROM transaksi
-                    WHERE status = 'diverifikasi'
-                      AND sumber_dana = 'UP'
-                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) >= :base_tgl
-                      AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) <= :batas
-                ");
-                $stmtOut->execute([':base_tgl' => $baseline['tanggal'], ':batas' => $batasAkhir]);
-                $keluar = (float) $stmtOut->fetchColumn();
-
-                return $baseline['nominal'] + $masuk - $keluar;
+                $params[':base_tgl'] = $baseline['tanggal'];
             }
 
             $stmtIn = $this->db->prepare("
                 SELECT COALESCE(SUM(nominal), 0)
                 FROM kas_bank
                 WHERE status = 'cair'
+                  AND arah   = 'masuk'
+                  {$sejakSql}
+                  " . ($baseline !== null ? 'AND id != :base_id' : '') . "
                   AND COALESCE(tanggal_cair, tanggal) <= :batas
             ");
-            $stmtIn->execute([':batas' => $batasAkhir]);
+            $stmtIn->execute($baseline !== null
+                ? $params + [':base_id' => $baseline['id']]
+                : $params);
             $masuk = (float) $stmtIn->fetchColumn();
+
+            // Setoran/pengembalian ke Kasda mengurangi kas — dulu ikut terjumlah
+            // sebagai penerimaan sehingga saldo membengkak 2x nilainya.
+            $stmtKasKeluar = $this->db->prepare("
+                SELECT COALESCE(SUM(nominal), 0)
+                FROM kas_bank
+                WHERE status = 'cair'
+                  AND arah   = 'keluar'
+                  {$sejakSql}
+                  AND COALESCE(tanggal_cair, tanggal) <= :batas
+            ");
+            $stmtKasKeluar->execute($params);
+            $keluarKas = (float) $stmtKasKeluar->fetchColumn();
 
             $stmtOut = $this->db->prepare("
                 SELECT COALESCE(SUM(nilai), 0)
                 FROM transaksi
                 WHERE status = 'diverifikasi'
                   AND sumber_dana = 'UP'
+                  {$sejakTrxSql}
                   AND COALESCE(tanggal_lunas_dibayar, DATE(diverifikasi_at), tanggal) <= :batas
             ");
-            $stmtOut->execute([':batas' => $batasAkhir]);
+            $stmtOut->execute($params);
             $keluar = (float) $stmtOut->fetchColumn();
 
-            return $masuk - $keluar;
+            return ($baseline !== null ? $baseline['nominal'] : 0.0) + $masuk - $keluarKas - $keluar;
         } catch (PDOException $e) {
             error_log('Error calculating saldo per tanggal: ' . $e->getMessage());
             return 0.0;
@@ -166,7 +168,10 @@ class KasBank
     }
 
     /**
-     * Tambah mutasi penerimaan kas/bank baru
+     * Tambah mutasi penerimaan kas/bank baru.
+     *
+     * @param string $arah      'masuk' (menambah kas) atau 'keluar' (mengurangi kas)
+     * @param string $jenisDana 'UP_GU' (operasional, kena plafon) atau 'TU'
      */
     public function create(
         string $tanggal,
@@ -176,7 +181,9 @@ class KasBank
         float $nominal,
         int $createdBy,
         string $status = 'cair',
-        ?string $tanggalCair = null
+        ?string $tanggalCair = null,
+        string $arah = 'masuk',
+        string $jenisDana = 'UP_GU'
     ): int {
         try {
             $time = strtotime($tanggal) ?: time();
@@ -187,9 +194,19 @@ class KasBank
                 $tanggalCair = $tanggal;
             }
 
+            $arah      = in_array($arah, ['masuk', 'keluar'], true) ? $arah : 'masuk';
+            $jenisDana = in_array($jenisDana, ['UP_GU', 'TU'], true) ? $jenisDana : 'UP_GU';
+
+            // Dana operasional tidak boleh melebihi plafon UP/GU — baik saat
+            // dicatat langsung cair maupun saat diajukan (akan cair nanti,
+            // dicek juga di tandaiCair()).
+            if ($jenisDana === 'UP_GU' && $arah === 'masuk') {
+                $this->assertPlafonUpGu($nominal, (string) ($tanggalCair ?? $tanggal));
+            }
+
             $stmt = $this->db->prepare("
-                INSERT INTO kas_bank (tanggal, tanggal_cair, tahun, bulan, jenis, status, nomor_bukti, keterangan, nominal, created_by)
-                VALUES (:tanggal, :tanggal_cair, :tahun, :bulan, :jenis, :status, :nomor_bukti, :keterangan, :nominal, :created_by)
+                INSERT INTO kas_bank (tanggal, tanggal_cair, tahun, bulan, jenis, arah, jenis_dana, status, nomor_bukti, keterangan, nominal, created_by)
+                VALUES (:tanggal, :tanggal_cair, :tahun, :bulan, :jenis, :arah, :jenis_dana, :status, :nomor_bukti, :keterangan, :nominal, :created_by)
             ");
             $stmt->execute([
                 ':tanggal'      => $tanggal,
@@ -197,6 +214,8 @@ class KasBank
                 ':tahun'        => $tahun,
                 ':bulan'        => $bulan,
                 ':jenis'        => $jenis,
+                ':arah'         => $arah,
+                ':jenis_dana'   => $jenisDana,
                 ':status'       => $status,
                 ':nomor_bukti'  => !empty($nomorBukti) ? trim($nomorBukti) : null,
                 ':keterangan'   => trim($keterangan),
@@ -211,7 +230,79 @@ class KasBank
     }
 
     /**
-     * Update mutasi kas/bank
+     * Dana UP/GU tidak boleh melebihi plafon — kelebihannya wajib dicatat
+     * sebagai TU (Tambah Uang). Dilempar sebagai exception agar input
+     * ditolak, bukan sekadar diperingatkan.
+     *
+     * Dipanggil dari seluruh jalur yang bisa MENAMBAH kas UP/GU: create()
+     * saat sudah cair, tandaiCair(), dan update(). Tanpa itu aturan ini bisa
+     * dilewati lewat alur normal GU (diajukan dulu, cair belakangan).
+     *
+     * @param int|null $kecualiId baris yang sedang diedit — kontribusinya
+     *                            dikeluarkan dulu agar tidak dihitung ganda
+     * @throws \RuntimeException bila penerimaan baru melampaui plafon
+     */
+    private function assertPlafonUpGu(
+        float $nominalBaru,
+        string $tanggal,
+        float $plafond = self::DEFAULT_PLAFOND_UP,
+        ?int $kecualiId = null
+    ): void {
+        $time  = strtotime($tanggal) ?: time();
+        $bulan = (int) date('m', $time);
+        $tahun = (int) date('Y', $time);
+
+        $ringkasan = $this->getRingkasan($bulan, $tahun, $plafond);
+        $saldoGu   = max(0.0, (float) $ringkasan['dana_gu_di_kas']);
+
+        // GU yang masih menunggu cair belum masuk saldo, tapi sudah komitmen:
+        // dua pengajuan terpisah bisa lolos sendiri-sendiri lalu bersama-sama
+        // melewati plafon kalau tidak ikut dihitung.
+        $stmtPending = $this->db->prepare("
+            SELECT COALESCE(SUM(nominal), 0)
+            FROM kas_bank
+            WHERE status = 'menunggu_cair'
+              AND arah = 'masuk'
+              AND jenis_dana = 'UP_GU'
+              AND COALESCE(tanggal_cair, tanggal) <= :batas
+        ");
+        $stmtPending->execute([':batas' => (string) $tanggal]);
+        $komitmen = (float) $stmtPending->fetchColumn();
+
+        // Baris yang diedit/dicairkan sudah ikut terhitung di salah satu
+        // keranjang — keluarkan dulu agar tidak dihitung ganda.
+        if ($kecualiId !== null) {
+            $lama = $this->getById($kecualiId);
+            if ($lama
+                && ($lama['arah'] ?? 'masuk') === 'masuk'
+                && ($lama['jenis_dana'] ?? 'UP_GU') === 'UP_GU'
+            ) {
+                if (($lama['status'] ?? '') === 'cair') {
+                    $saldoGu = max(0.0, $saldoGu - (float) $lama['nominal']);
+                } elseif (($lama['status'] ?? '') === 'menunggu_cair') {
+                    $komitmen = max(0.0, $komitmen - (float) $lama['nominal']);
+                }
+            }
+        }
+
+        $setelah = $saldoGu + $komitmen + $nominalBaru;
+        if ($setelah <= $plafond + 0.01) {
+            return;
+        }
+
+        $kelebihan = $setelah - $plafond;
+        throw new \RuntimeException(sprintf(
+            'Penerimaan Rp %s membuat dana UP/GU menjadi Rp %s, melebihi plafon Rp %s. '
+            . 'Catat kelebihan Rp %s sebagai TU (Tambah Uang), bukan GU.',
+            number_format($nominalBaru, 0, ',', '.'),
+            number_format($setelah, 0, ',', '.'),
+            number_format($plafond, 0, ',', '.'),
+            number_format($kelebihan, 0, ',', '.')
+        ));
+    }
+
+    /**
+     * Update mutasi kas/bank.
      */
     public function update(
         int $id,
@@ -221,7 +312,9 @@ class KasBank
         string $keterangan,
         float $nominal,
         string $status = 'cair',
-        ?string $tanggalCair = null
+        ?string $tanggalCair = null,
+        string $arah = 'masuk',
+        string $jenisDana = 'UP_GU'
     ): bool {
         try {
             $time = strtotime($tanggal) ?: time();
@@ -232,6 +325,14 @@ class KasBank
                 $tanggalCair = $tanggal;
             }
 
+            $arah      = in_array($arah, ['masuk', 'keluar'], true) ? $arah : 'masuk';
+            $jenisDana = in_array($jenisDana, ['UP_GU', 'TU'], true) ? $jenisDana : 'UP_GU';
+
+            // Edit bisa menaikkan nominal dana operasional melewati plafon.
+            if ($jenisDana === 'UP_GU' && $arah === 'masuk' && $status === 'cair') {
+                $this->assertPlafonUpGu($nominal, (string) $tanggalCair, self::DEFAULT_PLAFOND_UP, $id);
+            }
+
             $stmt = $this->db->prepare("
                 UPDATE kas_bank
                 SET tanggal = :tanggal,
@@ -239,6 +340,8 @@ class KasBank
                     tahun = :tahun,
                     bulan = :bulan,
                     jenis = :jenis,
+                    arah = :arah,
+                    jenis_dana = :jenis_dana,
                     status = :status,
                     nomor_bukti = :nomor_bukti,
                     keterangan = :keterangan,
@@ -251,6 +354,8 @@ class KasBank
                 ':tahun'        => $tahun,
                 ':bulan'        => $bulan,
                 ':jenis'        => $jenis,
+                ':arah'         => $arah,
+                ':jenis_dana'   => $jenisDana,
                 ':status'       => $status,
                 ':nomor_bukti'  => !empty($nomorBukti) ? trim($nomorBukti) : null,
                 ':keterangan'   => trim($keterangan),
@@ -264,12 +369,17 @@ class KasBank
     }
 
     /**
-     * Tandai mutasi kas (GU) sebagai sudah cair
+     * Tandai mutasi kas (GU) sebagai sudah cair.
+     *
+     * Tidak ada pemeriksaan plafon di sini: dana yang menunggu cair sudah
+     * dihitung sebagai komitmen UP/GU saat dicatat, jadi mencairkannya hanya
+     * memindahkan angka dari komitmen ke saldo — totalnya tidak berubah.
      */
     public function tandaiCair(int $id, ?string $tanggalCair = null): bool
     {
         try {
             $tgl = !empty($tanggalCair) ? $tanggalCair : date('Y-m-d');
+
             $stmt = $this->db->prepare("
                 UPDATE kas_bank
                 SET status = 'cair',
@@ -389,10 +499,13 @@ class KasBank
 
             // 4. GU menunggu cair KUMULATIF s/d cutoff (bukan hanya bulan ini),
             //    agar pengajuan SPJ bulan lalu tetap tampil di bulan berjalan.
+            //    Hanya dana operasional (UP_GU): GU TU bukan potensi GU.
             $stmtPending = $this->db->prepare("
                 SELECT COALESCE(SUM(nominal), 0)
                 FROM kas_bank
                 WHERE status = 'menunggu_cair'
+                  AND arah = 'masuk'
+                  AND jenis_dana = 'UP_GU'
                   AND tanggal <= :cutoff
             ");
             $stmtPending->execute([':cutoff' => $cutoff]);
@@ -411,7 +524,7 @@ class KasBank
             $stmtTuMasuk = $this->db->prepare("
                 SELECT COALESCE(SUM(nominal), 0)
                 FROM kas_bank
-                WHERE jenis = 'tu' AND status = 'cair'
+                WHERE jenis_dana = 'TU' AND arah = 'masuk' AND status = 'cair'
                   AND COALESCE(tanggal_cair, tanggal) <= :cutoff
             ");
             $stmtTuMasuk->execute([':cutoff' => $cutoff]);
@@ -428,10 +541,10 @@ class KasBank
             $tuKeluar = (float) $stmtTuKeluar->fetchColumn();
 
             $stmtTuSetor = $this->db->prepare("
-                SELECT COALESCE(SUM(k.nominal), 0)
-                FROM pengajuan_tu pt
-                INNER JOIN kas_bank k ON k.id = pt.kas_bank_setoran_id
-                WHERE COALESCE(k.tanggal_cair, k.tanggal) <= :cutoff
+                SELECT COALESCE(SUM(nominal), 0)
+                FROM kas_bank
+                WHERE jenis_dana = 'TU' AND arah = 'keluar' AND status = 'cair'
+                  AND COALESCE(tanggal_cair, tanggal) <= :cutoff
             ");
             $stmtTuSetor->execute([':cutoff' => $cutoff]);
             $tuSetor = (float) $stmtTuSetor->fetchColumn();
@@ -458,6 +571,10 @@ class KasBank
                 'proyeksi_kas_setelah_cair'      => $proyeksiKasSetelahCair,
                 'dana_tu_di_kas'                 => $danaTuDiKas,
                 'dana_gu_di_kas'                 => $danaGuDiKas,
+                // Plafon UP menampung dana yang sudah di kas DAN GU yang sudah
+                // diajukan tapi belum cair — keduanya memakai jatah yang sama.
+                'terpakai_plafon_up'             => $danaGuDiKas + $guMenungguCair,
+                'sisa_plafon_up'                 => $plafondUp - $danaGuDiKas - $guMenungguCair,
                 'cutoff'                         => $cutoff,
                 'baseline_tanggal'               => $baselineTanggal,
                 'baseline_nominal'               => $baselineNominal,
@@ -483,6 +600,8 @@ class KasBank
                 'proyeksi_kas_setelah_cair'      => 0,
                 'dana_tu_di_kas'                 => 0,
                 'dana_gu_di_kas'                 => 0,
+                'terpakai_plafon_up'             => 0,
+                'sisa_plafon_up'                 => $plafondUp,
                 'cutoff'                         => sprintf('%04d-%02d-01', $tahun, $bulan),
                 'baseline_tanggal'               => null,
                 'baseline_nominal'               => 0.0,

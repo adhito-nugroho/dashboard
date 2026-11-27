@@ -527,13 +527,13 @@ class PengajuanTu
                 $batasSpj = date('Y-m-d', strtotime($tanggalCair . ' +30 days'));
             }
 
-            // Catat pencairan ke kas_bank
+            // Catat pencairan ke kas_bank (dana TU masuk)
             $stmtKas = $this->db->prepare("
                 INSERT INTO kas_bank
-                    (tanggal, tahun, bulan, jenis, nomor_bukti, keterangan, nominal,
+                    (tanggal, tahun, bulan, jenis, arah, jenis_dana, nomor_bukti, keterangan, nominal,
                      status, tanggal_cair, created_by)
                 VALUES
-                    (:tgl, :tahun, :bulan, 'tu', :nomor_sp2d,
+                    (:tgl, :tahun, :bulan, 'tu', 'masuk', 'TU', :nomor_sp2d,
                      :ket, :nominal, 'cair', :tgl_cair, :by)
             ");
             $bulan = (int) date('n', strtotime($tanggalCair));
@@ -621,14 +621,16 @@ class PengajuanTu
 
             $kasBankSetoranId = null;
 
-            // Catat setoran ke kas hanya bila nominalnya > 0
+            // Catat setoran ke kas hanya bila nominalnya > 0.
+            // Setoran sisa TU adalah uang KELUAR dari kas kembali ke Kasda —
+            // arah 'keluar' agar tidak terhitung sebagai penerimaan.
             if ($nominalSetor > 0.005) {
                 $stmtSetoran = $this->db->prepare("
                     INSERT INTO kas_bank
-                        (tanggal, tahun, bulan, jenis, nomor_bukti, keterangan, nominal,
+                        (tanggal, tahun, bulan, jenis, arah, jenis_dana, nomor_bukti, keterangan, nominal,
                          status, tanggal_cair, created_by)
                     VALUES
-                        (:tgl, :tahun, :bulan, 'setoran',
+                        (:tgl, :tahun, :bulan, 'setoran', 'keluar', 'TU',
                          :nomor_bukti, :ket, :nominal, 'cair', :tgl_cair, :by)
                 ");
                 $bulan = (int) date('n', strtotime($tanggalSetoran));
@@ -906,6 +908,34 @@ class PengajuanTu
         $kode = $stmtS->fetchColumn() ?: 'SKS';
 
         return sprintf('TU-%s/%03d/%s/%d', strtoupper($kode), $urut, $romawi, $tahun);
+    }
+
+    /**
+     * TU cair yang sudah lewat batas waktu setor sisa (default 1 bulan).
+     *
+     * Dihitung dari tanggal_cair, bukan batas_spj: aturan "setor maksimal
+     * 1 bulan" tetap berlaku walau admin mengisi batas SPJ lebih panjang.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getTuLewatBatasSetor(int $hari = 30): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT id, nomor_pengajuan, tanggal_cair, keperluan,
+                   COALESCE(nominal_cair, 0)     AS nominal_cair,
+                   COALESCE(nominal_digunakan, 0) AS terpakai,
+                   GREATEST(0, COALESCE(nominal_cair, 0) - COALESCE(nominal_digunakan, 0)) AS sisa,
+                   DATEDIFF(CURDATE(), tanggal_cair) AS umur_hari
+            FROM pengajuan_tu
+            WHERE status = 'cair'
+              AND tanggal_cair IS NOT NULL
+              AND tanggal_cair >= :mulai
+              AND DATEDIFF(CURDATE(), tanggal_cair) > :hari
+            ORDER BY tanggal_cair ASC
+        ");
+        $stmt->execute([':mulai' => self::TU_MULAI, ':hari' => $hari]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**

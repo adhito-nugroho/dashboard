@@ -81,6 +81,9 @@ class PengajuanTuController
         $stats = $this->model->getStats($tahun);
         $totals = $this->model->getTotals($status ?: null, $seksiId, $tahun, $bulan);
 
+        // Pengingat: TU cair yang belum disetor sisanya lebih dari 1 bulan.
+        $tuTerlambat = $this->model->getTuLewatBatasSetor(30);
+
         // Daftar seksi untuk filter dropdown
         $db = \Database::getConnection();
         $seksiList = $db->query("SELECT id, kode_seksi, nama_seksi FROM seksi ORDER BY kode_seksi ASC")

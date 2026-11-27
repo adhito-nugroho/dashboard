@@ -154,9 +154,18 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
 
     <!-- Info Plafond UP Ribbon -->
     <div class="alert alert-light border shadow-sm rounded-3 py-2 px-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2" style="font-size:0.85rem;">
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
             <i class="bi bi-info-circle-fill text-primary"></i>
             <span>Plafond Uang Persediaan (UP) Kantor: <strong class="font-monospace text-dark">Rp <?= number_format($ringkasan['plafond_up'], 0, ',', '.') ?></strong></span>
+            <span class="text-muted">•</span>
+            <span>Terpakai: <strong class="font-monospace <?= $ringkasan['terpakai_plafon_up'] > $ringkasan['plafond_up'] ? 'text-danger' : 'text-dark' ?>">Rp <?= number_format($ringkasan['terpakai_plafon_up'], 0, ',', '.') ?></strong></span>
+            <span class="text-muted">•</span>
+            <span>Sisa plafon: <strong class="font-monospace <?= $ringkasan['sisa_plafon_up'] < 0 ? 'text-danger' : 'text-success' ?>">Rp <?= number_format($ringkasan['sisa_plafon_up'], 0, ',', '.') ?></strong></span>
+            <?php if ($ringkasan['terpakai_plafon_up'] > $ringkasan['plafond_up']): ?>
+                <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Melebihi plafon — kelebihan wajib dicatat sebagai TU
+                </span>
+            <?php endif; ?>
         </div>
         <div class="text-muted small">
             Mekanisme: Belanja terverifikasi di-SPJ-kan <i class="bi bi-arrow-right text-primary mx-1"></i> dimintakan Ganti Uang (GU) <i class="bi bi-arrow-right text-primary mx-1"></i> Kas kembali utuh.
@@ -207,11 +216,14 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                                             'saldo_awal' => ['Saldo Awal', 'bg-info-subtle text-info-emphasis border-info-subtle'],
                                             'up'         => ['Pencairan UP', 'bg-primary-subtle text-primary border-primary-subtle'],
                                             'gu'         => ['Pencairan GU', 'bg-success-subtle text-success border-success-subtle'],
+                                            'tu'         => ['Pencairan TU', 'bg-info-subtle text-info-emphasis border-info-subtle'],
                                             'setoran'    => ['Setoran Kas', 'bg-warning-subtle text-warning-emphasis border-warning-subtle'],
                                             'lainnya'    => ['Lainnya', 'bg-secondary-subtle text-secondary border-secondary-subtle'],
                                         ];
                                         $jInfo = $badgeJenis[$m['jenis']] ?? ['Penerimaan', 'bg-light text-dark'];
                                         $isPending = ($m['status'] === 'menunggu_cair');
+                                        $isKeluar  = ($m['arah'] ?? 'masuk') === 'keluar';
+                                        $isTu      = ($m['jenis_dana'] ?? 'UP_GU') === 'TU';
                                         ?>
                                         <tr class="<?= $isPending ? 'table-warning bg-opacity-25' : '' ?>">
                                             <td class="ps-4 fw-semibold text-dark font-monospace" style="font-size:0.8rem;">
@@ -224,9 +236,23 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                                             </td>
                                             <td>
                                                 <div class="d-flex flex-column gap-1 align-items-start">
-                                                    <span class="badge <?= $jInfo[1] ?> border px-2 py-0.5" style="font-size:0.68rem;">
-                                                        <?= $jInfo[0] ?>
-                                                    </span>
+                                                    <div class="d-flex gap-1 flex-wrap">
+                                                        <span class="badge <?= $jInfo[1] ?> border px-2 py-0.5" style="font-size:0.68rem;">
+                                                            <?= $jInfo[0] ?>
+                                                        </span>
+                                                        <?php if ($isTu): ?>
+                                                            <span class="badge bg-dark text-white border border-dark px-2 py-0.5" style="font-size:0.65rem;" title="Dana Tambah Uang">
+                                                                TU
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-light text-secondary border px-2 py-0.5" style="font-size:0.65rem;" title="Dana operasional UP/GU">
+                                                                UP/GU
+                                                            </span>
+                                                        <?php endif; ?>
+                                                        <span class="badge <?= $isKeluar ? 'bg-danger-subtle text-danger-emphasis border-danger-subtle' : 'bg-success-subtle text-success border-success-subtle' ?> px-2 py-0.5" style="font-size:0.65rem;">
+                                                            <i class="bi <?= $isKeluar ? 'bi-arrow-up-right' : 'bi-arrow-down-left' ?> me-1"></i><?= $isKeluar ? 'Keluar' : 'Masuk' ?>
+                                                        </span>
+                                                    </div>
                                                     <?php if ($isPending): ?>
                                                         <span class="badge bg-warning text-dark border border-warning px-2 py-0.5" style="font-size:0.65rem;">
                                                             <i class="bi bi-hourglass me-1"></i>Menunggu Cair
@@ -252,8 +278,8 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                                                     </form>
                                                 <?php endif; ?>
                                             </td>
-                                            <td class="text-end font-monospace fw-bold <?= $isPending ? 'text-warning-emphasis' : 'text-success' ?>">
-                                                + Rp <?= number_format((float)$m['nominal'], 0, ',', '.') ?>
+                                            <td class="text-end font-monospace fw-bold <?= $isPending ? 'text-warning-emphasis' : ($isKeluar ? 'text-danger' : 'text-success') ?>">
+                                                <?= $isKeluar ? '−' : '+' ?> Rp <?= number_format((float)$m['nominal'], 0, ',', '.') ?>
                                             </td>
                                             <td class="text-center pe-4">
                                                 <div class="dropdown">
@@ -275,6 +301,8 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                                                                     data-id="<?= $m['id'] ?>"
                                                                     data-tanggal="<?= $m['tanggal'] ?>"
                                                                     data-jenis="<?= $m['jenis'] ?>"
+                                                                    data-arah="<?= $m['arah'] ?? 'masuk' ?>"
+                                                                    data-jenis-dana="<?= $m['jenis_dana'] ?? 'UP_GU' ?>"
                                                                     data-status="<?= $m['status'] ?>"
                                                                     data-nomor="<?= htmlspecialchars($m['nomor_bukti'] ?? '') ?>"
                                                                     data-keterangan="<?= htmlspecialchars($m['keterangan']) ?>"
@@ -406,10 +434,11 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Jenis Mutasi <span class="text-danger">*</span></label>
-                            <select name="jenis" class="form-select" required>
+                            <select name="jenis" id="tambahJenis" class="form-select" required>
                                 <option value="gu" selected>Pencairan GU (Ganti Uang)</option>
                                 <option value="saldo_awal">Saldo Awal Bulan</option>
                                 <option value="up">Pencairan UP (Uang Persediaan)</option>
+                                <option value="tu">Pencairan TU (Tambah Uang)</option>
                                 <option value="setoran">Setoran Kas / Pengembalian</option>
                                 <option value="lainnya">Lainnya</option>
                             </select>
@@ -419,6 +448,24 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                             <select name="status" class="form-select" required>
                                 <option value="menunggu_cair">⏳ Menunggu Cair (Proses Kasda)</option>
                                 <option value="cair">✅ Sudah Cair (Masuk Kas/Bank)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Kantong Dana <span class="text-danger">*</span></label>
+                            <select name="jenis_dana" id="tambahJenisDana" class="form-select" required>
+                                <option value="UP_GU" selected>UP/GU — Dana Operasional</option>
+                                <option value="TU">TU — Tambah Uang</option>
+                            </select>
+                            <small class="text-muted" style="font-size:0.7rem;">Dana UP/GU tidak boleh melebihi plafon.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Arah Arus <span class="text-danger">*</span></label>
+                            <select name="arah" id="tambahArah" class="form-select" required>
+                                <option value="masuk" selected>⬇ Masuk — menambah kas</option>
+                                <option value="keluar">⬆ Keluar — mengurangi kas</option>
                             </select>
                         </div>
                     </div>
@@ -473,6 +520,7 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                                 <option value="gu">Pencairan GU (Ganti Uang)</option>
                                 <option value="saldo_awal">Saldo Awal Bulan</option>
                                 <option value="up">Pencairan UP (Uang Persediaan)</option>
+                                <option value="tu">Pencairan TU (Tambah Uang)</option>
                                 <option value="setoran">Setoran Kas / Pengembalian</option>
                                 <option value="lainnya">Lainnya</option>
                             </select>
@@ -482,6 +530,23 @@ $bulanTampil = $namaBulanMap[$bulan] ?? (string)$bulan;
                             <select name="status" id="editStatus" class="form-select" required>
                                 <option value="menunggu_cair">⏳ Menunggu Cair</option>
                                 <option value="cair">✅ Sudah Cair</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Kantong Dana <span class="text-danger">*</span></label>
+                            <select name="jenis_dana" id="editJenisDana" class="form-select" required>
+                                <option value="UP_GU">UP/GU — Dana Operasional</option>
+                                <option value="TU">TU — Tambah Uang</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Arah Arus <span class="text-danger">*</span></label>
+                            <select name="arah" id="editArah" class="form-select" required>
+                                <option value="masuk">⬇ Masuk — menambah kas</option>
+                                <option value="keluar">⬆ Keluar — mengurangi kas</option>
                             </select>
                         </div>
                     </div>
@@ -533,6 +598,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const editTanggal = document.getElementById('editTanggal');
     const editJenis = document.getElementById('editJenis');
     const editStatus = document.getElementById('editStatus');
+    const editJenisDana = document.getElementById('editJenisDana');
+    const editArah = document.getElementById('editArah');
     const editNomorBukti = document.getElementById('editNomorBukti');
     const editKeterangan = document.getElementById('editKeterangan');
     const editNominal = document.getElementById('editNominal');
@@ -551,6 +618,8 @@ document.addEventListener('DOMContentLoaded', function() {
             editTanggal.value = tgl;
             editJenis.value = jenis;
             if (editStatus) editStatus.value = status;
+            if (editJenisDana) editJenisDana.value = this.getAttribute('data-jenis-dana') || 'UP_GU';
+            if (editArah) editArah.value = this.getAttribute('data-arah') || 'masuk';
             editNomorBukti.value = nomor;
             editKeterangan.value = ket;
             editNominal.value = new Intl.NumberFormat('id-ID').format(nominal);
@@ -559,5 +628,29 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.show();
         });
     });
+
+    // Jenis mutasi menentukan kantong dana & arah yang paling mungkin.
+    // Admin tetap bisa mengubahnya manual bila perlu.
+    const jenisPreset = {
+        gu:          { dana: 'UP_GU', arah: 'masuk'  },
+        up:          { dana: 'UP_GU', arah: 'masuk'  },
+        saldo_awal:  { dana: 'UP_GU', arah: 'masuk'  },
+        tu:          { dana: 'TU',    arah: 'masuk'  },
+        setoran:     { dana: 'TU',    arah: 'keluar' },
+    };
+    const applyPreset = (jenisEl, danaEl, arahEl) => {
+        if (!jenisEl || !danaEl || !arahEl) return;
+        jenisEl.addEventListener('change', function() {
+            const preset = jenisPreset[this.value];
+            if (!preset) return;
+            danaEl.value = preset.dana;
+            arahEl.value = preset.arah;
+        });
+    };
+    applyPreset(
+        document.getElementById('tambahJenis'),
+        document.getElementById('tambahJenisDana'),
+        document.getElementById('tambahArah')
+    );
 });
 </script>

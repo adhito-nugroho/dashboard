@@ -48,6 +48,45 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
         </div>
     <?php endif; ?>
 
+    <?php
+    // Pengingat setor sisa TU maksimal 1 bulan sejak SP2D-TU cair.
+    $tuTerlambat = $tuTerlambat ?? [];
+    if (!empty($tuTerlambat)):
+        $totalSisaTerlambat = array_sum(array_map(fn($r) => (float) $r['sisa'], $tuTerlambat));
+        $jumlahTerlambat    = count($tuTerlambat);
+    ?>
+        <div class="alert alert-warning border-start border-4 border-warning shadow-sm" role="alert">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div>
+                    <div class="fw-bold mb-1">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <?= $jumlahTerlambat ?> TU sudah lewat 1 bulan dan belum disetor sisanya —
+                        total sisa Rp <?= number_format($totalSisaTerlambat, 0, ',', '.') ?>
+                    </div>
+                    <div class="small text-warning-emphasis mb-2">
+                        Setorkan sisa dana TU maksimal 1 bulan setelah SP2D-TU cair.
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <?php foreach ($tuTerlambat as $t): ?>
+                            <a href="<?= base_url('pengajuan-tu/show/' . (int) $t['id']) ?>"
+                               class="btn btn-sm btn-outline-warning-emphasis text-decoration-none font-monospace"
+                               title="<?= htmlspecialchars((string) $t['keperluan']) ?>">
+                                <?= htmlspecialchars((string) $t['nomor_pengajuan']) ?>
+                                <span class="badge bg-warning-emphasis text-white ms-1">
+                                    <?= (int) $t['umur_hari'] ?> hari
+                                </span>
+                                <span class="ms-1">Rp <?= number_format((float) $t['sisa'], 0, ',', '.') ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <a href="<?= base_url('pengajuan-tu?status=cair') ?>" class="btn btn-sm btn-warning text-dark flex-shrink-0">
+                    <i class="bi bi-list-ul me-1"></i>Lihat TU Cair
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>

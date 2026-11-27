@@ -932,21 +932,30 @@ Halaman ini memantau saldo kas dan bank, pencairan UP/GU, serta belanja yang bel
      - Pencairan GU (Ganti Uang)
      - Saldo Awal Bulan
      - Pencairan UP (Uang Persediaan)
+     - Pencairan TU (Tambah Uang)
      - Setoran Kas / Pengembalian
      - Lainnya
    - **Status Dana**:
      - **Menunggu Cair** (proses Kasda)
      - **Sudah Cair** (masuk kas/bank)
+   - **Kantong Dana**:
+     - **UP/GU** — dana operasional, dibatasi plafon
+     - **TU** — dana Tambah Uang, tidak dibatasi plafon
+   - **Arah Arus**:
+     - **Masuk** — menambah saldo kas
+     - **Keluar** — mengurangi saldo kas (mis. setoran sisa TU kembali ke Kasda)
    - **Nomor Bukti / SP2D / Ref Bank**
    - **Keterangan** (wajib)
    - **Nominal** (wajib, lebih besar dari nol)
 3. Klik **Simpan Mutasi Kas**.
 
+Memilih **Jenis Mutasi** akan mengisi Kantong Dana dan Arah Arus secara otomatis; nilai tersebut masih bisa diubah manual bila perlu.
+
 ## 12.3 Menandai pencairan
 
 - Baris berstatus **Menunggu Cair** menampilkan tombol **Tandai Sudah Cair** atau menu **Tandai Cair**.
 - Tanggal cair otomatis memakai tanggal hari ini.
-- Hanya penerimaan berstatus **Sudah Cair** yang menambah saldo riil. Status Menunggu Cair hanya memengaruhi proyeksi kas.
+- Hanya penerimaan berstatus **Sudah Cair** yang menambah saldo riil. Status Menunggu Cair hanya memengaruhi proyeksi kas. Pencairan dana ini tetap dihitung sebagai pemakaian plafon UP/GU sejak diajukan.
 
 ## 12.4 Mengedit dan menghapus mutasi
 
@@ -965,11 +974,26 @@ Hal yang perlu diperhatikan:
 Saldo riil dihitung dari:
 
 ```
-Saldo awal + seluruh penerimaan berstatus Sudah Cair
+Saldo awal
++ seluruh penerimaan berstatus Sudah Cair dengan arah Masuk
+− seluruh pengeluaran kas berstatus Sudah Cair dengan arah Keluar (mis. setoran sisa TU)
 − belanja UP terverifikasi yang belum masuk pengajuan GU
 ```
 
-Komposisi uang TU dihitung dari pencairan TU dikurangi belanja dari dana TU dan setoran sisa.
+Komposisi dana dipisahkan menjadi:
+
+- **Uang TU** = pencairan TU (arah masuk, kantong TU) − belanja dari dana TU − setoran sisa TU.
+- **Uang GU** = sisa saldo di luar dana TU (dana operasional UP/GU).
+
+## 12.6 Plafon Uang Persediaan (UP)
+
+Dana UP/GU tidak boleh melebihi plafon **Rp 84.117.000**. Pemakaiannya dihitung dari uang UP/GU yang sudah ada di kas **ditambah** GU yang sudah diajukan tetapi belum cair, karena keduanya memakai jatah yang sama.
+
+Bila sebuah penerimaan UP/GU akan membuat totalnya melebihi plafon, aplikasi menolak dan menyebutkan nominal kelebihan yang harus dicatat sebagai **TU (Tambah Uang)**. Aturan ini berlaku baik saat mencatat penerimaan, mengedit nominal, maupun saat GU yang menunggu cair ditandai cair.
+
+## 12.7 Potensi Ganti Uang (GU)
+
+Potensi GU hanya dihitung dari belanja terverifikasi bersumber **UP** yang belum masuk pengajuan GU. Belanja yang dibayar dari dana **TU** tidak memicu GU karena TU ditutup lewat setoran sisa.
 
 ---
 
@@ -1135,8 +1159,19 @@ Aturan:
 Aturan:
 
 - Setoran tidak boleh melebihi sisa dana TU.
-- Setoran lebih besar dari nol dicatat sebagai mutasi kas jenis setoran.
+- Setoran lebih besar dari nol dicatat sebagai mutasi kas jenis setoran dengan **arah Keluar** (mengurangi saldo kas) dan kantong dana **TU**.
 - Setelah status menjadi **Selesai**, pembayaran tidak dapat ditambah atau dihapus.
+
+## 14.5a Pengingat setor sisa TU
+
+SP2D-TU yang sudah cair wajib disetor sisanya maksimal **1 bulan** setelah tanggal cair. Di halaman daftar TU muncul banner oranye berisi:
+
+- jumlah TU yang sudah lewat 1 bulan,
+- total sisa yang belum disetor,
+- tombol langsung ke tiap nomor TU beserta umur (hari) dan nominal sisanya.
+
+Batas ini dihitung dari **tanggal cair**, bukan dari Batas SPJ, sehingga perpanjangan Batas SPJ tidak menunda pengingat.
+
 
 ## 14.6 Status dan penguncian
 

@@ -95,6 +95,8 @@ class KasBankController
         $nominalRaw  = str_replace(['.', ','], ['', '.'], $_POST['nominal'] ?? '0');
         $nominal     = (float) $nominalRaw;
         $tanggalCair = !empty($_POST['tanggal_cair']) ? trim($_POST['tanggal_cair']) : ($status === 'cair' ? $tanggal : null);
+        $arah        = in_array($_POST['arah'] ?? '', ['masuk', 'keluar'], true) ? $_POST['arah'] : 'masuk';
+        $jenisDana   = in_array($_POST['jenis_dana'] ?? '', ['UP_GU', 'TU'], true) ? $_POST['jenis_dana'] : 'UP_GU';
         $userId      = (int) ($_SESSION['user_id'] ?? 1);
 
         if (empty($tanggal) || !strtotime($tanggal)) {
@@ -113,8 +115,11 @@ class KasBankController
         }
 
         try {
-            $this->kasBankModel->create($tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $userId, $status, $tanggalCair);
+            $this->kasBankModel->create($tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $userId, $status, $tanggalCair, $arah, $jenisDana);
             $this->redirectWithMessage(base_url('kas-bank?bulan=' . date('n', strtotime($tanggal)) . '&tahun=' . date('Y', strtotime($tanggal))), 'success', 'Mutasi kas berhasil disimpan');
+        } catch (\RuntimeException $e) {
+            // Guard plafon UP/GU: pesannya sudah lengkap dan actionable.
+            $this->redirectWithMessage(base_url('kas-bank'), 'error', $e->getMessage());
         } catch (\Throwable $e) {
             $this->redirectWithMessage(base_url('kas-bank'), 'error', 'Gagal menyimpan mutasi kas: ' . $e->getMessage());
         }
@@ -134,10 +139,18 @@ class KasBankController
         }
 
         $tanggalCair = !empty($_POST['tanggal_cair']) ? trim($_POST['tanggal_cair']) : date('Y-m-d');
-        $ok = $this->kasBankModel->tandaiCair($id, $tanggalCair);
 
         $bulan = $record['bulan'];
         $tahun = $record['tahun'];
+
+        try {
+            $ok = $this->kasBankModel->tandaiCair($id, $tanggalCair);
+        } catch (\RuntimeException $e) {
+            // Guard plafon UP/GU saat pengajuan GU benar-benar dicairkan.
+            $this->redirectWithMessage(base_url("kas-bank?bulan={$bulan}&tahun={$tahun}"), 'error', $e->getMessage());
+            return;
+        }
+
         $this->redirectWithMessage(
             base_url("kas-bank?bulan={$bulan}&tahun={$tahun}"),
             $ok ? 'success' : 'error',
@@ -161,17 +174,31 @@ class KasBankController
         $nominal     = (float) $nominalRaw;
         $tanggalCair = !empty($_POST['tanggal_cair']) ? trim($_POST['tanggal_cair']) : ($status === 'cair' ? $tanggal : null);
 
+        // Arah & kantong dana dipertahankan bila form tidak mengirimkannya.
+        $existing   = $this->kasBankModel->getById($id);
+        $arah       = in_array($_POST['arah'] ?? '', ['masuk', 'keluar'], true)
+            ? $_POST['arah']
+            : ($existing['arah'] ?? 'masuk');
+        $jenisDana  = in_array($_POST['jenis_dana'] ?? '', ['UP_GU', 'TU'], true)
+            ? $_POST['jenis_dana']
+            : ($existing['jenis_dana'] ?? 'UP_GU');
+
         if (empty($tanggal) || empty($keterangan) || $nominal <= 0) {
             $this->redirectWithMessage(base_url('kas-bank'), 'error', 'Data mutasi tidak lengkap');
             return;
         }
 
-        $ok = $this->kasBankModel->update($id, $tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $status, $tanggalCair);
-        $this->redirectWithMessage(
-            base_url('kas-bank?bulan=' . date('n', strtotime($tanggal)) . '&tahun=' . date('Y', strtotime($tanggal))),
-            $ok ? 'success' : 'error',
-            $ok ? 'Mutasi kas berhasil diperbarui' : 'Gagal memperbarui mutasi kas'
-        );
+        try {
+            $ok = $this->kasBankModel->update($id, $tanggal, $jenis, $nomorBukti, $keterangan, $nominal, $status, $tanggalCair, $arah, $jenisDana);
+            $this->redirectWithMessage(
+                base_url('kas-bank?bulan=' . date('n', strtotime($tanggal)) . '&tahun=' . date('Y', strtotime($tanggal))),
+                $ok ? 'success' : 'error',
+                $ok ? 'Mutasi kas berhasil diperbarui' : 'Gagal memperbarui mutasi kas'
+            );
+        } catch (\RuntimeException $e) {
+            // Guard plafon UP/GU: pesannya sudah lengkap dan actionable.
+            $this->redirectWithMessage(base_url('kas-bank'), 'error', $e->getMessage());
+        }
     }
 
     /**

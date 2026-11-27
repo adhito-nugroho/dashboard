@@ -236,8 +236,9 @@ class PengajuanGu
             ]);
             $pengajuanId = (int) $this->db->lastInsertId();
 
-            // Otomatis catat GU menunggu cair (nominal = jumlah SPJ, bukan ketikan)
-            $kasBankId = $kasBank->create($tgl, 'gu', $nomor, 'Pengajuan ' . $nomor, $total, $createdBy, 'menunggu_cair', null);
+            // Otomatis catat GU menunggu cair (nominal = jumlah SPJ, bukan ketikan).
+            // Dana operasional: arah masuk, kantong UP_GU (kena plafon UP).
+            $kasBankId = $kasBank->create($tgl, 'gu', $nomor, 'Pengajuan ' . $nomor, $total, $createdBy, 'menunggu_cair', null, 'masuk', 'UP_GU');
             $stmtLink = $this->db->prepare('UPDATE pengajuan_gu SET kas_bank_id = :kas WHERE id = :id');
             $stmtLink->execute([':kas' => $kasBankId, ':id' => $pengajuanId]);
 
